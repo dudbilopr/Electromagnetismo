@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de la Ley de Coulomb</title>
+    <style>
+        :root {
+            --base03: #002b36;
+            --base02: #073642;
+            --base01: #586e75;
+            --base00: #657b83;
+            --base0: #839496;
+            --base1: #93a1a1;
+            --base2: #eee8d5;
+            --base3: #fdf6e3;
+            --yellow: #b58900;
+            --orange: #cb4b16;
+            --red: #dc322f;
+            --magenta: #d33682;
+            --violet: #6c71c4;
+            --blue: #268bd2;
+            --cyan: #2aa198;
+            --green: #859900;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--base2);
+            color: var(--base00);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-grow: 1;
+        }
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex: 1;
+        }
+        .right-panel {
+            flex: 0 0 700px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .panel {
+            background-color: var(--base3);
+            border: 1px solid var(--base1);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            flex-grow: 1;
+            min-height: 200px;
+        }
+        h2 {
+            margin-top: 0;
+            color: var(--base01);
+            font-size: 1.2em;
+        }
+        .controls-container {
+            display: flex;
+            flex-direction: column;
+        }
+        .charge-control {
+            margin-bottom: 15px;
+        }
+        .charge-control label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .charge-control input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 8px;
+            background: var(--base1);
+            border-radius: 4px;
+            outline: none;
+            margin: 10px 0;
+        }
+        .charge-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--blue);
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid var(--base3);
+        }
+        .charge-control input[type="number"] {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid var(--base1);
+            border-radius: 4px;
+            text-align: center;
+            background-color: var(--base2);
+            color: var(--base01);
+            font-size: 1em;
+        }
+        .display-text {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: var(--cyan);
+            margin-top: 10px;
+        }
+        #register-btn {
+            background-color: var(--green);
+            color: var(--base3);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        #register-btn:hover {
+            background-color: var(--base0);
+        }
+        #force-graph-container {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #force-graph {
+            width: 100%;
+            height: 100%;
+        }
+        #charge-diagram-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        #charge-diagram-svg {
+            border: 1px solid var(--base1);
+            background-color: var(--base2);
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(to right, var(--base1) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--base1) 1px, transparent 1px),
+                linear-gradient(to right, var(--base0) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--base0) 1px, transparent 1px);
+            background-size: 20px 20px, 20px 20px, 40px 40px, 40px 40px;
+            background-position: -1px -1px;
+            cursor: grab;
+            box-sizing: border-box;
+        }
+        .charge {
+            cursor: move;
+        }
+        .charge-label {
+            font-size: 10px;
+            text-anchor: middle;
+            dominant-baseline: central;
+            pointer-events: none;
+            user-select: none;
+            fill: var(--base03);
+        }
+        .distance-text {
+            font-size: 12px;
+            font-weight: bold;
+            fill: var(--base03);
+            text-anchor: middle;
+        }
+        .force-text {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: var(--orange);
+            text-align: center;
+        }
+        .table-container {
+            overflow-y: auto;
+            flex-grow: 1;
+            padding: 0;
+        }
+        .value-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        .value-table th, .value-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--base1);
+        }
+        .value-table th {
+            background-color: var(--base1);
+            color: var(--base03);
+            font-weight: bold;
+        }
+        .value-table tr:hover {
+            background-color: var(--base2);
+        }
+        .value-table .current-row {
+            background-color: var(--cyan);
+            color: var(--base3);
+            font-weight: bold;
+        }
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .right-panel {
+                width: 100%;
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="left-panel">
+            <div class="panel">
+                <h2>Opciones</h2>
+                <div class="controls-container">
+                    <div class="charge-control">
+                        <label for="charge1-range">Carga 1 ($q_1$, µC):</label>
+                        <input type="range" id="charge1-range" min="-10" max="10" step="0.1" value="5">
+                        <input type="number" id="charge1-number" min="-10" max="10" step="0.1" value="5">
+                        <div class="display-text" id="charge1-display">Carga 1: +5.0 µC</div>
+                    </div>
+                    <div class="charge-control">
+                        <label for="charge2-range">Carga 2 ($q_2$, µC):</label>
+                        <input type="range" id="charge2-range" min="-10" max="10" step="0.1" value="-5">
+                        <input type="number" id="charge2-number" min="-10" max="10" step="0.1" value="-5">
+                        <div class="display-text" id="charge2-display">Carga 2: -5.0 µC</div>
+                    </div>
+                    <button id="register-btn">Registrar Datos</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Fuerza vs. Distancia ($F$ vs $r$)</h2>
+                <div id="force-graph-container">
+                    <svg id="force-graph"></svg>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Tabla de Valores Registrados</h2>
+                <div class="table-container">
+                    <table class="value-table">
+                        <thead>
+                            <tr>
+                                <th>Distancia ($r$, cm)</th>
+                                <th>Fuerza ($F$, N)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="value-table-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel">
+                <h2>Diagrama de Cargas</h2>
+                <div id="charge-diagram-container">
+                    <svg id="charge-diagram-svg"></svg>
+                </div>
+                <div class="force-text" id="interaction-type">Atracción</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Constantes
+        const K = 8.99e9;
+        const SVG_VIEWBOX_SIZE = 700;
+        const MIN_DIST = 20;
+
+        // Elementos del DOM
+        const charge1Range = document.getElementById('charge1-range');
+        const charge1Number = document.getElementById('charge1-number');
+        const charge1Display = document.getElementById('charge1-display');
+        const charge2Range = document.getElementById('charge2-range');
+        const charge2Number = document.getElementById('charge2-number');
+        const charge2Display = document.getElementById('charge2-display');
+        const registerBtn = document.getElementById('register-btn');
+
+        const diagramSvg = document.getElementById('charge-diagram-svg');
+        const interactionTypeDisplay = document.getElementById('interaction-type');
+
+        const graphSvg = document.getElementById('force-graph');
+        const valueTableBody = document.getElementById('value-table-body');
+
+        // Variables de estado
+        let q1 = parseFloat(charge1Range.value);
+        let q2 = parseFloat(charge2Range.value);
+        let currentDist = 0;
+        let currentForce = 0;
+        let isDragging = false;
+        let activeCharge = null;
+        let dragOffset = { x: 0, y: 0 };
+
+        let charge1Pos = { x: SVG_VIEWBOX_SIZE / 3, y: SVG_VIEWBOX_SIZE / 2 };
+        let charge2Pos = { x: SVG_VIEWBOX_SIZE * 2 / 3, y: SVG_VIEWBOX_SIZE / 2 };
+
+        // Inicialización de la Interfaz
+        function setupDiagram() {
+            diagramSvg.innerHTML = '';
+            diagramSvg.setAttribute('viewBox', `0 0 ${SVG_VIEWBOX_SIZE} ${SVG_VIEWBOX_SIZE}`);
+
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', 'arrowhead');
+            marker.setAttribute('markerWidth', '10');
+            marker.setAttribute('markerHeight', '7');
+            marker.setAttribute('refX', '7');
+            marker.setAttribute('refY', '3.5');
+            marker.setAttribute('orient', 'auto');
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+            polygon.setAttribute('fill', var_to_hex('--orange'));
+            marker.appendChild(polygon);
+            defs.appendChild(marker);
+            diagramSvg.appendChild(defs);
+
+            const charge1El = createChargeElement('charge1', charge1Pos, q1);
+            const charge2El = createChargeElement('charge2', charge2Pos, q2);
+
+            const distanceLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            distanceLine.setAttribute('id', 'distance-line');
+            distanceLine.setAttribute('stroke', var_to_hex('--base01'));
+            distanceLine.setAttribute('stroke-dasharray', '5,5');
+            diagramSvg.appendChild(distanceLine);
+
+            const distanceText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            distanceText.setAttribute('id', 'distance-text');
+            distanceText.setAttribute('class', 'distance-text');
+            diagramSvg.appendChild(distanceText);
+
+            const forceArrowsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            forceArrowsGroup.setAttribute('id', 'force-arrows');
+            const forceArrow1 = createForceArrow('force-arrow-1');
+            const forceArrow2 = createForceArrow('force-arrow-2');
+            forceArrowsGroup.appendChild(forceArrow1);
+            forceArrowsGroup.appendChild(forceArrow2);
+            diagramSvg.appendChild(forceArrowsGroup);
+
+            diagramSvg.appendChild(charge1El);
+            diagramSvg.appendChild(charge2El);
+        }
+
+        function var_to_hex(varName) {
+            return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+        }
+
+        function createChargeElement(id, pos, chargeValue) {
+            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            group.setAttribute('id', id);
+            group.setAttribute('class', 'charge');
+            group.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+
+            const size = 15 + Math.min(25, Math.abs(chargeValue) * 2);
+            const color = chargeValue > 0 ? var_to_hex('--red') : chargeValue < 0 ? var_to_hex('--blue') : var_to_hex('--base1');
+
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('r', size);
+            circle.setAttribute('fill', color);
+            circle.setAttribute('stroke', var_to_hex('--base01'));
+            circle.setAttribute('stroke-width', 2);
+            group.appendChild(circle);
+
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('class', 'charge-label');
+            text.textContent = chargeValue > 0 ? '+' : (chargeValue < 0 ? '-' : '0');
+            text.setAttribute('fill', var_to_hex('--base3'));
+            text.setAttribute('y', size + 12);
+            text.setAttribute('x', 0);
+            text.setAttribute('text-anchor', 'middle');
+            group.appendChild(text);
+
+            return group;
+        }
+
+        function createForceArrow(id) {
+            const arrowGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            arrowGroup.setAttribute('id', id);
+            arrowGroup.setAttribute('class', 'force-arrow');
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('stroke-width', 3);
+            line.setAttribute('stroke', var_to_hex('--orange'));
+            line.setAttribute('marker-end', `url(#arrowhead)`);
+            arrowGroup.appendChild(line);
+            return arrowGroup;
+        }
+
+        // Event Listeners
+        charge1Range.addEventListener('input', updateValues);
+        charge1Number.addEventListener('input', updateValues);
+        charge2Range.addEventListener('input', updateValues);
+        charge2Number.addEventListener('input', updateValues);
+        registerBtn.addEventListener('click', registerCurrentData);
+
+        diagramSvg.addEventListener('mousedown', startDrag);
+        diagramSvg.addEventListener('mousemove', drag);
+        diagramSvg.addEventListener('mouseup', endDrag);
+        diagramSvg.addEventListener('mouseleave', endDrag);
+
+        // Funciones principales
+        function updateValues(e) {
+            if (e.target.id === 'charge1-range') charge1Number.value = charge1Range.value;
+            if (e.target.id === 'charge1-number') charge1Range.value = charge1Number.value;
+            if (e.target.id === 'charge2-range') charge2Number.value = charge2Range.value;
+            if (e.target.id === 'charge2-number') charge2Range.value = charge2Number.value;
+
+            q1 = parseFloat(charge1Range.value);
+            q2 = parseFloat(charge2Range.value);
+
+            charge1Display.textContent = `Carga 1: ${q1.toFixed(1)} µC`;
+            charge2Display.textContent = `Carga 2: ${q2.toFixed(1)} µC`;
+
+            updateDiagram();
+            updateGraph();
+        }
+
+        function calculateForce(q1, q2, r_pixels) {
+            if (r_pixels < MIN_DIST) return Infinity;
+            const r_meters = (r_pixels / 100) / 100;
+            const q1_coulombs = q1 * 1e-6;
+            const q2_coulombs = q2 * 1e-6;
+            return (K * q1_coulombs * q2_coulombs) / (r_meters * r_meters);
+        }
+
+        function updateDiagram() {
+            const dx = charge2Pos.x - charge1Pos.x;
+            const dy = charge2Pos.y - charge1Pos.y;
+            const dist_pixels = Math.sqrt(dx * dx + dy * dy);
+            currentDist = dist_pixels;
+
+            const charge1El = document.getElementById('charge1');
+            const charge2El = document.getElementById('charge2');
+            if(charge1El) {
+                const size1 = 15 + Math.min(25, Math.abs(q1) * 2);
+                charge1El.querySelector('circle').setAttribute('r', size1);
+                charge1El.querySelector('circle').setAttribute('fill', q1 > 0 ? var_to_hex('--red') : (q1 < 0 ? var_to_hex('--blue') : var_to_hex('--base1')));
+                charge1El.querySelector('text').textContent = q1 > 0 ? '+' : (q1 < 0 ? '-' : '0');
+                charge1El.querySelector('text').setAttribute('y', size1 + 12);
+            }
+            if(charge2El) {
+                const size2 = 15 + Math.min(25, Math.abs(q2) * 2);
+                charge2El.querySelector('circle').setAttribute('r', size2);
+                charge2El.querySelector('circle').setAttribute('fill', q2 > 0 ? var_to_hex('--red') : (q2 < 0 ? var_to_hex('--blue') : var_to_hex('--base1')));
+                charge2El.querySelector('text').textContent = q2 > 0 ? '+' : (q2 < 0 ? '-' : '0');
+                charge2El.querySelector('text').setAttribute('y', size2 + 12);
+            }
+
+            currentForce = calculateForce(q1, q2, dist_pixels);
+            const interaction = (q1 * q2 > 0) ? "Repulsión" : "Atracción";
+            interactionTypeDisplay.textContent = (q1 === 0 || q2 === 0) ? 'Sin Fuerza' : `${interaction}`;
+
+            const forceArrow1 = document.getElementById('force-arrow-1');
+            const forceArrow2 = document.getElementById('force-arrow-2');
+            const forceMagnitude = Math.abs(currentForce);
+            const arrowLength = Math.min(70, forceMagnitude * 5);
+            const angle = Math.atan2(dy, dx);
+            const charge1Radius = 15 + Math.min(25, Math.abs(q1) * 2);
+            const charge2Radius = 15 + Math.min(25, Math.abs(q2) * 2);
+
+            let x1_start = charge1Pos.x + (charge1Radius * Math.cos(angle));
+            let y1_start = charge1Pos.y + (charge1Radius * Math.sin(angle));
+            let x1_end = x1_start + (q1 * q2 > 0 ? -arrowLength : arrowLength) * Math.cos(angle);
+            let y1_end = y1_start + (q1 * q2 > 0 ? -arrowLength : arrowLength) * Math.sin(angle);
+
+            let x2_start = charge2Pos.x + (-charge2Radius * Math.cos(angle));
+            let y2_start = charge2Pos.y + (-charge2Radius * Math.sin(angle));
+            let x2_end = x2_start + (q1 * q2 > 0 ? arrowLength : -arrowLength) * Math.cos(angle);
+            let y2_end = y2_start + (q1 * q2 > 0 ? arrowLength : -arrowLength) * Math.sin(angle);
+
+            if (currentForce !== 0 && currentDist > MIN_DIST) {
+                forceArrow1.querySelector('line').setAttribute('x1', x1_start);
+                forceArrow1.querySelector('line').setAttribute('y1', y1_start);
+                forceArrow1.querySelector('line').setAttribute('x2', x1_end);
+                forceArrow1.querySelector('line').setAttribute('y2', y1_end);
+                forceArrow1.querySelector('line').setAttribute('stroke', var_to_hex('--orange'));
+
+                forceArrow2.querySelector('line').setAttribute('x1', x2_start);
+                forceArrow2.querySelector('line').setAttribute('y1', y2_start);
+                forceArrow2.querySelector('line').setAttribute('x2', x2_end);
+                forceArrow2.querySelector('line').setAttribute('y2', y2_end);
+                forceArrow2.querySelector('line').setAttribute('stroke', var_to_hex('--orange'));
+            } else {
+                forceArrow1.querySelector('line').setAttribute('stroke', 'none');
+                forceArrow2.querySelector('line').setAttribute('stroke', 'none');
+            }
+
+            const distanceLine = document.getElementById('distance-line');
+            const distanceText = document.getElementById('distance-text');
+            distanceLine.setAttribute('x1', charge1Pos.x);
+            distanceLine.setAttribute('y1', charge1Pos.y);
+            distanceLine.setAttribute('x2', charge2Pos.x);
+            distanceLine.setAttribute('y2', charge2Pos.y);
+
+            distanceText.setAttribute('x', charge1Pos.x + dx / 2);
+            distanceText.setAttribute('y', charge1Pos.y + dy / 2 - 10);
+            distanceText.textContent = `${(currentDist / 100).toFixed(1)} cm`;
+        }
+
+        function updateGraph() {
+            const svgWidth = graphSvg.clientWidth;
+            const svgHeight = graphSvg.clientHeight;
+            const padding = 50;
+            const maxR = SVG_VIEWBOX_SIZE * 0.8;
+            const maxF = Math.abs(calculateForce(q1, q2, MIN_DIST * 2));
+
+            graphSvg.innerHTML = '';
+            graphSvg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
+
+            const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            xAxis.setAttribute('x1', padding);
+            xAxis.setAttribute('y1', svgHeight - padding);
+            xAxis.setAttribute('x2', svgWidth - padding);
+            xAxis.setAttribute('y2', svgHeight - padding);
+            xAxis.setAttribute('stroke', var_to_hex('--base01'));
+            xAxis.setAttribute('stroke-width', 2);
+            graphSvg.appendChild(xAxis);
+
+            const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            yAxis.setAttribute('x1', padding);
+            yAxis.setAttribute('y1', svgHeight - padding);
+            yAxis.setAttribute('x2', padding);
+            yAxis.setAttribute('y2', padding);
+            yAxis.setAttribute('stroke', var_to_hex('--base01'));
+            yAxis.setAttribute('stroke-width', 2);
+            graphSvg.appendChild(yAxis);
+
+            const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            xLabel.setAttribute('x', svgWidth - padding);
+            xLabel.setAttribute('y', svgHeight - padding + 20);
+            xLabel.setAttribute('text-anchor', 'end');
+            xLabel.setAttribute('fill', var_to_hex('--base01'));
+            xLabel.textContent = 'Distancia, r (cm)';
+            graphSvg.appendChild(xLabel);
+
+            const yLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            yLabel.setAttribute('transform', 'rotate(-90)');
+            yLabel.setAttribute('x', padding - (svgHeight - 2 * padding) / 2);
+            yLabel.setAttribute('y', padding - 10);
+            yLabel.setAttribute('text-anchor', 'middle');
+            yLabel.setAttribute('fill', var_to_hex('--base01'));
+            yLabel.textContent = 'Fuerza, F (N)';
+            graphSvg.appendChild(yLabel);
+
+            const points = [];
+            for (let rPx = MIN_DIST; rPx <= maxR; rPx += 5) {
+                const rCm = rPx / 100;
+                const force = calculateForce(q1, q2, rPx);
+                const x = padding + (rCm / (maxR / 100)) * (svgWidth - 2 * padding);
+                const y = svgHeight - padding - (Math.abs(force) / maxF) * (svgHeight - 2 * padding);
+                if (isFinite(y)) {
+                    points.push(`${x},${y}`);
+                }
+            }
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M${points.join(' L')}`);
+            path.setAttribute('stroke', var_to_hex('--violet'));
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke-width', 2);
+            graphSvg.appendChild(path);
+
+            const currentRCm = currentDist / 100;
+            const currentFX = padding + (currentRCm / (maxR / 100)) * (svgWidth - 2 * padding);
+            const currentFY = svgHeight - padding - (Math.abs(currentForce) / maxF) * (svgHeight - 2 * padding);
+            if (isFinite(currentFY)) {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', currentFX);
+                circle.setAttribute('cy', currentFY);
+                circle.setAttribute('r', 5);
+                circle.setAttribute('fill', var_to_hex('--orange'));
+                graphSvg.appendChild(circle);
+            }
+        }
+
+        function registerCurrentData() {
+            const newRow = document.createElement('tr');
+            const distCell = document.createElement('td');
+            distCell.textContent = (currentDist / 100).toFixed(2);
+            newRow.appendChild(distCell);
+
+            const forceCell = document.createElement('td');
+            forceCell.textContent = Math.abs(currentForce).toExponential(2);
+            newRow.appendChild(forceCell);
+
+            valueTableBody.prepend(newRow);
+
+            const rows = valueTableBody.querySelectorAll('tr');
+            rows.forEach(row => row.classList.remove('current-row'));
+            newRow.classList.add('current-row');
+        }
+
+        function startDrag(e) {
+            const target = e.target.closest('.charge');
+            if (target) {
+                isDragging = true;
+                activeCharge = target.id;
+                diagramSvg.style.cursor = 'grabbing';
+                const svgPoint = getSvgPoint(e);
+
+                if (activeCharge === 'charge1') {
+                    dragOffset.x = svgPoint.x - charge1Pos.x;
+                    dragOffset.y = svgPoint.y - charge1Pos.y;
+                } else {
+                    dragOffset.x = svgPoint.x - charge2Pos.x;
+                    dragOffset.y = svgPoint.y - charge2Pos.y;
+                }
+            }
+        }
+
+        function drag(e) {
+            if (!isDragging || !activeCharge) return;
+            e.preventDefault();
+            const svgPoint = getSvgPoint(e);
+
+            let x = svgPoint.x - dragOffset.x;
+            let y = svgPoint.y - dragOffset.y;
+
+            x = Math.max(0, Math.min(x, SVG_VIEWBOX_SIZE));
+            y = Math.max(0, Math.min(y, SVG_VIEWBOX_SIZE));
+
+            if (activeCharge === 'charge1') {
+                charge1Pos = { x, y };
+                document.getElementById('charge1').setAttribute('transform', `translate(${x}, ${y})`);
+            } else if (activeCharge === 'charge2') {
+                charge2Pos = { x, y };
+                document.getElementById('charge2').setAttribute('transform', `translate(${x}, ${y})`);
+            }
+
+            updateDiagram();
+            updateGraph();
+        }
+
+        function getSvgPoint(e) {
+            const svg = diagramSvg;
+            const pt = svg.createSVGPoint();
+            pt.x = e.clientX;
+            pt.y = e.clientY;
+            const cursorpt = pt.matrixTransform(svg.getScreenCTM().inverse());
+            return cursorpt;
+        }
+
+        function endDrag() {
+            isDragging = false;
+            activeCharge = null;
+            diagramSvg.style.cursor = 'grab';
+        }
+
+        window.onload = () => {
+            setupDiagram();
+            updateValues({ target: charge1Range });
+        };
+        window.onresize = () => {
+            updateGraph();
+        };
+
+    </script>
+</body>
+</html>
