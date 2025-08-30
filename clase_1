@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carga Eléctrica y Métodos de Electrización</title>
+    
+    <!-- MathJax Configuration for LaTeX -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [['$','$'], ["\\(","\\)"]],
+          processEscapes: true
+        },
+        "HTML-CSS": { availableFonts: ["TeX"] },
+        TeX: { extensions: ["AMSmath.js", "AMSsymbols.js"] }
+      });
+    </script>
+    <script type="text/javascript" async src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <!-- p5.js for simulations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+
+    <!-- Embedded CSS -->
+    <style>
+        :root {
+            --primary-color: #0d47a1; /* Deep Blue */
+            --secondary-color: #1976d2; /* Medium Blue */
+            --accent-color: #ffab40; /* Orange Accent */
+            --background-color: #f5f7fa;
+            --text-color: #333;
+            --light-text-color: #fff;
+            --slide-transition: opacity 0.6s ease-in-out, transform 0.6s ease-in-out;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: 'Lato', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        #presentation-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Align to top */
+            padding: 40px 60px;
+            transition: var(--slide-transition);
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+            background-color: #fff;
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: scale(1);
+            z-index: 1;
+            pointer-events: auto;
+        }
+
+        .slide-content {
+            width: 100%;
+            height: 100%;
+            max-width: 1300px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slide-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: clamp(2.2rem, 5vw, 3.8rem);
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            text-align: left;
+            padding-bottom: 15px;
+            border-bottom: 3px solid var(--accent-color);
+        }
+
+        .main-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px 15px 10px 5px; /* Space for scrollbar */
+        }
+        
+        /* Custom Scrollbar */
+        .main-content::-webkit-scrollbar { width: 8px; }
+        .main-content::-webkit-scrollbar-track { background: #e0e0e0; }
+        .main-content::-webkit-scrollbar-thumb { background: var(--secondary-color); border-radius: 4px; }
+        .main-content::-webkit-scrollbar-thumb:hover { background: var(--primary-color); }
+
+        /* --- Specific Slide Styles --- */
+        #slide-1 { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: var(--light-text-color); justify-content: center; }
+        #slide-1 .slide-title, #slide-1 p { color: var(--light-text-color); text-align: center; border: none; }
+        #slide-1 .slide-title { font-size: clamp(2.8rem, 7vw, 5rem); }
+
+        #index-list { list-style-type: none; padding-left: 10px; }
+        #index-list li { margin: 18px 0; }
+        #index-list a { font-size: clamp(1.1rem, 2vw, 1.6rem); text-decoration: none; color: var(--primary-color); transition: color 0.3s, transform 0.3s; display: inline-block; }
+        #index-list a:hover { color: var(--accent-color); transform: translateX(10px); }
+
+        p, li { font-size: clamp(1rem, 1.8vw, 1.15rem); line-height: 1.7; margin-bottom: 15px; }
+        ul, ol { padding-left: 25px; }
+        h3 { font-family: 'Poppins', sans-serif; color: var(--secondary-color); font-size: 1.6rem; margin-top: 20px; margin-bottom: 10px; }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+            align-items: start;
+        }
+        .diagram, .simulation {
+            border: 1px solid #ccc;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 350px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fdfdfd;
+        }
+        .simulation canvas { border-radius: 8px; }
+
+        /* --- Navigation --- */
+        .nav-button {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(13, 71, 161, 0.8);
+            color: var(--light-text-color);
+            border: none;
+            padding: 15px;
+            font-size: 2rem;
+            cursor: pointer;
+            z-index: 100;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .nav-button:hover { background-color: var(--primary-color); transform: translateY(-50%) scale(1.1); }
+        #prev-btn { left: 20px; }
+        #next-btn { right: 20px; }
+        
+        /* --- Progress Bar --- */
+        #progress-bar-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35px;
+            background-color: #e0e0e0;
+            z-index: 50;
+        }
+        #progress-indicator {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-color), var(--secondary-color));
+            transition: width 0.5s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            color: var(--light-text-color);
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        #progress-text { padding: 0 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* --- Collapsible Containers --- */
+        details {
+            border: 1px solid var(--secondary-color);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        summary {
+            padding: 1rem;
+            font-weight: bold;
+            font-size: 1.3rem;
+            cursor: pointer;
+            background-color: #e3f2fd;
+            color: var(--primary-color);
+            list-style: none;
+            position: relative;
+        }
+        summary::-webkit-details-marker { display: none; }
+        summary::after {
+            content: '▼';
+            position: absolute;
+            right: 1.5rem;
+            font-size: 1.2rem;
+            transition: transform 0.3s;
+        }
+        details[open] summary::after { transform: rotate(180deg); }
+        .details-content { padding: 1.5rem; background: #fafcff; }
+        
+        /* --- Quiz Styles --- */
+        .quiz-container { max-width: 800px; margin: auto; }
+        .quiz-question { font-size: 1.2rem; margin-bottom: 1.5rem; }
+        .quiz-options { list-style: none; padding: 0; }
+        .quiz-options li {
+            padding: 0.8rem 1rem;
+            margin: 0.5rem 0;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .quiz-options li:hover { background-color: #e3f2fd; border-color: var(--secondary-color); }
+        .quiz-feedback { margin-top: 1.5rem; padding: 1rem; border-radius: 8px; font-weight: bold; display: none; }
+        .feedback-correct { background-color: #d4edda; color: #155724; display: block; }
+        .feedback-incorrect { background-color: #f8d7da; color: #721c24; display: block; }
+        .quiz-nav-btn {
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            border: none;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: background-color 0.3s;
+        }
+        .quiz-nav-btn:disabled { background: #aaa; cursor: not-allowed; }
+        .quiz-nav-btn:hover:not(:disabled) { background: var(--accent-color); color: #333; }
+        
+        /* --- Triboelectric Series --- */
+        #triboelectric-table { display: flex; flex-direction: column; gap: 5px; }
+        .tribo-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 2px solid transparent;
+        }
+        .tribo-item.selected { border-color: var(--accent-color); font-weight: bold; }
+        .tribo-item:hover { transform: scale(1.02); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+
+        /* --- Comparison Table --- */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .comparison-table th, .comparison-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .comparison-table th {
+            background-color: var(--secondary-color);
+            color: white;
+            font-family: 'Poppins', sans-serif;
+        }
+        .comparison-table tr:nth-child(even) { background-color: #f2f2f2; }
+
+        /* --- Mind Map --- */
+        .mind-map { text-align: center; font-family: 'Poppins', sans-serif; }
+        .mind-map .center-node { background: var(--primary-color); color: white; padding: 15px 25px; border-radius: 50px; display: inline-block; margin-bottom: 20px; }
+        .mind-map .branch-container { display: flex; justify-content: space-around; }
+        .mind-map .branch { border: 2px solid var(--secondary-color); padding: 15px; border-radius: 10px; width: 30%; }
+        .mind-map .branch h4 { color: var(--secondary-color); }
+    </style>
+</head>
+<body>
+
+    <div id="presentation-container">
+        
+        <!-- Slide 1: Portada -->
+        <section class="slide active" id="slide-1" data-title="Portada">
+            <div class="slide-content">
+                <h1 class="slide-title">Carga Eléctrica y Métodos de Electrización</h1>
+                <p style="font-size: 1.5rem; margin-top: 20px;">Una exploración interactiva de los fundamentos del electromagnetismo.</p>
+                <p style="position: absolute; bottom: 40px; width: 100%; left: 0; text-align: center;">Generado automáticamente - 2025</p>
+            </div>
+        </section>
+
+        <!-- Slide 2: Índice -->
+        <section class="slide" id="slide-2" data-title="Índice">
+            <div class="slide-content">
+                <h1 class="slide-title">Índice</h1>
+                <div class="main-content">
+                    <ul id="index-list">
+                        <li><a href="#" data-slide="3">Objetivos de Aprendizaje</a></li>
+                        <li><a href="#" data-slide="4">Definición y Propiedades de la Carga Eléctrica</a></li>
+                        <li><a href="#" data-slide="5">Métodos de Electrización (Diagrama)</a></li>
+                        <li><a href="#" data-slide="6">Serie Triboeléctrica y Simulador</a></li>
+                        <li><a href="#" data-slide="7">Aplicaciones de la Electrización</a></li>
+                        <li><a href="#" data-slide="8">Comparación: Electricidad vs. Gravitación</a></li>
+                        <li><a href="#" data-slide="9">Simulación Interactiva de Cargas</a></li>
+                        <li><a href="#" data-slide="10">Ejercicios Resueltos</a></li>
+                        <li><a href="#" data-slide="11">Glosario de Términos</a></li>
+                        <li><a href="#" data-slide="12">Conclusiones</a></li>
+                        <li><a href="#" data-slide="13">Bibliografía</a></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Slide 3: Objetivos -->
+        <section class="slide" id="slide-3" data-title="Objetivos">
+            <div class="slide-content">
+                <h1 class="slide-title">Objetivos de Aprendizaje</h1>
+                <div class="main-content">
+                    <p>Al finalizar esta presentación, serás capaz de:</p>
+                    <ul>
+                        <li>Comprender el concepto y las propiedades fundamentales de la carga eléctrica.</li>
+                        <li>Identificar y diferenciar los métodos de electrización: frotamiento, contacto e inducción.</li>
+                        <li>Explorar la serie triboeléctrica y predecir la transferencia de carga.</li>
+                        <li>Relacionar conceptos de interacción eléctrica con la interacción gravitacional.</li>
+                        <li>Utilizar simuladores interactivos para visualizar fenómenos eléctricos abstractos.</li>
+                        <li>Aplicar el conocimiento adquirido a través de ejercicios y evaluaciones.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 4: Definición y Propiedades -->
+        <section class="slide" id="slide-4" data-title="Definición y Propiedades">
+            <div class="slide-content">
+                <h1 class="slide-title">La Carga Eléctrica: ¿Qué es?</h1>
+                <div class="main-content grid-container">
+                    <div>
+                        <p>La <strong>carga eléctrica</strong> es una propiedad intrínseca de la materia que causa que experimente una fuerza cuando se coloca en un campo electromagnético.</p>
+                        <h3>Propiedades Fundamentales:</h3>
+                        <ul>
+                            <li><strong>Dualidad:</strong> Existen dos tipos de carga: <strong>positiva (+)</strong> y <strong>negativa (-)</strong>.</li>
+                            <li><strong>Interacción:</strong> Cargas iguales se repelen, cargas opuestas se atraen.</li>
+                            <li><strong>Conservación:</strong> La carga neta de un sistema aislado permanece constante. No se crea ni se destruye, solo se transfiere.</li>
+                            <li><strong>Cuantización:</strong> La carga eléctrica existe en paquetes discretos, múltiplos de la carga elemental $e = 1.602 \times 10^{-19} C$.</li>
+                        </ul>
+                    </div>
+                    <div class="simulation" id="charge-properties-sketch">
+                        <!-- p5.js canvas will be created here -->
+                    </div>
+                </div>
+                <details>
+                    <summary>Quiz: Propiedades de la Carga</summary>
+                    <div class="details-content quiz-container" data-quiz-id="propiedades"></div>
+                </details>
+            </div>
+        </section>
+        
+        <!-- Slide 5: Métodos de Electrización -->
+        <section class="slide" id="slide-5" data-title="Métodos de Electrización">
+            <div class="slide-content">
+                <h1 class="slide-title">Métodos de Electrización</h1>
+                <div class="main-content">
+                    <p>Existen tres formas principales de cargar eléctricamente un objeto:</p>
+                    <div class="diagram mind-map">
+                        <div class="center-node"><h3>Electrización</h3></div>
+                        <div class="branch-container">
+                            <div class="branch">
+                                <h4>Frotamiento</h4>
+                                <p>Transferencia de electrones al frotar dos materiales distintos. Uno queda positivo y el otro negativo.</p>
+                            </div>
+                            <div class="branch">
+                                <h4>Contacto</h4>
+                                <p>Un objeto cargado toca a uno neutro, transfiriéndole parte de su carga. Ambos quedan con el mismo signo.</p>
+                            </div>
+                            <div class="branch">
+                                <h4>Inducción</h4>
+                                <p>Redistribución de cargas en un objeto neutro por la cercanía de un objeto cargado, sin contacto.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <details>
+                        <summary>Quiz: Métodos de Electrización</summary>
+                        <div class="details-content quiz-container" data-quiz-id="metodos"></div>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 6: Serie Triboeléctrica -->
+        <section class="slide" id="slide-6" data-title="Serie Triboeléctrica">
+            <div class="slide-content">
+                <h1 class="slide-title">Simulador de Serie Triboeléctrica</h1>
+                <div class="main-content grid-container">
+                    <div>
+                        <p>La <strong>serie triboeléctrica</strong> ordena los materiales según su tendencia a perder o ganar electrones. Los de arriba tienden a ceder electrones (quedan +), los de abajo tienden a ganarlos (quedan -).</p>
+                        <h3>Instrucciones:</h3>
+                        <p>Selecciona dos materiales de la lista para simular su frotamiento.</p>
+                        <div id="triboelectric-table">
+                            <!-- Items generados por JS -->
+                        </div>
+                    </div>
+                    <div class="simulation">
+                        <h3 id="tribo-result-title">Resultado de la Fricción</h3>
+                        <p id="tribo-result-text">Selecciona dos materiales para ver el resultado.</p>
+                        <button class="quiz-nav-btn" id="tribo-reset-btn" style="margin-top: 20px;">Reiniciar</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 7: Aplicaciones -->
+        <section class="slide" id="slide-7" data-title="Aplicaciones">
+            <div class="slide-content">
+                <h1 class="slide-title">Aplicaciones de la Electrización</h1>
+                <div class="main-content grid-container">
+                    <div>
+                        <h3>Impresoras Láser</h3>
+                        <p>Un láser "dibuja" una imagen con carga estática en un tambor. El tóner (polvo con carga opuesta) se adhiere al dibujo y luego se transfiere al papel. La electrización por frotamiento y la inducción son clave en este proceso.</p>
+                    </div>
+                    <div>
+                        <h3>Precipitadores Electrostáticos</h3>
+                        <p>Utilizados en chimeneas industriales para reducir la contaminación. Se carga eléctricamente el humo y las partículas de hollín, que luego son atraídas por placas colectoras con carga opuesta, limpiando el aire.</p>
+                    </div>
+                    <div>
+                        <h3>Pantallas Táctiles Capacitivas</h3>
+                        <p>La pantalla tiene una capa conductora con una carga constante. Al tocarla, tu dedo (que es conductor) altera el campo eléctrico en ese punto, lo que permite al dispositivo detectar la posición del toque. Es un efecto de la inducción.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 8: Comparación Conceptual -->
+        <section class="slide" id="slide-8" data-title="Comparación Conceptual">
+            <div class="slide-content">
+                <h1 class="slide-title">Comparación: Fuerza Eléctrica vs. Gravitacional</h1>
+                <div class="main-content">
+                    <p>Ambas son fuerzas fundamentales que actúan a distancia, pero tienen diferencias cruciales.</p>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Característica</th>
+                                <th>Fuerza Eléctrica</th>
+                                <th>Fuerza Gravitacional</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Fuente</strong></td>
+                                <td>Carga Eléctrica (q)</td>
+                                <td>Masa (m)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Tipo de Interacción</strong></td>
+                                <td>Atractiva y Repulsiva</td>
+                                <td>Solo Atractiva</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Intensidad Relativa</strong></td>
+                                <td>Muy fuerte</td>
+                                <td>Extremadamente débil</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Dependencia del Medio</strong></td>
+                                <td>Depende del material entre las cargas</td>
+                                <td>No depende del medio</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <h3>Analogía:</h3>
+                    <p>Si la fuerza gravitacional entre dos protones fuera 1, la fuerza eléctrica de repulsión entre ellos sería aproximadamente $10^{36}$. ¡Es un billón de billón de billón de veces más fuerte!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 9: Simulación Interactiva de Cargas -->
+        <section class="slide" id="slide-9" data-title="Simulación de Cargas">
+            <div class="slide-content">
+                <h1 class="slide-title">Simulación Interactiva de Cargas Puntuales</h1>
+                <div class="main-content grid-container">
+                    <div class="simulation" id="point-charges-sketch">
+                        <!-- p5.js canvas will be created here -->
+                    </div>
+                    <div>
+                        <h3>Instrucciones:</h3>
+                        <ul>
+                            <li><strong>Arrastra</strong> las cargas para moverlas por el lienzo.</li>
+                            <li>Observa cómo las líneas de fuerza (atracción o repulsión) cambian en tiempo real.</li>
+                            <li><strong>Haz clic</strong> en los botones para añadir más cargas al sistema.</li>
+                        </ul>
+                        <button class="quiz-nav-btn" id="add-pos-charge">+ Añadir Carga Positiva</button>
+                        <button class="quiz-nav-btn" id="add-neg-charge" style="background-color: #c62828;">- Añadir Carga Negativa</button>
+                        <button class="quiz-nav-btn" id="reset-charges" style="background-color: #546e7a;">Reiniciar Simulación</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 10: Ejercicios -->
+        <section class="slide" id="slide-10" data-title="Ejercicios">
+            <div class="slide-content">
+                <h1 class="slide-title">Ejercicios Paso a Paso</h1>
+                <div class="main-content">
+                    <details>
+                        <summary>Ejercicio 1: Cuantización de la Carga</summary>
+                        <div class="details-content">
+                            <p><strong>Problema:</strong> Una varilla de vidrio pierde $5 \times 10^8$ electrones al ser frotada. ¿Cuál es su carga final en Coulombs?</p>
+                            <p><strong>Paso 1:</strong> Determinar el signo de la carga. Al perder electrones (cargas negativas), la varilla queda con un exceso de carga positiva.</p>
+                            <p><strong>Paso 2:</strong> Usar la fórmula de cuantización: $q = n \cdot e$, donde $n$ es el número de electrones transferidos y $e$ es la carga elemental.</p>
+                            <p><strong>Paso 3:</strong> Sustituir los valores:
+                            $q = (5 \times 10^8) \cdot (1.602 \times 10^{-19} \text{ C})$</p>
+                            <p><strong>Paso 4:</strong> Calcular el resultado:
+                            $q = 8.01 \times 10^{-11} \text{ C}$</p>
+                            <p><strong>Respuesta:</strong> La carga final de la varilla es $+8.01 \times 10^{-11} \text{ C}$.</p>
+                        </div>
+                    </details>
+                    <details>
+                        <summary>Ejercicio 2: Conservación de la Carga</summary>
+                        <div class="details-content">
+                            <p><strong>Problema:</strong> Dos esferas conductoras idénticas, A y B, tienen cargas iniciales de $q_A = +3 \mu C$ y $q_B = -7 \mu C$. Se ponen en contacto y luego se separan. ¿Cuál es la carga final de cada esfera?</p>
+                            <p><strong>Paso 1:</strong> Aplicar el principio de conservación de la carga. La carga total antes del contacto debe ser igual a la carga total después.</p>
+                            <p><strong>Paso 2:</strong> Calcular la carga total del sistema:
+                            $q_{total} = q_A + q_B = (+3 \mu C) + (-7 \mu C) = -4 \mu C$</p>
+                            <p><strong>Paso 3:</strong> Al ser esferas idénticas, la carga total se distribuirá equitativamente entre ellas después del contacto.</p>
+                            <p><strong>Paso 4:</strong> Dividir la carga total entre las dos esferas:
+                            $q'_{A} = q'_{B} = \frac{q_{total}}{2} = \frac{-4 \mu C}{2} = -2 \mu C$</p>
+                            <p><strong>Respuesta:</strong> La carga final en cada esfera es de $-2 \mu C$.</p>
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 11: Glosario -->
+        <section class="slide" id="slide-11" data-title="Glosario">
+            <div class="slide-content">
+                <h1 class="slide-title">Glosario de Términos</h1>
+                <div class="main-content">
+                    <dl>
+                        <dt><strong>Carga Eléctrica</strong></dt>
+                        <dd>Propiedad fundamental de la materia que causa interacciones electromagnéticas.</dd>
+                        <dt><strong>Electrones Libres</strong></dt>
+                        <dd>Electrones en las capas más externas de los átomos en un material conductor, que pueden moverse fácilmente.</dd>
+                        <dt><strong>Electrización por Frotamiento</strong></dt>
+                        <dd>Proceso de cargar objetos mediante la fricción entre ellos, causando una transferencia de electrones.</dd>
+                        <dt><strong>Serie Triboeléctrica</strong></dt>
+                        <dd>Una lista que clasifica materiales según su tendencia a ganar o perder electrones al ser frotados.</dd>
+                        <dt><strong>Campo Eléctrico</strong></dt>
+                        <dd>Una región del espacio alrededor de un objeto cargado donde una fuerza sería ejercida sobre otros objetos cargados.</dd>
+                    </dl>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 12: Conclusiones -->
+        <section class="slide" id="slide-12" data-title="Conclusiones">
+            <div class="slide-content">
+                <h1 class="slide-title">Conclusiones</h1>
+                <div class="main-content">
+                    <ul>
+                        <li>La carga eléctrica es una propiedad fundamental de la materia, con características de dualidad, conservación y cuantización.</li>
+                        <li>Existen tres métodos principales de electrización: <strong>frotamiento, contacto e inducción</strong>, cada uno con un mecanismo de transferencia o redistribución de carga diferente.</li>
+                        <li>La serie triboeléctrica es una herramienta predictiva útil para determinar el resultado de la electrización por frotamiento.</li>
+                        <li>Las interacciones eléctricas, aunque análogas en su forma matemática a las gravitacionales, son inmensamente más fuertes y pueden ser tanto atractivas como repulsivas.</li>
+                        <li>El uso de simulaciones interactivas es crucial para visualizar y comprender fenómenos abstractos como la interacción entre cargas.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 13: Bibliografía -->
+        <section class="slide" id="slide-13" data-title="Bibliografía">
+            <div class="slide-content">
+                <h1 class="slide-title">Bibliografía y Recursos</h1>
+                <div class="main-content">
+                    <h3>Textos de Referencia</h3>
+                    <ul>
+                        <li>Serway, R. A., & Jewett, J. W. (2018). <em>Física para Ciencias e Ingeniería.</em> Cengage Learning.</li>
+                        <li>Tipler, P. A., & Mosca, G. (2015). <em>Física para la ciencia y la tecnología.</em> Editorial Reverté.</li>
+                    </ul>
+                    <h3>Artículos de Interés</h3>
+                    <ul>
+                        <li>Wang, Z. L. (2017). On the origin of contact-electrification. <em>Materials Today</em>, 20(2), 74-84. (Sobre la triboelectricidad).</li>
+                        <li>Schein, L. B. (2007). Electrophotography and Development Physics. <em>Springer Science & Business Media.</em> (Sobre impresoras láser).</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        
+    </div>
+
+    <!-- Navigation Buttons -->
+    <button id="prev-btn" class="nav-button" title="Anterior (←)" aria-label="Diapositiva anterior">&lt;</button>
+    <button id="next-btn" class="nav-button" title="Siguiente (→)" aria-label="Siguiente diapositiva">&gt;</button>
+    
+    <!-- Progress Bar -->
+    <div id="progress-bar-container">
+        <div id="progress-indicator">
+            <span id="progress-text"></span>
+        </div>
+    </div>
+    
+    <!-- Embedded JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- Basic Presentation Logic ---
+            const slides = document.querySelectorAll('.slide');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const progressIndicator = document.getElementById('progress-indicator');
+            const progressText = document.getElementById('progress-text');
+            const indexLinks = document.querySelectorAll('#index-list a');
+
+            let currentSlide = 0;
+            const totalSlides = slides.length;
+
+            function updateSlideVisibility() {
+                slides.forEach((slide, index) => {
+                    slide.classList.toggle('active', index === currentSlide);
+                });
+            }
+
+            function updateProgressBar() {
+                const percentage = ((currentSlide + 1) / totalSlides) * 100;
+                progressIndicator.style.width = `${percentage}%`;
+                const activeSlide = slides[currentSlide];
+                progressText.textContent = `${currentSlide + 1}/${totalSlides} - ${activeSlide.dataset.title || ''}`;
+            }
+            
+            function showSlide(slideIndex) {
+                if (slideIndex >= 0 && slideIndex < totalSlides) {
+                    currentSlide = slideIndex;
+                    updateSlideVisibility();
+                    updateProgressBar();
+                }
+            }
+            
+            nextBtn.addEventListener('click', () => showSlide(currentSlide + 1));
+            prevBtn.addEventListener('click', () => showSlide(currentSlide - 1));
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight' || e.key === 'PageDown') showSlide(currentSlide + 1);
+                if (e.key === 'ArrowLeft' || e.key === 'PageUp') showSlide(currentSlide - 1);
+            });
+            
+            indexLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const slideNum = parseInt(e.target.dataset.slide, 10);
+                    showSlide(slideNum - 1);
+                });
+            });
+
+            // Initial setup
+            showSlide(0);
+
+            // --- p5.js Sketch for Charge Properties (Slide 4) ---
+            const chargePropertiesSketch = (p) => {
+                p.setup = () => {
+                    const container = document.getElementById('charge-properties-sketch');
+                    const canvas = p.createCanvas(container.clientWidth, container.clientHeight);
+                    canvas.parent(container);
+                    p.noLoop();
+                };
+
+                p.draw = () => {
+                    p.background(255);
+                    const w = p.width;
+                    const h = p.height;
+
+                    // Repulsion
+                    drawInteraction(w * 0.25, h * 0.25, w * 0.75, h * 0.25, 1, 1, "Repulsión");
+                    // Attraction
+                    drawInteraction(w * 0.25, h * 0.75, w * 0.75, h * 0.75, 1, -1, "Atracción");
+                };
+
+                function drawInteraction(x1, y1, x2, y2, q1, q2, label) {
+                    drawCharge(x1, y1, q1);
+                    drawCharge(x2, y2, q2);
+                    
+                    p.strokeWeight(2);
+                    p.drawingContext.setLineDash([5, 5]);
+                    if (q1 * q2 > 0) { // Repulsion
+                        p.stroke(255, 100, 100);
+                    } else { // Attraction
+                        p.stroke(100, 255, 100);
+                    }
+                    p.line(x1, y1, x2, y2);
+                    p.drawingContext.setLineDash([]);
+                    
+                    p.noStroke();
+                    p.fill(50);
+                    p.textAlign(p.CENTER);
+                    p.textSize(16);
+                    p.text(label, (x1 + x2) / 2, y1 + 40);
+                }
+
+                function drawCharge(x, y, q) {
+                    p.noStroke();
+                    if (q > 0) p.fill(255, 82, 82);
+                    else p.fill(82, 82, 255);
+                    p.ellipse(x, y, 40, 40);
+                    p.fill(255);
+                    p.textAlign(p.CENTER, p.CENTER);
+                    p.textSize(24);
+                    p.text(q > 0 ? '+' : '-', x, y);
+                }
+            };
+            new p5(chargePropertiesSketch);
+
+            // --- Triboelectric Series (Slide 6) ---
+            const triboTableContainer = document.getElementById('triboelectric-table');
+            if(triboTableContainer){
+                const materials = [
+                    { name: 'Piel de conejo', tendency: 10, color: 'rgba(255, 100, 100, 0.8)' },
+                    { name: 'Vidrio', tendency: 8, color: 'rgba(255, 100, 100, 0.7)' },
+                    { name: 'Nylon', tendency: 6, color: 'rgba(255, 100, 100, 0.5)' },
+                    { name: 'Lana', tendency: 4, color: 'rgba(255, 100, 100, 0.3)' },
+                    { name: 'Seda', tendency: 2, color: 'rgba(255, 100, 100, 0.1)' },
+                    { name: 'Algodón', tendency: 0, color: '#eee' },
+                    { name: 'Caucho', tendency: -2, color: 'rgba(100, 100, 255, 0.1)' },
+                    { name: 'Poliéster', tendency: -4, color: 'rgba(100, 100, 255, 0.3)' },
+                    { name: 'PVC', tendency: -6, color: 'rgba(100, 100, 255, 0.5)' },
+                    { name: 'Teflón', tendency: -8, color: 'rgba(100, 100, 255, 0.7)' }
+                ];
+                
+                let selectedMaterials = [];
+
+                function renderTriboTable() {
+                    triboTableContainer.innerHTML = '';
+                    materials.forEach((mat, index) => {
+                        const item = document.createElement('div');
+                        item.className = 'tribo-item';
+                        item.dataset.index = index;
+                        item.style.background = mat.color;
+                        item.innerHTML = `<span>${mat.name}</span><span>${mat.tendency > 0 ? '(+)' : mat.tendency < 0 ? '(-)' : '(0)'}</span>`;
+                        item.addEventListener('click', handleTriboSelect);
+                        triboTableContainer.appendChild(item);
+                    });
+                }
+
+                function handleTriboSelect(e) {
+                    if (selectedMaterials.length >= 2) return;
+                    const itemDiv = e.currentTarget;
+                    const index = parseInt(itemDiv.dataset.index);
+                    
+                    if (!selectedMaterials.includes(materials[index])) {
+                        itemDiv.classList.add('selected');
+                        selectedMaterials.push(materials[index]);
+                    }
+
+                    if (selectedMaterials.length === 2) {
+                        updateTriboResult();
+                    }
+                }
+                
+                function updateTriboResult() {
+                    const [mat1, mat2] = selectedMaterials;
+                    const resultText = document.getElementById('tribo-result-text');
+                    let positiveMat, negativeMat;
+
+                    if (mat1.tendency > mat2.tendency) {
+                        positiveMat = mat1;
+                        negativeMat = mat2;
+                    } else {
+                        positiveMat = mat2;
+                        negativeMat = mat1;
+                    }
+                    resultText.innerHTML = `Al frotar <strong>${mat1.name}</strong> con <strong>${mat2.name}</strong>:<br>
+                        - <strong>${positiveMat.name}</strong> cede electrones y queda cargado <strong>positivamente (+)</strong>.<br>
+                        - <strong>${negativeMat.name}</strong> gana electrones y queda cargado <strong>negativamente (-)</strong>.`;
+                }
+
+                document.getElementById('tribo-reset-btn').addEventListener('click', () => {
+                    selectedMaterials = [];
+                    document.querySelectorAll('.tribo-item').forEach(item => item.classList.remove('selected'));
+                    document.getElementById('tribo-result-text').textContent = 'Selecciona dos materiales para ver el resultado.';
+                });
+
+                renderTriboTable();
+            }
+
+            // --- p5.js Sketch for Point Charges (Slide 9) ---
+            const pointChargesSketch = (p) => {
+                let charges = [];
+                let draggedCharge = null;
+
+                class Charge {
+                    constructor(x, y, q) {
+                        this.pos = p.createVector(x, y);
+                        this.q = q; // +1 for positive, -1 for negative
+                        this.radius = 15;
+                    }
+                    
+                    show() {
+                        p.noStroke();
+                        if (this.q > 0) p.fill(255, 82, 82);
+                        else p.fill(82, 82, 255);
+                        p.ellipse(this.pos.x, this.pos.y, this.radius * 2);
+                    }
+
+                    isMouseOver() {
+                        return p.dist(p.mouseX, p.mouseY, this.pos.x, this.pos.y) < this.radius;
+                    }
+                }
+                
+                p.setup = () => {
+                    const container = document.getElementById('point-charges-sketch');
+                    const canvas = p.createCanvas(container.clientWidth, container.clientHeight);
+                    canvas.parent(container);
+                    resetCharges();
+                };
+
+                p.draw = () => {
+                    p.background(245, 247, 250);
+                    
+                    // Draw interaction lines
+                    p.strokeWeight(1.5);
+                    for (let i = 0; i < charges.length; i++) {
+                        for (let j = i + 1; j < charges.length; j++) {
+                            const c1 = charges[i];
+                            const c2 = charges[j];
+                            if (c1.q * c2.q < 0) { // Attraction
+                                p.stroke(100, 200, 100, 150);
+                            } else { // Repulsion
+                                p.stroke(200, 100, 100, 150);
+                            }
+                            p.line(c1.pos.x, c1.pos.y, c2.pos.x, c2.pos.y);
+                        }
+                    }
+
+                    // Draw charges
+                    charges.forEach(c => c.show());
+                };
+
+                p.mousePressed = () => {
+                    for (let i = charges.length - 1; i >= 0; i--) {
+                        if (charges[i].isMouseOver()) {
+                            draggedCharge = charges[i];
+                            break;
+                        }
+                    }
+                };
+
+                p.mouseDragged = () => {
+                    if (draggedCharge) {
+                        draggedCharge.pos.x = p.mouseX;
+                        draggedCharge.pos.y = p.mouseY;
+                    }
+                };
+
+                p.mouseReleased = () => {
+                    draggedCharge = null;
+                };
+
+                function addCharge(q) {
+                    charges.push(new Charge(p.random(20, p.width - 20), p.random(20, p.height - 20), q));
+                }
+                
+                function resetCharges() {
+                    charges = [];
+                    charges.push(new Charge(p.width * 0.3, p.height / 2, 1));
+                    charges.push(new Charge(p.width * 0.7, p.height / 2, -1));
+                }
+
+                document.getElementById('add-pos-charge').addEventListener('click', () => addCharge(1));
+                document.getElementById('add-neg-charge').addEventListener('click', () => addCharge(-1));
+                document.getElementById('reset-charges').addEventListener('click', resetCharges);
+            };
+            new p5(pointChargesSketch);
+
+            // --- Quizzes Logic ---
+            const quizzesData = {
+                propiedades: {
+                    questions: [
+                        { q: "Una partícula con carga negativa y otra con carga positiva...", o: ["Se repelen", "Se atraen", "No interactúan"], a: 1 },
+                        { q: "La carga eléctrica está 'cuantizada', lo que significa que...", o: ["Solo puede ser positiva", "Aparece en múltiplos de una unidad fundamental", "Se conserva en todo proceso"], a: 1 }
+                    ]
+                },
+                metodos: {
+                    questions: [
+                        { q: "Frotar un globo con el cabello es un ejemplo de electrización por...", o: ["Inducción", "Contacto", "Frotamiento"], a: 2 },
+                        { q: "¿Qué método de electrización NO requiere contacto físico?", o: ["Inducción", "Contacto", "Frotamiento"], a: 0 }
+                    ]
+                }
+            };
+            
+            document.querySelectorAll('.quiz-container').forEach(container => {
+                const quizId = container.dataset.quizId;
+                const quizData = quizzesData[quizId];
+                if (!quizData) return;
+
+                let currentQ = 0;
+                let score = 0;
+
+                function renderQuestion() {
+                    const qData = quizData.questions[currentQ];
+                    let optionsHTML = '<ul class="quiz-options">';
+                    qData.o.forEach((opt, index) => {
+                        optionsHTML += `<li data-index="${index}">${opt}</li>`;
+                    });
+                    optionsHTML += '</ul>';
+
+                    container.innerHTML = `
+                        <p class="quiz-question"><strong>${currentQ + 1}.</strong> ${qData.q}</p>
+                        ${optionsHTML}
+                        <div class="quiz-feedback"></div>
+                        <button class="quiz-nav-btn" id="next-q-btn" disabled>Siguiente</button>
+                    `;
+
+                    container.querySelectorAll('.quiz-options li').forEach(li => {
+                        li.addEventListener('click', handleOptionSelect);
+                    });
+                    container.querySelector('#next-q-btn').addEventListener('click', nextQuestion);
+                }
+
+                function handleOptionSelect(e) {
+                    const selectedLi = e.currentTarget;
+                    const selectedAnswer = parseInt(selectedLi.dataset.index);
+                    const correctAnswer = quizData.questions[currentQ].a;
+                    const feedbackDiv = container.querySelector('.quiz-feedback');
+                    
+                    container.querySelectorAll('.quiz-options li').forEach(li => li.style.pointerEvents = 'none');
+                    
+                    if (selectedAnswer === correctAnswer) {
+                        selectedLi.style.backgroundColor = '#d4edda';
+                        feedbackDiv.textContent = '¡Correcto!';
+                        feedbackDiv.className = 'quiz-feedback feedback-correct';
+                        score++;
+                    } else {
+                        selectedLi.style.backgroundColor = '#f8d7da';
+                        feedbackDiv.textContent = `Incorrecto. La respuesta es: "${quizData.questions[currentQ].o[correctAnswer]}"`;
+                        feedbackDiv.className = 'quiz-feedback feedback-incorrect';
+                    }
+                    container.querySelector('#next-q-btn').disabled = false;
+                }
+                
+                function nextQuestion() {
+                    currentQ++;
+                    if (currentQ < quizData.questions.length) {
+                        renderQuestion();
+                    } else {
+                        showResults();
+                    }
+                }
+                
+                function showResults() {
+                    container.innerHTML = `
+                        <h2>Quiz Finalizado</h2>
+                        <p>Tu puntuación: ${score} de ${quizData.questions.length}</p>
+                        <button class="quiz-nav-btn" id="retry-quiz-btn">Reintentar</button>
+                    `;
+                    container.querySelector('#retry-quiz-btn').addEventListener('click', startQuiz);
+                }
+                
+                function startQuiz() {
+                    currentQ = 0;
+                    score = 0;
+                    renderQuestion();
+                }
+
+                startQuiz();
+            });
+
+        });
+    </script>
+</body>
+</html>
