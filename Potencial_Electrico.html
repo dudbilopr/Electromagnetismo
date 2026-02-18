@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio Virtual: Potencial y Trabajo Eléctrico</title>
+    <meta name="description" content="Simulador de Potencial Eléctrico (V) y Trabajo (W) corrección de cálculos en campo débil.">
+    
+    <!-- Librerías -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #1e1e2e;
+            --panel-color: #2b2b3b;
+            --accent-color: #4ecca3;
+            --point-a-color: #2ecc71; /* Verde */
+            --point-b-color: #e67e22; /* Naranja */
+            --danger-color: #ff6b6b;
+            --text-color: #e0e0e0;
+            --border-color: #444;
+            --selection-color: #00ff88;
+            --statement-color: #9b59b6;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0; padding: 0;
+            height: 100vh;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        header {
+            background: #151520;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        h2 { margin: 0; color: #a29bfe; font-size: 1.2rem; }
+        .version { font-size: 0.8rem; color: #666; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 260px 1fr 380px; 
+            height: calc(100vh - 50px);
+        }
+
+        .panel {
+            background: var(--panel-color);
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column;
+            padding: 15px; gap: 15px;
+            overflow-y: auto;
+        }
+        .panel-right { border-right: none; border-left: 1px solid var(--border-color); }
+
+        .section-title {
+            font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;
+            color: #888; margin-bottom: 8px; font-weight: bold;
+        }
+
+        .toolbar { display: flex; flex-direction: column; gap: 8px; }
+        
+        .btn-tool {
+            padding: 10px 12px;
+            border: 1px solid transparent; border-radius: 6px;
+            background: #3a3a4a; color: white;
+            cursor: pointer; text-align: left; transition: all 0.2s;
+            display: flex; align-items: center; gap: 10px; font-size: 0.9rem;
+        }
+        .btn-tool:hover { background: #4a4a5a; border-color: #666; }
+        .btn-tool.active { background: var(--accent-color); color: #1e1e2e; font-weight: bold; }
+        
+        .btn-action { background: var(--accent-color); color: #1e1e2e; font-weight: bold; justify-content: center; }
+        
+        .btn-toggle { background: #5e35b1; color: white; justify-content: center; }
+        .btn-toggle:hover { background: #7e57c2; }
+        .btn-toggle.on { background: #d1c4e9; color: #5e35b1; font-weight: bold; box-shadow: 0 0 8px #7e57c2; }
+        
+        .btn-danger { background: rgba(255, 107, 107, 0.1); color: var(--danger-color); border: 1px solid var(--danger-color); }
+        .btn-danger:hover { background: var(--danger-color); color: white; }
+
+        .data-card {
+            background: #1a1a24; padding: 10px; border-radius: 6px;
+            border-left: 3px solid #666; margin-bottom: 8px;
+            transition: 0.2s;
+        }
+        .data-card.selected { border-left-color: var(--selection-color); background: #252a28; }
+        .data-card.is-point-A { border-left-color: var(--point-a-color); }
+        .data-card.is-point-B { border-left-color: var(--point-b-color); }
+        
+        .data-header { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; color: #ccc; }
+        .input-row { display: flex; gap: 5px; align-items: center; margin-top: 5px; }
+        
+        input[type="number"], select {
+            background: #2b2b3b; border: 1px solid #555; color: white;
+            padding: 4px; border-radius: 4px; width: 100%; font-size: 0.85rem;
+        }
+        input[type="number"]:focus { border-color: var(--accent-color); outline: none; }
+
+        .canvas-area {
+            position: relative; background-color: #ffffff;
+            background-image:
+                linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow: hidden; display: flex; justify-content: center; align-items: center;
+        }
+        canvas { cursor: crosshair; touch-action: none; z-index: 1; }
+        
+        #labels-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 2; overflow: hidden;
+        }
+        .canvas-label {
+            position: absolute; background: rgba(255, 255, 255, 0.95);
+            padding: 2px 6px; border-radius: 4px; border: 1px solid #3498db;
+            font-size: 0.9rem; color: #222; transform: translate(-50%, -100%); 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15); white-space: nowrap;
+        }
+
+        #coords-indicator {
+            position: absolute; bottom: 10px; left: 10px;
+            background: rgba(0,0,0,0.85); color: var(--accent-color);
+            padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;
+            pointer-events: none; z-index: 3; font-family: monospace;
+            border: 1px solid var(--accent-color);
+        }
+        
+        .feedback-card {
+            background: #1a1a24; padding: 12px; border-radius: 8px;
+            border-left: 4px solid var(--accent-color); margin-bottom: 10px; font-size: 0.9rem;
+        }
+        
+        .statement-card {
+            background: #231a29; padding: 12px; border-radius: 8px;
+            border-left: 4px solid var(--statement-color); margin-bottom: 15px; 
+            font-size: 0.9rem; line-height: 1.5; color: #e6cdff;
+            transition: all 0.3s;
+        }
+
+        .tip-card {
+            background: #252530;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #f1c40f;
+            margin-top: 15px;
+            font-size: 0.8rem;
+            color: #ccc;
+            line-height: 1.4;
+        }
+        
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; margin: 2px; }
+        .badge-pos { background: #3498db; color: white; }
+        .badge-neg { background: #e74c3c; color: white; }
+        .badge-point { background: #95a5a6; color: #222; font-weight: bold; }
+        .badge-traj { background: #9b59b6; color: white; }
+
+        .latex-box {
+            background: white; color: black; padding: 10px; border-radius: 6px;
+            min-height: 100px; font-size: 0.85rem; overflow-x: auto;
+            display: flex; flex-direction: column; text-align: left;
+        }
+
+        #float-delete {
+            position: absolute; display: none;
+            background: #ff6b6b; color: white; border: none;
+            padding: 5px 10px; border-radius: 4px; cursor: pointer;
+            font-size: 0.8rem; z-index: 10;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        #float-delete:hover { background: #ff4444; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div><h2>⚡ Potencial y Trabajo Eléctrico</h2></div>
+    <div class="version">v2.2.1 (Fix Umbral V)</div>
+</header>
+
+<div class="workspace">
+    <div class="panel">
+        <div>
+            <div class="section-title">Herramientas</div>
+            <div class="toolbar">
+                <button class="btn-tool active" onclick="setTool('draw', this)">✏️ Lápiz (Dibujar)</button>
+                <button class="btn-tool" onclick="setTool('move', this)">✋ Mover / Editar</button>
+                <button class="btn-tool" onclick="undo()">↩️ Deshacer Trazos</button>
+                <button class="btn-tool btn-danger" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
+            </div>
+            
+            <hr style="border:0; border-top:1px solid var(--border-color); margin: 10px 0;">
+            <div class="section-title">Visualización</div>
+            <div class="toolbar">
+                <button id="btn-equipotentials" class="btn-tool btn-toggle on" onclick="toggleEquipotentials()">👁️ Equipotenciales</button>
+            </div>
+        </div>
+        <hr style="border:0; border-top:1px solid var(--border-color); margin: 5px 0;">
+        <div>
+            <div class="section-title">Parámetros</div>
+            
+            <div style="margin-bottom: 10px;">
+                <label style="font-size:0.8rem; color:#aaa;">Carga Móvil ($q_0$):</label>
+                <div class="input-row">
+                    <input type="number" id="q0-input" value="1.0" step="0.1" onchange="analizarFisica()">
+                    <span style="font-size:0.8rem;">µC</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <label style="font-size:0.8rem; color:#aaa;">U. Carga Fuente:</label>
+                <select id="charge-unit" onchange="analizarFisica()">
+                    <option value="1e-6">Microcoulombs (µC)</option>
+                    <option value="1e-9">Nanocoulombs (nC)</option>
+                    <option value="1e-3">MiliCoulombs (mC)</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <label style="font-size:0.8rem; color:#aaa;">Escala Distancia:</label>
+                <div style="display:flex; gap:5px; align-items:center;">
+                    <input type="number" id="scale-input" value="100" style="width:60px" onchange="analizarFisica()">
+                    <span style="font-size:0.7rem; color:#888;">px = 1 m</span>
+                </div>
+            </div>
+            
+            <hr style="border:0; border-top:1px solid var(--border-color); margin: 5px 0;">
+            <div class="section-title">Objetos</div>
+            <div id="objects-container"></div>
+        </div>
+        
+        <button class="btn-tool btn-action" style="margin-top:15px;" onclick="analizarFisica()">🔍 CALCULAR</button>
+    </div>
+
+    <div class="canvas-area" id="canvas-wrapper">
+        <canvas id="main-canvas"></canvas>
+        <button id="float-delete" onclick="deleteSelected()">🗑️ Eliminar</button>
+        <div id="labels-overlay"></div>
+        <div id="coords-indicator">x: 0, y: 0, V: 0 V</div>
+    </div>
+
+    <div class="panel panel-right">
+        <div>
+            <div class="section-title">Enunciado Dinámico</div>
+            <div id="problem-statement" class="statement-card">
+                <i>Dibuja cargas y al menos dos puntos (A y B) para calcular trabajo.</i>
+            </div>
+        </div>
+
+        <div>
+            <div class="section-title">Elementos Detectados</div>
+            <div class="feedback-card" style="border-left-color: #9b59b6;">
+                <div id="detection-list"><i>Esperando...</i></div>
+            </div>
+        </div>
+        
+        <div>
+            <div class="section-title">Cálculos Paso a Paso</div>
+            <div class="latex-box" id="latex-result">$$ \text{---} $$</div>
+            
+            <div class="tip-card" id="static-tip">
+                <strong>💡 Conceptos Clave:</strong><br>
+                El campo electrostático es <b>conservativo</b>. Si $\Delta V = 0$ (misma equipotencial), el trabajo es NULO.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('main-canvas');
+    const ctx = canvas.getContext('2d');
+    const wrapper = document.getElementById('canvas-wrapper');
+    const labelsOverlay = document.getElementById('labels-overlay');
+    const floatDelete = document.getElementById('float-delete');
+    
+    // Estado Global
+    let state = {
+        tool: 'draw',
+        isDrawing: false,
+        isDragging: false,
+        draggedObject: null,
+        selectedObject: null,
+        showEquipotentials: true,
+        recognitionTimer: null, 
+        rawStrokes: [],      
+        currentStroke: [],   
+        objects: [],         
+        calculations: {} 
+    };
+
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
+
+    function resizeCanvas() {
+        canvas.width = wrapper.clientWidth; canvas.height = wrapper.clientHeight;
+        redraw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    setTimeout(resizeCanvas, 100);
+
+    function toPhysY(cy) { return canvas.height - cy; }
+    function toCanvasY(py) { return canvas.height - py; }
+    function getCoords(e) {
+        const r = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - r.left, y: clientY - r.top };
+    }
+
+    // --- Lógica Equipotenciales ---
+    function toggleEquipotentials() {
+        state.showEquipotentials = !state.showEquipotentials;
+        const btn = document.getElementById('btn-equipotentials');
+        if (state.showEquipotentials) btn.classList.add('on'); else btn.classList.remove('on');
+        redraw();
+    }
+
+    function getPotentialAt(x, y) {
+        let V = 0;
+        const charges = state.objects.filter(o => o.type.startsWith('charge'));
+        if (charges.length === 0) return 0;
+
+        const Ke = 8.99e9;
+        const scale = parseFloat(document.getElementById('scale-input').value || 100);
+        const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
+
+        charges.forEach(src => {
+            const dx = x - src.x;
+            const dy = toPhysY(y) - src.physY;
+            const r_px = Math.hypot(dx, dy);
+            const r = r_px / scale;
+            if (r > 0.001) V += (Ke * src.q * chargeU) / r;
+        });
+        return V;
+    }
+
+    function getVisualPotentialAt(x, y) {
+        let V = 0;
+        const charges = state.objects.filter(o => o.type.startsWith('charge'));
+        if (charges.length === 0) return 0;
+        charges.forEach(src => {
+            const dx = x - src.x; 
+            const dy = y - src.y;
+            const r = Math.sqrt(dx*dx + dy*dy);
+            if (r < 5) { V += (src.type === 'charge_pos' ? 9999 : -9999); return; } 
+            const q = src.type === 'charge_pos' ? 1 : -1;
+            V += (3000 * q) / r; 
+        });
+        return V;
+    }
+
+    function drawEquipotentials(ctx) {
+        if (!state.showEquipotentials) return;
+        const charges = state.objects.filter(o => o.type.startsWith('charge'));
+        if (charges.length === 0) return;
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(100, 100, 120, 0.3)';
+        ctx.setLineDash([]); 
+
+        const gridSize = 8;
+        const cols = Math.ceil(canvas.width / gridSize);
+        const rows = Math.ceil(canvas.height / gridSize);
+        const thresholds = [-200, -100, -50, -25, -10, 10, 25, 50, 100, 200];
+
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                const px = x * gridSize; const py = y * gridSize;
+                const valA = getVisualPotentialAt(px, py);
+                const valB = getVisualPotentialAt(px + gridSize, py);
+                const valC = getVisualPotentialAt(px + gridSize, py + gridSize);
+                const valD = getVisualPotentialAt(px, py + gridSize);
+
+                thresholds.forEach(thresh => {
+                    let mask = 0;
+                    if (valA > thresh) mask |= 8;
+                    if (valB > thresh) mask |= 4;
+                    if (valC > thresh) mask |= 2;
+                    if (valD > thresh) mask |= 1;
+                    if (mask !== 0 && mask !== 15) {
+                        drawCellLine(ctx, mask, px, py, gridSize, valA, valB, valC, valD, thresh);
+                    }
+                });
+            }
+        }
+    }
+
+    function drawCellLine(ctx, mask, x, y, s, a, b, c, d, t) {
+        const clamp = (p) => { if(isNaN(p.x)) p.x = x + s/2; if(isNaN(p.y)) p.y = y + s/2; return p; };
+        const top    = {x: x + s * (t - a) / (b - a), y: y};
+        const right  = {x: x + s, y: y + s * (t - b) / (c - b)};
+        const bottom = {x: x + s * (t - d) / (c - d), y: y + s};
+        const left   = {x: x, y: y + s * (t - a) / (d - a)};
+        
+        ctx.beginPath();
+        switch (mask) {
+            case 1: drawSeg(ctx, clamp(left), clamp(bottom)); break;
+            case 2: drawSeg(ctx, clamp(bottom), clamp(right)); break;
+            case 3: drawSeg(ctx, clamp(left), clamp(right)); break;
+            case 4: drawSeg(ctx, clamp(top), clamp(right)); break;
+            case 5: drawSeg(ctx, clamp(left), clamp(top)); drawSeg(ctx, clamp(bottom), clamp(right)); break;
+            case 6: drawSeg(ctx, clamp(top), clamp(bottom)); break;
+            case 7: drawSeg(ctx, clamp(left), clamp(top)); break;
+            case 8: drawSeg(ctx, clamp(left), clamp(top)); break;
+            case 9: drawSeg(ctx, clamp(top), clamp(bottom)); break;
+            case 10: drawSeg(ctx, clamp(left), clamp(bottom)); drawSeg(ctx, clamp(top), clamp(right)); break;
+            case 11: drawSeg(ctx, clamp(top), clamp(right)); break;
+            case 12: drawSeg(ctx, clamp(left), clamp(right)); break;
+            case 13: drawSeg(ctx, clamp(bottom), clamp(right)); break;
+            case 14: drawSeg(ctx, clamp(left), clamp(bottom)); break;
+        }
+        ctx.stroke();
+    }
+    function drawSeg(ctx, p1, p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
+
+    // --- Eventos Canvas ---
+    canvas.addEventListener('mousedown', handleStart);
+    canvas.addEventListener('touchstart', handleStart);
+    canvas.addEventListener('mousemove', handleMove);
+    canvas.addEventListener('touchmove', handleMove);
+    canvas.addEventListener('mouseup', handleEnd);
+    canvas.addEventListener('touchend', handleEnd);
+
+    function handleStart(e) {
+        if (e.touches) e.preventDefault(); 
+        const c = getCoords(e);
+        if (state.tool === 'move') {
+            const hit = findObjectAt(c);
+            if (hit) {
+                state.isDragging = true;
+                state.draggedObject = hit;
+                selectObject(hit);
+            } else { selectObject(null); }
+            return;
+        }
+        if (state.recognitionTimer) { clearTimeout(state.recognitionTimer); state.recognitionTimer = null; }
+        state.isDrawing = true;
+        state.currentStroke = [c];
+    }
+
+    function handleMove(e) {
+        if (e.touches) e.preventDefault();
+        const c = getCoords(e);
+        const V_probe = getPotentialAt(c.x, c.y);
+        document.getElementById('coords-indicator').innerText = 
+            `x: ${Math.round(c.x)}, y: ${Math.round(toPhysY(c.y))} | V: ${V_probe.toExponential(2)} V`;
+
+        if (state.isDragging && state.draggedObject) {
+            const o = state.draggedObject;
+            if (o.type !== 'trajectory') {
+                o.x = c.x; o.y = c.y; o.physX = c.x; o.physY = toPhysY(c.y);
+            }
+            updateFloatDelete();
+            redraw();
+        } else if (state.isDrawing) {
+            state.currentStroke.push(c);
+            redraw();
+        }
+    }
+
+    function handleEnd(e) {
+        if (state.isDragging) {
+            state.isDragging = false; state.draggedObject = null;
+            updateUI(); analizarFisica(); return;
+        }
+        if (state.isDrawing) {
+            state.isDrawing = false;
+            if (state.currentStroke.length > 5) state.rawStrokes.push([...state.currentStroke]);
+            state.currentStroke = [];
+            state.recognitionTimer = setTimeout(() => { detectAndConvert(); state.recognitionTimer = null; }, 1000);
+            redraw();
+        }
+    }
+
+    function findObjectAt(c) {
+        const pt = state.objects.find(o => o.type === 'point' && Math.hypot(o.x - c.x, o.y - c.y) < 50);
+        if (pt) return pt;
+        const ch = state.objects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30);
+        if (ch) return ch;
+        const tr = state.objects.find(o => {
+            if (o.type !== 'trajectory' || !o.path) return false;
+            const mid = Math.floor(o.path.length/2);
+            return Math.hypot(o.path[mid].x - c.x, o.path[mid].y - c.y) < 20;
+        });
+        return tr;
+    }
+
+    function selectObject(obj) {
+        state.selectedObject = obj;
+        document.querySelectorAll('.data-card').forEach(card => card.classList.remove('selected'));
+        if (obj) {
+            updateFloatDelete();
+            floatDelete.style.display = 'block';
+            if (obj.type.startsWith('charge') || obj.type === 'point') {
+                const el = document.getElementById(`in-${obj.id}`);
+                if(el) el.closest('.data-card').classList.add('selected');
+            }
+        } else { floatDelete.style.display = 'none'; }
+        redraw();
+    }
+
+    function updateFloatDelete() {
+        if(!state.selectedObject) return;
+        const o = state.selectedObject;
+        let bx, by;
+        if (o.type === 'trajectory' && o.path) {
+            const mid = Math.floor(o.path.length/2);
+            bx = o.path[mid].x; by = o.path[mid].y - 20;
+        } else { bx = o.x; by = o.y - 30; }
+        if(bx) { floatDelete.style.left = (bx - 30) + 'px'; floatDelete.style.top = by + 'px'; }
+    }
+
+    function deleteSelected() {
+        if (state.selectedObject) {
+            if (state.selectedObject.type === 'point') {
+                const pid = state.selectedObject.id;
+                state.objects = state.objects.filter(o => !(o.type === 'trajectory' && (o.from === pid || o.to === pid)));
+            }
+            state.objects = state.objects.filter(o => o !== state.selectedObject);
+            selectObject(null);
+            updateUI(); analizarFisica(); redraw();
+        }
+    }
+
+    function detectAndConvert() {
+        const groups = groupStrokes(state.rawStrokes);
+        const newObjects = [];
+        const usedIndices = new Set();
+
+        groups.forEach(group => {
+            const bounds = getGroupBounds(group);
+            const type = classifyGroup(group, bounds);
+            if (type !== 'unknown') {
+                const currentIds = state.objects.map(o=>o.id);
+                const nextId = (currentIds.length > 0 ? Math.max(...currentIds) : 0) + 1;
+
+                if (type === 'point') {
+                    const pointCount = state.objects.filter(o => o.type === 'point').length + newObjects.filter(o => o.type === 'point').length;
+                    const letter = String.fromCharCode(65 + pointCount);
+                    newObjects.push({
+                        id: nextId, type: 'point', label: letter,
+                        x: bounds.cx, y: bounds.cy, physX: bounds.cx, physY: toPhysY(bounds.cy)
+                    });
+                }
+                else if (type.startsWith('charge')) {
+                    const qNum = state.objects.filter(o => o.type.startsWith('charge')).length + 1;
+                    newObjects.push({
+                        id: nextId, type: type, label: `q_${qNum}`,
+                        x: bounds.cx, y: bounds.cy, physX: bounds.cx, physY: toPhysY(bounds.cy),
+                        q: type === 'charge_pos' ? 5 : -5
+                    });
+                } 
+                else if (type === 'trajectory_path') {
+                    const rawPts = [];
+                    group.forEach(i => state.rawStrokes[i].forEach(p => rawPts.push(p)));
+                    if(rawPts.length > 2) {
+                        const start = rawPts[0]; const end = rawPts[rawPts.length-1];
+                        const pStart = findPointNear(start); const pEnd = findPointNear(end);
+                        if (pStart && pEnd && pStart.id !== pEnd.id) {
+                            newObjects.push({
+                                id: nextId, type: 'trajectory',
+                                from: pStart.id, to: pEnd.id,
+                                path: rawPts
+                            });
+                        }
+                    }
+                }
+                group.forEach(i => usedIndices.add(i));
+            }
+        });
+
+        if (newObjects.length > 0) {
+            state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i));
+            state.objects.push(...newObjects);
+            updateUI(); analizarFisica();
+        }
+        redraw();
+    }
+
+    function findPointNear(c) { return state.objects.find(o => o.type === 'point' && Math.hypot(o.x - c.x, o.y - c.y) < 50); }
+    function getGroupBounds(indices) {
+        let allPts = []; indices.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p)); });
+        if(allPts.length === 0) return { minX:0, maxX:0, minY:0, maxY:0, w:0, h:0, cx:0, cy:0 };
+        return getBounds(allPts);
+    }
+    function groupStrokes(strokes) {
+        const groups = []; const visited = new Set();
+        for(let i=0; i<strokes.length; i++) {
+            if(visited.has(i)) continue;
+            const g = [i]; visited.add(i);
+            for(let j=i+1; j<strokes.length; j++) {
+                if(visited.has(j)) continue;
+                if(strokesClose(strokes[i], strokes[j])) { g.push(j); visited.add(j); }
+            }
+            groups.push(g);
+        }
+        return groups;
+    }
+    function strokesClose(s1, s2) {
+        const b1 = getBounds(s1); const b2 = getBounds(s2); const pad = 30;
+        return !(b2.minX > b1.maxX + pad || b2.maxX < b1.minX - pad || b2.minY > b1.maxY + pad || b2.maxY < b1.minY - pad);
+    }
+    
+    function classifyGroup(indices, b) {
+        const strokes = indices.map(i => state.rawStrokes[i]);
+        const diag = Math.hypot(b.w, b.h);
+        if (diag < 45 && strokes.length <= 2) return 'point';
+
+        let maxL = 0; let mainStrokeIdx = -1;
+        strokes.forEach((s, i) => {
+            let l = 0; for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y);
+            if(l > maxL) { maxL = l; mainStrokeIdx = i; }
+        });
+
+        const mainStroke = strokes[mainStrokeIdx];
+        const distEnds = Math.hypot(mainStroke[0].x - mainStroke[mainStroke.length-1].x, mainStroke[0].y - mainStroke[mainStroke.length-1].y);
+        const isClosed = distEnds < maxL * 0.35; 
+
+        if (diag > 40 && !isClosed) return 'trajectory_path';
+
+        const r = b.w/b.h;
+        if (r > 0.4 && r < 2.5 && diag > 20 && isClosed) {
+            const innerStrokes = strokes.filter((_, i) => i !== mainStrokeIdx);
+            if (innerStrokes.length === 0) return 'charge_pos';
+            if (innerStrokes.length === 1) {
+                const s = innerStrokes[0]; const ib = getBounds(s);
+                if (ib.w > ib.h * 1.5) return 'charge_neg';
+                return 'charge_pos';
+            }
+            return 'charge_pos';
+        }
+        return 'unknown';
+    }
+
+    // --- Física ---
+    function analizarFisica() {
+        const charges = state.objects.filter(o => o.type.startsWith('charge'));
+        const points = state.objects.filter(o => o.type === 'point');
+        const trajectories = state.objects.filter(o => o.type === 'trajectory');
+        
+        const Ke = 8.99e9;
+        const scale = parseFloat(document.getElementById('scale-input').value || 100);
+        const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
+        const q0_val = parseFloat(document.getElementById('q0-input').value || 1.0);
+        const q0 = q0_val * 1e-6; 
+
+        charges.forEach(c => {
+            const elQ = document.getElementById(`q-${c.id}`); if(elQ) c.q = parseFloat(elQ.value);
+        });
+
+        const pointPotentials = {};
+        points.forEach(p => {
+            let V_total = 0;
+            charges.forEach(src => {
+                const dx = p.physX - src.physX;
+                const dy = p.physY - src.physY;
+                const r = Math.hypot(dx, dy) / scale;
+                if (r > 0.001) V_total += (Ke * src.q * chargeU) / r;
+            });
+            p.V = V_total;
+            pointPotentials[p.id] = p;
+        });
+
+        const workResults = [];
+        trajectories.forEach(tr => {
+            const pA = pointPotentials[tr.from];
+            const pB = pointPotentials[tr.to];
+            if (pA && pB) {
+                let deltaV = pB.V - pA.V;
+                
+                // CORRECCIÓN: Umbral mínimo mucho más bajo para permitir campos débiles
+                const maxV = Math.max(Math.abs(pA.V), Math.abs(pB.V), 1e-10); // Antes era 1.0
+                const relDiff = Math.abs(deltaV) / maxV;
+                const isEqui = relDiff < 0.03; // Tolerancia 3%
+
+                let W_ext = q0 * deltaV;
+                
+                // Forzar 0 si es equipotencial
+                if (isEqui) { deltaV = 0; W_ext = 0; }
+
+                workResults.push({
+                    from: pA.label,
+                    to: pB.label,
+                    Va: pA.V,
+                    Vb: pB.V,
+                    dV: deltaV,
+                    W: W_ext,
+                    q0: q0,
+                    isEqui: isEqui
+                });
+            }
+        });
+
+        state.calculations = { points: pointPotentials, works: workResults };
+        updateStatement(charges.length, points.length, trajectories.length, workResults);
+        renderLatex();
+        redraw();
+    }
+
+    function renderLatex() {
+        const box = document.getElementById('latex-result');
+        let html = "";
+        const { points, works } = state.calculations;
+        const pointList = Object.values(points || {});
+
+        if (pointList.length === 0) {
+            html = "\\text{Dibuja puntos para calcular Potencial (V)}";
+        } else {
+            html += "\\textbf{1. Potenciales Eléctricos:} \\\\";
+            pointList.forEach(p => {
+                html += `V_{${p.label}} = \\sum \\frac{kq}{r} = ${p.V.toExponential(2)} \\text{ V} \\\\`;
+            });
+            html += "\\\\[0.5em]";
+        }
+
+        if (works && works.length > 0) {
+            html += "\\textbf{2. Trabajo Externo:} \\\\";
+            works.forEach(w => {
+                html += `\\underline{\\text{Trayectoria } ${w.from} \\to ${w.to}}: \\\\`;
+                
+                if (w.isEqui) {
+                     html += `\\text{\\textbf{¡Puntos sobre la misma equipotencial!}} \\\\`;
+                     html += `V_{${w.from}} \\approx V_{${w.to}} \\Rightarrow \\Delta V \\approx 0 \\\\`;
+                     html += `\\mathbf{W_{ext} = 0 \\text{ J}} \\quad \\text{(Trabajo Nulo)} \\\\[1em]`;
+                } else {
+                     html += `\\Delta V = V_{${w.to}} - V_{${w.from}} = ${w.dV.toExponential(2)} \\text{ V} \\\\`;
+                     html += `W_{ext} = q_0 \\cdot \\Delta V = (${(w.q0).toExponential(1)})(${w.dV.toExponential(2)}) \\\\`;
+                     html += `\\mathbf{W_{ext} = ${w.W.toExponential(2)} \\text{ J}} \\\\[1em]`;
+                }
+            });
+            html += "\\small\\textit{Nota: El campo es conservativo.} \\\\";
+        }
+
+        katex.render(html, box, {displayMode:true, throwOnError:false});
+    }
+
+    function updateStatement(nQ, nP, nT, works) {
+        const box = document.getElementById('problem-statement');
+        
+        // Manejo de casos mezclados
+        const hasEqui = works && works.some(w => w.isEqui);
+        const hasNormal = works && works.some(w => !w.isEqui);
+
+        if (hasEqui && !hasNormal) {
+             box.innerHTML = `<strong>¡Caso Especial Detectado!</strong><br>
+             Al moverse por una equipotencial, $\\Delta V \\approx 0$.<br>
+             <strong>Trabajo neto NULO</strong> ($W=0$).`;
+             box.style.borderLeftColor = "#2ecc71"; // Verde
+             box.style.backgroundColor = "#1b2621"; 
+        } else if (hasNormal) {
+             // Si hay cálculos normales (o mezcla), mostrar resumen
+             const lastWork = works[works.length-1];
+             if (!lastWork.isEqui) {
+                box.innerHTML = `<strong>Resultado Reciente:</strong><br>
+                Trayectoria ${lastWork.from} → ${lastWork.to}:<br>
+                $W = ${lastWork.W.toExponential(2)} \\text{ J}$`;
+                box.style.borderLeftColor = "#9b59b6"; // Púrpura
+                box.style.backgroundColor = "#231a29";
+             } else {
+                box.innerHTML = "<strong>Resultados listos.</strong> Revisa el panel inferior.";
+             }
+        } else {
+             box.style.borderLeftColor = "#9b59b6"; 
+             box.style.backgroundColor = "#2b2b3b";
+             if (nQ === 0) { box.innerHTML = "Coloca cargas fuente."; return; }
+             if (nP < 2) { box.innerHTML = "Dibuja puntos y conéctalos con una curva."; return; }
+             if (nT === 0) { box.innerHTML = "Dibuja una trayectoria entre dos puntos."; return; }
+        }
+        
+        // Renderizar mate en el statement si es necesario
+        renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
+    }
+
+    function updateCoord(id, axis, val, type) {
+        let obj;
+        if (type === 'charge') obj = state.objects.find(o => o.id == id && o.type.startsWith('charge'));
+        else if (type === 'point') obj = state.objects.find(o => o.id == id && o.type === 'point');
+        if(!obj) return;
+        const numVal = parseFloat(val); if(isNaN(numVal)) return;
+        if (axis === 'x') { obj.physX = numVal; obj.x = numVal; } 
+        else { obj.physY = numVal; obj.y = toCanvasY(numVal); }
+        analizarFisica(); redraw();
+    }
+
+    function updateUI() {
+        const c = document.getElementById('objects-container'); c.innerHTML='';
+        const dList = document.getElementById('detection-list'); 
+        let dHtml = "";
+
+        state.objects.filter(o=>o.type.startsWith('charge')).forEach(ch => {
+            const div = document.createElement('div'); div.className='data-card';
+            if(state.selectedObject === ch) div.classList.add('selected');
+            div.innerHTML = `
+                <div class="data-header"><strong>Fuente ${ch.label}</strong></div>
+                <div class="input-row">
+                    <label>Q</label> <input type="number" id="q-${ch.id}" value="${ch.q}" onchange="analizarFisica()">
+                </div>
+                <div class="input-row">
+                    <label>X</label> <input type="number" id="in-${ch.id}" value="${Math.round(ch.physX)}" onchange="updateCoord(${ch.id}, 'x', this.value, 'charge')">
+                    <label>Y</label> <input type="number" value="${Math.round(ch.physY)}" onchange="updateCoord(${ch.id}, 'y', this.value, 'charge')">
+                </div>`;
+            c.appendChild(div);
+            dHtml += `<span class="badge ${ch.type==='charge_pos'?'badge-pos':'badge-neg'}">${ch.label}</span>`;
+        });
+
+        state.objects.filter(o=>o.type === 'point').forEach(p => {
+            const div = document.createElement('div'); div.className='data-card';
+            if (p.label === 'A') div.classList.add('is-point-A');
+            else if (p.label === 'B') div.classList.add('is-point-B');
+            if(state.selectedObject === p) div.classList.add('selected');
+            div.innerHTML = `
+                <div class="data-header"><strong>Punto ${p.label}</strong></div>
+                <div class="input-row">
+                    <label>X</label> <input type="number" id="in-${p.id}" value="${Math.round(p.physX)}" onchange="updateCoord(${p.id}, 'x', this.value, 'point')">
+                    <label>Y</label> <input type="number" value="${Math.round(p.physY)}" onchange="updateCoord(${p.id}, 'y', this.value, 'point')">
+                </div>`;
+            c.appendChild(div);
+            dHtml += `<span class="badge badge-point">${p.label}</span>`;
+        });
+        
+        state.objects.filter(o=>o.type==='trajectory').forEach(t => {
+            const p1 = state.objects.find(p=>p.id===t.from);
+            const p2 = state.objects.find(p=>p.id===t.to);
+            if(p1 && p2) dHtml += `<span class="badge badge-traj">${p1.label}→${p2.label}</span>`;
+        });
+        dList.innerHTML = dHtml || "<i>Nada detectado</i>";
+    }
+
+    function redraw() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        labelsOverlay.innerHTML = '';
+        
+        ctx.strokeStyle = '#eee'; ctx.lineWidth=1; ctx.beginPath();
+        for(let i=0; i<canvas.width; i+=20) { ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); }
+        for(let i=0; i<canvas.height; i+=20) { ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); }
+        ctx.stroke();
+
+        drawEquipotentials(ctx);
+
+        state.objects.filter(o => o.type === 'trajectory').forEach(tr => {
+            const p1 = state.objects.find(p => p.id === tr.from);
+            const p2 = state.objects.find(p => p.id === tr.to);
+            if (p1 && p2) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(155, 89, 182, 0.15)'; 
+                ctx.lineWidth = 10; ctx.lineCap = 'round';
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(155, 89, 182, 0.4)';
+                ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            if (tr.path && tr.path.length > 2) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#9b59b6'; ctx.lineWidth = 3;
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([]); 
+
+                const pts = tr.path;
+                ctx.moveTo(pts[0].x, pts[0].y);
+                for (let i = 1; i < pts.length - 2; i++) {
+                    const xc = (pts[i].x + pts[i + 1].x) / 2;
+                    const yc = (pts[i].y + pts[i + 1].y) / 2;
+                    ctx.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
+                }
+                ctx.quadraticCurveTo(pts[pts.length-2].x, pts[pts.length-2].y, pts[pts.length-1].x, pts[pts.length-1].y);
+                ctx.stroke();
+
+                const last = pts[pts.length-1];
+                let prev = pts[pts.length-2];
+                for(let i = pts.length-2; i >= 0; i--) {
+                    const d = Math.hypot(pts[i].x - last.x, pts[i].y - last.y);
+                    if (d > 10) { prev = pts[i]; break; }
+                }
+                if(last && prev) {
+                    const ang = Math.atan2(last.y - prev.y, last.x - prev.x);
+                    const headLen = 12;
+                    ctx.beginPath();
+                    ctx.moveTo(last.x, last.y);
+                    ctx.lineTo(last.x - headLen * Math.cos(ang - Math.PI / 6), last.y - headLen * Math.sin(ang - Math.PI / 6));
+                    ctx.lineTo(last.x - headLen * Math.cos(ang + Math.PI / 6), last.y - headLen * Math.sin(ang + Math.PI / 6));
+                    ctx.lineTo(last.x, last.y);
+                    ctx.fillStyle = '#9b59b6'; ctx.fill();
+                }
+            }
+        });
+
+        ctx.strokeStyle = '#999'; ctx.lineWidth=2;
+        state.rawStrokes.forEach(s => drawPath(s));
+        if(state.currentStroke.length>0) drawPath(state.currentStroke);
+
+        state.objects.forEach(obj => {
+            const isSel = (state.selectedObject === obj);
+            ctx.shadowBlur = isSel ? 10 : 0; ctx.shadowColor = '#00ff88';
+
+            if(obj.type.startsWith('charge')) {
+                ctx.beginPath(); ctx.arc(obj.x, obj.y, 20, 0, Math.PI*2);
+                ctx.fillStyle = obj.type==='charge_pos' ? '#3498db' : '#e74c3c';
+                ctx.fill(); ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke();
+                ctx.shadowBlur=0;
+                ctx.fillStyle='white'; ctx.font='bold 24px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.fillText(obj.type==='charge_pos'?'+':'-', obj.x, obj.y+2);
+                addLabel(obj.x+25, obj.y-25, obj.label);
+            } 
+            else if(obj.type === 'point') {
+                ctx.beginPath(); ctx.arc(obj.x, obj.y, 10, 0, Math.PI*2);
+                if (obj.label === 'A') ctx.fillStyle = '#2ecc71';
+                else if (obj.label === 'B') ctx.fillStyle = '#e67e22';
+                else ctx.fillStyle = '#95a5a6';
+                ctx.fill(); ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke();
+                ctx.shadowBlur=0;
+                addLabel(obj.x+15, obj.y-15, obj.label);
+            }
+        });
+    }
+
+    function drawPath(pts) {
+        if(pts.length<2) return;
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+    }
+    function addLabel(x, y, t) {
+        const d = document.createElement('div'); d.className='canvas-label';
+        d.style.left=x+'px'; d.style.top=y+'px';
+        katex.render(t, d, {throwOnError:false});
+        labelsOverlay.appendChild(d);
+    }
+    function getBounds(pts) {
+        const xs = pts.map(p=>p.x); const ys = pts.map(p=>p.y);
+        return { minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys), cx:(Math.min(...xs)+Math.max(...xs))/2, cy:(Math.min(...ys)+Math.max(...ys))/2 };
+    }
+    function setTool(t, b) { state.tool = t; document.querySelectorAll('.btn-tool').forEach(el=>el.classList.remove('active')); if(b) b.classList.add('active'); if(t==='draw') selectObject(null); }
+    function undo() { if(state.rawStrokes.length>0) state.rawStrokes.pop(); else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); } redraw(); }
+    function limpiarTodo() { state.objects=[]; state.rawStrokes=[]; updateUI(); analizarFisica(); redraw(); document.getElementById('latex-result').innerText='---'; }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        renderMathInElement(document.getElementById('static-tip'), {delimiters: [{left: "$", right: "$", display: false}]});
+    });
+</script>
+</body>
+</html>
