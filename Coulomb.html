@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laboratorio Virtual: Ley de Coulomb IA</title>
-    <meta name="description" content="Tutor inteligente con coordenadas editables y validación robusta.">
+    <meta name="description" content="Tutor inteligente con coordenadas editables, pizarra libre y validación robusta.">
     
     <!-- Librerías -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
@@ -85,6 +85,16 @@
         .btn-danger { background: rgba(255, 107, 107, 0.1); color: var(--danger-color); border: 1px solid var(--danger-color); }
         .btn-danger:hover { background: var(--danger-color); color: white; }
 
+        .color-picker-container {
+            display: flex; align-items: center; gap: 10px; 
+            background: #232333; padding: 10px; border-radius: 6px;
+            border: 1px solid #444; margin-top: 5px;
+        }
+        .color-picker-container input[type="color"] {
+            cursor: pointer; width: 32px; height: 32px; 
+            border: none; background: transparent; padding: 0; outline: none;
+        }
+
         .data-card {
             background: #1a1a24; padding: 10px; border-radius: 6px;
             border-left: 3px solid #666; margin-bottom: 8px;
@@ -95,7 +105,6 @@
         .data-header { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; color: #ccc; }
         .input-row { display: flex; gap: 5px; align-items: center; margin-top: 5px; }
         
-        /* Inputs mejorados */
         input[type="number"], select {
             background: #2b2b3b; border: 1px solid #555; color: white;
             padding: 4px; border-radius: 4px; width: 100%; font-size: 0.85rem;
@@ -123,6 +132,16 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.15); white-space: nowrap;
         }
 
+        #text-input-overlay {
+            position: absolute; display: none;
+            background: rgba(255,255,255,0.95);
+            border: 2px dashed var(--accent-color);
+            color: #222; font-family: 'Segoe UI', sans-serif; font-size: 20px;
+            padding: 4px 8px; border-radius: 4px; z-index: 100;
+            outline: none; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transform: translateY(-50%);
+        }
+
         #coords-indicator {
             position: absolute; bottom: 10px; left: 10px;
             background: rgba(0,0,0,0.8); color: #4ecca3;
@@ -143,13 +162,24 @@
         .badge-pos { background: #3498db; color: white; }
         .badge-neg { background: #e74c3c; color: white; }
         
+        .statement-card {
+            background: #231a29; padding: 12px; border-radius: 8px;
+            border-left: 4px solid #9b59b6; margin-bottom: 15px; 
+            font-size: 0.9rem; line-height: 1.5; color: #e6cdff;
+        }
+
+        .tip-card {
+            background: #252530;
+            padding: 10px; border-radius: 6px; border-left: 3px solid #f1c40f;
+            margin-top: 15px; font-size: 0.8rem; color: #ccc; line-height: 1.4;
+        }
+        
         .latex-box {
             background: white; color: black; padding: 10px; border-radius: 6px;
             min-height: 100px; font-size: 0.85rem; overflow-x: auto;
             display: flex; flex-direction: column; text-align: left;
         }
 
-        /* Botón Flotante Eliminar */
         #float-delete {
             position: absolute; display: none;
             background: #ff6b6b; color: white; border: none;
@@ -159,7 +189,6 @@
         }
         #float-delete:hover { background: #ff4444; }
 
-        /* Modal */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); z-index: 2000;
@@ -176,7 +205,7 @@
 
 <header>
     <div><h2>⚡ Laboratorio Coulomb IA</h2></div>
-    <div class="version">v3.5.0 (Paso a Paso Detallado)</div>
+    <div class="version">v4.0.0 (Pizarra Libre + Pasos Detallados)</div>
 </header>
 
 <div class="workspace">
@@ -184,19 +213,35 @@
         <div>
             <div class="section-title">Herramientas</div>
             <div class="toolbar">
-                <button class="btn-tool active" onclick="setTool('draw', this)">✏️ Lápiz (Dibujar)</button>
+                <button class="btn-tool active" onclick="setTool('draw', this)" title="Dibuja cargas (+/-) y vectores de fuerza">🤖 Lápiz IA (Objetos)</button>
+                <button class="btn-tool" onclick="setTool('draw_free', this)" title="Dibuja explicaciones libres">🖌️ Marcador (Libre)</button>
+                <button class="btn-tool" onclick="setTool('text', this)" title="Escribe texto en el lienzo">🔤 Escribir Texto</button>
                 <button class="btn-tool" onclick="setTool('move', this)">✋ Mover / Editar</button>
-                <button class="btn-tool" onclick="undo()">↩️ Deshacer Trazos</button>
+                <button class="btn-tool" onclick="undo()">↩️ Deshacer</button>
                 <button class="btn-tool btn-danger" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
             </div>
+            
+            <div class="color-picker-container">
+            <input type="color" id="pencil-color" value="#000000" onchange="state.currentColor = this.value">
+            <label for="pencil-color" style="font-size: 0.85rem; color: #ccc;">Color (Marcador y Texto)</label>
         </div>
-        <hr style="border:0; border-top:1px solid var(--border-color); margin: 5px 0;">
-        <div>
-            <div class="section-title">Datos</div>
-            <div style="margin-bottom: 10px;">
-                <label style="font-size:0.8rem; color:#aaa;">Distancia:</label>
-                <select id="dist-unit" onchange="analizarFisica()">
-                    <option value="1">Metros (m)</option>
+    </div>
+    <hr style="border:0; border-top:1px solid var(--border-color); margin: 5px 0;">
+    <div>
+        <div class="section-title">Datos</div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size:0.8rem; color:#aaa;">U. Carga:</label>
+            <select id="charge-unit" onchange="analizarFisica()">
+                <option value="1e-6">Microcoulombs (µC)</option>
+                <option value="1e-9">Nanocoulombs (nC)</option>
+                <option value="1e-3">MiliCoulombs (mC)</option>
+                <option value="1">Coulombs (C)</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size:0.8rem; color:#aaa;">Distancia:</label>
+            <select id="dist-unit" onchange="analizarFisica()">
+                <option value="1">Metros (m)</option>
                     <option value="0.01">Centímetros (cm)</option>
                 </select>
             </div>
@@ -209,32 +254,42 @@
             </div>
             <div id="charges-container"></div>
         </div>
-        <!-- Botón para forzar verificación -->
         <button class="btn-tool btn-action" style="margin-top:15px;" onclick="analizarFisica()">🔍 VERIFICAR / CALCULAR</button>
     </div>
 
     <div class="canvas-area" id="canvas-wrapper">
         <canvas id="main-canvas"></canvas>
         <button id="float-delete" onclick="deleteSelected()">🗑️ Eliminar</button>
-        <div id="labels-overlay"></div>
-        <div id="coords-indicator">x: 0, y: 0</div>
-    </div>
+        <input type="text" id="text-input-overlay" placeholder="Escribe aquí y presiona Enter...">
+    <div id="labels-overlay"></div>
+    <div id="coords-indicator">x: 0, y: 0</div>
+</div>
 
-    <div class="panel panel-right">
-        <div>
-            <div class="section-title">Objetos Detectados</div>
-            <div class="feedback-card" style="border-left-color: #3498db;">
-                <div id="detection-list"><i>Esperando...</i></div>
-            </div>
+<div class="panel panel-right">
+    <div>
+        <div class="section-title">Enunciado del Problema</div>
+        <div id="problem-statement" class="statement-card">
+            <i>Dibuja cargas fuente para interactuar.</i>
         </div>
-        <div>
-            <div class="section-title">Validación</div>
-            <div class="feedback-card" id="validation-box">...</div>
+    </div>
+    <div>
+        <div class="section-title">Objetos Detectados</div>
+        <div class="feedback-card" style="border-left-color: #3498db;">
+            <div id="detection-list"><i>Esperando...</i></div>
         </div>
-        <div>
-            <div class="section-title">Solución Paso a Paso</div>
-            <div id="dcl-buttons" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;"></div>
-            <div class="latex-box" id="latex-result">$$ \text{---} $$</div>
+    </div>
+    <div>
+        <div class="section-title">Validación</div>
+        <div class="feedback-card" id="validation-box">...</div>
+        <div class="tip-card" id="static-tip">
+            <strong>💡 Tip de Fuerza ($F$):</strong><br>
+            Cargas de <b>IGUAL</b> signo se repelen, de signo <b>OPUESTO</b> se atraen.
+        </div>
+    </div>
+    <div>
+        <div class="section-title">Solución Paso a Paso</div>
+        <div id="dcl-buttons" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;"></div>
+            <div class="latex-box" id="latex-result">$$\text{---}$$</div>
         </div>
     </div>
 </div>
@@ -253,20 +308,28 @@
     const wrapper = document.getElementById('canvas-wrapper');
     const labelsOverlay = document.getElementById('labels-overlay');
     const floatDelete = document.getElementById('float-delete');
+    const textOverlay = document.getElementById('text-input-overlay');
     
     // Estado Global
     let state = {
         tool: 'draw',
+        currentColor: '#000000',
         isDrawing: false,
+        isDrawingFree: false,
         isDragging: false,
+        dragLastX: 0,
+        dragLastY: 0,
         draggedObject: null,
         selectedObject: null,
         recognitionTimer: null, 
         rawStrokes: [],      
         currentStroke: [],   
-        objects: [],         
+        currentFreeStroke: null,
+        objects: [],         // Guarda Cargas, Vectores, Trazos Libres ('free_stroke') y Texto ('text')
         calculatedForces: [] 
     };
+    
+    let textPos = {x:0, y:0};
 
     // Configuración Canvas
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
@@ -288,6 +351,23 @@
         return { x: clientX - r.left, y: clientY - r.top };
     }
 
+    // --- Herramienta de Texto ---
+    function finalizeText() {
+        if(textOverlay.style.display !== 'none' && textOverlay.value.trim() !== '') {
+            state.objects.push({
+                type: 'text', id: Date.now(), 
+                text: textOverlay.value, x: textPos.x, y: textPos.y, 
+                color: state.currentColor
+            });
+            textOverlay.value = ''; textOverlay.style.display = 'none';
+            redraw();
+        } else {
+            textOverlay.style.display = 'none';
+        }
+    }
+    textOverlay.addEventListener('keydown', e => { if(e.key === 'Enter') finalizeText(); });
+    textOverlay.addEventListener('blur', finalizeText);
+
     // --- Manejadores de Eventos ---
     canvas.addEventListener('mousedown', handleStart);
     canvas.addEventListener('touchstart', handleStart);
@@ -297,28 +377,45 @@
     canvas.addEventListener('touchend', handleEnd);
 
     function handleStart(e) {
+        if (e.touches && e.touches.length > 1) return;
         if (e.touches) e.preventDefault(); 
         const c = getCoords(e);
         
+        if (state.tool !== 'text') finalizeText();
+
+        if (state.tool === 'text') {
+            textPos = {x: c.x, y: c.y};
+            textOverlay.style.left = c.x + 'px';
+            textOverlay.style.top = c.y + 'px';
+            textOverlay.style.display = 'block';
+            textOverlay.style.color = state.currentColor;
+            setTimeout(() => textOverlay.focus(), 50);
+            return;
+        }
+
         if (state.tool === 'move') {
             const hit = findObjectAt(c);
             if (hit) {
                 state.isDragging = true;
                 state.draggedObject = hit;
+                state.dragLastX = c.x;
+                state.dragLastY = c.y;
                 selectObject(hit);
-            } else {
-                selectObject(null);
-            }
+            } else { selectObject(null); }
             return;
         }
 
-        if (state.recognitionTimer) {
-            clearTimeout(state.recognitionTimer);
-            state.recognitionTimer = null;
+        if (state.tool === 'draw_free') {
+            selectObject(null);
+            state.isDrawingFree = true;
+            state.currentFreeStroke = { type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor };
+            return;
         }
-        
+
+        if (state.recognitionTimer) { clearTimeout(state.recognitionTimer); state.recognitionTimer = null; }
         state.isDrawing = true;
         state.currentStroke = [c];
+        selectObject(null);
     }
 
     function handleMove(e) {
@@ -327,22 +424,34 @@
         document.getElementById('coords-indicator').innerText = `x: ${Math.round(c.x)}, y: ${Math.round(toPhysY(c.y))}`;
 
         if (state.isDragging && state.draggedObject) {
+            const dx = c.x - state.dragLastX;
+            const dy = c.y - state.dragLastY;
+
             if (state.draggedObject.type.startsWith('charge')) {
-                state.draggedObject.x = c.x;
-                state.draggedObject.y = c.y;
-                state.draggedObject.physX = c.x;
-                state.draggedObject.physY = toPhysY(c.y);
+                state.draggedObject.x += dx; state.draggedObject.y += dy;
+                state.draggedObject.physX += dx; state.draggedObject.physY = toPhysY(state.draggedObject.y);
             } else if (state.draggedObject.type === 'vector') {
-                const w = state.draggedObject.end.x - state.draggedObject.start.x;
-                const h = state.draggedObject.end.y - state.draggedObject.start.y;
-                state.draggedObject.start = {x: c.x, y: c.y};
-                state.draggedObject.end = {x: c.x + w, y: c.y + h};
+                state.draggedObject.start.x += dx; state.draggedObject.start.y += dy;
+                state.draggedObject.end.x += dx; state.draggedObject.end.y += dy;
+            } else if (state.draggedObject.type === 'free_stroke') {
+                state.draggedObject.points.forEach(p => { p.x += dx; p.y += dy; });
+            } else if (state.draggedObject.type === 'text') {
+                state.draggedObject.x += dx; state.draggedObject.y += dy;
             }
+
+            state.dragLastX = c.x; state.dragLastY = c.y;
             updateFloatDelete();
-            // No actualizamos UI completa en cada frame para rendimiento, solo al soltar
             redraw();
+            return;
         } 
-        else if (state.isDrawing) {
+        
+        if (state.isDrawingFree && state.currentFreeStroke) {
+            state.currentFreeStroke.points.push(c);
+            redraw();
+            return;
+        }
+
+        if (state.isDrawing) {
             state.currentStroke.push(c);
             redraw();
         }
@@ -352,8 +461,18 @@
         if (state.isDragging) {
             state.isDragging = false;
             state.draggedObject = null;
-            updateUI(); // Sincronizar inputs al soltar
+            updateUI();
             analizarFisica(); 
+            return;
+        }
+
+        if (state.isDrawingFree && state.currentFreeStroke) {
+            state.isDrawingFree = false;
+            if (state.currentFreeStroke.points.length > 2) {
+                state.objects.push(state.currentFreeStroke);
+            }
+            state.currentFreeStroke = null;
+            redraw();
             return;
         }
 
@@ -368,19 +487,33 @@
                 detectAndConvert();
                 state.recognitionTimer = null;
             }, 1200); 
-            
             redraw();
         }
     }
 
     function findObjectAt(c) {
+        const textObj = state.objects.find(o => {
+            if(o.type !== 'text') return false;
+            ctx.font = '20px "Segoe UI", Arial';
+            const w = ctx.measureText(o.text).width;
+            return c.x >= o.x && c.x <= o.x + w && c.y >= o.y && c.y <= o.y + 24;
+        });
+        if(textObj) return textObj;
+
         const charge = state.objects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30);
         if (charge) return charge;
+
         const vec = state.objects.find(o => o.type === 'vector' && (
             Math.hypot(o.start.x - c.x, o.start.y - c.y) < 25 || 
             Math.hypot(o.end.x - c.x, o.end.y - c.y) < 25
         ));
-        return vec;
+        if(vec) return vec;
+
+        const strokeObj = state.objects.find(o => {
+            if(o.type !== 'free_stroke') return false;
+            return o.points.some(p => Math.hypot(p.x - c.x, p.y - c.y) < 15);
+        });
+        return strokeObj;
     }
 
     function selectObject(obj) {
@@ -407,7 +540,12 @@
         const o = state.selectedObject;
         let bx, by;
         if(o.type.startsWith('charge')) { bx = o.x; by = o.y - 35; }
-        else { bx = (o.start.x+o.end.x)/2; by = (o.start.y+o.end.y)/2 - 20; }
+        else if(o.type === 'vector') { bx = (o.start.x+o.end.x)/2; by = (o.start.y+o.end.y)/2 - 20; }
+        else if(o.type === 'text') { bx = o.x + 20; by = o.y - 30; }
+        else if(o.type === 'free_stroke') {
+            const minP = o.points.reduce((prev, curr) => curr.y < prev.y ? curr : prev);
+            bx = minP.x; by = minP.y - 30;
+        }
         floatDelete.style.left = (bx - 30) + 'px'; 
         floatDelete.style.top = by + 'px';
     }
@@ -416,13 +554,11 @@
         if (state.selectedObject) {
             state.objects = state.objects.filter(o => o !== state.selectedObject);
             selectObject(null);
-            updateUI();
-            analizarFisica();
-            redraw();
+            updateUI(); analizarFisica(); redraw();
         }
     }
 
-    // --- Lógica de Detección (Ink-to-Shape) ---
+    // --- Lógica de Detección IA ---
     function detectAndConvert() {
         const groups = groupStrokes(state.rawStrokes);
         const newObjects = [];
@@ -454,8 +590,7 @@
         if (newObjects.length > 0) {
             state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i));
             state.objects.push(...newObjects);
-            updateUI();
-            analizarFisica();
+            updateUI(); analizarFisica();
         }
         redraw();
     }
@@ -491,11 +626,6 @@
     
     function classifyGroup(indices, b) {
         const strokes = indices.map(i => state.rawStrokes[i]);
-        let totalLen = 0; 
-        strokes.forEach(s => { 
-            for(let k=0; k<s.length-1; k++) totalLen += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y); 
-        });
-        
         const r = b.w/b.h;
         const isCompact = r > 0.5 && r < 2.0 && b.w > 20 && b.h > 20;
 
@@ -526,7 +656,6 @@
         
         const diag = Math.hypot(b.w, b.h);
         if (diag > 30) return 'vector';
-        
         return 'unknown';
     }
 
@@ -550,83 +679,105 @@
         });
         if (d1 > d2) return { start: p2, end: p1 };
         return { start: p1, end: p2 };
-    }
+}
 
-    // --- Física ---
-    function analizarFisica() {
-        const charges = state.objects.filter(o => o.type.startsWith('charge'));
-        const vectors = state.objects.filter(o => o.type === 'vector');
-        const Ke = 8.987e9;
-        const scale = parseFloat(document.getElementById('scale-input').value || 100);
-        const distU = parseFloat(document.getElementById('dist-unit').value || 1);
-        
-        // Sincronizar Q desde inputs si es necesario, pero ahora X e Y también se manejan via updateCoord
-        charges.forEach(c => {
-            const elQ = document.getElementById(`q-${c.id}`);
-            if(elQ) c.q = parseFloat(elQ.value);
-        });
+// --- Física ---
+function analizarFisica() {
+    const charges = state.objects.filter(o => o.type.startsWith('charge'));
+    const vectors = state.objects.filter(o => o.type === 'vector');
+    const Ke = 8.987e9;
+    const scale = parseFloat(document.getElementById('scale-input').value || 100);
+    const distU = parseFloat(document.getElementById('dist-unit').value || 1);
+    const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
+    
+    charges.forEach(c => {
+        const elQ = document.getElementById(`q-${c.id}`);
+        if(elQ) c.q = parseFloat(elQ.value);
+    });
 
-        const interactions = [];
-        charges.forEach(tgt => {
-            charges.forEach(src => {
-                if(tgt.id === src.id) return;
-                const dx = src.physX - tgt.physX; const dy = src.physY - tgt.physY;
-                let ang = Math.atan2(dy, dx);
-                if(tgt.q * src.q > 0) ang += Math.PI;
-                ang = (ang + 4*Math.PI) % (2*Math.PI);
-                const r = Math.hypot(dx, dy) / scale * distU;
-                const mag = r>0 ? (Ke * Math.abs(tgt.q*src.q)*1e-12)/(r*r) : 0;
-                interactions.push({ t: tgt, s: src, ang, mag, lbl: `F_{${src.id}${tgt.id}}` });
+    updateStatement(charges, chargeU);
+
+    const interactions = [];
+    charges.forEach(tgt => {
+        charges.forEach(src => {
+            if(tgt.id === src.id) return;
+            const dx = src.physX - tgt.physX; const dy = src.physY - tgt.physY;
+            let ang = Math.atan2(dy, dx);
+            if(tgt.q * src.q > 0) ang += Math.PI;
+            ang = (ang + 4*Math.PI) % (2*Math.PI);
+            const r = Math.hypot(dx, dy) / scale * distU;
+            
+            // Aplicamos la escala chargeU a ambas cargas interactuantes
+            const mag = r>0 ? (Ke * Math.abs(tgt.q * chargeU * src.q * chargeU))/(r*r) : 0;
+            
+            interactions.push({ 
+                target: tgt.id, source: src.id, label: `F_{${src.id}${tgt.id}}`,
+                mag: mag, angleDeg: (ang*180/Math.PI)%360,
+                Fx: mag*Math.cos(ang), Fy: mag*Math.sin(ang), r: r,
+                t: tgt, s: src, ang: ang 
             });
         });
+    });
 
-        state.calculatedForces = [];
-        const vBox = document.getElementById('validation-box'); vBox.innerHTML='';
+    // Desvinculamos el paso a paso del dibujo: siempre almacenamos TODAS las interacciones reales
+    state.calculatedForces = interactions;
+    
+    const vBox = document.getElementById('validation-box'); vBox.innerHTML='';
+    
+    if(vectors.length === 0) {
+        vBox.innerHTML = '<i>Dibuja flechas de fuerza sobre las cargas.</i>';
+    }
+
+    vectors.forEach(vec => {
+        const origin = charges.find(c => Math.hypot(c.x - vec.start.x, c.y - vec.start.y) < 60);
         
-        if(vectors.length === 0) {
-            vBox.innerHTML = '<i>Dibuja flechas de fuerza sobre las cargas.</i>';
+        if(!origin) { 
+            vec.validation='warn'; vec.label='?'; 
+            vBox.innerHTML += `<div class="result-item result-warn">⚠️ Vector suelto</div>`;
+            return; 
         }
-
-        vectors.forEach(vec => {
-            const origin = charges.find(c => Math.hypot(c.x - vec.start.x, c.y - vec.start.y) < 60);
-            
-            if(!origin) { 
-                vec.validation='warn'; vec.label='?'; 
-                vBox.innerHTML += `<div class="result-item result-warn">⚠️ Vector suelto</div>`;
-                return; 
-            }
-            
-            const vAng = (Math.atan2(toPhysY(vec.end.y) - toPhysY(vec.start.y), vec.end.x - vec.start.x) + 4*Math.PI)%(2*Math.PI);
-            
-            let best = null; let minD = 100;
-            const cands = interactions.filter(i => i.t.id === origin.id);
-            cands.forEach(cand => {
-                let d = Math.abs(cand.ang - vAng);
-                if(d > Math.PI) d = 2*Math.PI - d;
-                if(d < minD) { minD = d; best = cand; }
-            });
-
-            if(best && minD < 0.6) {
-                vec.validation = 'correct'; vec.label = best.lbl;
-                vBox.innerHTML += `<div class="result-item result-correct">✅ ${best.lbl} Correcta en ${origin.label}</div>`;
-                state.calculatedForces.push({
-                    target: origin.id, source: best.s.id, label: best.lbl,
-                    mag: best.mag, angleDeg: (best.ang*180/Math.PI)%360,
-                    Fx: best.mag*Math.cos(best.ang), Fy: best.mag*Math.sin(best.ang)
-                });
-            } else {
-                vec.validation = 'error'; vec.label = '?';
-                vBox.innerHTML += `<div class="result-item result-error">❌ Dirección Errada en ${origin.label}</div>`;
-            }
-        });
         
-        renderLatex();
-        setupDCLButtons();
-        redraw();
+        const vAng = (Math.atan2(toPhysY(vec.end.y) - toPhysY(vec.start.y), vec.end.x - vec.start.x) + 4*Math.PI)%(2*Math.PI);
+        
+        let best = null; let minD = 100;
+        const cands = interactions.filter(i => i.t.id === origin.id);
+        cands.forEach(cand => {
+            let d = Math.abs(cand.ang - vAng);
+            if(d > Math.PI) d = 2*Math.PI - d;
+            if(d < minD) { minD = d; best = cand; }
+        });
+
+        if(best && minD < 0.6) {
+            vec.validation = 'correct'; vec.label = best.label;
+            vBox.innerHTML += `<div class="result-item result-correct">✅ ${best.label} Correcta en ${origin.label}</div>`;
+        } else {
+            vec.validation = 'error'; vec.label = '?';
+            vBox.innerHTML += `<div class="result-item result-error">❌ Dirección Errada en ${origin.label}</div>`;
+        }
+    });
+    
+    renderMathInElement(vBox, {delimiters: [{left: "$", right: "$", display: false}]});
+    renderLatex();
+    setupDCLButtons();
+    redraw();
+}
+
+function updateStatement(charges, unitQ) {
+    const box = document.getElementById('problem-statement');
+    if (charges.length < 2) { 
+        box.innerHTML = "<i>Dibuja al menos dos cargas fuente (+ o -) para calcular su interacción.</i>"; 
+        return; 
     }
 
-    // --- Funciones UI Actualizadas para Edición ---
-    function updateCoord(id, axis, val) {
+    const sources = charges.map(c => `$q_${c.id}$`);
+    let text = `<strong>Problema:</strong> Determinar la magnitud y dirección de la <strong>Fuerza Eléctrica Resultante</strong> sobre cada carga debido a la interacción con el sistema <strong>${sources.join(', ')}</strong>.`;
+    text += `<br><small style="color:#aaa; margin-top:5px; display:block">Considere $k_e = 8.987 \\times 10^9 N\\cdot m^2/C^2$</small>`;
+    
+    box.innerHTML = text;
+    renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
+}
+
+function updateCoord(id, axis, val) {
         const obj = state.objects.find(o => o.id === id);
         if(!obj) return;
         
@@ -635,7 +786,7 @@
 
         if (axis === 'x') {
             obj.physX = numVal;
-            obj.x = numVal; // En canvas X = Phys X (solo offset si hubiera pan/zoom)
+            obj.x = numVal;
         } else {
             obj.physY = numVal;
             obj.y = toCanvasY(numVal);
@@ -651,7 +802,6 @@
             const div = document.createElement('div'); div.className='data-card';
             if(state.selectedObject === ch) div.classList.add('selected');
             
-            // Generar inputs para X e Y
             div.innerHTML = `
                 <div class="data-header"><strong>${ch.label}</strong></div>
                 <div class="input-row">
@@ -666,18 +816,22 @@
                 </div>`;
             c.appendChild(div);
         });
-        document.getElementById('detection-list').innerHTML = state.objects.map(o=>
-            o.type==='vector'?'<span class="badge badge-vec">Vec</span>':`<span class="badge ${o.type==='charge_pos'?'badge-pos':'badge-neg'}">${o.label}</span>`
-        ).join('');
+        
+        document.getElementById('detection-list').innerHTML = state.objects.map(o=> {
+            if(o.type === 'vector') return '<span class="badge badge-vec">Vec</span>';
+            if(o.type.startsWith('charge')) return `<span class="badge ${o.type==='charge_pos'?'badge-pos':'badge-neg'}">${o.label}</span>`;
+            return '';
+        }).join('');
     }
     
-    // --- Helpers Genéricos ---
     function setTool(t, b) {
+        finalizeText();
         state.tool = t;
         document.querySelectorAll('.btn-tool').forEach(el=>el.classList.remove('active'));
         if(b) b.classList.add('active');
-        if(t==='draw') selectObject(null);
+        if(t !== 'move') selectObject(null);
     }
+    
     function undo() { 
         if(state.rawStrokes.length>0) state.rawStrokes.pop(); 
         else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); }
@@ -686,6 +840,14 @@
     function limpiarTodo() { state.objects=[]; state.rawStrokes=[]; updateUI(); analizarFisica(); redraw(); document.getElementById('latex-result').innerText='---'; }
 
     // --- Renderizado ---
+    function drawPath(pts, color = '#999', width = 2) {
+        if(pts.length < 2) return;
+        ctx.strokeStyle = color; ctx.lineWidth = width;
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+    }
+
     function redraw() {
         ctx.clearRect(0,0,canvas.width,canvas.height);
         labelsOverlay.innerHTML = '';
@@ -695,9 +857,27 @@
         for(let i=0; i<canvas.height; i+=20) { ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); }
         ctx.stroke();
 
-        ctx.strokeStyle = '#999'; ctx.lineWidth=2;
-        state.rawStrokes.forEach(s => drawPath(s));
-        if(state.currentStroke.length>0) drawPath(state.currentStroke);
+        // Líneas punteadas conectando las cargas (Línea de acción r)
+        const charges = state.objects.filter(o => o.type.startsWith('charge'));
+        if (charges.length > 1) {
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < charges.length; i++) {
+                for (let j = i + 1; j < charges.length; j++) {
+                    ctx.beginPath();
+                    ctx.moveTo(charges[i].x, charges[i].y);
+                    ctx.lineTo(charges[j].x, charges[j].y);
+                    ctx.stroke();
+                }
+            }
+            ctx.setLineDash([]); // Reset
+        }
+
+        state.rawStrokes.forEach(s => drawPath(s, '#999', 2));
+        if(state.currentStroke.length>0) drawPath(state.currentStroke, '#999', 2);
+        
+        if(state.currentFreeStroke) drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, 3);
 
         state.objects.forEach(obj => {
             const isSel = (state.selectedObject === obj);
@@ -719,14 +899,18 @@
                 ctx.shadowBlur=0;
                 if(obj.label) addLabel(obj.end.x, obj.end.y-15, obj.label);
             }
+            else if(obj.type === 'free_stroke') {
+                drawPath(obj.points, obj.color, 3);
+                ctx.shadowBlur=0;
+            }
+            else if(obj.type === 'text') {
+                ctx.fillStyle = obj.color;
+                ctx.font = 'bold 20px "Segoe UI", Arial';
+                ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                ctx.fillText(obj.text, obj.x, obj.y);
+                ctx.shadowBlur=0;
+            }
         });
-    }
-
-    function drawPath(pts) {
-        if(pts.length<2) return;
-        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
-        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.stroke();
     }
     
     function drawArrow(x1, y1, x2, y2) {
@@ -749,7 +933,7 @@
         return { minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys), cx:(Math.min(...xs)+Math.max(...xs))/2, cy:(Math.min(...ys)+Math.max(...ys))/2 };
     }
     
-    // --- LaTeX ---
+    // --- LaTeX Actualizado ---
     function renderLatex() {
         const box = document.getElementById('latex-result');
         let html = "";
@@ -758,15 +942,15 @@
         if(Object.keys(groups).length===0) html="\\text{Sin fuerzas correctas}";
         else {
             for(const [tid, fs] of Object.entries(groups)) {
-                html += `\\underline{\\text{Carga } q_${tid}}:\\\\`;
+                html += `\\underline{\\text{Análisis de Carga } q_${tid}}:\\\\`;
                 let sx=0, sy=0;
                 
-                html += `\\text{1. Componentes:} \\\\ \\begin{aligned}`;
+                html += `\\text{1. Distancia, ángulo y componentes:} \\\\ \\begin{aligned}`;
                 fs.forEach(f=>{ 
-                    // Muestra las componentes individuales con cálculo
-                    html += `${f.label} &= ${f.mag.toExponential(2)} \\text{ N} \\quad (\\theta=${f.angleDeg.toFixed(1)}^\\circ) \\\\`;
-                    html += `{${f.label}}_x &= ${f.mag.toExponential(2)} \\cos(${f.angleDeg.toFixed(1)}^\\circ) = ${f.Fx.toExponential(2)} \\text{ N} \\\\`;
-                    html += `{${f.label}}_y &= ${f.mag.toExponential(2)} \\sin(${f.angleDeg.toFixed(1)}^\\circ) = ${f.Fy.toExponential(2)} \\text{ N} \\\\[0.5em]`;
+                    html += `r_{${f.source}${f.target}} &= ${f.r.toExponential(2)} \\text{ m}, \\quad \\theta = ${f.angleDeg.toFixed(1)}^\\circ \\\\`;
+                    html += `|\\vec{F}_{${f.source}${f.target}}| &= k_e \\frac{|q_${f.source} q_${f.target}|}{r^2} = ${f.mag.toExponential(2)} \\text{ N} \\\\`;
+                    html += `{F}_{${f.source}${f.target}x} &= ${f.mag.toExponential(2)} \\cos(${f.angleDeg.toFixed(1)}^\\circ) = ${f.Fx.toExponential(2)} \\text{ N} \\\\`;
+                    html += `{F}_{${f.source}${f.target}y} &= ${f.mag.toExponential(2)} \\sin(${f.angleDeg.toFixed(1)}^\\circ) = ${f.Fy.toExponential(2)} \\text{ N} \\\\[0.8em]`;
                     sx += f.Fx; sy += f.Fy; 
                 });
                 html += `\\end{aligned} \\\\[1em]`;
@@ -775,7 +959,7 @@
                 const R = Math.hypot(sx, sy);
                 const Rang = (Math.atan2(sy, sx) * 180 / Math.PI + 360) % 360;
 
-                html += `\\text{2. Resultante:} \\\\ \\begin{aligned}`;
+                html += `\\text{2. Fuerza Resultante:} \\\\ \\begin{aligned}`;
                 html += `\\sum F_x &= \\mathbf{${sx.toExponential(2)} \\text{ N}} \\\\`;
                 html += `\\sum F_y &= \\mathbf{${sy.toExponential(2)} \\text{ N}} \\\\`;
                 html += `|\\vec{F}_R| &= \\sqrt{(${sx.toExponential(2)})^2 + (${sy.toExponential(2)})^2} = \\mathbf{${R.toExponential(2)} \\text{ N}} \\\\`;
@@ -786,7 +970,7 @@
         katex.render(html, box, {displayMode:true, throwOnError:false});
     }
 
-    // --- Modal DCL ---
+    // --- Modal DCL Actualizado ---
     function setupDCLButtons() {
         const d=document.getElementById('dcl-buttons'); d.innerHTML='';
         const t = new Set(state.calculatedForces.map(f=>f.target));
@@ -800,26 +984,78 @@
         const cx=document.getElementById('fbd-canvas').getContext('2d');
         const fs = state.calculatedForces.filter(f=>f.target==id);
         const ch = state.objects.find(o=>o.id==id);
+        
         cx.clearRect(0,0,400,400);
-        cx.strokeStyle='#ccc'; cx.beginPath(); cx.moveTo(200,0); cx.lineTo(200,400); cx.moveTo(0,200); cx.lineTo(400,200); cx.stroke();
-        cx.beginPath(); cx.arc(200,200,15,0,2*Math.PI); cx.fillStyle=ch.type==='charge_pos'?'#3498db':'#e74c3c'; cx.fill();
-        const max = Math.max(...fs.map(f=>f.mag), 1e-9); const s = 140/max;
+        
+        // Ejes
+        cx.strokeStyle='#ccc'; cx.lineWidth=1;
+        cx.beginPath(); cx.moveTo(200,0); cx.lineTo(200,400); cx.moveTo(0,200); cx.lineTo(400,200); cx.stroke();
+        
+        // Carga central
+        cx.beginPath(); cx.arc(200,200,10,0,2*Math.PI); 
+        cx.fillStyle=ch.type==='charge_pos'?'#3498db':'#e74c3c'; cx.fill();
+        
+        let sumFx = 0, sumFy = 0;
+        fs.forEach(f => { sumFx += f.Fx; sumFy += f.Fy; });
+        const Rmag = Math.hypot(sumFx, sumFy);
+        
+        const max = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); 
+        const s = 140/max; // Escala visual para que el vector mas grande mida 140px
+
         fs.forEach(f=>{ 
             const dx=f.Fx*s; const dy=-f.Fy*s; // Fy phys up -> Canvas down
             const col='#f1c40f';
-            cx.strokeStyle=col; cx.fillStyle=col; cx.lineWidth=3;
             const x2=200+dx, y2=200+dy;
+
+            // Proyecciones (Componentes Individuales)
+            cx.strokeStyle='rgba(241, 196, 15, 0.4)'; cx.lineWidth=1.5; cx.setLineDash([4, 4]);
+            cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(x2, 200); cx.stroke();
+            cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(200, y2); cx.stroke();
+            cx.setLineDash([]);
+
+            // Vector Fuerza Individual
+            cx.strokeStyle=col; cx.fillStyle=col; cx.lineWidth=3;
             cx.beginPath(); cx.moveTo(200,200); cx.lineTo(x2,y2); cx.stroke();
             const ang=Math.atan2(y2-200, x2-200);
             cx.beginPath(); cx.moveTo(x2,y2); 
             cx.lineTo(x2-10*Math.cos(ang-Math.PI/6), y2-10*Math.sin(ang-Math.PI/6));
             cx.lineTo(x2-10*Math.cos(ang+Math.PI/6), y2-10*Math.sin(ang+Math.PI/6)); cx.fill();
-            cx.fillStyle='black'; cx.fillText(f.label.replace(/[{}_]/g,''), x2+10, y2);
+            cx.fillStyle='black'; cx.font="14px Arial";
+            cx.fillText(f.label.replace(/[{}_]/g,''), x2+10, y2);
         });
+
+        // Dibujar Vector Fuerza Resultante
+        if(fs.length > 0 && Rmag > 0) {
+            const Rdx = sumFx * s; const Rdy = -sumFy * s;
+            const Rx2 = 200 + Rdx; const Ry2 = 200 + Rdy;
+            const Rcol = '#ff6b6b';
+
+            // Proyecciones Resultante
+            cx.strokeStyle='rgba(255, 107, 107, 0.4)'; cx.lineWidth=2; cx.setLineDash([4, 4]);
+            cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(Rx2, 200); cx.stroke();
+            cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(200, Ry2); cx.stroke();
+            cx.setLineDash([]);
+
+            // Flecha Resultante
+            cx.strokeStyle=Rcol; cx.fillStyle=Rcol; cx.lineWidth=4;
+            cx.beginPath(); cx.moveTo(200,200); cx.lineTo(Rx2, Ry2); cx.stroke();
+            const Rang = Math.atan2(Ry2-200, Rx2-200);
+            cx.beginPath(); cx.moveTo(Rx2,Ry2); 
+            cx.lineTo(Rx2-12*Math.cos(Rang-Math.PI/6), Ry2-12*Math.sin(Rang-Math.PI/6));
+            cx.lineTo(Rx2-12*Math.cos(Rang+Math.PI/6), Ry2-12*Math.sin(Rang+Math.PI/6)); cx.fill();
+            
+            // Etiqueta Resultante
+            cx.fillStyle='#ff6b6b'; cx.font="bold 16px Arial";
+        cx.fillText("FR", Rx2+12, Ry2+5);
     }
-    function closeModal() { document.getElementById('fbd-modal').style.display='none'; }
+}
+function closeModal() { document.getElementById('fbd-modal').style.display='none'; }
+
+document.addEventListener("DOMContentLoaded", function() {
+    const tip = document.getElementById('static-tip');
+    if(tip) renderMathInElement(tip, {delimiters: [{left: "$", right: "$", display: false}]});
+});
 </script>
 </body>
-
 </html>
 
