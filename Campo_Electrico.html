@@ -2,11 +2,11 @@
 <html lang="es">
 <head>
     <!-- Google tag (gtag.js) --> 
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EXGD1GSLLB"></script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-EXGD1GSLLB'); </script>
+     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EXGD1GSLLB"></script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-EXGD1GSLLB'); </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laboratorio Virtual: Campo Eléctrico IA</title>
-    <meta name="description" content="Simulador de Campo Eléctrico con líneas equipotenciales y corrección visual.">
+    <meta name="description" content="Simulador de Campo Eléctrico con pizarra interactiva libre.">
     
     <!-- Librerías -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
@@ -84,13 +84,22 @@
         
         .btn-action { background: var(--accent-color); color: #1e1e2e; font-weight: bold; justify-content: center; }
         
-        /* Botón Toggle Equipotenciales */
         .btn-toggle { background: #5e35b1; color: white; justify-content: center; }
         .btn-toggle:hover { background: #7e57c2; }
         .btn-toggle.on { background: #d1c4e9; color: #5e35b1; font-weight: bold; box-shadow: 0 0 8px #7e57c2; }
         
         .btn-danger { background: rgba(255, 107, 107, 0.1); color: var(--danger-color); border: 1px solid var(--danger-color); }
         .btn-danger:hover { background: var(--danger-color); color: white; }
+
+        .color-picker-container {
+            display: flex; align-items: center; gap: 10px; 
+            background: #232333; padding: 10px; border-radius: 6px;
+            border: 1px solid #444; margin-top: 5px;
+        }
+        .color-picker-container input[type="color"] {
+            cursor: pointer; width: 32px; height: 32px; 
+            border: none; background: transparent; padding: 0; outline: none;
+        }
 
         .data-card {
             background: #1a1a24; padding: 10px; border-radius: 6px;
@@ -130,6 +139,16 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.15); white-space: nowrap;
         }
 
+        #text-input-overlay {
+            position: absolute; display: none;
+            background: rgba(255,255,255,0.95);
+            border: 2px dashed var(--accent-color);
+            color: #222; font-family: 'Segoe UI', sans-serif; font-size: 20px;
+            padding: 4px 8px; border-radius: 4px; z-index: 100;
+            outline: none; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transform: translateY(-50%);
+        }
+
         #coords-indicator {
             position: absolute; bottom: 10px; left: 10px;
             background: rgba(0,0,0,0.8); color: var(--accent-color);
@@ -150,13 +169,8 @@
 
         .tip-card {
             background: #252530;
-            padding: 10px;
-            border-radius: 6px;
-            border-left: 3px solid #f1c40f;
-            margin-top: 15px;
-            font-size: 0.8rem;
-            color: #ccc;
-            line-height: 1.4;
+            padding: 10px; border-radius: 6px; border-left: 3px solid #f1c40f;
+            margin-top: 15px; font-size: 0.8rem; color: #ccc; line-height: 1.4;
         }
         
         .result-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #333; font-size: 0.9rem; }
@@ -200,7 +214,7 @@
 
 <header>
     <div><h2>🧲 Campo Eléctrico IA</h2></div>
-    <div class="version">v1.2.0 (Equipotenciales + Corrección Visual)</div>
+    <div class="version">v1.3.0 (Pizarra Libre + Texto)</div>
 </header>
 
 <div class="workspace">
@@ -208,16 +222,22 @@
         <div>
             <div class="section-title">Herramientas</div>
             <div class="toolbar">
-                <button class="btn-tool active" onclick="setTool('draw', this)">✏️ Lápiz (Dibujar)</button>
+                <button class="btn-tool active" onclick="setTool('draw', this)" title="Dibuja cargas (+/-), puntos y vectores de campo">🤖 Lápiz IA (Objetos)</button>
+                <button class="btn-tool" onclick="setTool('draw_free', this)" title="Dibuja explicaciones sin afectar los cálculos">🖌️ Marcador (Libre)</button>
+                <button class="btn-tool" onclick="setTool('text', this)" title="Haz clic en el lienzo para escribir texto">🔤 Escribir Texto</button>
                 <button class="btn-tool" onclick="setTool('move', this)">✋ Mover / Editar</button>
-                <button class="btn-tool" onclick="undo()">↩️ Deshacer Trazos</button>
+                <button class="btn-tool" onclick="undo()">↩️ Deshacer</button>
                 <button class="btn-tool btn-danger" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
             </div>
             
-            <hr style="border:0; border-top:1px solid var(--border-color); margin: 10px 0;">
+            <div class="color-picker-container">
+                <input type="color" id="pencil-color" value="#000000" onchange="state.currentColor = this.value">
+                <label for="pencil-color" style="font-size: 0.85rem; color: #ccc;">Color (Marcador y Texto)</label>
+            </div>
+            
+            <hr style="border:0; border-top:1px solid var(--border-color); margin: 15px 0;">
             <div class="section-title">Visualización</div>
             <div class="toolbar">
-                <!-- Botón Actualizado a Equipotenciales -->
                 <button id="btn-equipotentials" class="btn-tool btn-toggle" onclick="toggleEquipotentials()">👁️ Ver Líneas Equipotenciales</button>
             </div>
         </div>
@@ -263,6 +283,7 @@
     <div class="canvas-area" id="canvas-wrapper">
         <canvas id="main-canvas"></canvas>
         <button id="float-delete" onclick="deleteSelected()">🗑️ Eliminar</button>
+        <input type="text" id="text-input-overlay" placeholder="Escribe aquí y presiona Enter...">
         <div id="labels-overlay"></div>
         <div id="coords-indicator">x: 0, y: 0</div>
     </div>
@@ -312,21 +333,29 @@
     const wrapper = document.getElementById('canvas-wrapper');
     const labelsOverlay = document.getElementById('labels-overlay');
     const floatDelete = document.getElementById('float-delete');
+    const textOverlay = document.getElementById('text-input-overlay');
     
-    // Estado Global
+    // Estado Global (Maneja dibujo IA, libre y textos)
     let state = {
         tool: 'draw',
+        currentColor: '#000000',
         isDrawing: false,
+        isDrawingFree: false,
         isDragging: false,
+        dragLastX: 0,
+        dragLastY: 0,
         draggedObject: null,
         selectedObject: null,
-        showEquipotentials: false, // Ahora manejamos equipotenciales
+        showEquipotentials: false,
         recognitionTimer: null, 
         rawStrokes: [],      
         currentStroke: [],   
-        objects: [],         
+        currentFreeStroke: null,
+        objects: [],         // Guarda Cargas, Vectores, Trazos Libres ('free_stroke') y Texto ('text')
         calculatedFields: []
     };
+    
+    let textPos = {x:0, y:0};
 
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
 
@@ -347,7 +376,28 @@
         return { x: clientX - r.left, y: clientY - r.top };
     }
 
-    // --- Lógica Equipotenciales (Marching Squares Simplificado) ---
+    // --- Manejo de la herramienta Texto Libre ---
+    function finalizeText() {
+        if(textOverlay.style.display !== 'none' && textOverlay.value.trim() !== '') {
+            state.objects.push({
+                type: 'text', 
+                id: Date.now(), 
+                text: textOverlay.value,
+                x: textPos.x, 
+                y: textPos.y, 
+                color: state.currentColor
+            });
+            textOverlay.value = '';
+            textOverlay.style.display = 'none';
+            redraw();
+        } else {
+            textOverlay.style.display = 'none';
+        }
+    }
+    textOverlay.addEventListener('keydown', e => { if(e.key === 'Enter') finalizeText(); });
+    textOverlay.addEventListener('blur', finalizeText);
+
+    // --- Lógica Equipotenciales ---
     function toggleEquipotentials() {
         state.showEquipotentials = !state.showEquipotentials;
         const btn = document.getElementById('btn-equipotentials');
@@ -360,15 +410,11 @@
         let V = 0;
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         if (charges.length === 0) return 0;
-
         charges.forEach(src => {
             const dx = x - src.x; 
             const dy = y - src.y;
             const r = Math.sqrt(dx*dx + dy*dy);
-            if (r < 5) { V += (src.type === 'charge_pos' ? 9999 : -9999); return; } // Singularity
-
-            // Potencial V = k * q / r. 
-            // Usamos unidades visuales arbitrarias para el dibujo
+            if (r < 5) { V += (src.type === 'charge_pos' ? 9999 : -9999); return; }
             const q = src.type === 'charge_pos' ? 1 : -1;
             V += (2000 * q) / r; 
         });
@@ -382,60 +428,42 @@
 
         ctx.lineWidth = 1;
         ctx.strokeStyle = 'rgba(120, 100, 200, 0.5)';
-        ctx.setLineDash([3, 3]); // Líneas punteadas como pidió el usuario
+        ctx.setLineDash([3, 3]);
 
-        // Resolución de la cuadrícula
         const gridSize = 8;
         const cols = Math.ceil(canvas.width / gridSize);
         const rows = Math.ceil(canvas.height / gridSize);
-        
-        // Niveles de potencial a dibujar (Iso-valores)
-        // Definimos un rango simétrico para cargas + y -
         const thresholds = [-100, -60, -40, -25, -15, -10, -5, 5, 10, 15, 25, 40, 60, 100];
 
-        // Marching Squares Algorithm
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
-                const px = x * gridSize;
-                const py = y * gridSize;
-                
-                // Calcular potencial en las esquinas de la celda
-                // a b
-                // d c
+                const px = x * gridSize; const py = y * gridSize;
                 const valA = getPotentialAt(px, py);
                 const valB = getPotentialAt(px + gridSize, py);
                 const valC = getPotentialAt(px + gridSize, py + gridSize);
                 const valD = getPotentialAt(px, py + gridSize);
 
-                // Comprobar si algún umbral cruza esta celda
                 thresholds.forEach(thresh => {
-                    // Generar bitmask de esquinas > thresh
                     let mask = 0;
                     if (valA > thresh) mask |= 8;
                     if (valB > thresh) mask |= 4;
                     if (valC > thresh) mask |= 2;
                     if (valD > thresh) mask |= 1;
-
-                    // Dibujar líneas basadas en la máscara (Simplificado)
-                    // Interpolación lineal para mayor suavidad
                     if (mask !== 0 && mask !== 15) {
                         drawCellLine(ctx, mask, px, py, gridSize, valA, valB, valC, valD, thresh);
                     }
                 });
             }
         }
-        ctx.setLineDash([]); // Reset
+        ctx.setLineDash([]);
     }
 
-    // Función auxiliar para dibujar segmentos de Marching Squares con interpolación
     function drawCellLine(ctx, mask, x, y, s, a, b, c, d, t) {
-        // Puntos medios de los bordes interpolados
         const top    = {x: x + s * (t - a) / (b - a), y: y};
         const right  = {x: x + s, y: y + s * (t - b) / (c - b)};
         const bottom = {x: x + s * (t - d) / (c - d), y: y + s};
         const left   = {x: x, y: y + s * (t - a) / (d - a)};
 
-        // Clamp para evitar errores de división por cero
         const clamp = (p) => { 
             if(isNaN(p.x)) p.x = x + s/2; 
             if(isNaN(p.y)) p.y = y + s/2;
@@ -463,57 +491,35 @@
     }
     function drawSeg(ctx, p1, p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
 
-    // --- Lógica de Corrección Visual (Vector Fantasma) ---
     function drawCorrectVectorHint(ctx, vec) {
-        // Encontrar punto de prueba cercano
         const testPoints = state.objects.filter(o => o.type === 'test_point');
         const originPoint = testPoints.find(p => Math.hypot(p.x - vec.start.x, p.y - vec.start.y) < 40);
-        
         if (!originPoint) return;
 
-        // Buscar el campo calculado para ese punto
-        // Sumamos todos los campos individuales para obtener el Neto (Resultante)
         const relevantFields = state.calculatedFields.filter(f => f.tp.id === originPoint.id);
         if (relevantFields.length === 0) return;
 
         let Ex_net = 0, Ey_net = 0;
-        relevantFields.forEach(f => {
-            Ex_net += f.mag * Math.cos(f.ang);
-            Ey_net += f.mag * Math.sin(f.ang); // Recordar: Canvas Y invertido en logica física
-        });
+        relevantFields.forEach(f => { Ex_net += f.mag * Math.cos(f.ang); Ey_net += f.mag * Math.sin(f.ang); });
         
-        // Ahora convertir el vector físico (Ex, Ey) a coordenadas de pantalla
-        // Necesitamos normalizar para dibujar una "flecha" visualmente útil, no a escala infinita
         const mag = Math.hypot(Ex_net, Ey_net);
         if (mag === 0) return;
         
-        const scaleLen = 60; // Longitud visual fija para la pista
-        const dirX = Ex_net / mag;
-        const dirY = Ey_net / mag; // En física +Y es arriba. En Canvas +Y es abajo. 
-        // toCanvasY maneja posición, pero para vector relativo:
-        // Física Y+ -> Canvas Y-
+        const scaleLen = 60; 
+        const dirX = Ex_net / mag; const dirY = Ey_net / mag; 
         
-        const startX = originPoint.x;
-        const startY = originPoint.y;
-        
-        // Invertimos dirY para canvas
-        const endX = startX + dirX * scaleLen;
-        const endY = startY - dirY * scaleLen; 
+        const startX = originPoint.x; const startY = originPoint.y;
+        const endX = startX + dirX * scaleLen; const endY = startY - dirY * scaleLen; 
 
-        // Dibujar Vector Fantasma
         ctx.save();
-        ctx.strokeStyle = 'rgba(78, 204, 163, 0.4)'; // Verde tenue
+        ctx.strokeStyle = 'rgba(78, 204, 163, 0.4)';
         ctx.fillStyle = 'rgba(78, 204, 163, 0.4)';
-        ctx.lineWidth = 4;
-        ctx.setLineDash([2, 2]); // Punteado fino
-        
+        ctx.lineWidth = 4; ctx.setLineDash([2, 2]); 
         drawArrow(startX, startY, endX, endY);
-        
-        ctx.setLineDash([]);
-        ctx.restore();
+        ctx.setLineDash([]); ctx.restore();
     }
 
-    // --- Eventos y Lógica General ---
+    // --- Eventos Base del Canvas ---
     canvas.addEventListener('mousedown', handleStart);
     canvas.addEventListener('touchstart', handleStart);
     canvas.addEventListener('mousemove', handleMove);
@@ -522,28 +528,47 @@
     canvas.addEventListener('touchend', handleEnd);
 
     function handleStart(e) {
+        if (e.touches && e.touches.length > 1) return;
         if (e.touches) e.preventDefault(); 
         const c = getCoords(e);
         
+        // Finalizar texto si hacemos clic fuera
+        if (state.tool !== 'text') finalizeText();
+
+        if (state.tool === 'text') {
+            textPos = {x: c.x, y: c.y};
+            textOverlay.style.left = c.x + 'px';
+            textOverlay.style.top = c.y + 'px';
+            textOverlay.style.display = 'block';
+            textOverlay.style.color = state.currentColor;
+            setTimeout(() => textOverlay.focus(), 50);
+            return;
+        }
+
         if (state.tool === 'move') {
             const hit = findObjectAt(c);
             if (hit) {
                 state.isDragging = true;
                 state.draggedObject = hit;
+                state.dragLastX = c.x;
+                state.dragLastY = c.y;
                 selectObject(hit);
-            } else {
-                selectObject(null);
-            }
+            } else { selectObject(null); }
             return;
         }
 
-        if (state.recognitionTimer) {
-            clearTimeout(state.recognitionTimer);
-            state.recognitionTimer = null;
+        if (state.tool === 'draw_free') {
+            selectObject(null);
+            state.isDrawingFree = true;
+            state.currentFreeStroke = { type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor };
+            return;
         }
-        
+
+        // Lápiz de IA
+        if (state.recognitionTimer) { clearTimeout(state.recognitionTimer); state.recognitionTimer = null; }
         state.isDrawing = true;
         state.currentStroke = [c];
+        selectObject(null);
     }
 
     function handleMove(e) {
@@ -552,21 +577,34 @@
         document.getElementById('coords-indicator').innerText = `x: ${Math.round(c.x)}, y: ${Math.round(toPhysY(c.y))}`;
 
         if (state.isDragging && state.draggedObject) {
+            const dx = c.x - state.dragLastX;
+            const dy = c.y - state.dragLastY;
+
             if (state.draggedObject.type.startsWith('charge') || state.draggedObject.type === 'test_point') {
-                state.draggedObject.x = c.x;
-                state.draggedObject.y = c.y;
-                state.draggedObject.physX = c.x;
-                state.draggedObject.physY = toPhysY(c.y);
+                state.draggedObject.x += dx; state.draggedObject.y += dy;
+                state.draggedObject.physX += dx; state.draggedObject.physY = toPhysY(state.draggedObject.y);
             } else if (state.draggedObject.type === 'vector') {
-                const w = state.draggedObject.end.x - state.draggedObject.start.x;
-                const h = state.draggedObject.end.y - state.draggedObject.start.y;
-                state.draggedObject.start = {x: c.x, y: c.y};
-                state.draggedObject.end = {x: c.x + w, y: c.y + h};
+                state.draggedObject.start.x += dx; state.draggedObject.start.y += dy;
+                state.draggedObject.end.x += dx; state.draggedObject.end.y += dy;
+            } else if (state.draggedObject.type === 'free_stroke') {
+                state.draggedObject.points.forEach(p => { p.x += dx; p.y += dy; });
+            } else if (state.draggedObject.type === 'text') {
+                state.draggedObject.x += dx; state.draggedObject.y += dy;
             }
+
+            state.dragLastX = c.x; state.dragLastY = c.y;
             updateFloatDelete();
             redraw();
+            return;
         } 
-        else if (state.isDrawing) {
+        
+        if (state.isDrawingFree && state.currentFreeStroke) {
+            state.currentFreeStroke.points.push(c);
+            redraw();
+            return;
+        }
+
+        if (state.isDrawing) {
             state.currentStroke.push(c);
             redraw();
         }
@@ -576,8 +614,17 @@
         if (state.isDragging) {
             state.isDragging = false;
             state.draggedObject = null;
-            updateUI(); 
-            analizarFisica(); 
+            updateUI(); analizarFisica(); 
+            return;
+        }
+
+        if (state.isDrawingFree && state.currentFreeStroke) {
+            state.isDrawingFree = false;
+            if (state.currentFreeStroke.points.length > 2) {
+                state.objects.push(state.currentFreeStroke);
+            }
+            state.currentFreeStroke = null;
+            redraw();
             return;
         }
 
@@ -592,21 +639,38 @@
                 detectAndConvert();
                 state.recognitionTimer = null;
             }, 1200); 
-            
             redraw();
         }
     }
 
     function findObjectAt(c) {
+        // Textos
+        const textObj = state.objects.find(o => {
+            if(o.type !== 'text') return false;
+            ctx.font = '20px "Segoe UI", Arial';
+            const w = ctx.measureText(o.text).width;
+            return c.x >= o.x && c.x <= o.x + w && c.y >= o.y && c.y <= o.y + 24;
+        });
+        if(textObj) return textObj;
+
+        // Puntos y cargas
         const tp = state.objects.find(o => o.type === 'test_point' && Math.hypot(o.x - c.x, o.y - c.y) < 20);
         if (tp) return tp;
         const charge = state.objects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30);
         if (charge) return charge;
+
+        // Vectores
         const vec = state.objects.find(o => o.type === 'vector' && (
-            Math.hypot(o.start.x - c.x, o.start.y - c.y) < 25 || 
-            Math.hypot(o.end.x - c.x, o.end.y - c.y) < 25
+            Math.hypot(o.start.x - c.x, o.start.y - c.y) < 25 || Math.hypot(o.end.x - c.x, o.end.y - c.y) < 25
         ));
-        return vec;
+        if(vec) return vec;
+
+        // Trazos Libres
+        const strokeObj = state.objects.find(o => {
+            if(o.type !== 'free_stroke') return false;
+            return o.points.some(p => Math.hypot(p.x - c.x, p.y - c.y) < 15);
+        });
+        return strokeObj;
     }
 
     function selectObject(obj) {
@@ -634,21 +698,23 @@
         let bx, by;
         if(o.type.startsWith('charge')) { bx = o.x; by = o.y - 35; }
         else if(o.type === 'test_point') { bx = o.x; by = o.y - 25; }
-        else { bx = (o.start.x+o.end.x)/2; by = (o.start.y+o.end.y)/2 - 20; }
-        floatDelete.style.left = (bx - 30) + 'px'; 
-        floatDelete.style.top = by + 'px';
+        else if(o.type === 'vector') { bx = (o.start.x+o.end.x)/2; by = (o.start.y+o.end.y)/2 - 20; }
+        else if(o.type === 'text') { bx = o.x + 20; by = o.y - 30; }
+        else if(o.type === 'free_stroke') {
+            const minP = o.points.reduce((prev, curr) => curr.y < prev.y ? curr : prev);
+            bx = minP.x; by = minP.y - 30;
+        }
+        floatDelete.style.left = (bx - 30) + 'px'; floatDelete.style.top = by + 'px';
     }
 
     function deleteSelected() {
         if (state.selectedObject) {
             state.objects = state.objects.filter(o => o !== state.selectedObject);
-            selectObject(null);
-            updateUI();
-            analizarFisica();
-            redraw();
+            selectObject(null); updateUI(); analizarFisica(); redraw();
         }
     }
 
+    // --- IA de Dibujo ---
     function detectAndConvert() {
         const groups = groupStrokes(state.rawStrokes);
         const newObjects = [];
@@ -677,10 +743,7 @@
                     });
                 } else if (type === 'vector') {
                     const eps = getVectorEndpoints(group);
-                    newObjects.push({
-                        type: 'vector', start: eps.start, end: eps.end,
-                        validation: null, label: '?'
-                    });
+                    newObjects.push({ type: 'vector', start: eps.start, end: eps.end, validation: null, label: '?' });
                 }
                 group.forEach(i => usedIndices.add(i));
             }
@@ -689,17 +752,14 @@
         if (newObjects.length > 0) {
             state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i));
             state.objects.push(...newObjects);
-            updateUI();
-            analizarFisica();
+            updateUI(); analizarFisica();
         }
         redraw();
     }
 
     function getGroupBounds(indices) {
         let allPts = [];
-        indices.forEach(i => {
-            if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p));
-        });
+        indices.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p)); });
         if(allPts.length === 0) return { minX:0, maxX:0, minY:0, maxY:0, w:0, h:0, cx:0, cy:0 };
         return getBounds(allPts);
     }
@@ -719,18 +779,14 @@
     }
     
     function strokesClose(s1, s2) {
-        const b1 = getBounds(s1); const b2 = getBounds(s2);
-        const pad = 30; 
+        const b1 = getBounds(s1); const b2 = getBounds(s2); const pad = 30; 
         return !(b2.minX > b1.maxX + pad || b2.maxX < b1.minX - pad || b2.minY > b1.maxY + pad || b2.maxY < b1.minY - pad);
     }
     
     function classifyGroup(indices, b) {
         const strokes = indices.map(i => state.rawStrokes[i]);
-        
         const diag = Math.hypot(b.w, b.h);
-        if (diag < 45 && strokes.length <= 2) {
-             return 'test_point';
-        }
+        if (diag < 45 && strokes.length <= 2) return 'test_point';
 
         const r = b.w/b.h;
         const isCompact = r > 0.5 && r < 2.0 && b.w > 20 && b.h > 20;
@@ -742,7 +798,6 @@
                 for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y);
                 if (l > maxL) { maxL = l; boundaryIdx = i; }
             });
-
             const boundary = strokes[boundaryIdx];
             const distEnds = Math.hypot(boundary[0].x - boundary[boundary.length-1].x, boundary[0].y - boundary[boundary.length-1].y);
             const isClosed = distEnds < maxL * 0.4; 
@@ -751,17 +806,14 @@
                 const innerStrokes = strokes.filter((_, i) => i !== boundaryIdx);
                 if (innerStrokes.length === 0) return 'charge_pos';
                 if (innerStrokes.length === 1) {
-                    const inner = innerStrokes[0];
-                    const ib = getBounds(inner);
+                    const ib = getBounds(innerStrokes[0]);
                     if (ib.w > ib.h * 1.5) return 'charge_neg';
                     return 'charge_pos';
                 }
                 return 'charge_pos';
             }
         }
-        
         if (diag > 30) return 'vector';
-        
         return 'unknown';
     }
 
@@ -787,6 +839,7 @@
         return { start: p1, end: p2 };
     }
 
+    // --- Física ---
     function analizarFisica() {
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         const testPoints = state.objects.filter(o => o.type === 'test_point');
@@ -805,7 +858,6 @@
         updateStatement(testPoints, charges, chargeU);
 
         const fields = [];
-        
         testPoints.forEach(p => {
             charges.forEach(src => {
                 const dx = p.physX - src.physX; 
@@ -818,13 +870,7 @@
                 const r = Math.hypot(dx, dy) / scale * distU;
                 const mag = r>0 ? (Ke * Math.abs(src.q * chargeU)) / (r*r) : 0;
                 
-                fields.push({ 
-                    tp: p, 
-                    src: src, 
-                    ang: ang, 
-                    mag: mag, 
-                    lbl: `E_{${src.id}}`
-                });
+                fields.push({ tp: p, src: src, ang: ang, mag: mag, lbl: `E_{${src.id}}`, r: r });
             });
         });
 
@@ -836,7 +882,6 @@
 
         vectors.forEach(vec => {
             const originPoint = testPoints.find(p => Math.hypot(p.x - vec.start.x, p.y - vec.start.y) < 40);
-            
             if(!originPoint) { 
                 vec.validation='warn'; vec.label='?'; 
                 vBox.innerHTML += `<div class="result-item result-warn">⚠️ Vector no anclado a un Punto P</div>`;
@@ -848,8 +893,6 @@
             let best = null; let minD = 100;
             const cands = fields.filter(f => f.tp.id === originPoint.id);
             
-            // Check individual components OR the resultant if no single component matches
-            // Simplificación: Validamos contra los componentes individuales (superposición)
             cands.forEach(cand => {
                 let d = Math.abs(cand.ang - vAng);
                 if(d > Math.PI) d = 2*Math.PI - d;
@@ -873,14 +916,11 @@
 
     function updateStatement(testPoints, charges, unitQ) {
         const box = document.getElementById('problem-statement');
-        const unitLabel = document.getElementById('charge-unit').options[document.getElementById('charge-unit').selectedIndex].text.split(' ')[1];
-        
         if (charges.length === 0) { box.innerHTML = "Dibuja cargas fuente (círculos grandes con + o -)."; return; }
         if (testPoints.length === 0) { box.innerHTML = "Dibuja un punto de prueba (círculo pequeño)."; return; }
 
         const tId = testPoints[0].id;
         const sources = charges.map(c => `$q_${c.id}$`);
-        
         let text = `<strong>Problema:</strong> Determinar la magnitud y dirección del <strong>Campo Eléctrico Resultante</strong> en el punto de prueba <strong>$P_${tId}$</strong> debido al sistema de cargas <strong>${sources.join(', ')}</strong>.`;
         text += `<br><small style="color:#aaa; margin-top:5px; display:block">Considere $k_e = 8.99 \\times 10^9 N\\cdot m^2/C^2$</small>`;
         
@@ -902,13 +942,7 @@
     }
 
     function updateCoord(id, axis, val, type) {
-        let obj;
-        if (type === 'charge') {
-             obj = state.objects.find(o => o.id === id && o.type.startsWith('charge'));
-        } else if (type === 'test_point') {
-             obj = state.objects.find(o => o.id === id && o.type === 'test_point');
-        }
-
+        let obj = state.objects.find(o => o.id === id && (type==='charge'?o.type.startsWith('charge'):o.type==='test_point'));
         if(!obj) return;
         const numVal = parseFloat(val); if(isNaN(numVal)) return;
         if (axis === 'x') { obj.physX = numVal; obj.x = numVal; } 
@@ -921,7 +955,6 @@
         state.objects.filter(o=>o.type.startsWith('charge')).forEach(ch => {
             const div = document.createElement('div'); div.className='data-card';
             if(state.selectedObject === ch) div.classList.add('selected');
-            
             div.innerHTML = `
                 <div class="data-header"><strong>Fuente ${ch.label}</strong></div>
                 <div class="input-row">
@@ -937,7 +970,6 @@
         state.objects.filter(o=>o.type === 'test_point').forEach(p => {
             const div = document.createElement('div'); div.className='data-card is-test-point';
             if(state.selectedObject === p) div.classList.add('selected');
-            
             div.innerHTML = `
                 <div class="data-header"><strong>Punto ${p.label}</strong></div>
                 <div class="input-row">
@@ -950,59 +982,70 @@
         document.getElementById('detection-list').innerHTML = state.objects.map(o => {
             if(o.type === 'vector') return '<span class="badge badge-vec">Vec</span>';
             if(o.type === 'test_point') return `<span class="badge badge-point">${o.label}</span>`;
-            return `<span class="badge ${o.type==='charge_pos'?'badge-pos':'badge-neg'}">${o.label}</span>`;
+            if(o.type.startsWith('charge')) return `<span class="badge ${o.type==='charge_pos'?'badge-pos':'badge-neg'}">${o.label}</span>`;
+            return '';
         }).join('');
     }
     
     function setTool(t, b) {
+        finalizeText();
         state.tool = t;
         document.querySelectorAll('.btn-tool').forEach(el=>el.classList.remove('active'));
         if(b) b.classList.add('active');
-        if(t==='draw') selectObject(null);
+        if(t !== 'move') selectObject(null);
     }
+    
     function undo() { 
         if(state.rawStrokes.length>0) state.rawStrokes.pop(); 
         else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); }
         redraw(); 
     }
-    function limpiarTodo() { state.objects=[]; state.rawStrokes=[]; updateUI(); analizarFisica(); redraw(); document.getElementById('latex-result').innerText='---'; }
+    
+    function limpiarTodo() { 
+        state.objects=[]; state.rawStrokes=[]; updateUI(); analizarFisica(); redraw(); 
+        document.getElementById('latex-result').innerText='---'; 
+    }
+
+    // --- Dibujado general ---
+    function drawPath(pts, color = '#999', width = 2) {
+        if(pts.length < 2) return;
+        ctx.strokeStyle = color; ctx.lineWidth = width;
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+    }
 
     function redraw() {
         ctx.clearRect(0,0,canvas.width,canvas.height);
         labelsOverlay.innerHTML = '';
         
+        // Grilla
         ctx.strokeStyle = '#eee'; ctx.lineWidth=1; ctx.beginPath();
         for(let i=0; i<canvas.width; i+=20) { ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); }
         for(let i=0; i<canvas.height; i+=20) { ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); }
         ctx.stroke();
 
-        // 1. Dibujar Líneas Equipotenciales (Reemplaza flujo)
         drawEquipotentials(ctx);
 
-        // 2. Dibujar Líneas Punteadas (r)
+        // Líneas r
         const testPoints = state.objects.filter(o => o.type === 'test_point');
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
-        
-        ctx.setLineDash([5, 5]);
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 1;
-        
+        ctx.setLineDash([5, 5]); ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
         testPoints.forEach(p => {
             charges.forEach(src => {
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(src.x, src.y);
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(src.x, src.y); ctx.stroke();
             });
         });
-        ctx.setLineDash([]); // Reset
+        ctx.setLineDash([]); 
 
-        // 3. Trazos Manuales
-        ctx.strokeStyle = '#999'; ctx.lineWidth=2;
-        state.rawStrokes.forEach(s => drawPath(s));
-        if(state.currentStroke.length>0) drawPath(state.currentStroke);
+        // Trazos Manuales IA
+        state.rawStrokes.forEach(s => drawPath(s, '#999', 2));
+        if(state.currentStroke.length>0) drawPath(state.currentStroke, '#999', 2);
 
-        // 4. Objetos y Vectores
+        // Trazos Libres Activos
+        if(state.currentFreeStroke) drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, 3);
+
+        // Objetos, Textos y Vectores
         state.objects.forEach(obj => {
             const isSel = (state.selectedObject === obj);
             ctx.shadowBlur = isSel ? 10 : 0; ctx.shadowColor = '#00ff88';
@@ -1027,22 +1070,22 @@
                 const col = obj.validation==='correct'?'#4ecca3':obj.validation==='error'?'#ff6b6b':'#f1c40f';
                 ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = isSel ? 5 : 3;
                 drawArrow(obj.start.x, obj.start.y, obj.end.x, obj.end.y);
-                
-                // --- NUEVO: Corrección Visual ---
-                // Si el vector está siendo analizado, dibujamos la respuesta correcta tenue
                 drawCorrectVectorHint(ctx, obj);
-
                 ctx.shadowBlur=0;
                 if(obj.label) addLabel(obj.end.x, obj.end.y-15, obj.label);
             }
+            else if(obj.type === 'free_stroke') {
+                drawPath(obj.points, obj.color, 3);
+                ctx.shadowBlur=0;
+            }
+            else if(obj.type === 'text') {
+                ctx.fillStyle = obj.color;
+                ctx.font = 'bold 20px "Segoe UI", Arial';
+                ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                ctx.fillText(obj.text, obj.x, obj.y);
+                ctx.shadowBlur=0;
+            }
         });
-    }
-
-    function drawPath(pts) {
-        if(pts.length<2) return;
-        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
-        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.stroke();
     }
     
     function drawArrow(x1, y1, x2, y2) {
@@ -1068,7 +1111,6 @@
     function renderLatex() {
         const box = document.getElementById('latex-result');
         let html = "";
-        
         const groups = {}; 
         state.calculatedFields.forEach(f=>{ 
             const tid = f.tp.id;
@@ -1082,15 +1124,18 @@
                 html += `\\underline{\\text{Punto } P_${tid}}:\\\\`;
                 let sx=0, sy=0;
                 
-                html += `\\text{1. Magnitudes y Componentes:} \\\\ \\begin{aligned}`;
+                html += `\\text{1. Análisis por cada carga fuente:} \\\\`;
+                html += `\\text{Se calcula la distancia } r, \\text{ el ángulo polar } \\theta \\text{ y las componentes:} \\\\ \\begin{aligned}`;
                 fields.forEach(f=>{ 
                     const Ex = f.mag * Math.cos(f.ang);
                     const Ey = f.mag * Math.sin(f.ang);
                     sx += Ex; sy += Ey;
+                    const angDeg = (f.ang * 180 / Math.PI).toFixed(1);
                     
-                    html += `|\\vec{E}_{${f.src.id}}| &= k \\frac{|q_${f.src.id}|}{r^2} = ${f.mag.toExponential(2)} \\text{ N/C} \\\\`;
-                    html += `E_{${f.src.id}x} &= ${Ex.toExponential(2)} \\text{ N/C} \\\\`;
-                    html += `E_{${f.src.id}y} &= ${Ey.toExponential(2)} \\text{ N/C} \\\\[0.5em]`;
+                    html += `r_{${f.src.id}} &= ${f.r.toExponential(2)} \\text{ m}, \\quad \\theta_{${f.src.id}} = ${angDeg}^\\circ \\\\`;
+                    html += `|\\vec{E}_{${f.src.id}}| &= k_e \\frac{|q_{${f.src.id}}|}{r_{${f.src.id}}^2} = ${f.mag.toExponential(2)} \\text{ N/C} \\\\`;
+                    html += `E_{${f.src.id}x} &= |\\vec{E}_{${f.src.id}}| \\cos(${angDeg}^\\circ) = ${Ex.toExponential(2)} \\text{ N/C} \\\\`;
+                    html += `E_{${f.src.id}y} &= |\\vec{E}_{${f.src.id}}| \\sin(${angDeg}^\\circ) = ${Ey.toExponential(2)} \\text{ N/C} \\\\[1em]`;
                 });
                 html += `\\end{aligned} \\\\[1em]`;
 
@@ -1124,22 +1169,32 @@
         document.getElementById('fbd-modal').style.display='flex';
         const cx=document.getElementById('fbd-canvas').getContext('2d');
         const fields = state.calculatedFields.filter(f=>f.tp.id==id);
-        const tp = state.objects.find(o=>o.type==='test_point' && o.id==id);
         
         cx.clearRect(0,0,400,400);
         cx.strokeStyle='#ccc'; cx.lineWidth=1;
         cx.beginPath(); cx.moveTo(200,0); cx.lineTo(200,400); cx.moveTo(0,200); cx.lineTo(400,200); cx.stroke();
-        
         cx.beginPath(); cx.arc(200,200,6,0,2*Math.PI); cx.fillStyle='#f1c40f'; cx.fill();
         
-        const max = Math.max(...fields.map(f=>f.mag), 1e-9); const s = 140/max;
+        let sumEx = 0, sumEy = 0;
+        fields.forEach(f=>{ sumEx += f.mag * Math.cos(f.ang); sumEy += f.mag * Math.sin(f.ang); });
+        const Rmag = Math.hypot(sumEx, sumEy);
+        
+        const max = Math.max(...fields.map(f=>f.mag), Rmag, 1e-9); const s = 140/max;
+        
         fields.forEach(f=>{ 
-            const Ex = f.mag * Math.cos(f.ang);
-            const Ey = f.mag * Math.sin(f.ang);
+            const Ex = f.mag * Math.cos(f.ang); const Ey = f.mag * Math.sin(f.ang);
             const dx=Ex*s; const dy=-Ey*s; 
             const col='#4ecca3';
-            cx.strokeStyle=col; cx.fillStyle=col; cx.lineWidth=3;
             const x2=200+dx, y2=200+dy;
+            
+            // Proyecciones (Componentes)
+            cx.strokeStyle='rgba(78, 204, 163, 0.4)'; cx.lineWidth=1.5; cx.setLineDash([4, 4]);
+            cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(x2, 200); cx.stroke();
+            cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(200, y2); cx.stroke();
+            cx.setLineDash([]);
+            
+            // Vector principal
+            cx.strokeStyle=col; cx.fillStyle=col; cx.lineWidth=3;
             cx.beginPath(); cx.moveTo(200,200); cx.lineTo(x2,y2); cx.stroke();
             const ang=Math.atan2(y2-200, x2-200);
             cx.beginPath(); cx.moveTo(x2,y2); 
@@ -1148,6 +1203,28 @@
             cx.fillStyle='white'; cx.font="14px Arial";
             cx.fillText(f.lbl.replace(/[{}_]/g,''), x2+10, y2);
         });
+        
+        // Vector Resultante
+        if (fields.length > 0 && Rmag > 0) {
+            const Rdx = sumEx * s; const Rdy = -sumEy * s;
+            const Rx2 = 200 + Rdx; const Ry2 = 200 + Rdy;
+            const Rcol = '#ff6b6b';
+            
+            // Proyecciones Resultante
+            cx.strokeStyle='rgba(255, 107, 107, 0.4)'; cx.lineWidth=2; cx.setLineDash([4, 4]);
+            cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(Rx2, 200); cx.stroke();
+            cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(200, Ry2); cx.stroke();
+            cx.setLineDash([]);
+
+            cx.strokeStyle=Rcol; cx.fillStyle=Rcol; cx.lineWidth=4;
+            cx.beginPath(); cx.moveTo(200,200); cx.lineTo(Rx2, Ry2); cx.stroke();
+            const Rang = Math.atan2(Ry2-200, Rx2-200);
+            cx.beginPath(); cx.moveTo(Rx2,Ry2); 
+            cx.lineTo(Rx2-12*Math.cos(Rang-Math.PI/6), Ry2-12*Math.sin(Rang-Math.PI/6));
+            cx.lineTo(Rx2-12*Math.cos(Rang+Math.PI/6), Ry2-12*Math.sin(Rang+Math.PI/6)); cx.fill();
+            cx.fillStyle='#ff6b6b'; cx.font="bold 16px Arial";
+            cx.fillText("ER", Rx2+12, Ry2+5);
+        }
     }
     function closeModal() { document.getElementById('fbd-modal').style.display='none'; }
 
@@ -1156,5 +1233,4 @@
     });
 </script>
 </body>
-
 </html>
