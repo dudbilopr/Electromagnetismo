@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laboratorio Virtual: Potencial y Trabajo Eléctrico</title>
-    <meta name="description" content="Simulador de Potencial Eléctrico (V) y Trabajo (W) corrección de cálculos en campo débil.">
+    <meta name="description" content="Simulador de Potencial Eléctrico (V) y Trabajo (W) con sistema de referencia dinámico.">
     
     <!-- Librerías -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
@@ -90,6 +90,16 @@
         .btn-danger { background: rgba(255, 107, 107, 0.1); color: var(--danger-color); border: 1px solid var(--danger-color); }
         .btn-danger:hover { background: var(--danger-color); color: white; }
 
+        .color-picker-container {
+            display: flex; align-items: center; gap: 10px; 
+            background: #232333; padding: 10px; border-radius: 6px;
+            border: 1px solid #444; margin-top: 5px;
+        }
+        .color-picker-container input[type="color"] {
+            cursor: pointer; width: 32px; height: 32px; 
+            border: none; background: transparent; padding: 0; outline: none;
+        }
+
         .data-card {
             background: #1a1a24; padding: 10px; border-radius: 6px;
             border-left: 3px solid #666; margin-bottom: 8px;
@@ -111,8 +121,8 @@
         .canvas-area {
             position: relative; background-color: #ffffff;
             background-image:
-                linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+                linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
             background-size: 20px 20px;
             overflow: hidden; display: flex; justify-content: center; align-items: center;
         }
@@ -127,6 +137,16 @@
             padding: 2px 6px; border-radius: 4px; border: 1px solid #3498db;
             font-size: 0.9rem; color: #222; transform: translate(-50%, -100%); 
             box-shadow: 0 2px 5px rgba(0,0,0,0.15); white-space: nowrap;
+        }
+
+        #text-input-overlay {
+            position: absolute; display: none;
+            background: rgba(255,255,255,0.95);
+            border: 2px dashed var(--accent-color);
+            color: #222; font-family: 'Segoe UI', sans-serif; font-size: 20px;
+            padding: 4px 8px; border-radius: 4px; z-index: 100;
+            outline: none; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transform: translateY(-50%);
         }
 
         #coords-indicator {
@@ -186,7 +206,7 @@
 
 <header>
     <div><h2>⚡ Potencial y Trabajo Eléctrico</h2></div>
-    <div class="version">v2.2.1 (Fix Umbral V)</div>
+    <div class="version">v3.0.0 (Referencia Móvil + Pizarra Libre)</div>
 </header>
 
 <div class="workspace">
@@ -194,10 +214,17 @@
         <div>
             <div class="section-title">Herramientas</div>
             <div class="toolbar">
-                <button class="btn-tool active" onclick="setTool('draw', this)">✏️ Lápiz (Dibujar)</button>
-                <button class="btn-tool" onclick="setTool('move', this)">✋ Mover / Editar</button>
-                <button class="btn-tool" onclick="undo()">↩️ Deshacer Trazos</button>
+                <button class="btn-tool active" onclick="setTool('draw', this)" title="Dibuja Cargas, Puntos y Trayectorias">🤖 Lápiz IA (Objetos)</button>
+                <button class="btn-tool" onclick="setTool('draw_free', this)" title="Dibuja explicaciones libres">🖌️ Marcador (Libre)</button>
+                <button class="btn-tool" onclick="setTool('text', this)" title="Escribe texto en el lienzo">🔤 Escribir Texto</button>
+                <button class="btn-tool" onclick="setTool('move', this)" title="Mueve objetos y el Eje de Coordenadas">✋ Mover / Editar</button>
+                <button class="btn-tool" onclick="undo()">↩️ Deshacer</button>
                 <button class="btn-tool btn-danger" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
+            </div>
+            
+            <div class="color-picker-container">
+                <input type="color" id="pencil-color" value="#000000" onchange="state.currentColor = this.value">
+                <label for="pencil-color" style="font-size: 0.85rem; color: #ccc;">Color (Marcador y Texto)</label>
             </div>
             
             <hr style="border:0; border-top:1px solid var(--border-color); margin: 10px 0;">
@@ -246,8 +273,9 @@
     <div class="canvas-area" id="canvas-wrapper">
         <canvas id="main-canvas"></canvas>
         <button id="float-delete" onclick="deleteSelected()">🗑️ Eliminar</button>
+        <input type="text" id="text-input-overlay" placeholder="Escribe aquí y presiona Enter...">
         <div id="labels-overlay"></div>
-        <div id="coords-indicator">x: 0, y: 0, V: 0 V</div>
+        <div id="coords-indicator">x: 0 m, y: 0 m | V: 0 V</div>
     </div>
 
     <div class="panel panel-right">
@@ -271,7 +299,7 @@
             
             <div class="tip-card" id="static-tip">
                 <strong>💡 Conceptos Clave:</strong><br>
-                El campo electrostático es <b>conservativo</b>. Si $\Delta V = 0$ (misma equipotencial), el trabajo es NULO.
+                El campo electrostático es <b>conservativo</b>. Si $\Delta V \approx 0$ (misma equipotencial), el trabajo es NULO. Mueve el eje arrastrando su centro.
             </div>
         </div>
     </div>
@@ -283,39 +311,68 @@
     const wrapper = document.getElementById('canvas-wrapper');
     const labelsOverlay = document.getElementById('labels-overlay');
     const floatDelete = document.getElementById('float-delete');
+    const textOverlay = document.getElementById('text-input-overlay');
     
     // Estado Global
     let state = {
         tool: 'draw',
+        currentColor: '#000000',
         isDrawing: false,
+        isDrawingFree: false,
         isDragging: false,
+        draggingOrigin: false,
+        dragLastX: 0,
+        dragLastY: 0,
         draggedObject: null,
         selectedObject: null,
         showEquipotentials: true,
         recognitionTimer: null, 
         rawStrokes: [],      
         currentStroke: [],   
-        objects: [],         
-        calculations: {} 
+        currentFreeStroke: null,
+        objects: [],         // Cargas, puntos, trayectorias, free_strokes, texts
+        calculations: {},
+        origin: { x: null, y: null } // Sistema de referencia móvil
     };
+    
+    let textPos = {x:0, y:0};
 
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
 
     function resizeCanvas() {
         canvas.width = wrapper.clientWidth; canvas.height = wrapper.clientHeight;
+        if (state.origin.x === null) {
+            state.origin.x = 80; 
+            state.origin.y = canvas.height - 80;
+        }
         redraw();
     }
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 100);
 
-    function toPhysY(cy) { return canvas.height - cy; }
-    function toCanvasY(py) { return canvas.height - py; }
     function getCoords(e) {
         const r = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         return { x: clientX - r.left, y: clientY - r.top };
     }
+
+    // --- Herramienta de Texto ---
+    function finalizeText() {
+        if(textOverlay.style.display !== 'none' && textOverlay.value.trim() !== '') {
+            state.objects.push({
+                type: 'text', id: Date.now(), 
+                text: textOverlay.value, x: textPos.x, y: textPos.y, 
+                color: state.currentColor
+            });
+            textOverlay.value = ''; textOverlay.style.display = 'none';
+            redraw();
+        } else {
+            textOverlay.style.display = 'none';
+        }
+    }
+    textOverlay.addEventListener('keydown', e => { if(e.key === 'Enter') finalizeText(); });
+    textOverlay.addEventListener('blur', finalizeText);
 
     // --- Lógica Equipotenciales ---
     function toggleEquipotentials() {
@@ -334,11 +391,13 @@
         const scale = parseFloat(document.getElementById('scale-input').value || 100);
         const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
 
+        // Convertimos a coordenadas físicas matemáticas usando el origen dinámico
+        const physX = (x - state.origin.x) / scale;
+        const physY = (state.origin.y - y) / scale;
+
         charges.forEach(src => {
-            const dx = x - src.x;
-            const dy = toPhysY(y) - src.physY;
-            const r_px = Math.hypot(dx, dy);
-            const r = r_px / scale;
+            // Distancia real en metros
+            const r = Math.hypot(physX - src.physX, physY - src.physY);
             if (r > 0.001) V += (Ke * src.q * chargeU) / r;
         });
         return V;
@@ -432,46 +491,125 @@
     canvas.addEventListener('touchend', handleEnd);
 
     function handleStart(e) {
+        if (e.touches && e.touches.length > 1) return;
         if (e.touches) e.preventDefault(); 
         const c = getCoords(e);
+        
+        if (state.tool !== 'text') finalizeText();
+
+        if (state.tool === 'text') {
+            textPos = {x: c.x, y: c.y};
+            textOverlay.style.left = c.x + 'px';
+            textOverlay.style.top = c.y + 'px';
+            textOverlay.style.display = 'block';
+            textOverlay.style.color = state.currentColor;
+            setTimeout(() => textOverlay.focus(), 50);
+            return;
+        }
+
         if (state.tool === 'move') {
             const hit = findObjectAt(c);
             if (hit) {
                 state.isDragging = true;
-                state.draggedObject = hit;
-                selectObject(hit);
+                state.dragLastX = c.x;
+                state.dragLastY = c.y;
+                
+                if (hit.type === 'origin') {
+                    state.draggingOrigin = true;
+                    selectObject(null);
+                } else {
+                    state.draggedObject = hit;
+                    selectObject(hit);
+                }
             } else { selectObject(null); }
             return;
         }
+        
+        if (state.tool === 'draw_free') {
+            selectObject(null);
+            state.isDrawingFree = true;
+            state.currentFreeStroke = { type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor };
+            return;
+        }
+
         if (state.recognitionTimer) { clearTimeout(state.recognitionTimer); state.recognitionTimer = null; }
         state.isDrawing = true;
         state.currentStroke = [c];
+        selectObject(null);
     }
 
     function handleMove(e) {
         if (e.touches) e.preventDefault();
         const c = getCoords(e);
+        const scale = parseFloat(document.getElementById('scale-input').value || 100);
+        
+        // Indicador matemático interactivo
+        const physX = (c.x - state.origin.x) / scale;
+        const physY = (state.origin.y - c.y) / scale;
         const V_probe = getPotentialAt(c.x, c.y);
+        
         document.getElementById('coords-indicator').innerText = 
-            `x: ${Math.round(c.x)}, y: ${Math.round(toPhysY(c.y))} | V: ${V_probe.toExponential(2)} V`;
+            `x: ${physX.toFixed(2)} m, y: ${physY.toFixed(2)} m | V: ${V_probe.toExponential(2)} V`;
+
+        if (state.draggingOrigin) {
+            const dx = c.x - state.dragLastX;
+            const dy = c.y - state.dragLastY;
+            state.origin.x += dx;
+            state.origin.y += dy;
+            state.dragLastX = c.x; state.dragLastY = c.y;
+            
+            // Actualizar posiciones físicas porque movimos el marco de referencia
+            analizarFisica(); 
+            updateUI(); 
+            redraw();
+            return;
+        }
 
         if (state.isDragging && state.draggedObject) {
+            const dx = c.x - state.dragLastX;
+            const dy = c.y - state.dragLastY;
             const o = state.draggedObject;
-            if (o.type !== 'trajectory') {
-                o.x = c.x; o.y = c.y; o.physX = c.x; o.physY = toPhysY(c.y);
+            
+            if (o.type === 'text') {
+                o.x += dx; o.y += dy;
+            } else if (o.type === 'free_stroke') {
+                o.points.forEach(p => { p.x += dx; p.y += dy; });
+            } else if (o.type !== 'trajectory') {
+                o.x = c.x; o.y = c.y; 
+                // Actualizar coordenada física del objeto
+                o.physX = (c.x - state.origin.x) / scale;
+                o.physY = (state.origin.y - c.y) / scale;
             }
+            
+            state.dragLastX = c.x; state.dragLastY = c.y;
             updateFloatDelete();
             redraw();
-        } else if (state.isDrawing) {
+        } 
+        else if (state.isDrawingFree && state.currentFreeStroke) {
+            state.currentFreeStroke.points.push(c);
+            redraw();
+        }
+        else if (state.isDrawing) {
             state.currentStroke.push(c);
             redraw();
         }
     }
 
     function handleEnd(e) {
+        if (state.draggingOrigin) {
+            state.draggingOrigin = false;
+            state.isDragging = false;
+            return;
+        }
         if (state.isDragging) {
             state.isDragging = false; state.draggedObject = null;
             updateUI(); analizarFisica(); return;
+        }
+        if (state.isDrawingFree && state.currentFreeStroke) {
+            state.isDrawingFree = false;
+            if (state.currentFreeStroke.points.length > 2) state.objects.push(state.currentFreeStroke);
+            state.currentFreeStroke = null;
+            redraw(); return;
         }
         if (state.isDrawing) {
             state.isDrawing = false;
@@ -483,10 +621,29 @@
     }
 
     function findObjectAt(c) {
+        // Intersección con el sistema de referencia (Origen)
+        if (Math.hypot(state.origin.x - c.x, state.origin.y - c.y) < 25) return { type: 'origin' };
+        
+        const textObj = state.objects.find(o => {
+            if(o.type !== 'text') return false;
+            ctx.font = '20px "Segoe UI", Arial';
+            const w = ctx.measureText(o.text).width;
+            return c.x >= o.x && c.x <= o.x + w && c.y >= o.y && c.y <= o.y + 24;
+        });
+        if(textObj) return textObj;
+
         const pt = state.objects.find(o => o.type === 'point' && Math.hypot(o.x - c.x, o.y - c.y) < 50);
         if (pt) return pt;
+        
         const ch = state.objects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30);
         if (ch) return ch;
+        
+        const strokeObj = state.objects.find(o => {
+            if(o.type !== 'free_stroke') return false;
+            return o.points.some(p => Math.hypot(p.x - c.x, p.y - c.y) < 15);
+        });
+        if(strokeObj) return strokeObj;
+
         const tr = state.objects.find(o => {
             if (o.type !== 'trajectory' || !o.path) return false;
             const mid = Math.floor(o.path.length/2);
@@ -510,18 +667,24 @@
     }
 
     function updateFloatDelete() {
-        if(!state.selectedObject) return;
+        if(!state.selectedObject || state.selectedObject.type === 'origin') return;
         const o = state.selectedObject;
         let bx, by;
         if (o.type === 'trajectory' && o.path) {
             const mid = Math.floor(o.path.length/2);
             bx = o.path[mid].x; by = o.path[mid].y - 20;
-        } else { bx = o.x; by = o.y - 30; }
+        } else if (o.type === 'text') { bx = o.x + 20; by = o.y - 30; }
+        else if (o.type === 'free_stroke') {
+            const minP = o.points.reduce((prev, curr) => curr.y < prev.y ? curr : prev);
+            bx = minP.x; by = minP.y - 30;
+        }
+        else { bx = o.x; by = o.y - 30; }
+        
         if(bx) { floatDelete.style.left = (bx - 30) + 'px'; floatDelete.style.top = by + 'px'; }
     }
 
     function deleteSelected() {
-        if (state.selectedObject) {
+        if (state.selectedObject && state.selectedObject.type !== 'origin') {
             if (state.selectedObject.type === 'point') {
                 const pid = state.selectedObject.id;
                 state.objects = state.objects.filter(o => !(o.type === 'trajectory' && (o.from === pid || o.to === pid)));
@@ -536,6 +699,7 @@
         const groups = groupStrokes(state.rawStrokes);
         const newObjects = [];
         const usedIndices = new Set();
+        const scale = parseFloat(document.getElementById('scale-input').value || 100);
 
         groups.forEach(group => {
             const bounds = getGroupBounds(group);
@@ -543,20 +707,24 @@
             if (type !== 'unknown') {
                 const currentIds = state.objects.map(o=>o.id);
                 const nextId = (currentIds.length > 0 ? Math.max(...currentIds) : 0) + 1;
+                
+                // Mapeo físico al crear
+                const px = (bounds.cx - state.origin.x) / scale;
+                const py = (state.origin.y - bounds.cy) / scale;
 
                 if (type === 'point') {
                     const pointCount = state.objects.filter(o => o.type === 'point').length + newObjects.filter(o => o.type === 'point').length;
                     const letter = String.fromCharCode(65 + pointCount);
                     newObjects.push({
                         id: nextId, type: 'point', label: letter,
-                        x: bounds.cx, y: bounds.cy, physX: bounds.cx, physY: toPhysY(bounds.cy)
+                        x: bounds.cx, y: bounds.cy, physX: px, physY: py
                     });
                 }
                 else if (type.startsWith('charge')) {
                     const qNum = state.objects.filter(o => o.type.startsWith('charge')).length + 1;
                     newObjects.push({
                         id: nextId, type: type, label: `q_${qNum}`,
-                        x: bounds.cx, y: bounds.cy, physX: bounds.cx, physY: toPhysY(bounds.cy),
+                        x: bounds.cx, y: bounds.cy, physX: px, physY: py,
                         q: type === 'charge_pos' ? 5 : -5
                     });
                 } 
@@ -656,15 +824,20 @@
 
         charges.forEach(c => {
             const elQ = document.getElementById(`q-${c.id}`); if(elQ) c.q = parseFloat(elQ.value);
+            // Asegurar sincronización con el sistema de referencia
+            c.physX = (c.x - state.origin.x) / scale;
+            c.physY = (state.origin.y - c.y) / scale;
         });
 
         const pointPotentials = {};
         points.forEach(p => {
+            p.physX = (p.x - state.origin.x) / scale;
+            p.physY = (state.origin.y - p.y) / scale;
+
             let V_total = 0;
             charges.forEach(src => {
-                const dx = p.physX - src.physX;
-                const dy = p.physY - src.physY;
-                const r = Math.hypot(dx, dy) / scale;
+                // Distancia real en metros
+                const r = Math.hypot(p.physX - src.physX, p.physY - src.physY);
                 if (r > 0.001) V_total += (Ke * src.q * chargeU) / r;
             });
             p.V = V_total;
@@ -678,25 +851,16 @@
             if (pA && pB) {
                 let deltaV = pB.V - pA.V;
                 
-                // CORRECCIÓN: Umbral mínimo mucho más bajo para permitir campos débiles
-                const maxV = Math.max(Math.abs(pA.V), Math.abs(pB.V), 1e-10); // Antes era 1.0
+                const maxV = Math.max(Math.abs(pA.V), Math.abs(pB.V), 1e-10);
                 const relDiff = Math.abs(deltaV) / maxV;
                 const isEqui = relDiff < 0.03; // Tolerancia 3%
 
                 let W_ext = q0 * deltaV;
-                
-                // Forzar 0 si es equipotencial
                 if (isEqui) { deltaV = 0; W_ext = 0; }
 
                 workResults.push({
-                    from: pA.label,
-                    to: pB.label,
-                    Va: pA.V,
-                    Vb: pB.V,
-                    dV: deltaV,
-                    W: W_ext,
-                    q0: q0,
-                    isEqui: isEqui
+                    from: pA.label, to: pB.label,
+                    Va: pA.V, Vb: pB.V, dV: deltaV, W: W_ext, q0: q0, isEqui: isEqui
                 });
             }
         });
@@ -718,7 +882,7 @@
         } else {
             html += "\\textbf{1. Potenciales Eléctricos:} \\\\";
             pointList.forEach(p => {
-                html += `V_{${p.label}} = \\sum \\frac{kq}{r} = ${p.V.toExponential(2)} \\text{ V} \\\\`;
+                html += `V_{${p.label}} = \\sum \\frac{k_e q_i}{r_i} = ${p.V.toExponential(2)} \\text{ V} \\\\`;
             });
             html += "\\\\[0.5em]";
         }
@@ -727,7 +891,6 @@
             html += "\\textbf{2. Trabajo Externo:} \\\\";
             works.forEach(w => {
                 html += `\\underline{\\text{Trayectoria } ${w.from} \\to ${w.to}}: \\\\`;
-                
                 if (w.isEqui) {
                      html += `\\text{\\textbf{¡Puntos sobre la misma equipotencial!}} \\\\`;
                      html += `V_{${w.from}} \\approx V_{${w.to}} \\Rightarrow \\Delta V \\approx 0 \\\\`;
@@ -738,7 +901,6 @@
                      html += `\\mathbf{W_{ext} = ${w.W.toExponential(2)} \\text{ J}} \\\\[1em]`;
                 }
             });
-            html += "\\small\\textit{Nota: El campo es conservativo.} \\\\";
         }
 
         katex.render(html, box, {displayMode:true, throwOnError:false});
@@ -747,7 +909,9 @@
     function updateStatement(nQ, nP, nT, works) {
         const box = document.getElementById('problem-statement');
         
-        // Manejo de casos mezclados
+        const chargeUSelect = document.getElementById('charge-unit');
+        const cUnitTxt = chargeUSelect.options[chargeUSelect.selectedIndex].text;
+        
         const hasEqui = works && works.some(w => w.isEqui);
         const hasNormal = works && works.some(w => !w.isEqui);
 
@@ -755,16 +919,15 @@
              box.innerHTML = `<strong>¡Caso Especial Detectado!</strong><br>
              Al moverse por una equipotencial, $\\Delta V \\approx 0$.<br>
              <strong>Trabajo neto NULO</strong> ($W=0$).`;
-             box.style.borderLeftColor = "#2ecc71"; // Verde
+             box.style.borderLeftColor = "#2ecc71";
              box.style.backgroundColor = "#1b2621"; 
         } else if (hasNormal) {
-             // Si hay cálculos normales (o mezcla), mostrar resumen
              const lastWork = works[works.length-1];
              if (!lastWork.isEqui) {
-                box.innerHTML = `<strong>Resultado Reciente:</strong><br>
-                Trayectoria ${lastWork.from} → ${lastWork.to}:<br>
-                $W = ${lastWork.W.toExponential(2)} \\text{ J}$`;
-                box.style.borderLeftColor = "#9b59b6"; // Púrpura
+                box.innerHTML = `<strong>Problema:</strong><br>
+                Las cargas están dadas en ${cUnitTxt}. Se desea mover una carga de prueba $q_0$ desde $V_{${lastWork.from}}$ hasta $V_{${lastWork.to}}$.<br><br>
+                <strong>Resultado $${lastWork.from} \\to ${lastWork.to}$:</strong> $W = ${lastWork.W.toExponential(2)} \\text{ J}$`;
+                box.style.borderLeftColor = "#9b59b6";
                 box.style.backgroundColor = "#231a29";
              } else {
                 box.innerHTML = "<strong>Resultados listos.</strong> Revisa el panel inferior.";
@@ -772,12 +935,11 @@
         } else {
              box.style.borderLeftColor = "#9b59b6"; 
              box.style.backgroundColor = "#2b2b3b";
-             if (nQ === 0) { box.innerHTML = "Coloca cargas fuente."; return; }
-             if (nP < 2) { box.innerHTML = "Dibuja puntos y conéctalos con una curva."; return; }
-             if (nT === 0) { box.innerHTML = "Dibuja una trayectoria entre dos puntos."; return; }
+             if (nQ === 0) { box.innerHTML = `Coloca cargas fuente para generar el campo eléctrico. <br><small style="color:#888;">Escala actual: ${cUnitTxt}</small>`; return; }
+             if (nP < 2) { box.innerHTML = "Dibuja puntos en el lienzo y conéctalos con una curva."; return; }
+             if (nT === 0) { box.innerHTML = "Dibuja una trayectoria conectando dos puntos existentes."; return; }
         }
         
-        // Renderizar mate en el statement si es necesario
         renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
     }
 
@@ -786,9 +948,16 @@
         if (type === 'charge') obj = state.objects.find(o => o.id == id && o.type.startsWith('charge'));
         else if (type === 'point') obj = state.objects.find(o => o.id == id && o.type === 'point');
         if(!obj) return;
+        
         const numVal = parseFloat(val); if(isNaN(numVal)) return;
-        if (axis === 'x') { obj.physX = numVal; obj.x = numVal; } 
-        else { obj.physY = numVal; obj.y = toCanvasY(numVal); }
+        const scale = parseFloat(document.getElementById('scale-input').value || 100);
+
+        // Convertir de matemática a canvas para pintar en el lugar correcto
+        if (axis === 'x') { 
+            obj.x = numVal * scale + state.origin.x; 
+        } else { 
+            obj.y = state.origin.y - numVal * scale; 
+        }
         analizarFisica(); redraw();
     }
 
@@ -806,8 +975,8 @@
                     <label>Q</label> <input type="number" id="q-${ch.id}" value="${ch.q}" onchange="analizarFisica()">
                 </div>
                 <div class="input-row">
-                    <label>X</label> <input type="number" id="in-${ch.id}" value="${Math.round(ch.physX)}" onchange="updateCoord(${ch.id}, 'x', this.value, 'charge')">
-                    <label>Y</label> <input type="number" value="${Math.round(ch.physY)}" onchange="updateCoord(${ch.id}, 'y', this.value, 'charge')">
+                    <label>X(m)</label> <input type="number" step="0.1" id="in-${ch.id}" value="${(ch.physX||0).toFixed(2)}" onchange="updateCoord(${ch.id}, 'x', this.value, 'charge')">
+                    <label>Y(m)</label> <input type="number" step="0.1" value="${(ch.physY||0).toFixed(2)}" onchange="updateCoord(${ch.id}, 'y', this.value, 'charge')">
                 </div>`;
             c.appendChild(div);
             dHtml += `<span class="badge ${ch.type==='charge_pos'?'badge-pos':'badge-neg'}">${ch.label}</span>`;
@@ -821,8 +990,8 @@
             div.innerHTML = `
                 <div class="data-header"><strong>Punto ${p.label}</strong></div>
                 <div class="input-row">
-                    <label>X</label> <input type="number" id="in-${p.id}" value="${Math.round(p.physX)}" onchange="updateCoord(${p.id}, 'x', this.value, 'point')">
-                    <label>Y</label> <input type="number" value="${Math.round(p.physY)}" onchange="updateCoord(${p.id}, 'y', this.value, 'point')">
+                    <label>X(m)</label> <input type="number" step="0.1" id="in-${p.id}" value="${(p.physX||0).toFixed(2)}" onchange="updateCoord(${p.id}, 'x', this.value, 'point')">
+                    <label>Y(m)</label> <input type="number" step="0.1" value="${(p.physY||0).toFixed(2)}" onchange="updateCoord(${p.id}, 'y', this.value, 'point')">
                 </div>`;
             c.appendChild(div);
             dHtml += `<span class="badge badge-point">${p.label}</span>`;
@@ -836,6 +1005,52 @@
         dList.innerHTML = dHtml || "<i>Nada detectado</i>";
     }
 
+    function drawAxes() {
+        if(state.origin.x === null) return;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(52, 152, 219, 0.4)';
+        ctx.lineWidth = 1.5;
+        
+        // Ejes X e Y infinitos visualmente
+        ctx.beginPath(); ctx.moveTo(0, state.origin.y); ctx.lineTo(canvas.width, state.origin.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(state.origin.x, 0); ctx.lineTo(state.origin.x, canvas.height); ctx.stroke();
+        
+        // Círculo centro (Móvil)
+        ctx.beginPath(); ctx.arc(state.origin.x, state.origin.y, 6, 0, Math.PI*2);
+        ctx.fillStyle = '#3498db'; ctx.fill();
+        
+        // Renderizado de las muescas numéricas (Regla)
+        const scale = parseFloat(document.getElementById('scale-input').value || 100);
+        if (scale >= 30) {
+            ctx.fillStyle = 'rgba(52, 152, 219, 0.8)';
+            ctx.font = '11px monospace';
+            
+            // X positivo
+            ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+            for(let x = state.origin.x + scale; x < canvas.width; x += scale) {
+                ctx.fillRect(x - 1, state.origin.y - 4, 2, 8);
+                ctx.fillText(Math.round((x - state.origin.x)/scale), x, state.origin.y + 6);
+            }
+            // X negativo
+            for(let x = state.origin.x - scale; x > 0; x -= scale) {
+                ctx.fillRect(x - 1, state.origin.y - 4, 2, 8);
+                ctx.fillText(Math.round((x - state.origin.x)/scale), x, state.origin.y + 6);
+            }
+            // Y positivo (Arriba matemáticamente, abajo en canvas)
+            ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+            for(let y = state.origin.y - scale; y > 0; y -= scale) {
+                ctx.fillRect(state.origin.x - 4, y - 1, 8, 2);
+                ctx.fillText(Math.round((state.origin.y - y)/scale), state.origin.x - 6, y);
+            }
+            // Y negativo (Abajo matemáticamente, arriba en canvas)
+            for(let y = state.origin.y + scale; y < canvas.height; y += scale) {
+                ctx.fillRect(state.origin.x - 4, y - 1, 8, 2);
+                ctx.fillText(Math.round((state.origin.y - y)/scale), state.origin.x - 6, y);
+            }
+        }
+        ctx.restore();
+    }
+
     function redraw() {
         ctx.clearRect(0,0,canvas.width,canvas.height);
         labelsOverlay.innerHTML = '';
@@ -846,6 +1061,7 @@
         ctx.stroke();
 
         drawEquipotentials(ctx);
+        drawAxes(); // El nuevo sistema de referencia
 
         state.objects.filter(o => o.type === 'trajectory').forEach(tr => {
             const p1 = state.objects.find(p => p.id === tr.from);
@@ -902,6 +1118,8 @@
         ctx.strokeStyle = '#999'; ctx.lineWidth=2;
         state.rawStrokes.forEach(s => drawPath(s));
         if(state.currentStroke.length>0) drawPath(state.currentStroke);
+        
+        if(state.currentFreeStroke) drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, 3);
 
         state.objects.forEach(obj => {
             const isSel = (state.selectedObject === obj);
@@ -925,15 +1143,28 @@
                 ctx.shadowBlur=0;
                 addLabel(obj.x+15, obj.y-15, obj.label);
             }
+            else if(obj.type === 'free_stroke') {
+                drawPath(obj.points, obj.color, 3);
+                ctx.shadowBlur=0;
+            }
+            else if(obj.type === 'text') {
+                ctx.fillStyle = obj.color;
+                ctx.font = 'bold 20px "Segoe UI", Arial';
+                ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                ctx.fillText(obj.text, obj.x, obj.y);
+                ctx.shadowBlur=0;
+            }
         });
     }
 
-    function drawPath(pts) {
+    function drawPath(pts, color = '#999', width = 2) {
         if(pts.length<2) return;
+        ctx.strokeStyle = color; ctx.lineWidth = width;
         ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
         for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
     }
+    
     function addLabel(x, y, t) {
         const d = document.createElement('div'); d.className='canvas-label';
         d.style.left=x+'px'; d.style.top=y+'px';
@@ -944,8 +1175,18 @@
         const xs = pts.map(p=>p.x); const ys = pts.map(p=>p.y);
         return { minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys), cx:(Math.min(...xs)+Math.max(...xs))/2, cy:(Math.min(...ys)+Math.max(...ys))/2 };
     }
-    function setTool(t, b) { state.tool = t; document.querySelectorAll('.btn-tool').forEach(el=>el.classList.remove('active')); if(b) b.classList.add('active'); if(t==='draw') selectObject(null); }
-    function undo() { if(state.rawStrokes.length>0) state.rawStrokes.pop(); else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); } redraw(); }
+    function setTool(t, b) { 
+        finalizeText();
+        state.tool = t; 
+        document.querySelectorAll('.btn-tool').forEach(el=>el.classList.remove('active')); 
+        if(b) b.classList.add('active'); 
+        if(t !== 'move') selectObject(null); 
+    }
+    function undo() { 
+        if(state.rawStrokes.length>0) state.rawStrokes.pop(); 
+        else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); } 
+        redraw(); 
+    }
     function limpiarTodo() { state.objects=[]; state.rawStrokes=[]; updateUI(); analizarFisica(); redraw(); document.getElementById('latex-result').innerText='---'; }
 
     document.addEventListener("DOMContentLoaded", function() {
