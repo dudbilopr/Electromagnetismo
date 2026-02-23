@@ -24,6 +24,9 @@
             --border-color: #444;
             --force-color: #f1c40f;
             --selection-color: #00ff88;
+            /* Variables para paneles dinámicos */
+            --left-w: 260px;
+            --right-w: 380px;
         }
 
         * { box-sizing: border-box; }
@@ -44,6 +47,7 @@
             padding: 10px 20px;
             border-bottom: 1px solid var(--border-color);
             display: flex; justify-content: space-between; align-items: center;
+            z-index: 100;
         }
 
         h2 { margin: 0; color: var(--accent-color); font-size: 1.2rem; }
@@ -51,8 +55,10 @@
 
         .workspace {
             display: grid;
-            grid-template-columns: 260px 1fr 380px; 
+            grid-template-columns: var(--left-w) 1fr var(--right-w); 
             height: calc(100vh - 50px);
+            transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
         }
 
         .panel {
@@ -61,12 +67,36 @@
             display: flex; flex-direction: column;
             padding: 15px; gap: 15px;
             overflow-y: auto;
+            overflow-x: hidden;
+            transition: opacity 0.2s;
         }
         .panel-right { border-right: none; border-left: 1px solid var(--border-color); }
+
+        /* Controles de Menú Dinámico */
+        .panel-toggle {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 48px;
+            background: var(--panel-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer;
+            z-index: 50;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background 0.2s, color 0.2s;
+        }
+        .panel-toggle:hover { background: var(--accent-color); color: #1e1e2e; }
+        #toggle-left { left: var(--left-w); transform: translate(-50%, -50%); }
+        #toggle-right { right: var(--right-w); transform: translate(50%, -50%); }
 
         .section-title {
             font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;
             color: #888; margin-bottom: 8px; font-weight: bold;
+            white-space: nowrap;
         }
 
         .toolbar { display: flex; flex-direction: column; gap: 8px; }
@@ -77,6 +107,7 @@
             background: #3a3a4a; color: white;
             cursor: pointer; text-align: left; transition: all 0.2s;
             display: flex; align-items: center; gap: 10px; font-size: 0.9rem;
+            white-space: nowrap;
         }
         .btn-tool:hover { background: #4a4a5a; border-color: #666; }
         .btn-tool.active { background: var(--accent-color); color: #1e1e2e; font-weight: bold; }
@@ -89,6 +120,7 @@
             display: flex; align-items: center; gap: 10px; 
             background: #232333; padding: 10px; border-radius: 6px;
             border: 1px solid #444; margin-top: 5px;
+            white-space: nowrap;
         }
         .color-picker-container input[type="color"] {
             cursor: pointer; width: 32px; height: 32px; 
@@ -119,7 +151,7 @@
             background-size: 20px 20px;
             overflow: hidden; display: flex; justify-content: center; align-items: center;
         }
-        canvas { cursor: crosshair; touch-action: none; z-index: 1; }
+        canvas { cursor: crosshair; touch-action: none; z-index: 1; position: absolute; top: 0; left: 0; }
         
         #labels-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -145,8 +177,9 @@
         #coords-indicator {
             position: absolute; bottom: 10px; left: 10px;
             background: rgba(0,0,0,0.8); color: #4ecca3;
-            padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;
+            padding: 6px 12px; border-radius: 4px; font-size: 0.85rem;
             pointer-events: none; z-index: 3; font-family: monospace;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
         
         .feedback-card {
@@ -183,9 +216,11 @@
         #float-delete {
             position: absolute; display: none;
             background: #ff6b6b; color: white; border: none;
-            padding: 5px 10px; border-radius: 4px; cursor: pointer;
-            font-size: 0.8rem; z-index: 10;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            padding: 8px 12px; border-radius: 4px; cursor: pointer;
+            font-size: 0.85rem; z-index: 10; font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
         }
         #float-delete:hover { background: #ff4444; }
 
@@ -205,44 +240,50 @@
 
 <header>
     <div><h2>⚡ Laboratorio Coulomb IA</h2></div>
-    <div class="version">v4.0.0 (Pizarra Libre + Pasos Detallados)</div>
+    <div class="version">v6.0 (DCL Automático + Escalas + Línea Recta)</div>
 </header>
 
-<div class="workspace">
-    <div class="panel">
+<div class="workspace" id="main-workspace">
+    <!-- Panel Izquierdo -->
+    <div class="panel" id="panel-left">
         <div>
             <div class="section-title">Herramientas</div>
             <div class="toolbar">
                 <button class="btn-tool active" onclick="setTool('draw', this)" title="Dibuja cargas (+/-) y vectores de fuerza">🤖 Lápiz IA (Objetos)</button>
                 <button class="btn-tool" onclick="setTool('draw_free', this)" title="Dibuja explicaciones libres">🖌️ Marcador (Libre)</button>
+                <button class="btn-tool" onclick="setTool('line', this)" title="Dibuja líneas rectas para triángulos auxiliares">📏 Línea Recta</button>
+                <button class="btn-tool" onclick="setTool('visibility', this)" title="Haz clic en objetos para ocultarlos o mostrarlos">👻 Ocultar / Mostrar</button>
                 <button class="btn-tool" onclick="setTool('text', this)" title="Escribe texto en el lienzo">🔤 Escribir Texto</button>
-                <button class="btn-tool" onclick="setTool('move', this)">✋ Mover / Editar</button>
+                <button class="btn-tool" onclick="setTool('move', this)" title="Arrastra para seleccionar varios o mueve el origen">✋ Mover / Seleccionar</button>
                 <button class="btn-tool" onclick="undo()">↩️ Deshacer</button>
                 <button class="btn-tool btn-danger" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
             </div>
             
             <div class="color-picker-container">
-            <input type="color" id="pencil-color" value="#000000" onchange="state.currentColor = this.value">
-            <label for="pencil-color" style="font-size: 0.85rem; color: #ccc;">Color (Marcador y Texto)</label>
+                <input type="color" id="pencil-color" value="#000000" onchange="state.currentColor = this.value">
+                <label for="pencil-color" style="font-size: 0.85rem; color: #ccc;">Color (Líneas/Marcador)</label>
+            </div>
         </div>
-    </div>
-    <hr style="border:0; border-top:1px solid var(--border-color); margin: 5px 0;">
-    <div>
-        <div class="section-title">Datos</div>
-        <div style="margin-bottom: 10px;">
-            <label style="font-size:0.8rem; color:#aaa;">U. Carga:</label>
-            <select id="charge-unit" onchange="analizarFisica()">
-                <option value="1e-6">Microcoulombs (µC)</option>
-                <option value="1e-9">Nanocoulombs (nC)</option>
-                <option value="1e-3">MiliCoulombs (mC)</option>
-                <option value="1">Coulombs (C)</option>
-            </select>
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label style="font-size:0.8rem; color:#aaa;">Distancia:</label>
-            <select id="dist-unit" onchange="analizarFisica()">
-                <option value="1">Metros (m)</option>
+        <hr style="border:0; border-top:1px solid var(--border-color); margin: 5px 0;">
+        <div>
+            <div class="section-title">Datos</div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size:0.8rem; color:#aaa;">U. Carga:</label>
+                <select id="charge-unit" onchange="analizarFisica()">
+                    <option value="1e-6">Microcoulombs (µC)</option>
+                    <option value="1e-9">Nanocoulombs (nC)</option>
+                    <option value="1e-3">MiliCoulombs (mC)</option>
+                    <option value="1">Coulombs (C)</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size:0.8rem; color:#aaa;">Distancia:</label>
+                <select id="dist-unit" onchange="analizarFisica()">
+                    <option value="1">Metros (m)</option>
                     <option value="0.01">Centímetros (cm)</option>
+                    <option value="1e-3">Milímetros (mm)</option>
+                    <option value="1e-6">Micrómetros (µm)</option>
+                    <option value="1e-9">Nanómetros (nm)</option>
                 </select>
             </div>
             <div style="margin-bottom: 10px;">
@@ -255,40 +296,49 @@
             <div id="charges-container"></div>
         </div>
         <button class="btn-tool btn-action" style="margin-top:15px;" onclick="analizarFisica()">🔍 VERIFICAR / CALCULAR</button>
+        <button id="btn-toggle-dcl" class="btn-tool btn-action" style="margin-top:5px; background: #3498db;" onclick="toggleInCanvasDCL()">👀 Mostrar DCL en Lienzo</button>
     </div>
 
+    <!-- Botón Toggle Izquierdo -->
+    <div class="panel-toggle" id="toggle-left" onclick="toggleLeft()" title="Ocultar/Mostrar Herramientas">◀</div>
+
+    <!-- Área de Trabajo (Canvas) -->
     <div class="canvas-area" id="canvas-wrapper">
         <canvas id="main-canvas"></canvas>
         <button id="float-delete" onclick="deleteSelected()">🗑️ Eliminar</button>
         <input type="text" id="text-input-overlay" placeholder="Escribe aquí y presiona Enter...">
-    <div id="labels-overlay"></div>
-    <div id="coords-indicator">x: 0, y: 0</div>
-</div>
+        <div id="labels-overlay"></div>
+        <div id="coords-indicator">x: 0, y: 0</div>
+    </div>
 
-<div class="panel panel-right">
-    <div>
-        <div class="section-title">Enunciado del Problema</div>
-        <div id="problem-statement" class="statement-card">
-            <i>Dibuja cargas fuente para interactuar.</i>
+    <!-- Botón Toggle Derecho -->
+    <div class="panel-toggle" id="toggle-right" onclick="toggleRight()" title="Ocultar/Mostrar Resultados">▶</div>
+
+    <!-- Panel Derecho -->
+    <div class="panel panel-right" id="panel-right">
+        <div>
+            <div class="section-title">Enunciado del Problema</div>
+            <div id="problem-statement" class="statement-card">
+                <i>Dibuja cargas fuente para interactuar.</i>
+            </div>
         </div>
-    </div>
-    <div>
-        <div class="section-title">Objetos Detectados</div>
-        <div class="feedback-card" style="border-left-color: #3498db;">
-            <div id="detection-list"><i>Esperando...</i></div>
+        <div>
+            <div class="section-title">Objetos Detectados</div>
+            <div class="feedback-card" style="border-left-color: #3498db;">
+                <div id="detection-list"><i>Esperando...</i></div>
+            </div>
         </div>
-    </div>
-    <div>
-        <div class="section-title">Validación</div>
-        <div class="feedback-card" id="validation-box">...</div>
-        <div class="tip-card" id="static-tip">
-            <strong>💡 Tip de Fuerza ($F$):</strong><br>
-            Cargas de <b>IGUAL</b> signo se repelen, de signo <b>OPUESTO</b> se atraen.
+        <div>
+            <div class="section-title">Validación</div>
+            <div class="feedback-card" id="validation-box">...</div>
+            <div class="tip-card" id="static-tip">
+                <strong>💡 Tip de Fuerza ($F$):</strong><br>
+                Cargas de <b>IGUAL</b> signo se repelen, de signo <b>OPUESTO</b> se atraen.
+            </div>
         </div>
-    </div>
-    <div>
-        <div class="section-title">Solución Paso a Paso</div>
-        <div id="dcl-buttons" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;"></div>
+        <div>
+            <div class="section-title">Solución Paso a Paso</div>
+            <div id="dcl-buttons" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;"></div>
             <div class="latex-box" id="latex-result">$$\text{---}$$</div>
         </div>
     </div>
@@ -309,23 +359,62 @@
     const labelsOverlay = document.getElementById('labels-overlay');
     const floatDelete = document.getElementById('float-delete');
     const textOverlay = document.getElementById('text-input-overlay');
+    const rootStyles = document.documentElement.style;
     
-    // Estado Global
+    // UI Dinámica (Paneles)
+    let leftOpen = true;
+    let rightOpen = true;
+    
+    function toggleLeft() {
+        leftOpen = !leftOpen;
+        rootStyles.setProperty('--left-w', leftOpen ? '260px' : '0px');
+        document.getElementById('toggle-left').innerText = leftOpen ? '◀' : '▶';
+        document.getElementById('panel-left').style.opacity = leftOpen ? '1' : '0';
+        setTimeout(resizeCanvas, 300);
+    }
+    
+    function toggleRight() {
+        rightOpen = !rightOpen;
+        rootStyles.setProperty('--right-w', rightOpen ? '380px' : '0px');
+        document.getElementById('toggle-right').innerText = rightOpen ? '▶' : '◀';
+        document.getElementById('panel-right').style.opacity = rightOpen ? '1' : '0';
+        setTimeout(resizeCanvas, 300);
+    }
+
+    function toggleInCanvasDCL() {
+        state.showInCanvasDCL = !state.showInCanvasDCL;
+        const btn = document.getElementById('btn-toggle-dcl');
+        if (state.showInCanvasDCL) {
+            btn.style.background = '#e74c3c';
+            btn.innerText = '🙈 Ocultar DCL en Lienzo';
+        } else {
+            btn.style.background = '#3498db';
+            btn.innerText = '👀 Mostrar DCL en Lienzo';
+        }
+        redraw();
+    }
+
+    // Estado Global Actualizado
     let state = {
         tool: 'draw',
         currentColor: '#000000',
         isDrawing: false,
+        showInCanvasDCL: false,
         isDrawingFree: false,
+        isDrawingLine: false,
         isDragging: false,
         dragLastX: 0,
         dragLastY: 0,
-        draggedObject: null,
-        selectedObject: null,
+        selectedObjects: [], 
+        selectionBox: null,  
+        isDraggingOrigin: false,
+        origin: { x: null, y: null }, 
         recognitionTimer: null, 
         rawStrokes: [],      
         currentStroke: [],   
         currentFreeStroke: null,
-        objects: [],         // Guarda Cargas, Vectores, Trazos Libres ('free_stroke') y Texto ('text')
+        currentLine: null,
+        objects: [],         
         calculatedForces: [] 
     };
     
@@ -336,19 +425,37 @@
 
     function resizeCanvas() {
         canvas.width = wrapper.clientWidth; canvas.height = wrapper.clientHeight;
+        if (state.origin.x === null) {
+            state.origin = { x: canvas.width / 2, y: canvas.height / 2 };
+        }
+        updateGridBackground();
         redraw();
     }
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 100);
 
     // Helpers de Coordenadas
-    function toPhysY(cy) { return canvas.height - cy; }
-    function toCanvasY(py) { return canvas.height - py; }
+    function getPhysX(canvasX) { return canvasX - state.origin.x; }
+    function getPhysY(canvasY) { return state.origin.y - canvasY; }
+    
     function getCoords(e) {
         const r = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         return { x: clientX - r.left, y: clientY - r.top };
+    }
+
+    // Matemática Auxiliar
+    function distToSegment(p, v, w) {
+        let l2 = Math.pow(w.x - v.x, 2) + Math.pow(w.y - v.y, 2);
+        if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+        let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+    }
+
+    function updateGridBackground() {
+        wrapper.style.backgroundPosition = `${state.origin.x}px ${state.origin.y}px`;
     }
 
     // --- Herramienta de Texto ---
@@ -393,15 +500,51 @@
             return;
         }
 
+        if (state.tool === 'line') {
+            selectObject(null);
+            state.isDrawingLine = true;
+            state.currentLine = { type: 'line', id: Date.now(), start: {x: c.x, y: c.y}, end: {x: c.x, y: c.y}, color: state.currentColor };
+            return;
+        }
+
+        if (state.tool === 'visibility') {
+            const hit = findObjectAt(c);
+            if (hit) {
+                hit.hidden = !hit.hidden;
+                updateUI();
+                redraw();
+            }
+            return;
+        }
+
         if (state.tool === 'move') {
+            if (Math.hypot(c.x - state.origin.x, c.y - state.origin.y) < 30) {
+                state.isDraggingOrigin = true;
+                state.dragLastX = c.x; state.dragLastY = c.y;
+                selectObject(null);
+                return;
+            }
+
             const hit = findObjectAt(c);
             if (hit) {
                 state.isDragging = true;
-                state.draggedObject = hit;
-                state.dragLastX = c.x;
-                state.dragLastY = c.y;
-                selectObject(hit);
-            } else { selectObject(null); }
+                state.dragLastX = c.x; state.dragLastY = c.y;
+                if (e.shiftKey) {
+                    if (state.selectedObjects.includes(hit)) {
+                        state.selectedObjects = state.selectedObjects.filter(o => o !== hit);
+                    } else {
+                        state.selectedObjects.push(hit);
+                    }
+                } else {
+                    if (!state.selectedObjects.includes(hit)) {
+                        selectObject(hit);
+                    }
+                }
+            } else {
+                selectObject(null);
+                state.selectionBox = { startX: c.x, startY: c.y, x: c.x, y: c.y, w: 0, h: 0 };
+            }
+            redraw();
             return;
         }
 
@@ -421,23 +564,57 @@
     function handleMove(e) {
         if (e.touches) e.preventDefault();
         const c = getCoords(e);
-        document.getElementById('coords-indicator').innerText = `x: ${Math.round(c.x)}, y: ${Math.round(toPhysY(c.y))}`;
+        
+        document.getElementById('coords-indicator').innerText = `x: ${Math.round(getPhysX(c.x))}, y: ${Math.round(getPhysY(c.y))}`;
 
-        if (state.isDragging && state.draggedObject) {
+        if (state.isDraggingOrigin) {
+            const dx = c.x - state.dragLastX;
+            const dy = c.y - state.dragLastY;
+            state.origin.x += dx;
+            state.origin.y += dy;
+            state.dragLastX = c.x; state.dragLastY = c.y;
+            
+            state.objects.forEach(o => {
+                if (o.type.startsWith('charge')) {
+                    o.physX = getPhysX(o.x);
+                    o.physY = getPhysY(o.y);
+                }
+            });
+            
+            updateGridBackground();
+            updateUI();
+            analizarFisica();
+            redraw();
+            return;
+        }
+
+        if (state.selectionBox) {
+            state.selectionBox.x = Math.min(state.selectionBox.startX, c.x);
+            state.selectionBox.y = Math.min(state.selectionBox.startY, c.y);
+            state.selectionBox.w = Math.abs(c.x - state.selectionBox.startX);
+            state.selectionBox.h = Math.abs(c.y - state.selectionBox.startY);
+            redraw();
+            return;
+        }
+
+        if (state.isDragging && state.selectedObjects.length > 0) {
             const dx = c.x - state.dragLastX;
             const dy = c.y - state.dragLastY;
 
-            if (state.draggedObject.type.startsWith('charge')) {
-                state.draggedObject.x += dx; state.draggedObject.y += dy;
-                state.draggedObject.physX += dx; state.draggedObject.physY = toPhysY(state.draggedObject.y);
-            } else if (state.draggedObject.type === 'vector') {
-                state.draggedObject.start.x += dx; state.draggedObject.start.y += dy;
-                state.draggedObject.end.x += dx; state.draggedObject.end.y += dy;
-            } else if (state.draggedObject.type === 'free_stroke') {
-                state.draggedObject.points.forEach(p => { p.x += dx; p.y += dy; });
-            } else if (state.draggedObject.type === 'text') {
-                state.draggedObject.x += dx; state.draggedObject.y += dy;
-            }
+            state.selectedObjects.forEach(obj => {
+                if (obj.type.startsWith('charge')) {
+                    obj.x += dx; obj.y += dy;
+                    obj.physX = getPhysX(obj.x); 
+                    obj.physY = getPhysY(obj.y);
+                } else if (obj.type === 'vector' || obj.type === 'line') {
+                    obj.start.x += dx; obj.start.y += dy;
+                    obj.end.x += dx; obj.end.y += dy;
+                } else if (obj.type === 'free_stroke') {
+                    obj.points.forEach(p => { p.x += dx; p.y += dy; });
+                } else if (obj.type === 'text') {
+                    obj.x += dx; obj.y += dy;
+                }
+            });
 
             state.dragLastX = c.x; state.dragLastY = c.y;
             updateFloatDelete();
@@ -445,6 +622,12 @@
             return;
         } 
         
+        if (state.isDrawingLine && state.currentLine) {
+            state.currentLine.end = {x: c.x, y: c.y};
+            redraw();
+            return;
+        }
+
         if (state.isDrawingFree && state.currentFreeStroke) {
             state.currentFreeStroke.points.push(c);
             redraw();
@@ -458,11 +641,47 @@
     }
 
     function handleEnd(e) {
+        if (state.isDraggingOrigin) {
+            state.isDraggingOrigin = false;
+            return;
+        }
+
+        if (state.selectionBox) {
+            const box = state.selectionBox;
+            const minX = box.x, maxX = box.x + box.w;
+            const minY = box.y, maxY = box.y + box.h;
+            
+            state.selectedObjects = state.objects.filter(o => {
+                if (o.hidden && state.tool !== 'visibility') return false;
+                if (o.type.startsWith('charge') || o.type === 'text') {
+                    return o.x >= minX && o.x <= maxX && o.y >= minY && o.y <= maxY;
+                } else if (o.type === 'vector' || o.type === 'line') {
+                    return o.start.x >= minX && o.start.x <= maxX && o.start.y >= minY && o.start.y <= maxY;
+                }
+                return false;
+            });
+
+            state.selectionBox = null;
+            updateFloatDelete();
+            updateUI();
+            redraw();
+            return;
+        }
+
         if (state.isDragging) {
             state.isDragging = false;
-            state.draggedObject = null;
             updateUI();
             analizarFisica(); 
+            return;
+        }
+
+        if (state.isDrawingLine && state.currentLine) {
+            state.isDrawingLine = false;
+            if (Math.hypot(state.currentLine.end.x - state.currentLine.start.x, state.currentLine.end.y - state.currentLine.start.y) > 5) {
+                state.objects.push(state.currentLine);
+            }
+            state.currentLine = null;
+            redraw();
             return;
         }
 
@@ -492,7 +711,9 @@
     }
 
     function findObjectAt(c) {
-        const textObj = state.objects.find(o => {
+        const visibleObjects = state.objects.filter(o => state.tool === 'visibility' || !o.hidden);
+
+        const textObj = visibleObjects.find(o => {
             if(o.type !== 'text') return false;
             ctx.font = '20px "Segoe UI", Arial';
             const w = ctx.measureText(o.text).width;
@@ -500,16 +721,19 @@
         });
         if(textObj) return textObj;
 
-        const charge = state.objects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30);
+        const charge = visibleObjects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30);
         if (charge) return charge;
 
-        const vec = state.objects.find(o => o.type === 'vector' && (
+        const vec = visibleObjects.find(o => o.type === 'vector' && (
             Math.hypot(o.start.x - c.x, o.start.y - c.y) < 25 || 
             Math.hypot(o.end.x - c.x, o.end.y - c.y) < 25
         ));
         if(vec) return vec;
 
-        const strokeObj = state.objects.find(o => {
+        const lineObj = visibleObjects.find(o => o.type === 'line' && distToSegment(c, o.start, o.end) < 15);
+        if(lineObj) return lineObj;
+
+        const strokeObj = visibleObjects.find(o => {
             if(o.type !== 'free_stroke') return false;
             return o.points.some(p => Math.hypot(p.x - c.x, p.y - c.y) < 15);
         });
@@ -517,43 +741,43 @@
     }
 
     function selectObject(obj) {
-        state.selectedObject = obj;
-        document.querySelectorAll('.data-card').forEach(card => card.classList.remove('selected'));
-        if (obj) {
-            updateFloatDelete();
-            floatDelete.style.display = 'block';
-            if (obj.type.startsWith('charge')) {
-                const input = document.getElementById(`q-${obj.id}`);
-                if(input) {
-                    const card = input.closest('.data-card');
-                    if(card) card.classList.add('selected');
-                }
-            }
-        } else {
-            floatDelete.style.display = 'none';
-        }
+        state.selectedObjects = obj ? [obj] : [];
+        updateUI();
+        updateFloatDelete();
         redraw();
     }
 
     function updateFloatDelete() {
-        if(!state.selectedObject) return;
-        const o = state.selectedObject;
-        let bx, by;
-        if(o.type.startsWith('charge')) { bx = o.x; by = o.y - 35; }
-        else if(o.type === 'vector') { bx = (o.start.x+o.end.x)/2; by = (o.start.y+o.end.y)/2 - 20; }
-        else if(o.type === 'text') { bx = o.x + 20; by = o.y - 30; }
-        else if(o.type === 'free_stroke') {
-            const minP = o.points.reduce((prev, curr) => curr.y < prev.y ? curr : prev);
-            bx = minP.x; by = minP.y - 30;
+        if(state.selectedObjects.length === 0) {
+            floatDelete.style.display = 'none';
+            return;
         }
-        floatDelete.style.left = (bx - 30) + 'px'; 
-        floatDelete.style.top = by + 'px';
+        
+        let minX = Infinity, minY = Infinity, maxX = -Infinity;
+        
+        state.selectedObjects.forEach(o => {
+            let bx, by;
+            if(o.type.startsWith('charge')) { bx = o.x; by = o.y - 35; }
+            else if(o.type === 'vector' || o.type === 'line') { bx = (o.start.x+o.end.x)/2; by = Math.min(o.start.y, o.end.y) - 20; }
+            else if(o.type === 'text') { bx = o.x + 20; by = o.y - 30; }
+            else if(o.type === 'free_stroke') {
+                const minP = o.points.reduce((prev, curr) => curr.y < prev.y ? curr : prev);
+                bx = minP.x; by = minP.y - 30;
+            }
+            if(bx < minX) minX = bx; if(bx > maxX) maxX = bx;
+            if(by < minY) minY = by;
+        });
+
+        floatDelete.style.left = ((minX + maxX)/2) + 'px'; 
+        floatDelete.style.top = minY + 'px';
+        floatDelete.style.display = 'block';
     }
 
     function deleteSelected() {
-        if (state.selectedObject) {
-            state.objects = state.objects.filter(o => o !== state.selectedObject);
-            selectObject(null);
+        if (state.selectedObjects.length > 0) {
+            state.objects = state.objects.filter(o => !state.selectedObjects.includes(o));
+            state.selectedObjects = [];
+            floatDelete.style.display = 'none';
             updateUI(); analizarFisica(); redraw();
         }
     }
@@ -573,8 +797,10 @@
                     const id = state.objects.filter(o => o.type.startsWith('charge')).length + 1;
                     newObjects.push({
                         id: id, type: type, label: `q_${id}`,
-                        x: bounds.cx, y: bounds.cy, physX: bounds.cx, physY: toPhysY(bounds.cy),
-                        q: type === 'charge_pos' ? 5 : -5
+                        x: bounds.cx, y: bounds.cy, 
+                        physX: getPhysX(bounds.cx), physY: getPhysY(bounds.cy),
+                        q: type === 'charge_pos' ? 5 : -5,
+                        hasVectors: false // Flag para DCL Automático
                     });
                 } else if (type === 'vector') {
                     const eps = getVectorEndpoints(group);
@@ -679,105 +905,107 @@
         });
         if (d1 > d2) return { start: p2, end: p1 };
         return { start: p1, end: p2 };
-}
+    }
 
-// --- Física ---
-function analizarFisica() {
-    const charges = state.objects.filter(o => o.type.startsWith('charge'));
-    const vectors = state.objects.filter(o => o.type === 'vector');
-    const Ke = 8.987e9;
-    const scale = parseFloat(document.getElementById('scale-input').value || 100);
-    const distU = parseFloat(document.getElementById('dist-unit').value || 1);
-    const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
-    
-    charges.forEach(c => {
-        const elQ = document.getElementById(`q-${c.id}`);
-        if(elQ) c.q = parseFloat(elQ.value);
-    });
+    // --- Física ---
+    function analizarFisica() {
+        const charges = state.objects.filter(o => o.type.startsWith('charge'));
+        const vectors = state.objects.filter(o => o.type === 'vector');
+        const Ke = 8.987e9;
+        const scale = parseFloat(document.getElementById('scale-input').value || 100);
+        const distU = parseFloat(document.getElementById('dist-unit').value || 1);
+        const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
+        
+        charges.forEach(c => {
+            const elQ = document.getElementById(`q-${c.id}`);
+            if(elQ) c.q = parseFloat(elQ.value);
+            c.hasVectors = false; // Reset flag for DCL
+        });
 
-    updateStatement(charges, chargeU);
+        updateStatement(charges, chargeU);
 
-    const interactions = [];
-    charges.forEach(tgt => {
-        charges.forEach(src => {
-            if(tgt.id === src.id) return;
-            const dx = src.physX - tgt.physX; const dy = src.physY - tgt.physY;
-            let ang = Math.atan2(dy, dx);
-            if(tgt.q * src.q > 0) ang += Math.PI;
-            ang = (ang + 4*Math.PI) % (2*Math.PI);
-            const r = Math.hypot(dx, dy) / scale * distU;
-            
-            // Aplicamos la escala chargeU a ambas cargas interactuantes
-            const mag = r>0 ? (Ke * Math.abs(tgt.q * chargeU * src.q * chargeU))/(r*r) : 0;
-            
-            interactions.push({ 
-                target: tgt.id, source: src.id, label: `F_{${src.id}${tgt.id}}`,
-                mag: mag, angleDeg: (ang*180/Math.PI)%360,
-                Fx: mag*Math.cos(ang), Fy: mag*Math.sin(ang), r: r,
-                t: tgt, s: src, ang: ang 
+        const interactions = [];
+        charges.forEach(tgt => {
+            charges.forEach(src => {
+                if(tgt.id === src.id) return;
+                const dx = src.physX - tgt.physX; 
+                const dy = src.physY - tgt.physY; 
+                let ang = Math.atan2(dy, dx);
+                if(tgt.q * src.q > 0) ang += Math.PI;
+                ang = (ang + 4*Math.PI) % (2*Math.PI);
+                const r = Math.hypot(dx, dy) / scale * distU;
+                
+                const mag = r>0 ? (Ke * Math.abs(tgt.q * chargeU * src.q * chargeU))/(r*r) : 0;
+                
+                interactions.push({ 
+                    target: tgt.id, source: src.id, label: `F_{${src.id}${tgt.id}}`,
+                    mag: mag, angleDeg: (ang*180/Math.PI)%360,
+                    Fx: mag*Math.cos(ang), Fy: mag*Math.sin(ang), r: r,
+                    t: tgt, s: src, ang: ang 
+                });
             });
         });
-    });
 
-    // Desvinculamos el paso a paso del dibujo: siempre almacenamos TODAS las interacciones reales
-    state.calculatedForces = interactions;
-    
-    const vBox = document.getElementById('validation-box'); vBox.innerHTML='';
-    
-    if(vectors.length === 0) {
-        vBox.innerHTML = '<i>Dibuja flechas de fuerza sobre las cargas.</i>';
+        state.calculatedForces = interactions;
+        
+        const vBox = document.getElementById('validation-box'); vBox.innerHTML='';
+        
+        if(vectors.length === 0) {
+            vBox.innerHTML = '<i>Dibuja flechas de fuerza sobre las cargas.</i>';
+        }
+
+        vectors.forEach(vec => {
+            const origin = charges.find(c => Math.hypot(c.x - vec.start.x, c.y - vec.start.y) < 60);
+            
+            if(!origin) { 
+                vec.validation='warn'; vec.label='?'; 
+                vBox.innerHTML += `<div class="result-item result-warn">⚠️ Vector suelto</div>`;
+                return; 
+            }
+            
+            origin.hasVectors = true; // Activar DCL Automático para esta carga
+
+            const vAng = (Math.atan2(getPhysY(vec.end.y) - getPhysY(vec.start.y), vec.end.x - vec.start.x) + 4*Math.PI)%(2*Math.PI);
+            
+            let best = null; let minD = 100;
+            const cands = interactions.filter(i => i.t.id === origin.id);
+            cands.forEach(cand => {
+                let d = Math.abs(cand.ang - vAng);
+                if(d > Math.PI) d = 2*Math.PI - d;
+                if(d < minD) { minD = d; best = cand; }
+            });
+
+            if(best && minD < 0.6) {
+                vec.validation = 'correct'; vec.label = best.label;
+                vBox.innerHTML += `<div class="result-item result-correct">✅ ${best.label} Correcta en ${origin.label}</div>`;
+            } else {
+                vec.validation = 'error'; vec.label = '?';
+                vBox.innerHTML += `<div class="result-item result-error">❌ Dirección Errada en ${origin.label}</div>`;
+            }
+        });
+        
+        renderMathInElement(vBox, {delimiters: [{left: "$", right: "$", display: false}]});
+        renderLatex();
+        setupDCLButtons();
+        redraw();
     }
 
-    vectors.forEach(vec => {
-        const origin = charges.find(c => Math.hypot(c.x - vec.start.x, c.y - vec.start.y) < 60);
-        
-        if(!origin) { 
-            vec.validation='warn'; vec.label='?'; 
-            vBox.innerHTML += `<div class="result-item result-warn">⚠️ Vector suelto</div>`;
+    function updateStatement(charges, unitQ) {
+        const box = document.getElementById('problem-statement');
+        if (charges.length < 2) { 
+            box.innerHTML = "<i>Dibuja al menos dos cargas fuente (+ o -) para calcular su interacción.</i>"; 
             return; 
         }
-        
-        const vAng = (Math.atan2(toPhysY(vec.end.y) - toPhysY(vec.start.y), vec.end.x - vec.start.x) + 4*Math.PI)%(2*Math.PI);
-        
-        let best = null; let minD = 100;
-        const cands = interactions.filter(i => i.t.id === origin.id);
-        cands.forEach(cand => {
-            let d = Math.abs(cand.ang - vAng);
-            if(d > Math.PI) d = 2*Math.PI - d;
-            if(d < minD) { minD = d; best = cand; }
-        });
 
-        if(best && minD < 0.6) {
-            vec.validation = 'correct'; vec.label = best.label;
-            vBox.innerHTML += `<div class="result-item result-correct">✅ ${best.label} Correcta en ${origin.label}</div>`;
-        } else {
-            vec.validation = 'error'; vec.label = '?';
-            vBox.innerHTML += `<div class="result-item result-error">❌ Dirección Errada en ${origin.label}</div>`;
-        }
-    });
-    
-    renderMathInElement(vBox, {delimiters: [{left: "$", right: "$", display: false}]});
-    renderLatex();
-    setupDCLButtons();
-    redraw();
-}
-
-function updateStatement(charges, unitQ) {
-    const box = document.getElementById('problem-statement');
-    if (charges.length < 2) { 
-        box.innerHTML = "<i>Dibuja al menos dos cargas fuente (+ o -) para calcular su interacción.</i>"; 
-        return; 
+        const sources = charges.map(c => `$q_${c.id}$`);
+        let text = `<strong>Problema:</strong> Determinar la magnitud y dirección de la <strong>Fuerza Eléctrica Resultante</strong> sobre cada carga debido a la interacción con el sistema <strong>${sources.join(', ')}</strong>.`;
+        text += `<br><small style="color:#aaa; margin-top:5px; display:block">Considere $k_e = 8.987 \\times 10^9 N\\cdot m^2/C^2$</small>`;
+        
+        box.innerHTML = text;
+        renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
     }
 
-    const sources = charges.map(c => `$q_${c.id}$`);
-    let text = `<strong>Problema:</strong> Determinar la magnitud y dirección de la <strong>Fuerza Eléctrica Resultante</strong> sobre cada carga debido a la interacción con el sistema <strong>${sources.join(', ')}</strong>.`;
-    text += `<br><small style="color:#aaa; margin-top:5px; display:block">Considere $k_e = 8.987 \\times 10^9 N\\cdot m^2/C^2$</small>`;
-    
-    box.innerHTML = text;
-    renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
-}
-
-function updateCoord(id, axis, val) {
+    function updateCoord(id, axis, val) {
         const obj = state.objects.find(o => o.id === id);
         if(!obj) return;
         
@@ -786,10 +1014,10 @@ function updateCoord(id, axis, val) {
 
         if (axis === 'x') {
             obj.physX = numVal;
-            obj.x = numVal;
+            obj.x = numVal + state.origin.x;
         } else {
             obj.physY = numVal;
-            obj.y = toCanvasY(numVal);
+            obj.y = state.origin.y - numVal;
         }
         
         analizarFisica();
@@ -797,10 +1025,13 @@ function updateCoord(id, axis, val) {
     }
 
     function updateUI() {
+        document.querySelectorAll('.data-card').forEach(card => card.classList.remove('selected'));
+        
         const c = document.getElementById('charges-container'); c.innerHTML='';
         state.objects.filter(o=>o.type.startsWith('charge')).forEach(ch => {
             const div = document.createElement('div'); div.className='data-card';
-            if(state.selectedObject === ch) div.classList.add('selected');
+            if(state.selectedObjects.includes(ch)) div.classList.add('selected');
+            if(ch.hidden) div.style.opacity = '0.5';
             
             div.innerHTML = `
                 <div class="data-header"><strong>${ch.label}</strong></div>
@@ -818,8 +1049,9 @@ function updateCoord(id, axis, val) {
         });
         
         document.getElementById('detection-list').innerHTML = state.objects.map(o=> {
-            if(o.type === 'vector') return '<span class="badge badge-vec">Vec</span>';
-            if(o.type.startsWith('charge')) return `<span class="badge ${o.type==='charge_pos'?'badge-pos':'badge-neg'}">${o.label}</span>`;
+            let op = o.hidden ? 'opacity: 0.4;' : '';
+            if(o.type === 'vector') return `<span class="badge badge-vec" style="${op}">Vec</span>`;
+            if(o.type.startsWith('charge')) return `<span class="badge ${o.type==='charge_pos'?'badge-pos':'badge-neg'}" style="${op}">${o.label}</span>`;
             return '';
         }).join('');
     }
@@ -837,7 +1069,13 @@ function updateCoord(id, axis, val) {
         else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); }
         redraw(); 
     }
-    function limpiarTodo() { state.objects=[]; state.rawStrokes=[]; updateUI(); analizarFisica(); redraw(); document.getElementById('latex-result').innerText='---'; }
+    
+    function limpiarTodo() { 
+        state.objects=[]; state.rawStrokes=[]; state.selectedObjects=[];
+        updateUI(); analizarFisica(); redraw(); 
+        document.getElementById('latex-result').innerText='---'; 
+        document.getElementById('float-delete').style.display='none';
+    }
 
     // --- Renderizado ---
     function drawPath(pts, color = '#999', width = 2) {
@@ -852,12 +1090,35 @@ function updateCoord(id, axis, val) {
         ctx.clearRect(0,0,canvas.width,canvas.height);
         labelsOverlay.innerHTML = '';
         
-        ctx.strokeStyle = '#eee'; ctx.lineWidth=1; ctx.beginPath();
-        for(let i=0; i<canvas.width; i+=20) { ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); }
-        for(let i=0; i<canvas.height; i+=20) { ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); }
-        ctx.stroke();
+        // 1. Dibujar Ejes de Coordenadas (Origen Movible)
+        if (state.origin.x !== null) {
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(78, 204, 163, 0.4)'; 
+            ctx.lineWidth = 2;
+            
+            ctx.moveTo(0, state.origin.y); ctx.lineTo(canvas.width, state.origin.y);
+            ctx.moveTo(state.origin.x, 0); ctx.lineTo(state.origin.x, canvas.height);
+            ctx.stroke();
 
-        // Líneas punteadas conectando las cargas (Línea de acción r)
+            ctx.beginPath();
+            ctx.arc(state.origin.x, state.origin.y, 4, 0, Math.PI*2);
+            ctx.fillStyle = '#4ecca3';
+            ctx.fill();
+            
+            ctx.font = '12px monospace';
+            ctx.fillText('+X', canvas.width - 20, state.origin.y - 10);
+            ctx.fillText('+Y', state.origin.x + 10, 20);
+            
+            if (state.isDraggingOrigin) {
+                ctx.beginPath();
+                ctx.arc(state.origin.x, state.origin.y, 25, 0, Math.PI*2);
+                ctx.strokeStyle = 'rgba(78, 204, 163, 0.8)';
+                ctx.setLineDash([4,4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         if (charges.length > 1) {
             ctx.setLineDash([5, 5]);
@@ -871,46 +1132,157 @@ function updateCoord(id, axis, val) {
                     ctx.stroke();
                 }
             }
-            ctx.setLineDash([]); // Reset
+            ctx.setLineDash([]); 
         }
 
         state.rawStrokes.forEach(s => drawPath(s, '#999', 2));
         if(state.currentStroke.length>0) drawPath(state.currentStroke, '#999', 2);
-        
         if(state.currentFreeStroke) drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, 3);
+        
+        if(state.currentLine) {
+            ctx.strokeStyle = state.currentLine.color; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(state.currentLine.start.x, state.currentLine.start.y); 
+            ctx.lineTo(state.currentLine.end.x, state.currentLine.end.y); ctx.stroke();
+        }
 
+        if (state.selectionBox) {
+            ctx.fillStyle = 'rgba(0, 255, 136, 0.1)';
+            ctx.strokeStyle = '#00ff88';
+            ctx.lineWidth = 1;
+            ctx.fillRect(state.selectionBox.x, state.selectionBox.y, state.selectionBox.w, state.selectionBox.h);
+            ctx.strokeRect(state.selectionBox.x, state.selectionBox.y, state.selectionBox.w, state.selectionBox.h);
+        }
+
+        // Dibujar Objetos Normales
         state.objects.forEach(obj => {
-            const isSel = (state.selectedObject === obj);
-            ctx.shadowBlur = isSel ? 10 : 0; ctx.shadowColor = '#00ff88';
+            if (obj.hidden && state.tool !== 'visibility') return;
+
+            const prevAlpha = ctx.globalAlpha;
+            if (obj.hidden) ctx.globalAlpha = 0.3;
+
+            const isSel = state.selectedObjects.includes(obj);
+            ctx.shadowBlur = isSel ? 12 : 0; 
+            ctx.shadowColor = '#00ff88';
 
             if(obj.type.startsWith('charge')) {
                 ctx.beginPath(); ctx.arc(obj.x, obj.y, 20, 0, Math.PI*2);
                 ctx.fillStyle = obj.type==='charge_pos' ? '#3498db' : '#e74c3c';
-                ctx.fill(); ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke();
+                ctx.fill(); 
+                ctx.strokeStyle = isSel ? '#00ff88' : 'white'; 
+                ctx.lineWidth = isSel ? 3 : 2; 
+                ctx.stroke();
                 ctx.shadowBlur=0;
                 ctx.fillStyle='white'; ctx.font='bold 24px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
                 ctx.fillText(obj.type==='charge_pos'?'+':'-', obj.x, obj.y+2);
-                addLabel(obj.x+25, obj.y-25, obj.label);
+                addLabel(obj.x+25, obj.y-25, obj.label, obj.hidden);
             } 
             else if(obj.type === 'vector') {
                 const col = obj.validation==='correct'?'#4ecca3':obj.validation==='error'?'#ff6b6b':'#f1c40f';
-                ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = isSel ? 5 : 3;
+                ctx.strokeStyle = isSel ? '#00ff88' : col; 
+                ctx.fillStyle = isSel ? '#00ff88' : col; 
+                ctx.lineWidth = isSel ? 5 : 3;
                 drawArrow(obj.start.x, obj.start.y, obj.end.x, obj.end.y);
                 ctx.shadowBlur=0;
-                if(obj.label) addLabel(obj.end.x, obj.end.y-15, obj.label);
+                if(obj.label) addLabel(obj.end.x, obj.end.y-15, obj.label, obj.hidden);
+            }
+            else if(obj.type === 'line') {
+                ctx.strokeStyle = isSel ? '#00ff88' : obj.color; 
+                ctx.lineWidth = isSel ? 4 : 2;
+                ctx.beginPath(); ctx.moveTo(obj.start.x, obj.start.y); ctx.lineTo(obj.end.x, obj.end.y); ctx.stroke();
+                ctx.shadowBlur = 0;
             }
             else if(obj.type === 'free_stroke') {
-                drawPath(obj.points, obj.color, 3);
+                drawPath(obj.points, isSel ? '#00ff88' : obj.color, isSel ? 5 : 3);
                 ctx.shadowBlur=0;
             }
             else if(obj.type === 'text') {
-                ctx.fillStyle = obj.color;
+                ctx.fillStyle = isSel ? '#00ff88' : obj.color;
                 ctx.font = 'bold 20px "Segoe UI", Arial';
                 ctx.textAlign = 'left'; ctx.textBaseline = 'top';
                 ctx.fillText(obj.text, obj.x, obj.y);
                 ctx.shadowBlur=0;
             }
+            
+            ctx.globalAlpha = prevAlpha;
         });
+
+        // 2. DCL Automático sobre las Cargas Evaluadas
+        if (state.showInCanvasDCL) {
+            charges.forEach(ch => {
+                if (ch.hasVectors) {
+                    const fs = state.calculatedForces.filter(f => f.target === ch.id);
+                    if(fs.length === 0) return;
+
+                    let sumFx = 0, sumFy = 0;
+                    fs.forEach(f => { sumFx += f.Fx; sumFy += f.Fy; });
+                    const Rmag = Math.hypot(sumFx, sumFy);
+                    
+                    const maxF = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); 
+                    const s = 90 / maxF; // Escala visual: max length 90px
+
+                    // --- NUEVO SISTEMA DE REFERENCIA LOCAL ---
+                    ctx.strokeStyle = 'rgba(52, 152, 219, 0.5)'; // Azul claro semitransparente
+                    ctx.fillStyle = 'rgba(52, 152, 219, 0.8)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]);
+
+                    // Eje X local
+                    ctx.beginPath(); ctx.moveTo(ch.x - 120, ch.y); ctx.lineTo(ch.x + 120, ch.y); ctx.stroke();
+                    // Punta de flecha Eje X
+                    ctx.beginPath(); ctx.moveTo(ch.x + 120, ch.y); ctx.lineTo(ch.x + 110, ch.y - 5); ctx.lineTo(ch.x + 110, ch.y + 5); ctx.fill();
+                    ctx.font = 'bold 12px Arial'; ctx.fillText('+x', ch.x + 115, ch.y - 10);
+
+                    // Eje Y local (Canvas Y invertido, así que -Y es arriba visualmente)
+                    ctx.beginPath(); ctx.moveTo(ch.x, ch.y - 120); ctx.lineTo(ch.x, ch.y + 120); ctx.stroke();
+                    // Punta de flecha Eje Y (hacia arriba)
+                    ctx.beginPath(); ctx.moveTo(ch.x, ch.y - 120); ctx.lineTo(ch.x - 5, ch.y - 110); ctx.lineTo(ch.x + 5, ch.y - 110); ctx.fill();
+                    ctx.fillText('+y', ch.x + 10, ch.y - 115);
+
+                    ctx.setLineDash([]); // Restablecer trazo
+                    // -----------------------------------------
+
+                    // Fuerzas individuales y proyecciones
+                    fs.forEach(f => {
+                        const dx = f.Fx * s; const dy = -f.Fy * s; // Y canvas invertido
+                        const x2 = ch.x + dx; const y2 = ch.y + dy;
+                        const col = 'rgba(241, 196, 15, 0.8)'; // Dorado para componentes
+
+                        // Proyecciones
+                        ctx.strokeStyle = 'rgba(241, 196, 15, 0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+                        ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2, ch.y); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(ch.x, y2); ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        // Vector individual
+                        ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.5;
+                        drawArrow(ch.x, ch.y, x2, y2);
+                        
+                        ctx.fillStyle = '#f1c40f'; ctx.font = "12px Arial";
+                        ctx.fillText(f.label.replace(/[{}_]/g,''), x2 + 5, y2 - 5);
+                    });
+
+                    // Resultante
+                    if (Rmag > 0) {
+                        const Rdx = sumFx * s; const Rdy = -sumFy * s;
+                        const Rx2 = ch.x + Rdx; const Ry2 = ch.y + Rdy;
+                        const Rcol = '#ff6b6b';
+
+                        // Proyecciones Resultante
+                        ctx.strokeStyle = 'rgba(255, 107, 107, 0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+                        ctx.beginPath(); ctx.moveTo(Rx2, Ry2); ctx.lineTo(Rx2, ch.y); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(Rx2, Ry2); ctx.lineTo(ch.x, Ry2); ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        // Flecha Resultante
+                        ctx.strokeStyle = Rcol; ctx.fillStyle = Rcol; ctx.lineWidth = 4;
+                        drawArrow(ch.x, ch.y, Rx2, Ry2);
+                        
+                        ctx.fillStyle = Rcol; ctx.font = "bold 15px Arial";
+                        ctx.fillText("FR", Rx2 + 8, Ry2 + 8);
+                    }
+                }
+            });
+        }
     }
     
     function drawArrow(x1, y1, x2, y2) {
@@ -922,9 +1294,10 @@ function updateCoord(id, axis, val) {
         ctx.fill();
     }
 
-    function addLabel(x, y, t) {
+    function addLabel(x, y, t, hidden = false) {
         const d = document.createElement('div'); d.className='canvas-label';
         d.style.left=x+'px'; d.style.top=y+'px';
+        if (hidden) d.style.opacity = '0.3';
         katex.render(t, d, {throwOnError:false});
         labelsOverlay.appendChild(d);
     }
@@ -955,7 +1328,6 @@ function updateCoord(id, axis, val) {
                 });
                 html += `\\end{aligned} \\\\[1em]`;
 
-                // Sumatoria y Resultante
                 const R = Math.hypot(sx, sy);
                 const Rang = (Math.atan2(sy, sx) * 180 / Math.PI + 360) % 360;
 
@@ -979,6 +1351,7 @@ function updateCoord(id, axis, val) {
             b.innerText=`DCL q${tid}`; b.onclick=()=>openDCL(tid); d.appendChild(b);
         });
     }
+    
     function openDCL(id) {
         document.getElementById('fbd-modal').style.display='flex';
         const cx=document.getElementById('fbd-canvas').getContext('2d');
@@ -987,11 +1360,9 @@ function updateCoord(id, axis, val) {
         
         cx.clearRect(0,0,400,400);
         
-        // Ejes
         cx.strokeStyle='#ccc'; cx.lineWidth=1;
         cx.beginPath(); cx.moveTo(200,0); cx.lineTo(200,400); cx.moveTo(0,200); cx.lineTo(400,200); cx.stroke();
         
-        // Carga central
         cx.beginPath(); cx.arc(200,200,10,0,2*Math.PI); 
         cx.fillStyle=ch.type==='charge_pos'?'#3498db':'#e74c3c'; cx.fill();
         
@@ -1000,20 +1371,18 @@ function updateCoord(id, axis, val) {
         const Rmag = Math.hypot(sumFx, sumFy);
         
         const max = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); 
-        const s = 140/max; // Escala visual para que el vector mas grande mida 140px
+        const s = 140/max; 
 
         fs.forEach(f=>{ 
-            const dx=f.Fx*s; const dy=-f.Fy*s; // Fy phys up -> Canvas down
+            const dx=f.Fx*s; const dy=-f.Fy*s; 
             const col='#f1c40f';
             const x2=200+dx, y2=200+dy;
 
-            // Proyecciones (Componentes Individuales)
             cx.strokeStyle='rgba(241, 196, 15, 0.4)'; cx.lineWidth=1.5; cx.setLineDash([4, 4]);
             cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(x2, 200); cx.stroke();
             cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(200, y2); cx.stroke();
             cx.setLineDash([]);
 
-            // Vector Fuerza Individual
             cx.strokeStyle=col; cx.fillStyle=col; cx.lineWidth=3;
             cx.beginPath(); cx.moveTo(200,200); cx.lineTo(x2,y2); cx.stroke();
             const ang=Math.atan2(y2-200, x2-200);
@@ -1024,19 +1393,16 @@ function updateCoord(id, axis, val) {
             cx.fillText(f.label.replace(/[{}_]/g,''), x2+10, y2);
         });
 
-        // Dibujar Vector Fuerza Resultante
         if(fs.length > 0 && Rmag > 0) {
             const Rdx = sumFx * s; const Rdy = -sumFy * s;
             const Rx2 = 200 + Rdx; const Ry2 = 200 + Rdy;
             const Rcol = '#ff6b6b';
 
-            // Proyecciones Resultante
             cx.strokeStyle='rgba(255, 107, 107, 0.4)'; cx.lineWidth=2; cx.setLineDash([4, 4]);
             cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(Rx2, 200); cx.stroke();
             cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(200, Ry2); cx.stroke();
             cx.setLineDash([]);
 
-            // Flecha Resultante
             cx.strokeStyle=Rcol; cx.fillStyle=Rcol; cx.lineWidth=4;
             cx.beginPath(); cx.moveTo(200,200); cx.lineTo(Rx2, Ry2); cx.stroke();
             const Rang = Math.atan2(Ry2-200, Rx2-200);
@@ -1044,17 +1410,17 @@ function updateCoord(id, axis, val) {
             cx.lineTo(Rx2-12*Math.cos(Rang-Math.PI/6), Ry2-12*Math.sin(Rang-Math.PI/6));
             cx.lineTo(Rx2-12*Math.cos(Rang+Math.PI/6), Ry2-12*Math.sin(Rang+Math.PI/6)); cx.fill();
             
-            // Etiqueta Resultante
             cx.fillStyle='#ff6b6b'; cx.font="bold 16px Arial";
-        cx.fillText("FR", Rx2+12, Ry2+5);
+            cx.fillText("FR", Rx2+12, Ry2+5);
+        }
     }
-}
-function closeModal() { document.getElementById('fbd-modal').style.display='none'; }
+    
+    function closeModal() { document.getElementById('fbd-modal').style.display='none'; }
 
-document.addEventListener("DOMContentLoaded", function() {
-    const tip = document.getElementById('static-tip');
-    if(tip) renderMathInElement(tip, {delimiters: [{left: "$", right: "$", display: false}]});
-});
+    document.addEventListener("DOMContentLoaded", function() {
+        const tip = document.getElementById('static-tip');
+        if(tip) renderMathInElement(tip, {delimiters: [{left: "$", right: "$", display: false}]});
+    });
 </script>
 </body>
 </html>
