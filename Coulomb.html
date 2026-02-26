@@ -51,17 +51,22 @@
         }
 
         h2 { margin: 0; color: var(--accent-color); font-size: 1.2rem; }
-        .version { font-size: 0.8rem; color: #666; display: flex; align-items: center; gap: 10px; }
+        .version { font-size: 0.8rem; color: #666; display: flex; align-items: center; gap: 15px; }
         
         /* Estilos de Sala Multiusuario */
         .room-control {
             display: flex; align-items: center; gap: 8px;
             background: #232333; padding: 4px 10px; border-radius: 6px; border: 1px solid #444;
         }
-        .room-control input {
-            background: #1a1a24; border: 1px solid #555; color: var(--accent-color);
-            padding: 4px 8px; border-radius: 4px; font-weight: bold; width: 120px;
+        
+        /* Modales de Login y Sala */
+        .auth-input {
+            width: 100%; padding: 10px; margin: 8px 0 15px 0;
+            background: #1e1e2e; border: 1px solid #555; color: white;
+            border-radius: 4px; font-size: 0.95rem;
         }
+        .auth-input:focus { border-color: var(--accent-color); outline: none; }
+        .auth-btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
 
         .workspace {
             display: grid;
@@ -240,10 +245,12 @@
             justify-content: center; align-items: center;
         }
         .modal-content {
-            background: white; padding: 20px; border-radius: 10px; width: 450px;
-            text-align: center; position: relative; color: #222;
+            background: var(--panel-color); padding: 25px; border-radius: 10px; width: 400px;
+            text-align: left; position: relative; color: white; border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; }
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; color: #888;}
+        .close-btn:hover { color: white; }
     </style>
 </head>
 <body>
@@ -251,10 +258,12 @@
 <header>
     <div><h2>⚡ Laboratorio Coulomb IA</h2></div>
     <div class="version">
+        <span id="user-info" style="color: var(--accent-color); font-weight: bold;">Cargando...</span>
+        <button id="btn-logout" class="btn-tool" style="padding: 4px 8px; display: none;" onclick="cerrarSesion()">Salir</button>
         <div class="room-control">
-            <span>🌐 Sala:</span>
-            <input type="text" id="sala-id" value="grupo1" title="Cambia el nombre para ir a otra sala" onchange="cambiarSala()">
-            <button class="btn-tool" style="padding: 4px 8px;" onclick="cambiarSala()">Unirse</button>
+            <span id="room-info">🌐 Sala: Ninguna</span>
+            <button class="btn-tool" style="padding: 4px 8px;" onclick="abrirModalSala()">Unirse a Sala</button>
+            <button id="btn-share-room" class="btn-tool" style="padding: 4px 8px; display: none; background: #9b59b6; color: white;" onclick="copiarInfoSala()" title="Copiar enlace de acceso">🔗 Compartir</button>
         </div>
     </div>
 </header>
@@ -273,6 +282,7 @@
                 <button class="btn-tool" onclick="setTool('move', this)" title="Arrastra para seleccionar varios o mueve el origen">✋ Mover / Seleccionar</button>
                 <button class="btn-tool" onclick="undo()">↩️ Deshacer</button>
                 <button class="btn-tool btn-danger" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
+                <button class="btn-tool" style="background: #e67e22; color: white;" onclick="exportarImagen()" title="Descargar imagen del lienzo con tus resultados">📸 Exportar Imagen</button>
             </div>
             
             <div class="color-picker-container">
@@ -357,18 +367,78 @@
             <div id="dcl-buttons" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;"></div>
             <div class="latex-box" id="latex-result">$$\text{---}$$</div>
         </div>
+        
+        <!-- NUEVA SECCIÓN: Chat de Sala -->
+        <div id="chat-section" style="display: none;">
+            <div class="section-title" style="margin-top: 15px;">💬 Chat de Grupo</div>
+            <div id="chat-box" style="background: #1a1a24; height: 180px; overflow-y: auto; padding: 10px; border-radius: 6px; border-left: 3px solid #3498db; margin-bottom: 10px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px;">
+                <i style="color: #666;">Únete a un cuarto para chatear...</i>
+            </div>
+            <div style="display: flex; gap: 5px;">
+                <input type="text" id="chat-input" placeholder="Escribe un mensaje..." style="flex: 1; background: #2b2b3b; border: 1px solid #555; color: white; padding: 6px; border-radius: 4px; font-size: 0.85rem;" onkeypress="if(event.key === 'Enter') enviarMensajeChat()">
+                <button class="btn-tool btn-action" style="padding: 6px 12px; font-size: 0.85rem;" onclick="enviarMensajeChat()">Enviar</button>
+            </div>
+        </div>
     </div>
 </div>
 
+<!-- Modal DCL -->
 <div class="modal" id="fbd-modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeModal()">&times;</span>
+    <div class="modal-content" style="background: white; color: black; text-align: center;">
+        <span class="close-btn" style="color: black;" onclick="closeModal()">&times;</span>
         <h3 id="fbd-title" style="margin-top:0;">Diagrama Cuerpo Libre</h3>
         <canvas id="fbd-canvas" width="400" height="400"></canvas>
     </div>
 </div>
 
-<!-- LÓGICA PRINCIPAL DEL SIMULADOR (Tu código original modificado con Sync) -->
+<!-- Modal de Autenticación (Login/Registro) -->
+<div class="modal" id="auth-modal" style="display: flex;">
+    <div class="modal-content">
+        <h3 style="margin-top:0; color: var(--accent-color);">🔒 Iniciar Sesión</h3>
+        <p style="font-size: 0.9rem; color: #ccc;">Para guardar y sincronizar tu trabajo, debes identificarte.</p>
+        <label>Correo Electrónico:</label>
+        <input type="email" id="auth-email" class="auth-input" placeholder="ejemplo@correo.com">
+        <label>Contraseña:</label>
+        <input type="password" id="auth-pass" class="auth-input" placeholder="Mínimo 6 caracteres">
+        
+        <div class="auth-btn-group">
+            <button class="btn-tool btn-action" onclick="iniciarSesion()">Entrar</button>
+            <button class="btn-tool" onclick="registrarUsuario()">Crear Cuenta</button>
+        </div>
+        
+        <!-- Botón de Iniciar sesión con Google agregado -->
+        <div class="auth-btn-group" style="margin-top: 10px;">
+            <button class="btn-tool" style="background: #ffffff; color: #444; width: 100%; justify-content: center; font-weight: bold; border: 1px solid #ccc;" onclick="iniciarSesionConGoogle()">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style="width: 18px; height: 18px;">
+                Continuar con Google
+            </button>
+        </div>
+
+        <div style="text-align: center; margin-top: 15px;">
+            <button class="btn-tool" style="background: transparent; color: var(--accent-color); padding: 5px; font-size: 0.85rem; border: none; text-decoration: underline; width: 100%; justify-content: center;" onclick="recuperarContrasena()">¿Olvidaste tu contraseña?</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Sala / Cuarto -->
+<div class="modal" id="room-modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="cerrarModalSala()">&times;</span>
+        <h3 style="margin-top:0; color: var(--accent-color);">🌐 Unirse a un Cuarto</h3>
+        <p style="font-size: 0.9rem; color: #ccc;">Ingresa el nombre del cuarto. Si no existe, se creará con la contraseña que elijas.</p>
+        <label>Nombre del Cuarto:</label>
+        <input type="text" id="room-name" class="auth-input" placeholder="Ej: equipo_alpha">
+        <label>Contraseña del Cuarto:</label>
+        <input type="password" id="room-pass" class="auth-input" placeholder="Contraseña de acceso">
+        
+        <div class="auth-btn-group">
+            <button class="btn-tool btn-action" onclick="intentarUnirseSala()">Entrar al Cuarto</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- LÓGICA PRINCIPAL DEL SIMULADOR -->
 <script>
     const canvas = document.getElementById('main-canvas');
     const ctx = canvas.getContext('2d');
@@ -378,12 +448,11 @@
     const textOverlay = document.getElementById('text-input-overlay');
     const rootStyles = document.documentElement.style;
     
-    // Función central de sincronización (se conecta con Firebase abajo)
     let lastSyncTime = 0;
     function requestSync(immediate = false) {
         if (!window.enviarEstadoNube) return;
         const now = Date.now();
-        if (immediate || now - lastSyncTime > 150) { // Limitamos a ~6 frames por seg para no saturar
+        if (immediate || now - lastSyncTime > 150) { 
             window.enviarEstadoNube();
             lastSyncTime = now;
         }
@@ -420,7 +489,7 @@
             btn.innerText = '👀 Mostrar DCL en Lienzo';
         }
         redraw();
-        requestSync(true); // Sync al mostrar/ocultar DCL
+        requestSync(true); 
     }
 
     // Estado Global Actualizado
@@ -447,12 +516,8 @@
         calculatedForces: [] 
     };
     
-    // Exponer al scope global para Firebase
     window.appState = state;
-
     let textPos = {x:0, y:0};
-
-    // Configuración Canvas
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
 
     function resizeCanvas() {
@@ -477,7 +542,6 @@
         return { x: clientX - r.left, y: clientY - r.top };
     }
 
-    // Matemática Auxiliar
     function distToSegment(p, v, w) {
         let l2 = Math.pow(w.x - v.x, 2) + Math.pow(w.y - v.y, 2);
         if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
@@ -500,7 +564,7 @@
             });
             textOverlay.value = ''; textOverlay.style.display = 'none';
             redraw();
-            requestSync(true); // Sincronizar texto
+            requestSync(true);
         } else {
             textOverlay.style.display = 'none';
         }
@@ -546,7 +610,7 @@
                 hit.hidden = !hit.hidden;
                 updateUI();
                 redraw();
-                requestSync(true); // Sincronizar visibilidad
+                requestSync(true); 
             }
             return;
         }
@@ -619,7 +683,7 @@
             updateUI();
             analizarFisica();
             redraw();
-            requestSync(false); // Sync en vivo optimizado
+            requestSync(false); 
             return;
         }
 
@@ -654,7 +718,7 @@
             state.dragLastX = c.x; state.dragLastY = c.y;
             updateFloatDelete();
             redraw();
-            requestSync(false); // Sync en vivo optimizado
+            requestSync(false); 
             return;
         } 
         
@@ -709,7 +773,7 @@
             state.isDragging = false;
             updateUI();
             analizarFisica(); 
-            requestSync(true); // Sync al terminar de arrastrar
+            requestSync(true); 
             return;
         }
 
@@ -720,7 +784,7 @@
             }
             state.currentLine = null;
             redraw();
-            requestSync(true); // Sync al soltar linea
+            requestSync(true); 
             return;
         }
 
@@ -731,7 +795,7 @@
             }
             state.currentFreeStroke = null;
             redraw();
-            requestSync(true); // Sync al soltar marcador libre
+            requestSync(true); 
             return;
         }
 
@@ -747,7 +811,7 @@
                 state.recognitionTimer = null;
             }, 1200); 
             redraw();
-            requestSync(true); // Sync trazos en vivo
+            requestSync(true); 
         }
     }
 
@@ -820,11 +884,10 @@
             state.selectedObjects = [];
             floatDelete.style.display = 'none';
             updateUI(); analizarFisica(); redraw();
-            requestSync(true); // Sync borrado
+            requestSync(true);
         }
     }
 
-    // --- Lógica de Detección IA ---
     function detectAndConvert() {
         const groups = groupStrokes(state.rawStrokes);
         const newObjects = [];
@@ -842,7 +905,7 @@
                         x: bounds.cx, y: bounds.cy, 
                         physX: getPhysX(bounds.cx), physY: getPhysY(bounds.cy),
                         q: type === 'charge_pos' ? 5 : -5,
-                        hasVectors: false // Flag para DCL Automático
+                        hasVectors: false
                     });
                 } else if (type === 'vector') {
                     const eps = getVectorEndpoints(group);
@@ -861,7 +924,7 @@
             updateUI(); analizarFisica();
         }
         redraw();
-        requestSync(true); // Sync post IA
+        requestSync(true); 
     }
 
     function getGroupBounds(indices) {
@@ -950,7 +1013,6 @@
         return { start: p1, end: p2 };
     }
 
-    // --- Física ---
     function analizarFisica() {
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         const vectors = state.objects.filter(o => o.type === 'vector');
@@ -962,7 +1024,7 @@
         charges.forEach(c => {
             const elQ = document.getElementById(`q-${c.id}`);
             if(elQ) c.q = parseFloat(elQ.value);
-            c.hasVectors = false; // Reset flag for DCL
+            c.hasVectors = false; 
         });
 
         updateStatement(charges, chargeU);
@@ -1006,7 +1068,7 @@
                 return; 
             }
             
-            origin.hasVectors = true; // Activar DCL Automático para esta carga
+            origin.hasVectors = true; 
 
             const vAng = (Math.atan2(getPhysY(vec.end.y) - getPhysY(vec.start.y), vec.end.x - vec.start.x) + 4*Math.PI)%(2*Math.PI);
             
@@ -1032,7 +1094,6 @@
         setupDCLButtons();
         redraw();
     }
-    // Exponemos la función a window para que Firebase también pueda reanalizar
     window.analizarFisica = analizarFisica;
 
     function updateStatement(charges, unitQ) {
@@ -1067,7 +1128,7 @@
         
         analizarFisica();
         redraw();
-        requestSync(true); // Sincroniza al cambiar coordenada en input
+        requestSync(true); 
     }
     window.updateCoord = updateCoord;
 
@@ -1117,7 +1178,7 @@
         if(state.rawStrokes.length>0) state.rawStrokes.pop(); 
         else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); }
         redraw(); 
-        requestSync(true); // Sync Deshacer
+        requestSync(true); 
     }
     window.undo = undo;
     
@@ -1126,11 +1187,58 @@
         updateUI(); analizarFisica(); redraw(); 
         document.getElementById('latex-result').innerText='---'; 
         document.getElementById('float-delete').style.display='none';
-        requestSync(true); // Sync limpiar todo
+        requestSync(true); 
     }
     window.limpiarTodo = limpiarTodo;
 
-    // --- Renderizado ---
+    // --- NUEVAS FUNCIONES PROFESIONALES (EXPORTAR Y COMPARTIR) ---
+    function exportarImagen() {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tCtx = tempCanvas.getContext('2d');
+        
+        // Dibujar fondo blanco
+        tCtx.fillStyle = '#ffffff';
+        tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // Dibujar cuadrícula tenue
+        tCtx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
+        tCtx.lineWidth = 1;
+        tCtx.beginPath();
+        for(let x = state.origin.x % 20; x < tempCanvas.width; x += 20) { tCtx.moveTo(x, 0); tCtx.lineTo(x, tempCanvas.height); }
+        for(let y = state.origin.y % 20; y < tempCanvas.height; y += 20) { tCtx.moveTo(0, y); tCtx.lineTo(tempCanvas.width, y); }
+        tCtx.stroke();
+        
+        // Dibujar el contenido interactivo encima
+        tCtx.drawImage(canvas, 0, 0);
+        
+        // Descargar la imagen
+        const link = document.createElement('a');
+        link.download = 'Simulacion_Coulomb.png';
+        link.href = tempCanvas.toDataURL('image/png');
+        link.click();
+    }
+    window.exportarImagen = exportarImagen;
+
+    function copiarInfoSala() {
+        const salaInfo = document.getElementById('room-info').innerText.replace('🌐 Sala: ', '');
+        if(salaInfo === 'Ninguna') return alert('No estás en ninguna sala.');
+        
+        const texto = `¡Únete a mi simulación en el Laboratorio de Coulomb!\n📌 Nombre de Sala: ${salaInfo}\n🔗 Ingresa aquí: ${window.location.href}`;
+        // Intentar usar el portapapeles moderno, con fallback por si hay restricciones de navegador
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(texto).then(() => {
+                alert('✅ Datos de la sala copiados al portapapeles. ¡Pégalos en WhatsApp o en un correo!');
+            }).catch(() => {
+                prompt('Copia este texto para invitar a tus compañeros:', texto);
+            });
+        } else {
+            prompt('Copia este texto para invitar a tus compañeros:', texto);
+        }
+    }
+    window.copiarInfoSala = copiarInfoSala;
+
     function drawPath(pts, color = '#999', width = 2) {
         if(pts.length < 2) return;
         ctx.strokeStyle = color; ctx.lineWidth = width;
@@ -1143,7 +1251,6 @@
         ctx.clearRect(0,0,canvas.width,canvas.height);
         labelsOverlay.innerHTML = '';
         
-        // 1. Dibujar Ejes de Coordenadas (Origen Movible)
         if (state.origin.x !== null) {
             ctx.beginPath();
             ctx.strokeStyle = 'rgba(78, 204, 163, 0.4)'; 
@@ -1206,7 +1313,6 @@
             ctx.strokeRect(state.selectionBox.x, state.selectionBox.y, state.selectionBox.w, state.selectionBox.h);
         }
 
-        // Dibujar Objetos Normales
         state.objects.forEach(obj => {
             if (obj.hidden && state.tool !== 'visibility') return;
 
@@ -1259,7 +1365,6 @@
             ctx.globalAlpha = prevAlpha;
         });
 
-        // 2. DCL Automático sobre las Cargas Evaluadas
         if (state.showInCanvasDCL) {
             charges.forEach(ch => {
                 if (ch.hasVectors) {
@@ -1271,42 +1376,33 @@
                     const Rmag = Math.hypot(sumFx, sumFy);
                     
                     const maxF = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); 
-                    const s = 90 / maxF; // Escala visual: max length 90px
+                    const s = 90 / maxF; 
 
-                    // --- NUEVO SISTEMA DE REFERENCIA LOCAL ---
-                    ctx.strokeStyle = 'rgba(52, 152, 219, 0.5)'; // Azul claro semitransparente
+                    ctx.strokeStyle = 'rgba(52, 152, 219, 0.5)'; 
                     ctx.fillStyle = 'rgba(52, 152, 219, 0.8)';
                     ctx.lineWidth = 1.5;
                     ctx.setLineDash([4, 4]);
 
-                    // Eje X local
                     ctx.beginPath(); ctx.moveTo(ch.x - 120, ch.y); ctx.lineTo(ch.x + 120, ch.y); ctx.stroke();
-                    // Punta de flecha Eje X
                     ctx.beginPath(); ctx.moveTo(ch.x + 120, ch.y); ctx.lineTo(ch.x + 110, ch.y - 5); ctx.lineTo(ch.x + 110, ch.y + 5); ctx.fill();
                     ctx.font = 'bold 12px Arial'; ctx.fillText('+x', ch.x + 115, ch.y - 10);
 
-                    // Eje Y local (Canvas Y invertido, así que -Y es arriba visualmente)
                     ctx.beginPath(); ctx.moveTo(ch.x, ch.y - 120); ctx.lineTo(ch.x, ch.y + 120); ctx.stroke();
-                    // Punta de flecha Eje Y (hacia arriba)
                     ctx.beginPath(); ctx.moveTo(ch.x, ch.y - 120); ctx.lineTo(ch.x - 5, ch.y - 110); ctx.lineTo(ch.x + 5, ch.y - 110); ctx.fill();
                     ctx.fillText('+y', ch.x + 10, ch.y - 115);
 
-                    ctx.setLineDash([]); // Restablecer trazo
-                    // -----------------------------------------
+                    ctx.setLineDash([]); 
 
-                    // Fuerzas individuales y proyecciones
                     fs.forEach(f => {
-                        const dx = f.Fx * s; const dy = -f.Fy * s; // Y canvas invertido
+                        const dx = f.Fx * s; const dy = -f.Fy * s; 
                         const x2 = ch.x + dx; const y2 = ch.y + dy;
-                        const col = 'rgba(241, 196, 15, 0.8)'; // Dorado para componentes
+                        const col = 'rgba(241, 196, 15, 0.8)'; 
 
-                        // Proyecciones
                         ctx.strokeStyle = 'rgba(241, 196, 15, 0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
                         ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2, ch.y); ctx.stroke();
                         ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(ch.x, y2); ctx.stroke();
                         ctx.setLineDash([]);
 
-                        // Vector individual
                         ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.5;
                         drawArrow(ch.x, ch.y, x2, y2);
                         
@@ -1314,19 +1410,16 @@
                         ctx.fillText(f.label.replace(/[{}_]/g,''), x2 + 5, y2 - 5);
                     });
 
-                    // Resultante
                     if (Rmag > 0) {
                         const Rdx = sumFx * s; const Rdy = -sumFy * s;
                         const Rx2 = ch.x + Rdx; const Ry2 = ch.y + Rdy;
                         const Rcol = '#ff6b6b';
 
-                        // Proyecciones Resultante
                         ctx.strokeStyle = 'rgba(255, 107, 107, 0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
                         ctx.beginPath(); ctx.moveTo(Rx2, Ry2); ctx.lineTo(Rx2, ch.y); ctx.stroke();
                         ctx.beginPath(); ctx.moveTo(Rx2, Ry2); ctx.lineTo(ch.x, Ry2); ctx.stroke();
                         ctx.setLineDash([]);
 
-                        // Flecha Resultante
                         ctx.strokeStyle = Rcol; ctx.fillStyle = Rcol; ctx.lineWidth = 4;
                         drawArrow(ch.x, ch.y, Rx2, Ry2);
                         
@@ -1360,7 +1453,6 @@
         return { minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys), cx:(Math.min(...xs)+Math.max(...xs))/2, cy:(Math.min(...ys)+Math.max(...ys))/2 };
     }
     
-    // --- LaTeX Actualizado ---
     function renderLatex() {
         const box = document.getElementById('latex-result');
         let html = "";
@@ -1396,7 +1488,6 @@
         katex.render(html, box, {displayMode:true, throwOnError:false});
     }
 
-    // --- Modal DCL Actualizado ---
     function setupDCLButtons() {
         const d=document.getElementById('dcl-buttons'); d.innerHTML='';
         const t = new Set(state.calculatedForces.map(f=>f.target));
@@ -1479,10 +1570,12 @@
     });
 </script>
 
-<!-- LÓGICA DE FIREBASE (Añadida al final) -->
+<!-- LÓGICA DE FIREBASE CON AUTENTICACIÓN Y CONTRASEÑAS -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+  import { getDatabase, ref, set, get, onValue, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+  // Importamos GoogleAuthProvider y signInWithPopup
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
@@ -1497,32 +1590,168 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  const auth = getAuth(app);
 
   let currentRoomRef = null;
+  let chatRoomRef = null;
   let isReceiving = false;
+  let unsubscribeRoom = null;
+  let unsubscribeChat = null;
 
-  window.cambiarSala = function() {
-      const nuevaSala = document.getElementById('sala-id').value.trim() || 'grupo1';
-      document.getElementById('sala-id').value = nuevaSala;
+  // --- SISTEMA DE AUTENTICACIÓN ---
+  onAuthStateChanged(auth, (user) => {
+      if (user) {
+          // Usuario conectado
+          document.getElementById('auth-modal').style.display = 'none';
+          document.getElementById('user-info').innerText = `👤 ${user.email}`;
+          document.getElementById('btn-logout').style.display = 'inline-block';
+          
+          // Si no está en una sala, pedirle que se una a una
+          if (!currentRoomRef) {
+              window.abrirModalSala();
+          }
+      } else {
+          // Usuario NO conectado
+          document.getElementById('auth-modal').style.display = 'flex';
+          document.getElementById('room-modal').style.display = 'none';
+          document.getElementById('user-info').innerText = 'No conectado';
+          document.getElementById('btn-logout').style.display = 'none';
+          document.getElementById('room-info').innerText = '🌐 Sala: Ninguna';
+          document.getElementById('btn-share-room').style.display = 'none';
+          document.getElementById('chat-section').style.display = 'none';
+          
+          if (unsubscribeRoom) {
+              unsubscribeRoom();
+              unsubscribeRoom = null;
+          }
+          if (unsubscribeChat) {
+              unsubscribeChat();
+              unsubscribeChat = null;
+          }
+          currentRoomRef = null;
+          chatRoomRef = null;
+          window.limpiarTodo();
+      }
+  });
+
+  window.iniciarSesion = function() {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass = document.getElementById('auth-pass').value;
+      if (!email || !pass) return alert('Llena ambos campos.');
       
-      // Conectar a la nueva sala
-      currentRoomRef = ref(db, 'salas/' + nuevaSala);
+      signInWithEmailAndPassword(auth, email, pass).catch(error => {
+          alert('Error al entrar: ' + error.message);
+      });
+  };
+
+  window.registrarUsuario = function() {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass = document.getElementById('auth-pass').value;
+      if (!email || pass.length < 6) return alert('Ingresa un correo y una clave de mínimo 6 letras/números.');
       
-      onValue(currentRoomRef, (snapshot) => {
+      createUserWithEmailAndPassword(auth, email, pass).catch(error => {
+          alert('Error al registrar: ' + error.message);
+      });
+  };
+
+  // --- NUEVA FUNCIÓN DE GOOGLE ---
+  window.iniciarSesionConGoogle = function() {
+      const provider = new GoogleAuthProvider();
+      signInWithPopup(auth, provider).catch(error => {
+          alert('Error al entrar con Google: ' + error.message);
+      });
+  };
+
+  window.cerrarSesion = function() {
+      signOut(auth);
+  };
+
+  window.recuperarContrasena = function() {
+      const email = document.getElementById('auth-email').value.trim();
+      if (!email) {
+          return alert('Por favor, escribe tu correo electrónico en el campo superior para enviarte el enlace de recuperación.');
+      }
+      
+      sendPasswordResetEmail(auth, email)
+          .then(() => {
+              alert('✅ Se ha enviado un correo a ' + email + ' con las instrucciones para restablecer tu contraseña. Revisa tu bandeja de entrada o spam.');
+          })
+          .catch((error) => {
+              alert('❌ Error al intentar recuperar la contraseña: ' + error.message);
+          });
+  };
+
+  // --- SISTEMA DE SALAS Y CONTRASEÑAS ---
+  window.abrirModalSala = function() {
+      if (!auth.currentUser) return alert("Primero debes iniciar sesión");
+      document.getElementById('room-modal').style.display = 'flex';
+  };
+  
+  window.cerrarModalSala = function() {
+      if (!currentRoomRef) alert("Trabajarás offline si no te unes a un cuarto.");
+      document.getElementById('room-modal').style.display = 'none';
+  };
+
+  window.intentarUnirseSala = async function() {
+      const salaId = document.getElementById('room-name').value.trim();
+      const salaPass = document.getElementById('room-pass').value.trim();
+      
+      if (!salaId || !salaPass) return alert('Debes ingresar el nombre del cuarto y su contraseña.');
+
+      // 1. Revisar en la base de datos si la sala ya existe y verificar contraseña
+      const passRef = ref(db, 'salas/' + salaId + '/password');
+      
+      try {
+          const snapshot = await get(passRef);
+          if (snapshot.exists()) {
+              // La sala existe, verificar si la clave coincide
+              if (snapshot.val() !== salaPass) {
+                  return alert('❌ Contraseña incorrecta para el cuarto: ' + salaId);
+              }
+          } else {
+              // La sala NO existe, la creamos y le asignamos la contraseña
+              await set(passRef, salaPass);
+              alert('✅ Nuevo cuarto creado: ' + salaId);
+          }
+          
+          // 2. Conexión exitosa al estado de la sala
+          document.getElementById('room-modal').style.display = 'none';
+          document.getElementById('room-info').innerText = '🌐 Sala: ' + salaId;
+          document.getElementById('btn-share-room').style.display = 'inline-block';
+          document.getElementById('chat-section').style.display = 'block';
+          
+          conectarASala(salaId);
+
+      } catch (error) {
+          console.error(error);
+          alert('Error de conexión.');
+      }
+  };
+
+  function conectarASala(salaId) {
+      // Si ya estábamos en una sala, dejamos de escucharla
+      if (unsubscribeRoom) {
+          unsubscribeRoom();
+      }
+      if (unsubscribeChat) {
+          unsubscribeChat();
+      }
+
+      currentRoomRef = ref(db, 'salas/' + salaId + '/state');
+      chatRoomRef = ref(db, 'salas/' + salaId + '/chat');
+      
+      unsubscribeRoom = onValue(currentRoomRef, (snapshot) => {
           const data = snapshot.val();
           if (data && !window.isSendingData) {
               isReceiving = true;
               
-              // Actualizar estado global con los datos de la nube
               window.appState.objects = data.objects || [];
               window.appState.origin = data.origin || { x: null, y: null };
               window.appState.rawStrokes = data.rawStrokes || [];
               
-              // Limpiar selecciones locales para evitar conflictos visuales
               window.appState.selectedObjects = [];
               document.getElementById('float-delete').style.display = 'none';
 
-              // Renderizar la vista para todos
               window.updateUI();
               window.analizarFisica();
               window.redraw();
@@ -1530,13 +1759,53 @@
               setTimeout(() => { isReceiving = false; }, 50);
           }
       });
+
+      // Escuchar el Chat en tiempo real
+      unsubscribeChat = onValue(chatRoomRef, (snapshot) => {
+          const chatBox = document.getElementById('chat-box');
+          chatBox.innerHTML = '';
+          const data = snapshot.val();
+          if (data) {
+              Object.values(data).forEach(msg => {
+                  const esMio = auth.currentUser && msg.email === auth.currentUser.email;
+                  const colorFondo = esMio ? '#2e4a3f' : '#1e3a4d';
+                  const align = esMio ? 'right' : 'left';
+                  const nick = msg.email.split('@')[0];
+                  
+                  chatBox.innerHTML += `
+                    <div style="text-align: ${align}; margin-bottom: 5px;">
+                        <span style="font-size: 0.7rem; color: #aaa;">${nick}</span><br>
+                        <span style="background: ${colorFondo}; color: white; padding: 6px 10px; border-radius: 8px; display: inline-block; max-width: 90%; word-wrap: break-word; text-align: left;">
+                            ${msg.text}
+                        </span>
+                    </div>`;
+              });
+              chatBox.scrollTop = chatBox.scrollHeight;
+          } else {
+              chatBox.innerHTML = '<i style="color: #666;">Sin mensajes. ¡Saluda a tu grupo!</i>';
+          }
+      });
+  }
+
+  // --- ENVÍO DE DATOS Y CHAT ---
+  window.enviarMensajeChat = function() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text || !auth.currentUser || !chatRoomRef) return;
+
+      push(chatRoomRef, {
+          email: auth.currentUser.email,
+          text: text,
+          timestamp: Date.now()
+      });
+      input.value = '';
   };
 
-  // Función que el simulador usa para enviar datos
   window.enviarEstadoNube = function() {
-      if (!currentRoomRef || isReceiving) return;
+      if (!currentRoomRef || isReceiving || !auth.currentUser) return;
       window.isSendingData = true;
       
+      // Enviamos la data a la rama "state" del cuarto
       set(currentRoomRef, {
           objects: window.appState.objects,
           origin: window.appState.origin,
@@ -1545,9 +1814,6 @@
           window.isSendingData = false;
       });
   };
-
-  // Inicializar la primera sala al cargar la página
-  window.cambiarSala();
 
 </script>
 </body>
