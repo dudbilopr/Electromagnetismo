@@ -911,13 +911,13 @@
     }
 
     function detectAndConvert() {
-        const groups = groupStrokes(state.rawStrokes);
-        const newObjects = [];
-        const usedIndices = new Set();
-        const scale = parseFloat(document.getElementById('scale-input').value || 100);
+        try {
+            const groups = groupStrokes(state.rawStrokes);
+            const newObjects = [];
+            const usedIndices = new Set();
+            const scale = parseFloat(document.getElementById('scale-input').value || 100);
 
-        groups.forEach(group => {
-            const bounds = getGroupBounds(group);
+            groups.forEach(group => {
             const type = classifyGroup(group, bounds);
             if (type !== 'unknown') {
                 const currentIds = state.objects.map(o=>o.id);
@@ -949,22 +949,25 @@
                         const start = rawPts[0]; const end = rawPts[rawPts.length-1];
                         const pStart = findPointNear(start); const pEnd = findPointNear(end);
                         if (pStart && pEnd && pStart.id !== pEnd.id) {
-                            newObjects.push({
-                                id: nextId, type: 'trajectory',
-                                from: pStart.id, to: pEnd.id,
-                                path: rawPts
-                            });
-                        }
+                        newObjects.push({
+                            id: nextId, type: 'trajectory',
+                            from: pStart.id, to: pEnd.id,
+                            path: rawPts
+                        });
                     }
                 }
-                group.forEach(i => usedIndices.add(i));
             }
+            group.forEach(i => usedIndices.add(i));
+        }
         });
 
         if (newObjects.length > 0) {
             state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i));
             state.objects.push(...newObjects);
             updateUI(); analizarFisica();
+        }
+        } catch (error) {
+            console.error("Error en el Lápiz IA:", error);
         }
         redraw();
         requestSync(true);
@@ -1873,7 +1876,12 @@
           origin: window.appState.origin,
           rawStrokes: window.appState.rawStrokes,
           showEquipotentials: window.appState.showEquipotentials
-      }).then(() => { window.isSendingData = false; });
+      }).then(() => { 
+          window.isSendingData = false; 
+      }).catch(e => {
+          console.error("Firebase bloqueó el guardado (Actualiza tus Reglas):", e);
+          window.isSendingData = false; // Evita que la app se congele si no hay permisos
+      });
   };
 </script>
 </body>
