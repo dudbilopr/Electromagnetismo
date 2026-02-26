@@ -1697,28 +1697,44 @@
   window.iniciarGamificacion = function(uid) {
       const perfilRef = ref(db, 'usuarios/' + uid);
       
+      // Estado local optimista (por si Firebase tarda o bloquea por reglas)
+      window.userGameData = {
+          perfil: { puntos: 0, nivel: 1, tiempo_sesion: 0 },
+          logros: { inicio_sesion: true },
+          tareas: { 
+              tarea_1: false, tarea_2: false, tarea_3: false,
+              tarea_4: false, tarea_5: false, tarea_6: false,
+              tarea_7: false, tarea_8: false, tarea_9: false,
+              tarea_10: false, tarea_11: false, tarea_12: false
+          }
+      };
+      
       gamificationUnsubscribe = onValue(perfilRef, (snapshot) => {
           const data = snapshot.val();
           if (!data) {
               // Si no existe el perfil, lo creamos de cero
-              set(perfilRef, {
-                  perfil: { puntos: 0, nivel: 1, tiempo_sesion: 0 },
-                  logros: { inicio_sesion: true },
-                  tareas: { tarea_1: false, tarea_2: false, tarea_3: false }
-              });
+              set(perfilRef, window.userGameData).catch(e => console.warn("Permisos denegados en Firebase."));
           } else {
               window.userGameData = data;
               actualizarUIPerfil();
           }
+      }, (error) => {
+          console.warn("⚠️ Firebase bloqueó la lectura. ¿Actualizaste las Reglas de Seguridad?");
+          actualizarUIPerfil(); // Forzar actualización visual aunque Firebase falle
       });
 
       // Temporizador: Otorgar 10 puntos por cada minuto en sesión
       if (gameTimerInterval) clearInterval(gameTimerInterval);
       gameTimerInterval = setInterval(() => {
+          if (window.userGameData && window.userGameData.perfil) {
+              window.userGameData.perfil.tiempo_sesion += 1;
+              window.userGameData.perfil.puntos += 10;
+              actualizarUIPerfil();
+          }
           update(ref(db, 'usuarios/' + uid + '/perfil'), {
               tiempo_sesion: increment(1),
               puntos: increment(10)
-          });
+          }).catch(e => {});
       }, 60000); // 60,000 ms = 1 minuto
   };
 
@@ -1742,11 +1758,36 @@
       document.getElementById('ui-puntos').innerText = p.puntos;
       document.getElementById('ui-tiempo').innerText = p.tiempo_sesion;
 
-      // Actualizar Checkmarks de Tareas
+      // Actualizar Checkmarks de Tareas dinámicamente según el nivel
+      const tareasDiv = document.getElementById('ui-tareas');
       if(d.tareas) {
-          document.getElementById('task-1').className = d.tareas.tarea_1 ? 'task-item done' : 'task-item';
-          document.getElementById('task-2').className = d.tareas.tarea_2 ? 'task-item done' : 'task-item';
-          document.getElementById('task-3').className = d.tareas.tarea_3 ? 'task-item done' : 'task-item';
+          if (p.nivel === 1) {
+              tareasDiv.innerHTML = `
+                  <div class="task-item ${d.tareas.tarea_1 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 2 cargas en el lienzo</span></div>
+                  <div class="task-item ${d.tareas.tarea_2 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 1 vector de fuerza</span></div>
+                  <div class="task-item ${d.tareas.tarea_3 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 5 interacciones (Mover/Dibujar)</span></div>
+              `;
+          } else if (p.nivel === 2) {
+              tareasDiv.innerHTML = `
+                  <div class="task-item ${d.tareas.tarea_4 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 3 cargas en el lienzo</span></div>
+                  <div class="task-item ${d.tareas.tarea_5 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 2 vectores de fuerza</span></div>
+                  <div class="task-item ${d.tareas.tarea_6 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 20 interacciones totales</span></div>
+              `;
+          } else if (p.nivel === 3) {
+              tareasDiv.innerHTML = `
+                  <div class="task-item ${d.tareas.tarea_7 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 4 cargas en el lienzo</span></div>
+                  <div class="task-item ${d.tareas.tarea_8 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 3 vectores de fuerza</span></div>
+                  <div class="task-item ${d.tareas.tarea_9 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 50 interacciones totales</span></div>
+              `;
+          } else if (p.nivel === 4) {
+              tareasDiv.innerHTML = `
+                  <div class="task-item ${d.tareas.tarea_10 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 5 cargas en el lienzo</span></div>
+                  <div class="task-item ${d.tareas.tarea_11 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 4 vectores de fuerza</span></div>
+                  <div class="task-item ${d.tareas.tarea_12 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 100 interacciones totales</span></div>
+              `;
+          } else {
+              tareasDiv.innerHTML = `<div class="task-item done"><div class="task-check">✓</div><span>¡Has completado todas las misiones del simulador!</span></div>`;
+          }
       }
 
       // Renderizar Logros Dinámicos
@@ -1756,7 +1797,10 @@
           const dictLogros = {
               "inicio_sesion": "🎓 Bienvenido",
               "fisico_experto": "⚡ Físico Experto",
-              "nivel_2_alcanzado": "🌟 Graduado Nivel 1"
+              "nivel_2_alcanzado": "🌟 Graduado Nivel 1",
+              "nivel_3_alcanzado": "🚀 Investigador Nivel 2",
+              "nivel_4_alcanzado": "🧠 Científico Nivel 3",
+              "nivel_5_alcanzado": "👑 Nobel de Física"
           };
           Object.keys(d.logros).forEach(key => {
               if(d.logros[key] && dictLogros[key]) {
@@ -1774,15 +1818,40 @@
 
       // Tarea 3: Hacer 5 interacciones
       if (window.interaccionesLocales >= 5 && !window.userGameData.tareas?.tarea_3) {
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_3: true });
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) });
+          window.userGameData.tareas.tarea_3 = true; // Reflejar en UI local al instante
+          window.userGameData.perfil.puntos += 25;
+          actualizarUIPerfil();
+          
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_3: true }).catch(e=>{});
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{});
           window.chequearSubidaNivel(uid);
+      }
+
+      // Tareas de interacciones niveles 2, 3 y 4
+      if (window.interaccionesLocales >= 20 && !window.userGameData.tareas?.tarea_6) {
+          window.userGameData.tareas.tarea_6 = true; window.userGameData.perfil.puntos += 50;
+          actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_6: true }).catch(e=>{});
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); window.chequearSubidaNivel(uid);
+      }
+      if (window.interaccionesLocales >= 50 && !window.userGameData.tareas?.tarea_9) {
+          window.userGameData.tareas.tarea_9 = true; window.userGameData.perfil.puntos += 100;
+          actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_9: true }).catch(e=>{});
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); window.chequearSubidaNivel(uid);
+      }
+      if (window.interaccionesLocales >= 100 && !window.userGameData.tareas?.tarea_12) {
+          window.userGameData.tareas.tarea_12 = true; window.userGameData.perfil.puntos += 150;
+          actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_12: true }).catch(e=>{});
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); window.chequearSubidaNivel(uid);
       }
 
       // Logro oculto: Físico Experto (50 interacciones)
       if (window.interaccionesLocales >= 50 && !window.userGameData.logros?.fisico_experto) {
-          update(ref(db, 'usuarios/' + uid + '/logros'), { fisico_experto: true });
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) });
+          window.userGameData.logros.fisico_experto = true;
+          window.userGameData.perfil.puntos += 100;
+          actualizarUIPerfil();
+          
+          update(ref(db, 'usuarios/' + uid + '/logros'), { fisico_experto: true }).catch(e=>{});
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{});
       }
   };
 
@@ -1795,19 +1864,52 @@
       let hizoAlgo = false;
       // Tarea 1: Colocar 2 cargas
       if (charges.length >= 2 && !window.userGameData.tareas?.tarea_1) {
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_1: true });
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) });
+          window.userGameData.tareas.tarea_1 = true; // Reflejar localmente
+          window.userGameData.perfil.puntos += 25;
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_1: true }).catch(e=>{});
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{});
           hizoAlgo = true;
       }
 
       // Tarea 2: Dibujar un vector
       if (vectors.length >= 1 && !window.userGameData.tareas?.tarea_2) {
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_2: true });
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) });
+          window.userGameData.tareas.tarea_2 = true; // Reflejar localmente
+          window.userGameData.perfil.puntos += 25;
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_2: true }).catch(e=>{});
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{});
           hizoAlgo = true;
       }
 
-      if(hizoAlgo) window.chequearSubidaNivel(uid);
+      // Tareas de Física Niveles 2, 3 y 4
+      if (charges.length >= 3 && !window.userGameData.tareas?.tarea_4) {
+          window.userGameData.tareas.tarea_4 = true; window.userGameData.perfil.puntos += 50;
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_4: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); hizoAlgo = true;
+      }
+      if (vectors.length >= 2 && !window.userGameData.tareas?.tarea_5) {
+          window.userGameData.tareas.tarea_5 = true; window.userGameData.perfil.puntos += 50;
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_5: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); hizoAlgo = true;
+      }
+      if (charges.length >= 4 && !window.userGameData.tareas?.tarea_7) {
+          window.userGameData.tareas.tarea_7 = true; window.userGameData.perfil.puntos += 100;
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_7: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); hizoAlgo = true;
+      }
+      if (vectors.length >= 3 && !window.userGameData.tareas?.tarea_8) {
+          window.userGameData.tareas.tarea_8 = true; window.userGameData.perfil.puntos += 100;
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_8: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); hizoAlgo = true;
+      }
+      if (charges.length >= 5 && !window.userGameData.tareas?.tarea_10) {
+          window.userGameData.tareas.tarea_10 = true; window.userGameData.perfil.puntos += 150;
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_10: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); hizoAlgo = true;
+      }
+      if (vectors.length >= 4 && !window.userGameData.tareas?.tarea_11) {
+          window.userGameData.tareas.tarea_11 = true; window.userGameData.perfil.puntos += 150;
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_11: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); hizoAlgo = true;
+      }
+
+      if(hizoAlgo) {
+          actualizarUIPerfil();
+          window.chequearSubidaNivel(uid);
+      }
   };
 
   window.chequearSubidaNivel = function(uid) {
@@ -1818,9 +1920,32 @@
           const lvl = window.userGameData.perfil?.nivel || 1;
           
           if (lvl === 1 && t.tarea_1 && t.tarea_2 && t.tarea_3) {
+              window.userGameData.perfil.nivel = 2; // UI optimista
               update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 2, puntos: increment(200) });
               update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_2_alcanzado: true });
               alert("🌟 ¡FELICITACIONES! Has completado todas las misiones del Nivel 1. ¡Subiste al NIVEL 2 y ganaste 200 pts!");
+              actualizarUIPerfil();
+          }
+          else if (lvl === 2 && t.tarea_4 && t.tarea_5 && t.tarea_6) {
+              window.userGameData.perfil.nivel = 3;
+              update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 3, puntos: increment(400) });
+              update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_3_alcanzado: true });
+              alert("🚀 ¡IMPRESIONANTE! Completaste el Nivel 2. ¡Subiste al NIVEL 3 y ganaste 400 pts!");
+              actualizarUIPerfil();
+          }
+          else if (lvl === 3 && t.tarea_7 && t.tarea_8 && t.tarea_9) {
+              window.userGameData.perfil.nivel = 4;
+              update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 4, puntos: increment(800) });
+              update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_4_alcanzado: true });
+              alert("🧠 ¡ERES UN GENIO! Completaste el Nivel 3. ¡Subiste al NIVEL 4 y ganaste 800 pts!");
+              actualizarUIPerfil();
+          }
+          else if (lvl === 4 && t.tarea_10 && t.tarea_11 && t.tarea_12) {
+              window.userGameData.perfil.nivel = 5;
+              update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 5, puntos: increment(1500) });
+              update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_5_alcanzado: true });
+              alert("👑 ¡LEYENDA! Has completado el Laboratorio de Coulomb. ¡Alcanzaste el NIVEL MÁXIMO (5)!");
+              actualizarUIPerfil();
           }
       }, 1000);
   };
@@ -2009,4 +2134,3 @@
 </script>
 </body>
 </html>
-
