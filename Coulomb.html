@@ -210,6 +210,12 @@
         .badge-pos { background: #3498db; color: white; }
         .badge-neg { background: #e74c3c; color: white; }
         
+        /* Estilos Gamificación */
+        .task-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .task-check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #555; display: inline-flex; justify-content: center; align-items: center; font-size: 10px; font-weight: bold; color: transparent; transition: 0.3s; }
+        .task-item.done .task-check { border-color: #4ecca3; background: #4ecca3; color: #1e1e2e; }
+        .task-item.done span { color: #4ecca3; text-decoration: line-through; }
+        
         .statement-card {
             background: #231a29; padding: 12px; border-radius: 8px;
             border-left: 4px solid #9b59b6; margin-bottom: 15px; 
@@ -259,6 +265,7 @@
     <div><h2>⚡ Laboratorio Coulomb IA</h2></div>
     <div class="version">
         <span id="user-info" style="color: var(--accent-color); font-weight: bold;">Cargando...</span>
+        <span id="user-stats" style="color: #f1c40f; font-weight: bold; margin-left: 10px; display: none; cursor: pointer; background: #2b2b3b; padding: 2px 8px; border-radius: 4px; border: 1px solid #444;" onclick="abrirModalPerfil()" title="Ver Misiones y Logros">🏆 Lvl 1 | 0 pts</span>
         <button id="btn-logout" class="btn-tool" style="padding: 4px 8px; display: none;" onclick="cerrarSesion()">Salir</button>
         <div class="room-control">
             <span id="room-info">🌐 Sala: Ninguna</span>
@@ -433,6 +440,32 @@
         
         <div class="auth-btn-group">
             <button class="btn-tool btn-action" onclick="intentarUnirseSala()">Entrar al Cuarto</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Perfil (Gamificación) -->
+<div class="modal" id="profile-modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="cerrarModalPerfil()">&times;</span>
+        <h3 style="margin-top:0; color: #f1c40f;">🏆 Mi Perfil Académico</h3>
+        <p style="font-size: 0.85rem; color: #ccc;">Completa misiones e interactúa para ganar puntos y subir de nivel.</p>
+        <div style="display: flex; justify-content: space-between; background: #1a1a24; padding: 10px; border-radius: 6px; margin-bottom: 15px; border-left: 3px solid #f1c40f;">
+            <div><strong>Nivel:</strong> <span id="ui-nivel" style="color: #4ecca3; font-size: 1.2rem;">1</span></div>
+            <div><strong>Puntos:</strong> <span id="ui-puntos" style="color: #4ecca3; font-size: 1.2rem;">0</span></div>
+            <div><strong>Minutos:</strong> <span id="ui-tiempo" style="color: #4ecca3; font-size: 1.2rem;">0</span></div>
+        </div>
+        
+        <div class="section-title">Misiones Actuales</div>
+        <div id="ui-tareas" style="background: #232333; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem;">
+            <div class="task-item" id="task-1"><div class="task-check">✓</div><span>Coloca 2 cargas en el lienzo</span></div>
+            <div class="task-item" id="task-2"><div class="task-check">✓</div><span>Dibuja 1 vector de fuerza</span></div>
+            <div class="task-item" id="task-3"><div class="task-check">✓</div><span>Haz 5 interacciones (Mover/Dibujar)</span></div>
+        </div>
+        
+        <div class="section-title">Logros Desbloqueados</div>
+        <div id="ui-logros" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <i style="color: #666; font-size: 0.85rem;">Interactúa para descubrir logros ocultos...</i>
         </div>
     </div>
 </div>
@@ -774,6 +807,8 @@
             updateUI();
             analizarFisica(); 
             requestSync(true); 
+            // HOOK DE GAMIFICACIÓN
+            if (window.registrarInteraccion) window.registrarInteraccion();
             return;
         }
 
@@ -785,6 +820,8 @@
             state.currentLine = null;
             redraw();
             requestSync(true); 
+            // HOOK DE GAMIFICACIÓN
+            if (window.registrarInteraccion) window.registrarInteraccion();
             return;
         }
 
@@ -796,6 +833,8 @@
             state.currentFreeStroke = null;
             redraw();
             requestSync(true); 
+            // HOOK DE GAMIFICACIÓN
+            if (window.registrarInteraccion) window.registrarInteraccion();
             return;
         }
 
@@ -812,6 +851,8 @@
             }, 1200); 
             redraw();
             requestSync(true); 
+            // HOOK DE GAMIFICACIÓN
+            if (window.registrarInteraccion) window.registrarInteraccion();
         }
     }
 
@@ -1093,6 +1134,9 @@
         renderLatex();
         setupDCLButtons();
         redraw();
+
+        // --- HOOK DE TAREAS FISICA ---
+        if (window.verificarTareasFisica) window.verificarTareasFisica();
     }
     window.analizarFisica = analizarFisica;
 
@@ -1573,8 +1617,7 @@
 <!-- LÓGICA DE FIREBASE CON AUTENTICACIÓN Y CONTRASEÑAS -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-  import { getDatabase, ref, set, get, onValue, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
-  // Importamos GoogleAuthProvider y signInWithPopup
+  import { getDatabase, ref, set, get, onValue, push, update, increment } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
   import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -1605,6 +1648,10 @@
           document.getElementById('auth-modal').style.display = 'none';
           document.getElementById('user-info').innerText = `👤 ${user.email}`;
           document.getElementById('btn-logout').style.display = 'inline-block';
+          document.getElementById('user-stats').style.display = 'inline-flex';
+          
+          // Iniciar sistema de Gamificación
+          if (window.iniciarGamificacion) window.iniciarGamificacion(user.uid);
           
           // Si no está en una sala, pedirle que se una a una
           if (!currentRoomRef) {
@@ -1615,6 +1662,7 @@
           document.getElementById('auth-modal').style.display = 'flex';
           document.getElementById('room-modal').style.display = 'none';
           document.getElementById('user-info').innerText = 'No conectado';
+          document.getElementById('user-stats').style.display = 'none';
           document.getElementById('btn-logout').style.display = 'none';
           document.getElementById('room-info').innerText = '🌐 Sala: Ninguna';
           document.getElementById('btn-share-room').style.display = 'none';
@@ -1630,9 +1678,152 @@
           }
           currentRoomRef = null;
           chatRoomRef = null;
+          if (window.detenerGamificacion) window.detenerGamificacion();
           window.limpiarTodo();
       }
   });
+
+  // --- SISTEMA DE GAMIFICACIÓN (PERFILES, TAREAS, LOGROS) ---
+  let gamificationUnsubscribe = null;
+  let gameTimerInterval = null;
+
+  window.abrirModalPerfil = function() {
+      document.getElementById('profile-modal').style.display = 'flex';
+  };
+  window.cerrarModalPerfil = function() {
+      document.getElementById('profile-modal').style.display = 'none';
+  };
+
+  window.iniciarGamificacion = function(uid) {
+      const perfilRef = ref(db, 'usuarios/' + uid);
+      
+      gamificationUnsubscribe = onValue(perfilRef, (snapshot) => {
+          const data = snapshot.val();
+          if (!data) {
+              // Si no existe el perfil, lo creamos de cero
+              set(perfilRef, {
+                  perfil: { puntos: 0, nivel: 1, tiempo_sesion: 0 },
+                  logros: { inicio_sesion: true },
+                  tareas: { tarea_1: false, tarea_2: false, tarea_3: false }
+              });
+          } else {
+              window.userGameData = data;
+              actualizarUIPerfil();
+          }
+      });
+
+      // Temporizador: Otorgar 10 puntos por cada minuto en sesión
+      if (gameTimerInterval) clearInterval(gameTimerInterval);
+      gameTimerInterval = setInterval(() => {
+          update(ref(db, 'usuarios/' + uid + '/perfil'), {
+              tiempo_sesion: increment(1),
+              puntos: increment(10)
+          });
+      }, 60000); // 60,000 ms = 1 minuto
+  };
+
+  window.detenerGamificacion = function() {
+      if (gamificationUnsubscribe) { gamificationUnsubscribe(); gamificationUnsubscribe = null; }
+      if (gameTimerInterval) { clearInterval(gameTimerInterval); gameTimerInterval = null; }
+      window.userGameData = null;
+      window.interaccionesLocales = 0;
+  };
+
+  function actualizarUIPerfil() {
+      const d = window.userGameData;
+      if (!d || !d.perfil) return;
+      
+      const p = d.perfil;
+      // Actualiza el badge del encabezado
+      document.getElementById('user-stats').innerText = `🏆 Lvl ${p.nivel} | ${p.puntos} pts`;
+      
+      // Actualiza la ventana modal
+      document.getElementById('ui-nivel').innerText = p.nivel;
+      document.getElementById('ui-puntos').innerText = p.puntos;
+      document.getElementById('ui-tiempo').innerText = p.tiempo_sesion;
+
+      // Actualizar Checkmarks de Tareas
+      if(d.tareas) {
+          document.getElementById('task-1').className = d.tareas.tarea_1 ? 'task-item done' : 'task-item';
+          document.getElementById('task-2').className = d.tareas.tarea_2 ? 'task-item done' : 'task-item';
+          document.getElementById('task-3').className = d.tareas.tarea_3 ? 'task-item done' : 'task-item';
+      }
+
+      // Renderizar Logros Dinámicos
+      const container = document.getElementById('ui-logros');
+      container.innerHTML = '';
+      if(d.logros) {
+          const dictLogros = {
+              "inicio_sesion": "🎓 Bienvenido",
+              "fisico_experto": "⚡ Físico Experto",
+              "nivel_2_alcanzado": "🌟 Graduado Nivel 1"
+          };
+          Object.keys(d.logros).forEach(key => {
+              if(d.logros[key] && dictLogros[key]) {
+                  container.innerHTML += `<span style="background: #e67e22; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">${dictLogros[key]}</span>`;
+              }
+          });
+      }
+  }
+
+  // Funciones globales expuestas para que las llame la Física (Canvas)
+  window.registrarInteraccion = function() {
+      if (!auth.currentUser || !window.userGameData) return;
+      window.interaccionesLocales = (window.interaccionesLocales || 0) + 1;
+      const uid = auth.currentUser.uid;
+
+      // Tarea 3: Hacer 5 interacciones
+      if (window.interaccionesLocales >= 5 && !window.userGameData.tareas?.tarea_3) {
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_3: true });
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) });
+          window.chequearSubidaNivel(uid);
+      }
+
+      // Logro oculto: Físico Experto (50 interacciones)
+      if (window.interaccionesLocales >= 50 && !window.userGameData.logros?.fisico_experto) {
+          update(ref(db, 'usuarios/' + uid + '/logros'), { fisico_experto: true });
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) });
+      }
+  };
+
+  window.verificarTareasFisica = function() {
+      if (!auth.currentUser || !window.userGameData) return;
+      const uid = auth.currentUser.uid;
+      const charges = window.appState.objects.filter(o => o.type.startsWith('charge'));
+      const vectors = window.appState.objects.filter(o => o.type === 'vector');
+
+      let hizoAlgo = false;
+      // Tarea 1: Colocar 2 cargas
+      if (charges.length >= 2 && !window.userGameData.tareas?.tarea_1) {
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_1: true });
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) });
+          hizoAlgo = true;
+      }
+
+      // Tarea 2: Dibujar un vector
+      if (vectors.length >= 1 && !window.userGameData.tareas?.tarea_2) {
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_2: true });
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) });
+          hizoAlgo = true;
+      }
+
+      if(hizoAlgo) window.chequearSubidaNivel(uid);
+  };
+
+  window.chequearSubidaNivel = function(uid) {
+      // Usamos un pequeño delay para asegurar que Firebase sincronizó antes de revisar
+      setTimeout(() => {
+          if(!window.userGameData || !window.userGameData.tareas) return;
+          const t = window.userGameData.tareas;
+          const lvl = window.userGameData.perfil?.nivel || 1;
+          
+          if (lvl === 1 && t.tarea_1 && t.tarea_2 && t.tarea_3) {
+              update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 2, puntos: increment(200) });
+              update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_2_alcanzado: true });
+              alert("🌟 ¡FELICITACIONES! Has completado todas las misiones del Nivel 1. ¡Subiste al NIVEL 2 y ganaste 200 pts!");
+          }
+      }, 1000);
+  };
 
   window.iniciarSesion = function() {
       const email = document.getElementById('auth-email').value.trim();
@@ -1818,5 +2009,4 @@
 </script>
 </body>
 </html>
-
 
