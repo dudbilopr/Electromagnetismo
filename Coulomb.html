@@ -51,7 +51,17 @@
         }
 
         h2 { margin: 0; color: var(--accent-color); font-size: 1.2rem; }
-        .version { font-size: 0.8rem; color: #666; }
+        .version { font-size: 0.8rem; color: #666; display: flex; align-items: center; gap: 10px; }
+        
+        /* Estilos de Sala Multiusuario */
+        .room-control {
+            display: flex; align-items: center; gap: 8px;
+            background: #232333; padding: 4px 10px; border-radius: 6px; border: 1px solid #444;
+        }
+        .room-control input {
+            background: #1a1a24; border: 1px solid #555; color: var(--accent-color);
+            padding: 4px 8px; border-radius: 4px; font-weight: bold; width: 120px;
+        }
 
         .workspace {
             display: grid;
@@ -240,7 +250,13 @@
 
 <header>
     <div><h2>⚡ Laboratorio Coulomb IA</h2></div>
-    <div class="version">v6.0 (DCL Automático + Escalas + Línea Recta)</div>
+    <div class="version">
+        <div class="room-control">
+            <span>🌐 Sala:</span>
+            <input type="text" id="sala-id" value="grupo1" title="Cambia el nombre para ir a otra sala" onchange="cambiarSala()">
+            <button class="btn-tool" style="padding: 4px 8px;" onclick="cambiarSala()">Unirse</button>
+        </div>
+    </div>
 </header>
 
 <div class="workspace" id="main-workspace">
@@ -352,6 +368,7 @@
     </div>
 </div>
 
+<!-- LÓGICA PRINCIPAL DEL SIMULADOR (Tu código original modificado con Sync) -->
 <script>
     const canvas = document.getElementById('main-canvas');
     const ctx = canvas.getContext('2d');
@@ -361,6 +378,17 @@
     const textOverlay = document.getElementById('text-input-overlay');
     const rootStyles = document.documentElement.style;
     
+    // Función central de sincronización (se conecta con Firebase abajo)
+    let lastSyncTime = 0;
+    function requestSync(immediate = false) {
+        if (!window.enviarEstadoNube) return;
+        const now = Date.now();
+        if (immediate || now - lastSyncTime > 150) { // Limitamos a ~6 frames por seg para no saturar
+            window.enviarEstadoNube();
+            lastSyncTime = now;
+        }
+    }
+
     // UI Dinámica (Paneles)
     let leftOpen = true;
     let rightOpen = true;
@@ -392,6 +420,7 @@
             btn.innerText = '👀 Mostrar DCL en Lienzo';
         }
         redraw();
+        requestSync(true); // Sync al mostrar/ocultar DCL
     }
 
     // Estado Global Actualizado
@@ -418,6 +447,9 @@
         calculatedForces: [] 
     };
     
+    // Exponer al scope global para Firebase
+    window.appState = state;
+
     let textPos = {x:0, y:0};
 
     // Configuración Canvas
@@ -468,6 +500,7 @@
             });
             textOverlay.value = ''; textOverlay.style.display = 'none';
             redraw();
+            requestSync(true); // Sincronizar texto
         } else {
             textOverlay.style.display = 'none';
         }
@@ -513,6 +546,7 @@
                 hit.hidden = !hit.hidden;
                 updateUI();
                 redraw();
+                requestSync(true); // Sincronizar visibilidad
             }
             return;
         }
@@ -585,6 +619,7 @@
             updateUI();
             analizarFisica();
             redraw();
+            requestSync(false); // Sync en vivo optimizado
             return;
         }
 
@@ -619,6 +654,7 @@
             state.dragLastX = c.x; state.dragLastY = c.y;
             updateFloatDelete();
             redraw();
+            requestSync(false); // Sync en vivo optimizado
             return;
         } 
         
@@ -643,6 +679,7 @@
     function handleEnd(e) {
         if (state.isDraggingOrigin) {
             state.isDraggingOrigin = false;
+            requestSync(true);
             return;
         }
 
@@ -672,6 +709,7 @@
             state.isDragging = false;
             updateUI();
             analizarFisica(); 
+            requestSync(true); // Sync al terminar de arrastrar
             return;
         }
 
@@ -682,6 +720,7 @@
             }
             state.currentLine = null;
             redraw();
+            requestSync(true); // Sync al soltar linea
             return;
         }
 
@@ -692,6 +731,7 @@
             }
             state.currentFreeStroke = null;
             redraw();
+            requestSync(true); // Sync al soltar marcador libre
             return;
         }
 
@@ -707,6 +747,7 @@
                 state.recognitionTimer = null;
             }, 1200); 
             redraw();
+            requestSync(true); // Sync trazos en vivo
         }
     }
 
@@ -779,6 +820,7 @@
             state.selectedObjects = [];
             floatDelete.style.display = 'none';
             updateUI(); analizarFisica(); redraw();
+            requestSync(true); // Sync borrado
         }
     }
 
@@ -819,6 +861,7 @@
             updateUI(); analizarFisica();
         }
         redraw();
+        requestSync(true); // Sync post IA
     }
 
     function getGroupBounds(indices) {
@@ -989,6 +1032,8 @@
         setupDCLButtons();
         redraw();
     }
+    // Exponemos la función a window para que Firebase también pueda reanalizar
+    window.analizarFisica = analizarFisica;
 
     function updateStatement(charges, unitQ) {
         const box = document.getElementById('problem-statement');
@@ -1022,7 +1067,9 @@
         
         analizarFisica();
         redraw();
+        requestSync(true); // Sincroniza al cambiar coordenada en input
     }
+    window.updateCoord = updateCoord;
 
     function updateUI() {
         document.querySelectorAll('.data-card').forEach(card => card.classList.remove('selected'));
@@ -1037,7 +1084,7 @@
                 <div class="data-header"><strong>${ch.label}</strong></div>
                 <div class="input-row">
                     <label>Q</label>
-                    <input type="number" id="q-${ch.id}" value="${ch.q}" onchange="analizarFisica()">
+                    <input type="number" id="q-${ch.id}" value="${ch.q}" onchange="analizarFisica(); requestSync(true);">
                 </div>
                 <div class="input-row">
                     <label>X</label>
@@ -1055,6 +1102,7 @@
             return '';
         }).join('');
     }
+    window.updateUI = updateUI;
     
     function setTool(t, b) {
         finalizeText();
@@ -1063,19 +1111,24 @@
         if(b) b.classList.add('active');
         if(t !== 'move') selectObject(null);
     }
+    window.setTool = setTool;
     
     function undo() { 
         if(state.rawStrokes.length>0) state.rawStrokes.pop(); 
         else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); }
         redraw(); 
+        requestSync(true); // Sync Deshacer
     }
+    window.undo = undo;
     
     function limpiarTodo() { 
         state.objects=[]; state.rawStrokes=[]; state.selectedObjects=[];
         updateUI(); analizarFisica(); redraw(); 
         document.getElementById('latex-result').innerText='---'; 
         document.getElementById('float-delete').style.display='none';
+        requestSync(true); // Sync limpiar todo
     }
+    window.limpiarTodo = limpiarTodo;
 
     // --- Renderizado ---
     function drawPath(pts, color = '#999', width = 2) {
@@ -1284,6 +1337,7 @@
             });
         }
     }
+    window.redraw = redraw;
     
     function drawArrow(x1, y1, x2, y2) {
         const head = 15; const ang = Math.atan2(y2-y1, x2-x1);
@@ -1414,14 +1468,89 @@
             cx.fillText("FR", Rx2+12, Ry2+5);
         }
     }
+    window.openDCL = openDCL;
     
     function closeModal() { document.getElementById('fbd-modal').style.display='none'; }
+    window.closeModal = closeModal;
 
     document.addEventListener("DOMContentLoaded", function() {
         const tip = document.getElementById('static-tip');
         if(tip) renderMathInElement(tip, {delimiters: [{left: "$", right: "$", display: false}]});
     });
 </script>
+
+<!-- LÓGICA DE FIREBASE (Añadida al final) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+    authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+    databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+    projectId: "laboratorio-de-coulomb",
+    storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+    messagingSenderId: "525944850850",
+    appId: "1:525944850850:web:eca9c0b79809358e8d8afb",
+    measurementId: "G-SZECJNG25E"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  let currentRoomRef = null;
+  let isReceiving = false;
+
+  window.cambiarSala = function() {
+      const nuevaSala = document.getElementById('sala-id').value.trim() || 'grupo1';
+      document.getElementById('sala-id').value = nuevaSala;
+      
+      // Conectar a la nueva sala
+      currentRoomRef = ref(db, 'salas/' + nuevaSala);
+      
+      onValue(currentRoomRef, (snapshot) => {
+          const data = snapshot.val();
+          if (data && !window.isSendingData) {
+              isReceiving = true;
+              
+              // Actualizar estado global con los datos de la nube
+              window.appState.objects = data.objects || [];
+              window.appState.origin = data.origin || { x: null, y: null };
+              window.appState.rawStrokes = data.rawStrokes || [];
+              
+              // Limpiar selecciones locales para evitar conflictos visuales
+              window.appState.selectedObjects = [];
+              document.getElementById('float-delete').style.display = 'none';
+
+              // Renderizar la vista para todos
+              window.updateUI();
+              window.analizarFisica();
+              window.redraw();
+              
+              setTimeout(() => { isReceiving = false; }, 50);
+          }
+      });
+  };
+
+  // Función que el simulador usa para enviar datos
+  window.enviarEstadoNube = function() {
+      if (!currentRoomRef || isReceiving) return;
+      window.isSendingData = true;
+      
+      set(currentRoomRef, {
+          objects: window.appState.objects,
+          origin: window.appState.origin,
+          rawStrokes: window.appState.rawStrokes
+      }).then(() => {
+          window.isSendingData = false;
+      });
+  };
+
+  // Inicializar la primera sala al cargar la página
+  window.cambiarSala();
+
+</script>
 </body>
 </html>
+
 
