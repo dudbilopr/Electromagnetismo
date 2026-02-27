@@ -180,6 +180,7 @@
     <div class="version">
         <span id="user-info" style="color: #a29bfe; font-weight: bold;">Autenticando...</span>
         <span id="user-stats" style="color: #f1c40f; font-weight: bold; margin-left: 10px; display: none; cursor: pointer; background: #2b2b3b; padding: 2px 8px; border-radius: 4px; border: 1px solid #444;" onclick="abrirModalPerfil()" title="Ver Misiones y Logros">🏆 Lvl 1 | 0 pts</span>
+        <button id="btn-logout" class="btn-tool" style="padding: 4px 8px; display: none;" onclick="cerrarSesion()">Salir</button>
         <div class="room-control">
             <span id="room-info">🌐 Sala: Ninguna</span>
             <button class="btn-tool" style="padding: 4px 8px;" onclick="abrirModalSala()">Unirse a Sala</button>
@@ -386,6 +387,7 @@
         <h3 style="margin-top:0; color: #a29bfe;">🌐 Unirse a un Cuarto</h3>
         <p style="font-size: 0.9rem; color: #ccc;">Ingresa el nombre del cuarto para colaborar.</p>
         <label>Nombre del Cuarto:</label><input type="text" id="room-name" class="auth-input" placeholder="Ej: equipo_alpha">
+        <label>Contraseña del Cuarto:</label><input type="password" id="room-pass" class="auth-input" placeholder="Contraseña de acceso">
         <div class="auth-btn-group"><button class="btn-tool btn-action" onclick="intentarUnirseSala()">Entrar al Cuarto</button></div>
     </div>
 </div>
@@ -418,6 +420,7 @@
         if (!window.enviarEstadoNube) return;
         const now = Date.now();
         if (immediate || now - lastSyncTime > 150) { window.enviarEstadoNube(); lastSyncTime = now; }
+        if (window.registrarInteraccion) window.registrarInteraccion();
     }
 
     // Funciones de Modales y Gamificación
@@ -918,6 +921,7 @@
             }
         });
         state.calculations = { points: pointPotentials, works: workResults }; updateStatement(charges.length, points.length, trajectories.length, workResults); renderLatex(); redraw();
+        if (window.verificarTareasFisica) window.verificarTareasFisica();
     }
 
     function renderLatex() {
@@ -1122,154 +1126,301 @@
 </script>
 
 <script type="module">
-    // CORRECCIÓN DE FIREBASE REQUERIDA POR EL ENTORNO
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    // --- INTEGRACIÓN CON REALTIME DATABASE (V 12.9.0) ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+    import { getDatabase, ref, set, get, onValue, push, update, increment } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+    import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
-    // Credenciales del entorno (inyectadas al vuelo)
-    const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '"{}"';
-    const firebaseConfig = JSON.parse(firebaseConfigStr);
+    // === CONFIGURACIÓN DE FIREBASE DE TU DOMINIO ===
+    const firebaseConfig = {
+        apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+        authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+        databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+        projectId: "laboratorio-de-coulomb",
+        storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+        messagingSenderId: "525944850850",
+        appId: "1:525944850850:web:eca9c0b79809358e8d8afb"
+    };
     
-    let app, db, auth;
-    try {
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-    } catch(e) { console.warn("Firebase config not fully present, using local mode."); }
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
 
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-lab';
+    let currentRoomRef = null;
+    let chatRoomRef = null;
+    let isReceiving = false;
+    let unsubscribeRoom = null;
+    let unsubscribeChat = null;
 
-    let currentRoomUnsubscribe = null;
-    let isSendingData = false;
+    // --- SISTEMA DE AUTENTICACIÓN ---
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            document.getElementById('auth-modal').style.display = 'none';
+            document.getElementById('user-info').innerText = user.isAnonymous ? `👤 Invitado-${user.uid.slice(0,4)}` : `👤 ${user.displayName || user.email || 'Usuario'}`;
+            document.getElementById('btn-logout').style.display = 'inline-block';
+            document.getElementById('user-stats').style.display = 'inline-flex';
+            
+            if (window.iniciarGamificacion) window.iniciarGamificacion(user.uid);
+            
+            if (!currentRoomRef) window.abrirModalSala();
+        } else {
+            document.getElementById('auth-modal').style.display = 'flex';
+            document.getElementById('room-modal').style.display = 'none';
+            document.getElementById('user-info').innerText = 'No conectado';
+            document.getElementById('user-stats').style.display = 'none';
+            document.getElementById('btn-logout').style.display = 'none';
+            document.getElementById('room-info').innerText = '🌐 Sala: Ninguna';
+            document.getElementById('btn-share-room').style.display = 'none';
+            document.getElementById('chat-section').style.display = 'none';
+            
+            if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+            if (unsubscribeChat) { unsubscribeChat(); unsubscribeChat = null; }
+            currentRoomRef = null; chatRoomRef = null;
+            if (window.detenerGamificacion) window.detenerGamificacion();
+            window.limpiarTodo();
+        }
+    });
 
-    if (auth) {
-        const authModal = document.getElementById('auth-modal');
-        const authError = document.getElementById('auth-error');
+    // --- EVENTOS DE INICIO DE SESIÓN ---
+    document.getElementById('btn-login-email').addEventListener('click', () => {
+        const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value;
+        const err = document.getElementById('auth-error');
+        if(!email || !password) { if(err) err.innerText = "Por favor, ingresa correo y contraseña"; return; }
+        signInWithEmailAndPassword(auth, email, password).catch(e => { if(err) err.innerText = "Error: " + e.message; });
+    });
 
-        // Eventos de inicio de sesión con Correo y Contraseña
-        document.getElementById('btn-login-email').addEventListener('click', async () => {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            if(!email || !password) { if(authError) authError.innerText = "Por favor, ingresa correo y contraseña"; return; }
-            try {
-                if(authError) authError.innerText = "";
-                await signInWithEmailAndPassword(auth, email, password);
-                authModal.style.display = 'none';
-            } catch(e) { 
-                console.error("Error Email Login:", e); 
-                if(authError) authError.innerText = "Error: " + e.message;
-            }
-        });
+    document.getElementById('btn-register-email').addEventListener('click', () => {
+        const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value;
+        const err = document.getElementById('auth-error');
+        if(!email || !password) { if(err) err.innerText = "Por favor, ingresa correo y contraseña"; return; }
+        createUserWithEmailAndPassword(auth, email, password).catch(e => { if(err) err.innerText = "Error al registrar: " + e.message; });
+    });
 
-        document.getElementById('btn-register-email').addEventListener('click', async () => {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            if(!email || !password) { if(authError) authError.innerText = "Por favor, ingresa correo y contraseña"; return; }
-            try {
-                if(authError) authError.innerText = "";
-                await createUserWithEmailAndPassword(auth, email, password);
-                authModal.style.display = 'none';
-            } catch(e) { 
-                console.error("Error Email Register:", e); 
-                if(authError) authError.innerText = "Error al crear cuenta: " + e.message;
-            }
-        });
+    document.getElementById('btn-login-google').addEventListener('click', () => {
+        signInWithPopup(auth, new GoogleAuthProvider()).catch(e => console.error(e));
+    });
 
-        // Eventos de inicio de sesión manual añadidos para dominios externos
-        document.getElementById('btn-login-google').addEventListener('click', async () => {
-            const provider = new GoogleAuthProvider();
-            try {
-                await signInWithPopup(auth, provider);
-                authModal.style.display = 'none';
-            } catch(e) { 
-                console.error("Error Google Login:", e); 
-            }
-        });
+    document.getElementById('btn-login-guest').addEventListener('click', () => {
+        signInAnonymously(auth).catch(e => console.error(e));
+    });
 
-        document.getElementById('btn-login-guest').addEventListener('click', async () => {
-            try {
-                await signInAnonymously(auth);
-                authModal.style.display = 'none';
-            } catch(e) { 
-                console.error("Error Guest Login:", e); 
-            }
-        });
+    window.cerrarSesion = () => signOut(auth);
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                authModal.style.display = 'none';
-                if (!user.isAnonymous) {
-                    document.getElementById('user-info').innerText = `👤 ${user.displayName || 'Usuario'}`;
-                    document.getElementById('user-stats').style.display = 'inline-flex';
-                } else {
-                    document.getElementById('user-info').innerText = `👤 Invitado-${user.uid.slice(0,4)}`;
-                    document.getElementById('user-stats').style.display = 'inline-flex';
-                }
-            } else {
-                authModal.style.display = 'flex';
-                document.getElementById('room-info').innerText = '🌐 Sala: Ninguna';
-            }
-        });
-    }
+    // --- SISTEMA DE GAMIFICACIÓN (APUNTANDO A usuarios_potencial) ---
+    let gamificationUnsubscribe = null;
+    let gameTimerInterval = null;
 
-    window.intentarUnirseSala = async () => {
-        if (!auth || !auth.currentUser) return console.warn("Iniciando conexión segura...");
-        const sId = document.getElementById('room-name').value;
-        if(!sId) return;
-
-        document.getElementById('room-modal').style.display = 'none';
-        document.getElementById('room-info').innerText = '🌐 Sala: ' + sId;
-        document.getElementById('btn-share-room').style.display = 'inline-flex';
+    window.iniciarGamificacion = function(uid) {
+        const perfilRef = ref(db, 'usuarios_potencial/' + uid);
+        window.userGameData = {
+            perfil: { puntos: 0, nivel: 1, tiempo_sesion: 0 },
+            logros: { inicio_sesion: true },
+            tareas: { tarea_1: false, tarea_2: false, tarea_3: false, tarea_4: false, tarea_5: false, tarea_6: false, tarea_7: false, tarea_8: false, tarea_9: false, tarea_10: false, tarea_11: false, tarea_12: false }
+        };
         
-        conectarASala(sId);
+        gamificationUnsubscribe = onValue(perfilRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) set(perfilRef, window.userGameData).catch(()=>{});
+            else { window.userGameData = data; actualizarUIPerfil(); }
+        }, (error) => { actualizarUIPerfil(); });
+
+        if (gameTimerInterval) clearInterval(gameTimerInterval);
+        gameTimerInterval = setInterval(() => {
+            if (window.userGameData && window.userGameData.perfil) {
+                window.userGameData.perfil.tiempo_sesion += 1; window.userGameData.perfil.puntos += 10;
+                actualizarUIPerfil();
+            }
+            update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { tiempo_sesion: increment(1), puntos: increment(10) }).catch(()=>{});
+        }, 60000);
     };
 
-    function conectarASala(sId) {
-        if(currentRoomUnsubscribe) currentRoomUnsubscribe();
-        
-        // RUTA ESTRICTA REQUERIDA
-        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', sId);
-        
-        currentRoomUnsubscribe = onSnapshot(roomRef, (snap) => {
-            const d = snap.data();
-            if(d && !isSendingData) {
-                window.appState.objects = d.objects || [];
-                window.appState.rawStrokes = d.rawStrokes || [];
-                window.appState.origin = d.origin || {x:null,y:null};
-                window.appState.boards = d.boards || [{ id: 1, name: "Pizarra 1", objects: [], rawStrokes: [], origin: { x: null, y: null } }];
-                window.appState.activeBoardIndex = d.activeBoardIndex !== undefined ? d.activeBoardIndex : 0;
-                
-                // Actualizar vistas sin romper UI
-                window.updateBoardsUI(); 
-                window.updateUI(); 
-                window.analizarFisica(); 
-                window.redraw();
+    window.detenerGamificacion = function() {
+        if (gamificationUnsubscribe) { gamificationUnsubscribe(); gamificationUnsubscribe = null; }
+        if (gameTimerInterval) { clearInterval(gameTimerInterval); gameTimerInterval = null; }
+        window.userGameData = null; window.interaccionesLocales = 0;
+    };
+
+    function actualizarUIPerfil() {
+        const d = window.userGameData; if (!d || !d.perfil) return;
+        const p = d.perfil;
+        document.getElementById('user-stats').innerText = `🏆 Lvl ${p.nivel} | ${p.puntos} pts`;
+        document.getElementById('ui-nivel').innerText = p.nivel; document.getElementById('ui-puntos').innerText = p.puntos; document.getElementById('ui-tiempo').innerText = p.tiempo_sesion;
+
+        const tareasDiv = document.getElementById('ui-tareas');
+        if(d.tareas) {
+            if (p.nivel === 1) {
+                tareasDiv.innerHTML = `
+                    <div class="task-item ${d.tareas.tarea_1 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 1 carga en el lienzo</span></div>
+                    <div class="task-item ${d.tareas.tarea_2 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 1 punto de análisis</span></div>
+                    <div class="task-item ${d.tareas.tarea_3 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 5 interacciones (Mover/Dibujar)</span></div>
+                `;
+            } else if (p.nivel === 2) {
+                tareasDiv.innerHTML = `
+                    <div class="task-item ${d.tareas.tarea_4 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 2 cargas en el lienzo</span></div>
+                    <div class="task-item ${d.tareas.tarea_5 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 2 puntos de análisis</span></div>
+                    <div class="task-item ${d.tareas.tarea_6 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 20 interacciones totales</span></div>
+                `;
+            } else if (p.nivel === 3) {
+                tareasDiv.innerHTML = `
+                    <div class="task-item ${d.tareas.tarea_7 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 3 cargas en el lienzo</span></div>
+                    <div class="task-item ${d.tareas.tarea_8 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 1 trayectoria entre puntos</span></div>
+                    <div class="task-item ${d.tareas.tarea_9 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 50 interacciones totales</span></div>
+                `;
+            } else if (p.nivel === 4) {
+                tareasDiv.innerHTML = `
+                    <div class="task-item ${d.tareas.tarea_10 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 4 cargas en el lienzo</span></div>
+                    <div class="task-item ${d.tareas.tarea_11 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 2 trayectorias</span></div>
+                    <div class="task-item ${d.tareas.tarea_12 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 100 interacciones totales</span></div>
+                `;
+            } else {
+                tareasDiv.innerHTML = `<div class="task-item done"><div class="task-check">✓</div><span>¡Has completado todas las misiones del simulador!</span></div>`;
             }
-        }, (error) => {
-            console.error("Error sincronizando la sala:", error);
-        });
-        window.currentRoomId = sId;
+        }
+
+        const container = document.getElementById('ui-logros'); container.innerHTML = '';
+        if(d.logros) {
+            const dictLogros = { "inicio_sesion": "🎓 Bienvenido", "fisico_experto": "⚡ Físico Experto", "nivel_2_alcanzado": "🌟 Graduado Nivel 1", "nivel_3_alcanzado": "🚀 Investigador Nivel 2", "nivel_4_alcanzado": "🧠 Científico Nivel 3", "nivel_5_alcanzado": "👑 Nobel de Física" };
+            Object.keys(d.logros).forEach(key => { if(d.logros[key] && dictLogros[key]) container.innerHTML += `<span style="background: #e67e22; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">${dictLogros[key]}</span>`; });
+        }
     }
 
-    window.enviarEstadoNube = async () => {
-        if(!window.currentRoomId || isSendingData || !auth || !auth.currentUser) return;
-        isSendingData = true;
-        
-        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', window.currentRoomId);
+    window.registrarInteraccion = function() {
+        if (!auth.currentUser || !window.userGameData) return;
+        window.interaccionesLocales = (window.interaccionesLocales || 0) + 1;
+        const uid = auth.currentUser.uid;
+        const t = window.userGameData.tareas;
+
+        if (window.interaccionesLocales >= 5 && !t?.tarea_3) { t.tarea_3 = true; window.userGameData.perfil.puntos += 25; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_3: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(25) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
+        if (window.interaccionesLocales >= 20 && !t?.tarea_6) { t.tarea_6 = true; window.userGameData.perfil.puntos += 50; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_6: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(50) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
+        if (window.interaccionesLocales >= 50 && !t?.tarea_9) { t.tarea_9 = true; window.userGameData.perfil.puntos += 100; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_9: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
+        if (window.interaccionesLocales >= 100 && !t?.tarea_12) { t.tarea_12 = true; window.userGameData.perfil.puntos += 150; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_12: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(150) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
+
+        if (window.interaccionesLocales >= 50 && !window.userGameData.logros?.fisico_experto) { window.userGameData.logros.fisico_experto = true; window.userGameData.perfil.puntos += 100; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { fisico_experto: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); }
+    };
+
+    window.verificarTareasFisica = function() {
+        if (!auth.currentUser || !window.userGameData) return;
+        const uid = auth.currentUser.uid;
+        const charges = window.appState.objects.filter(o => o.type.startsWith('charge'));
+        const points = window.appState.objects.filter(o => o.type === 'point');
+        const trajs = window.appState.objects.filter(o => o.type === 'trajectory');
+        let hizoAlgo = false; const t = window.userGameData.tareas;
+
+        if (charges.length >= 1 && !t?.tarea_1) { t.tarea_1 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_1: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(25) }).catch(()=>{}); hizoAlgo = true; }
+        if (points.length >= 1 && !t?.tarea_2) { t.tarea_2 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_2: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(25) }).catch(()=>{}); hizoAlgo = true; }
+
+        if (charges.length >= 2 && !t?.tarea_4) { t.tarea_4 = true; window.userGameData.perfil.puntos += 50; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_4: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(50) }).catch(()=>{}); hizoAlgo = true; }
+        if (points.length >= 2 && !t?.tarea_5) { t.tarea_5 = true; window.userGameData.perfil.puntos += 50; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_5: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(50) }).catch(()=>{}); hizoAlgo = true; }
+
+        if (charges.length >= 3 && !t?.tarea_7) { t.tarea_7 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_7: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); hizoAlgo = true; }
+        if (trajs.length >= 1 && !t?.tarea_8) { t.tarea_8 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_8: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); hizoAlgo = true; }
+
+        if (charges.length >= 4 && !t?.tarea_10) { t.tarea_10 = true; window.userGameData.perfil.puntos += 150; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_10: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(150) }).catch(()=>{}); hizoAlgo = true; }
+        if (trajs.length >= 2 && !t?.tarea_11) { t.tarea_11 = true; window.userGameData.perfil.puntos += 150; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_11: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(150) }).catch(()=>{}); hizoAlgo = true; }
+
+        if(hizoAlgo) { actualizarUIPerfil(); window.chequearSubidaNivel(uid); }
+    };
+
+    window.chequearSubidaNivel = function(uid) {
+        setTimeout(() => {
+            if(!window.userGameData || !window.userGameData.tareas) return;
+            const t = window.userGameData.tareas; const lvl = window.userGameData.perfil?.nivel || 1;
+            if (lvl === 1 && t.tarea_1 && t.tarea_2 && t.tarea_3) {
+                window.userGameData.perfil.nivel = 2; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 2, puntos: increment(200) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_2_alcanzado: true }); alert("🌟 ¡FELICITACIONES! Has completado el Nivel 1. ¡Subiste al NIVEL 2 y ganaste 200 pts!"); actualizarUIPerfil();
+            } else if (lvl === 2 && t.tarea_4 && t.tarea_5 && t.tarea_6) {
+                window.userGameData.perfil.nivel = 3; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 3, puntos: increment(400) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_3_alcanzado: true }); alert("🚀 ¡IMPRESIONANTE! Completaste el Nivel 2. ¡Subiste al NIVEL 3 y ganaste 400 pts!"); actualizarUIPerfil();
+            } else if (lvl === 3 && t.tarea_7 && t.tarea_8 && t.tarea_9) {
+                window.userGameData.perfil.nivel = 4; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 4, puntos: increment(800) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_4_alcanzado: true }); alert("🧠 ¡ERES UN GENIO! Completaste el Nivel 3. ¡Subiste al NIVEL 4 y ganaste 800 pts!"); actualizarUIPerfil();
+            } else if (lvl === 4 && t.tarea_10 && t.tarea_11 && t.tarea_12) {
+                window.userGameData.perfil.nivel = 5; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 5, puntos: increment(1500) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_5_alcanzado: true }); alert("👑 ¡LEYENDA! Has completado el Laboratorio. ¡Alcanzaste el NIVEL MÁXIMO (5)!"); actualizarUIPerfil();
+            }
+        }, 1000);
+    };
+
+    // --- SISTEMA DE SALAS Y CONTRASEÑAS (APUNTANDO A salas_potencial) ---
+    window.intentarUnirseSala = async function() {
+        const salaId = document.getElementById('room-name').value.trim();
+        const salaPass = document.getElementById('room-pass').value.trim();
+        if (!salaId || !salaPass) return alert('Debes ingresar el nombre del cuarto y su contraseña.');
+
+        const passRef = ref(db, 'salas_potencial/' + salaId + '/password');
         try {
-            await setDoc(roomRef, { 
-                objects: window.appState.objects, 
-                origin: window.appState.origin, 
-                rawStrokes: window.appState.rawStrokes, 
-                boards: window.appState.boards, 
-                activeBoardIndex: window.appState.activeBoardIndex 
-            }, { merge: true });
-        } catch(e) {
-            console.error("Error subiendo estado:", e);
-        } finally {
-            isSendingData = false;
-        }
+            const snapshot = await get(passRef);
+            if (snapshot.exists()) {
+                if (snapshot.val() !== salaPass) return alert('❌ Contraseña incorrecta para el cuarto: ' + salaId);
+            } else {
+                await set(passRef, salaPass); alert('✅ Nuevo cuarto creado: ' + salaId);
+            }
+            
+            document.getElementById('room-modal').style.display = 'none';
+            document.getElementById('room-info').innerText = '🌐 Sala: ' + salaId;
+            document.getElementById('btn-share-room').style.display = 'inline-block';
+            document.getElementById('chat-section').style.display = 'block';
+            
+            conectarASala(salaId);
+        } catch (error) { console.error(error); alert('Error de conexión.'); }
+    };
+
+    function conectarASala(salaId) {
+        if (unsubscribeRoom) unsubscribeRoom();
+        if (unsubscribeChat) unsubscribeChat();
+
+        currentRoomRef = ref(db, 'salas_potencial/' + salaId + '/state');
+        chatRoomRef = ref(db, 'salas_potencial/' + salaId + '/chat');
+        
+        unsubscribeRoom = onValue(currentRoomRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data && !window.isSendingData) {
+                isReceiving = true;
+                window.appState.objects = data.objects || [];
+                window.appState.origin = data.origin || { x: null, y: null };
+                window.appState.rawStrokes = data.rawStrokes || [];
+                window.appState.boards = data.boards || [{ id: 1, name: "Pizarra 1", objects: [], rawStrokes: [], origin: { x: null, y: null } }];
+                window.appState.activeBoardIndex = data.activeBoardIndex !== undefined ? data.activeBoardIndex : 0;
+                
+                window.appState.selectedObjects = [];
+                document.getElementById('float-delete').style.display = 'none';
+
+                window.updateBoardsUI(); window.updateUI(); window.analizarFisica(); window.redraw();
+                setTimeout(() => { isReceiving = false; }, 50);
+            }
+        });
+
+        unsubscribeChat = onValue(chatRoomRef, (snapshot) => {
+            const chatBox = document.getElementById('chat-box'); chatBox.innerHTML = '';
+            const data = snapshot.val();
+            if (data) {
+                Object.values(data).forEach(msg => {
+                    const esMio = auth.currentUser && msg.email === auth.currentUser.email;
+                    const colorFondo = esMio ? '#2e4a3f' : '#1e3a4d';
+                    const align = esMio ? 'right' : 'left';
+                    const nick = msg.email.split('@')[0];
+                    chatBox.innerHTML += `<div style="text-align: ${align}; margin-bottom: 5px;"><span style="font-size: 0.7rem; color: #aaa;">${nick}</span><br><span style="background: ${colorFondo}; color: white; padding: 6px 10px; border-radius: 8px; display: inline-block; max-width: 90%; word-wrap: break-word; text-align: left;">${msg.text}</span></div>`;
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } else {
+                chatBox.innerHTML = '<i style="color: #666;">Sin mensajes. ¡Saluda a tu grupo!</i>';
+            }
+        });
+    }
+
+    window.enviarMensajeChat = function() {
+        const input = document.getElementById('chat-input'); const text = input.value.trim();
+        if (!text || !auth.currentUser || !chatRoomRef) return;
+        push(chatRoomRef, { email: auth.currentUser.email, text: text, timestamp: Date.now() });
+        input.value = '';
+    };
+
+    window.enviarEstadoNube = function() {
+        if (!currentRoomRef || isReceiving || !auth.currentUser) return;
+        window.isSendingData = true;
+        set(currentRoomRef, {
+            objects: window.appState.objects,
+            origin: window.appState.origin,
+            rawStrokes: window.appState.rawStrokes,
+            boards: window.appState.boards,
+            activeBoardIndex: window.appState.activeBoardIndex
+        }).then(() => { window.isSendingData = false; });
     };
 </script>
 </body>
