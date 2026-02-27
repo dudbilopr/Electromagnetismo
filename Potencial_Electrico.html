@@ -918,54 +918,55 @@
             const scale = parseFloat(document.getElementById('scale-input').value || 100);
 
             groups.forEach(group => {
-            const type = classifyGroup(group, bounds);
-            if (type !== 'unknown') {
-                const currentIds = state.objects.map(o=>o.id);
-                const nextId = (currentIds.length > 0 ? Math.max(...currentIds) : 0) + 1;
-                
-                const px = (bounds.cx - state.origin.x) / scale;
-                const py = (state.origin.y - bounds.cy) / scale;
+                const bounds = getGroupBounds(group); // <-- ¡Esta era la línea que faltaba!
+                const type = classifyGroup(group, bounds);
+                if (type !== 'unknown') {
+                    const currentIds = state.objects.map(o=>o.id);
+                    const nextId = (currentIds.length > 0 ? Math.max(...currentIds) : 0) + 1;
+                    
+                    const px = (bounds.cx - state.origin.x) / scale;
+                    const py = (state.origin.y - bounds.cy) / scale;
 
-                if (type === 'point') {
-                    const pointCount = state.objects.filter(o => o.type === 'point').length + newObjects.filter(o => o.type === 'point').length;
-                    const letter = String.fromCharCode(65 + pointCount);
-                    newObjects.push({
-                        id: nextId, type: 'point', label: letter,
-                        x: bounds.cx, y: bounds.cy, physX: px, physY: py
-                    });
-                }
-                else if (type.startsWith('charge')) {
-                    const qNum = state.objects.filter(o => o.type.startsWith('charge')).length + 1;
-                    newObjects.push({
-                        id: nextId, type: type, label: `q_${qNum}`,
-                        x: bounds.cx, y: bounds.cy, physX: px, physY: py,
-                        q: type === 'charge_pos' ? 5 : -5
-                    });
-                } 
-                else if (type === 'trajectory_path') {
-                    const rawPts = [];
-                    group.forEach(i => state.rawStrokes[i].forEach(p => rawPts.push(p)));
-                    if(rawPts.length > 2) {
-                        const start = rawPts[0]; const end = rawPts[rawPts.length-1];
-                        const pStart = findPointNear(start); const pEnd = findPointNear(end);
-                        if (pStart && pEnd && pStart.id !== pEnd.id) {
+                    if (type === 'point') {
+                        const pointCount = state.objects.filter(o => o.type === 'point').length + newObjects.filter(o => o.type === 'point').length;
+                        const letter = String.fromCharCode(65 + pointCount);
                         newObjects.push({
-                            id: nextId, type: 'trajectory',
-                            from: pStart.id, to: pEnd.id,
-                            path: rawPts
+                            id: nextId, type: 'point', label: letter,
+                            x: bounds.cx, y: bounds.cy, physX: px, physY: py
                         });
                     }
+                    else if (type.startsWith('charge')) {
+                        const qNum = state.objects.filter(o => o.type.startsWith('charge')).length + 1;
+                        newObjects.push({
+                            id: nextId, type: type, label: `q_${qNum}`,
+                            x: bounds.cx, y: bounds.cy, physX: px, physY: py,
+                            q: type === 'charge_pos' ? 5 : -5
+                        });
+                    } 
+                    else if (type === 'trajectory_path') {
+                        const rawPts = [];
+                        group.forEach(i => state.rawStrokes[i].forEach(p => rawPts.push(p)));
+                        if(rawPts.length > 2) {
+                            const start = rawPts[0]; const end = rawPts[rawPts.length-1];
+                            const pStart = findPointNear(start); const pEnd = findPointNear(end);
+                            if (pStart && pEnd && pStart.id !== pEnd.id) {
+                                newObjects.push({
+                                    id: nextId, type: 'trajectory',
+                                    from: pStart.id, to: pEnd.id,
+                                    path: rawPts
+                                });
+                            }
+                        }
+                    }
+                    group.forEach(i => usedIndices.add(i));
                 }
-            }
-            group.forEach(i => usedIndices.add(i));
-        }
-        });
+            });
 
-        if (newObjects.length > 0) {
-            state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i));
-            state.objects.push(...newObjects);
-            updateUI(); analizarFisica();
-        }
+            if (newObjects.length > 0) {
+                state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i));
+                state.objects.push(...newObjects);
+                updateUI(); analizarFisica();
+            }
         } catch (error) {
             console.error("Error en el Lápiz IA:", error);
         }
