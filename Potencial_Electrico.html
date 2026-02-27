@@ -360,7 +360,7 @@
         <h3 style="margin-top:0; color: #4ecca3;">🔐 Acceso al Laboratorio</h3>
         <p style="font-size: 0.9rem; color: #ccc; margin-bottom: 20px;">Inicia sesión para jugar en grupo o entra como invitado para modo individual.</p>
         
-        <div id="auth-error" style="color: #ff6b6b; font-size: 0.85rem; margin-bottom: 10px;"></div>
+        <div id="auth-error" style="color: #ff6b6b; font-size: 0.85rem; margin-bottom: 10px; padding: 10px; border-radius: 4px;"></div>
         <input type="email" id="auth-email" class="auth-input" placeholder="Correo electrónico" style="margin-bottom: 8px;">
         <input type="password" id="auth-password" class="auth-input" placeholder="Contraseña" style="margin-top: 0; margin-bottom: 15px;">
         
@@ -368,16 +368,15 @@
             <div style="display: flex; gap: 10px; width: 100%;">
                 <button class="btn-tool btn-action" id="btn-login-email" style="flex: 1; justify-content: center;">Ingresar</button>
                 <button class="btn-tool" id="btn-register-email" style="flex: 1; justify-content: center; background: #5e35b1; color: white;">Crear Cuenta</button>
-            </div>
-            
-            <hr style="border:0; border-top:1px solid #444; width: 100%; margin: 5px 0;">
-            
-            <button class="btn-tool btn-action" id="btn-login-google" style="background: white; color: #333; justify-content: center; width: 100%;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="G" style="width: 16px; margin-right: 8px;">
-                Ingresar con Google
-            </button>
-            <button class="btn-tool" id="btn-login-guest" style="justify-content: center; width: 100%;">Continuar como Invitado (Individual)</button>
         </div>
+        
+        <hr style="border:0; border-top:1px solid #444; width: 100%; margin: 5px 0;">
+        
+        <button class="btn-tool btn-action" id="btn-login-google" style="background: white; color: #333; justify-content: center; width: 100%;">
+            <svg style="width: 18px; height: 18px; margin-right: 8px;" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+            Ingresar con Google
+        </button>
+        <button class="btn-tool" id="btn-login-guest" style="justify-content: center; width: 100%;">Continuar como Invitado (Individual)</button>
     </div>
 </div>
 
@@ -895,7 +894,7 @@
     function groupStrokes(strokes) { if(!strokes) return []; const groups = []; const visited = new Set(); for(let i=0; i<strokes.length; i++) { if(visited.has(i)) continue; const g = [i]; visited.add(i); for(let j=i+1; j<strokes.length; j++) { if(visited.has(j)) continue; if(strokesClose(strokes[i], strokes[j])) { g.push(j); visited.add(j); } } groups.push(g); } return groups; }
     function getGroupBounds(indices) { let allPts = []; indices.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p)); }); return getBounds(allPts); }
     function strokesClose(s1, s2) { if(!s1 || !s2 || s1.length === 0 || s2.length === 0) return false; const b1 = getBounds(s1); const b2 = getBounds(s2); const pad = 30; return !(b2.minX > b1.maxX + pad || b2.maxX < b1.minX - pad || b2.minY > b1.maxY + pad || b2.maxY < b1.minY - pad); }
-    function classifyGroup(indices, b) { if (!indices || indices.length === 0) return 'unknown'; const strokes = indices.map(i => state.rawStrokes[i]).filter(s => s && s.length > 0); if (strokes.length === 0) return 'unknown'; const diag = Math.hypot(b.w, b.h); if (diag < 45 && strokes.length <= 3) return 'point'; let maxL = 0; let mainStrokeIdx = -1; strokes.forEach((s, i) => { let l = 0; for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y); if(l >= maxL) { maxL = l; mainStrokeIdx = i; } }); if(mainStrokeIdx === -1) return 'unknown'; const mainStroke = strokes[mainStrokeIdx]; const distEnds = Math.hypot(mainStroke[0].x - mainStroke[mainStroke.length-1].x, mainStroke[0].y - mainStroke[mainStroke.length-1].y); const isClosed = maxL > 0 && distEnds < maxL * 0.4; if (diag > 30 && !isClosed) return 'trajectory_path'; const r = b.w / (b.h || 1); if (r > 0.3 && r < 3.0 && diag > 15 && isClosed) { const innerStrokes = strokes.filter((_, i) => i !== mainStrokeIdx); if (innerStrokes.length === 0) return 'charge_pos'; if (innerStrokes.length === 1) { const s = innerStrokes[0]; const ib = getBounds(s); if (ib.w > (ib.h || 1) * 1.2) return 'charge_neg'; return 'charge_pos'; } return 'charge_pos'; } return 'unknown'; }
+    function classifyGroup(indices, b) { if (!indices || indices.length === 0) return 'unknown'; const strokes = indices.map(i => state.rawStrokes[i]).filter(s => s && s.length > 0); if (strokes.length === 0) return 'unknown'; const diag = Math.hypot(b.w, b.h); if (diag < 45 && strokes.length <= 3) return 'point'; let maxL = 0; let mainStrokeIdx = -1; strokes.forEach((s, i) => { let l = 0; for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y); if(l >= maxL) { maxL = l; mainStrokeIdx = i; } }); if(mainStrokeIdx === -1) return 'unknown'; const mainStroke = strokes[mainStrokeIdx]; const distEnds = Math.hypot(mainStroke[0].x - mainStroke[mainStroke.length-1].x, mainStroke[0].y - mainStroke[mainStroke.length-1].y); const isClosed = maxL > 0 && distEnds < maxL * 0.4; if (diag > 30 && !isClosed) return 'trajectory_path'; const r = b.w / (b.h || 1); if (r > 0.3 && r < 3.0 && diag > 15 && isClosed) { const innerStrokes = strokes.filter((_, i) => i !== mainStrokeIdx); if (innerStrokes.length === 0) return 'charge_pos'; if (innerStrokes.length === 1) { const s = innerStrokes[0]; const ib = getBounds(s); if (ib.w > (ib.h || 1) * 0.4) return 'charge_neg'; return 'charge_pos'; } return 'charge_pos'; } return 'unknown'; }
 
     function analizarFisica() {
         actualizarFilaCampo(); const charges = state.objects.filter(o => o.type.startsWith('charge')), points = state.objects.filter(o => o.type === 'point'), trajectories = state.objects.filter(o => o.type === 'trajectory');
@@ -1152,6 +1151,21 @@
     let unsubscribeRoom = null;
     let unsubscribeChat = null;
 
+    // --- MANEJADOR GLOBAL DE ERRORES DE AUTENTICACIÓN ---
+    function handleAuthError(e) {
+        const err = document.getElementById('auth-error');
+        let msg = "Error: " + e.message;
+        
+        // Detectar si el error es debido a restricciones de dominio
+        if (e.code === 'auth/unauthorized-domain' || e.message.includes('requests-from-referer')) {
+            msg = "⚠️ Dominio no autorizado por Firebase.\n\nEl sistema bloqueó la conexión porque este simulador (dominio scf.usercontent.goog) no está en tu lista blanca.\n\nPara solucionarlo, añade este dominio en tu Consola de Firebase -> Authentication -> Settings -> Authorized Domains.\n\nSi lo subes a tu GitHub Pages, funcionará perfectamente.";
+            alert(msg); // Mostramos alerta emergente para que sea evidente
+        }
+        
+        if (err) err.innerText = msg;
+        console.error("Firebase Auth Error:", e);
+    }
+
     // --- SISTEMA DE AUTENTICACIÓN ---
     onAuthStateChanged(auth, (user) => {
         if (user) {
@@ -1186,22 +1200,22 @@
         const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value;
         const err = document.getElementById('auth-error');
         if(!email || !password) { if(err) err.innerText = "Por favor, ingresa correo y contraseña"; return; }
-        signInWithEmailAndPassword(auth, email, password).catch(e => { if(err) err.innerText = "Error: " + e.message; });
+        signInWithEmailAndPassword(auth, email, password).catch(handleAuthError);
     });
 
     document.getElementById('btn-register-email').addEventListener('click', () => {
         const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value;
         const err = document.getElementById('auth-error');
         if(!email || !password) { if(err) err.innerText = "Por favor, ingresa correo y contraseña"; return; }
-        createUserWithEmailAndPassword(auth, email, password).catch(e => { if(err) err.innerText = "Error al registrar: " + e.message; });
+        createUserWithEmailAndPassword(auth, email, password).catch(handleAuthError);
     });
 
     document.getElementById('btn-login-google').addEventListener('click', () => {
-        signInWithPopup(auth, new GoogleAuthProvider()).catch(e => console.error(e));
+        signInWithPopup(auth, new GoogleAuthProvider()).catch(handleAuthError);
     });
 
     document.getElementById('btn-login-guest').addEventListener('click', () => {
-        signInAnonymously(auth).catch(e => console.error(e));
+        signInAnonymously(auth).catch(handleAuthError);
     });
 
     window.cerrarSesion = () => signOut(auth);
