@@ -408,6 +408,23 @@
         if (immediate || now - lastSyncTime > 150) { window.enviarEstadoNube(); lastSyncTime = now; }
     }
 
+    // Funciones de Modales y Gamificación
+    function abrirModalPerfil() { document.getElementById('profile-modal').style.display = 'flex'; }
+    function cerrarModalPerfil() { document.getElementById('profile-modal').style.display = 'none'; }
+    function abrirModalSala() { document.getElementById('room-modal').style.display = 'flex'; }
+    function cerrarModalSala() { document.getElementById('room-modal').style.display = 'none'; }
+    function copiarInfoSala() { 
+        navigator.clipboard.writeText(document.getElementById('room-info').innerText); 
+    }
+    window.sumarPuntos = function(pts) {
+        let actual = parseInt(document.getElementById('ui-puntos').innerText) || 0;
+        actual += pts;
+        document.getElementById('ui-puntos').innerText = actual;
+        let nivel = Math.floor(actual / 50) + 1;
+        document.getElementById('ui-nivel').innerText = nivel;
+        document.getElementById('user-stats').innerHTML = `🏆 Lvl ${nivel} | ${actual} pts`;
+    };
+
     let leftOpen = true; let rightOpen = true;
     function toggleLeft() { leftOpen = !leftOpen; rootStyles.setProperty('--left-w', leftOpen ? '260px' : '0px'); document.getElementById('toggle-left').innerText = leftOpen ? '◀' : '▶'; document.getElementById('panel-left').style.opacity = leftOpen ? '1' : '0'; setTimeout(resizeCanvas, 300); }
     function toggleRight() { rightOpen = !rightOpen; rootStyles.setProperty('--right-w', rightOpen ? '420px' : '0px'); document.getElementById('toggle-right').innerText = rightOpen ? '▶' : '◀'; document.getElementById('panel-right').style.opacity = rightOpen ? '1' : '0'; setTimeout(resizeCanvas, 300); }
@@ -546,7 +563,9 @@
     function finalizeText() {
         if(textOverlay.style.display !== 'none' && textOverlay.value.trim() !== '') {
             state.objects.push({ type: 'text', id: Date.now(), text: textOverlay.value, x: textPos.x, y: textPos.y, color: state.currentColor, rotation: 0, scale: 1 });
-            textOverlay.value = ''; textOverlay.style.display = 'none'; redraw(); requestSync(true);
+            textOverlay.value = ''; textOverlay.style.display = 'none'; 
+            window.sumarPuntos(2);
+            redraw(); requestSync(true);
         } else { textOverlay.style.display = 'none'; }
     }
     textOverlay.addEventListener('keydown', e => { if(e.key === 'Enter') finalizeText(); });
@@ -704,7 +723,7 @@
                 if (hit.type === 'origin') { state.draggingOrigin = true; selectObject(null); }
                 else { state.draggedObject = hit; if (!state.selectedObjects.includes(hit)) { selectObject(hit); } }
             } else { 
-                // ADICIÓN: Si no hay objeto y es herramienta mover, mover pizarra entera (Pan)
+                // ADICIÓN: Scroll/Pan con dedo desde zona vacía
                 state.draggingOrigin = true;
                 state.dragLastX = c.x;
                 state.dragLastY = c.y;
@@ -807,11 +826,15 @@
             state.isDrawingFree = false;
             if(Math.hypot(state.currentLine[0].x - state.currentLine[1].x, state.currentLine[0].y - state.currentLine[1].y) > 5) {
                 state.objects.push({ type: 'free_stroke', id: Date.now(), points: [{...state.currentLine[0]}, {...state.currentLine[1]}], color: state.currentColor, lineWidth: state.lineWidth, rotation: 0, scale: 1 });
+                window.sumarPuntos(1);
             }
             state.lineStart = null; state.currentLine = null; redraw(); requestSync(true); return;
         }
         if (state.isDrawingFree && state.currentFreeStroke) {
-            state.isDrawingFree = false; if (state.currentFreeStroke.points.length > 1) state.objects.push(state.currentFreeStroke);
+            state.isDrawingFree = false; if (state.currentFreeStroke.points.length > 1) {
+                state.objects.push(state.currentFreeStroke);
+                window.sumarPuntos(1);
+            }
             state.currentFreeStroke = null; redraw(); requestSync(true); return;
         }
         if (state.isDrawing) {
@@ -851,7 +874,7 @@
 
     function getBounds(pts) { if (!pts || pts.length === 0) return { minX:0, maxX:0, minY:0, maxY:0, w:0, h:0, cx:0, cy:0 }; let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y; for (let i = 1; i < pts.length; i++) { if (pts[i].x < minX) minX = pts[i].x; if (pts[i].x > maxX) maxX = pts[i].x; if (pts[i].y < minY) minY = pts[i].y; if (pts[i].y > maxY) maxY = pts[i].y; } return { minX, maxX, minY, maxY, w: maxX - minX, h: maxY - minY, cx: (minX + maxX)/2, cy: (minY + maxY)/2 }; }
 
-    function detectAndConvert() { try { if (!state.rawStrokes || state.rawStrokes.length === 0) return; const groups = groupStrokes(state.rawStrokes); const newObjects = []; const usedIndices = new Set(); const scaleFactor = getSafeScale(); groups.forEach(group => { if(!group || group.length === 0) return; const bounds = getGroupBounds(group); const type = classifyGroup(group, bounds); let objectCreated = false; if (type !== 'unknown') { const currentIds = state.objects.map(o=>o.id); const nextId = (currentIds.length > 0 ? Math.max(...currentIds) : 0) + 1; const px = (bounds.cx - state.origin.x) / scaleFactor, py = (state.origin.y - bounds.cy) / scaleFactor; if (type === 'point') { const pointCount = state.objects.filter(o => o.type === 'point').length + newObjects.filter(o => o.type === 'point').length; newObjects.push({ id: nextId, type: 'point', label: String.fromCharCode(65 + pointCount), x: bounds.cx, y: bounds.cy, physX: px, physY: py, rotation: 0, scale: 1 }); objectCreated = true; } else if (type.startsWith('charge')) { const qNum = state.objects.filter(o => o.type.startsWith('charge')).length + 1; newObjects.push({ id: nextId, type: type, label: `q_${qNum}`, x: bounds.cx, y: bounds.cy, physX: px, physY: py, q: type === 'charge_pos' ? 5 : -5, rotation: 0, scale: 1 }); objectCreated = true; } else if (type === 'trajectory_path') { const rawPts = []; group.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => rawPts.push(p)) }); if(rawPts.length > 2) { const pStart = findPointNear(rawPts[0]); const pEnd = findPointNear(rawPts[rawPts.length-1]); if (pStart && pEnd && pStart.id !== pEnd.id) { newObjects.push({ id: nextId, type: 'trajectory', from: pStart.id, to: pEnd.id, path: rawPts }); objectCreated = true; } } } } if (objectCreated) { group.forEach(i => usedIndices.add(i)); } else { group.forEach(i => { if(state.rawStrokes[i] && state.rawStrokes[i].length > 1) { state.objects.push({ type: 'free_stroke', id: Date.now() + i, points: state.rawStrokes[i], color: state.currentColor, lineWidth: state.lineWidth, rotation: 0, scale: 1 }); usedIndices.add(i); } }); } }); if (usedIndices.size > 0) { state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i)); if(newObjects.length > 0) state.objects.push(...newObjects); updateUI(); analizarFisica(); } redraw(); requestSync(true); } catch(e) { state.rawStrokes = []; redraw(); } }
+    function detectAndConvert() { try { if (!state.rawStrokes || state.rawStrokes.length === 0) return; const groups = groupStrokes(state.rawStrokes); const newObjects = []; const usedIndices = new Set(); const scaleFactor = getSafeScale(); groups.forEach(group => { if(!group || group.length === 0) return; const bounds = getGroupBounds(group); const type = classifyGroup(group, bounds); let objectCreated = false; if (type !== 'unknown') { const currentIds = state.objects.map(o=>o.id); const nextId = (currentIds.length > 0 ? Math.max(...currentIds) : 0) + 1; const px = (bounds.cx - state.origin.x) / scaleFactor, py = (state.origin.y - bounds.cy) / scaleFactor; if (type === 'point') { const pointCount = state.objects.filter(o => o.type === 'point').length + newObjects.filter(o => o.type === 'point').length; newObjects.push({ id: nextId, type: 'point', label: String.fromCharCode(65 + pointCount), x: bounds.cx, y: bounds.cy, physX: px, physY: py, rotation: 0, scale: 1 }); objectCreated = true; } else if (type.startsWith('charge')) { const qNum = state.objects.filter(o => o.type.startsWith('charge')).length + 1; newObjects.push({ id: nextId, type: type, label: `q_${qNum}`, x: bounds.cx, y: bounds.cy, physX: px, physY: py, q: type === 'charge_pos' ? 5 : -5, rotation: 0, scale: 1 }); objectCreated = true; } else if (type === 'trajectory_path') { const rawPts = []; group.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => rawPts.push(p)) }); if(rawPts.length > 2) { const pStart = findPointNear(rawPts[0]); const pEnd = findPointNear(rawPts[rawPts.length-1]); if (pStart && pEnd && pStart.id !== pEnd.id) { newObjects.push({ id: nextId, type: 'trajectory', from: pStart.id, to: pEnd.id, path: rawPts }); objectCreated = true; } } } } if (objectCreated) { group.forEach(i => usedIndices.add(i)); window.sumarPuntos(10); } else { group.forEach(i => { if(state.rawStrokes[i] && state.rawStrokes[i].length > 1) { state.objects.push({ type: 'free_stroke', id: Date.now() + i, points: state.rawStrokes[i], color: state.currentColor, lineWidth: state.lineWidth, rotation: 0, scale: 1 }); usedIndices.add(i); } }); } }); if (usedIndices.size > 0) { state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i)); if(newObjects.length > 0) state.objects.push(...newObjects); updateUI(); analizarFisica(); } redraw(); requestSync(true); } catch(e) { state.rawStrokes = []; redraw(); } }
 
     function findPointNear(c) { return state.objects.find(o => o.type === 'point' && Math.hypot(o.x - c.x, o.y - c.y) < 50); }
 
@@ -1066,24 +1089,140 @@
             updateUI(); analizarFisica(); redraw();
         }
     }
+    
+    // --- EVENTOS DEL LIENZO PARA PERMITIR ESCRITURA Y DIBUJO ---
+    wrapper.addEventListener('mousedown', handleStart);
+    wrapper.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    wrapper.addEventListener('touchstart', handleStart, { passive: false });
+    wrapper.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+    window.addEventListener('touchcancel', handleEnd);
+    // -----------------------------------------------------------
+
+    // Funciones exportadas a global para que sean llamadas desde los módulos u otros eventos
+    window.updateBoardsUI = updateBoardsUI;
+    window.updateUI = updateUI;
+    window.analizarFisica = analizarFisica;
+    window.redraw = redraw;
+
     setTimeout(updateBoardsUI, 500);
 </script>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-  import { getDatabase, ref, set, get, onValue, push, update, increment } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
-  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
-  const firebaseConfig = { apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA", authDomain: "laboratorio-de-coulomb.firebaseapp.com", databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com", projectId: "laboratorio-de-coulomb", storageBucket: "laboratorio-de-coulomb.firebasestorage.app", messagingSenderId: "525944850850", appId: "1:525944850850:web:eca9c0b79809358e8d8afb" };
-  const app = initializeApp(firebaseConfig), db = getDatabase(app), auth = getAuth(app);
-  let cRR = null, iR = false, uSR = null;
-  onAuthStateChanged(auth, (user) => { if (user) { document.getElementById('auth-modal').style.display = 'none'; document.getElementById('user-info').innerText = `👤 ${user.email}`; document.getElementById('btn-logout').style.display = 'inline-block'; document.getElementById('user-stats').style.display = 'inline-flex'; if (!cRR) window.abrirModalSala(); } else { document.getElementById('auth-modal').style.display = 'flex'; document.getElementById('room-info').innerText = '🌐 Sala: Ninguna'; if (uSR) { uSR(); uSR = null; } cRR = null; } });
-  window.iniciarSesion = () => { const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value; signInWithEmailAndPassword(auth, e, p).catch(err => alert(err.message)); };
-  window.registrarUsuario = () => { const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value; createUserWithEmailAndPassword(auth, e, p).catch(err => alert(err.message)); };
-  window.iniciarSesionConGoogle = () => { signInWithPopup(auth, new GoogleAuthProvider()); };
-  window.cerrarSesion = () => { signOut(auth); };
-  window.intentarUnirseSala = async () => { const sId = document.getElementById('room-name').value, sP = document.getElementById('room-pass').value; if(!sId || !sP) return; const pR = ref(db, 'salas_potencial/' + sId + '/password'); const snap = await get(pR); if (snap.exists() && snap.val() !== sP) return alert('Clave errónea'); if(!snap.exists()) await set(pR, sP); document.getElementById('room-modal').style.display = 'none'; document.getElementById('room-info').innerText = '🌐 Sala: ' + sId; conectarASala(sId); };
-  function conectarASala(sId) { if(uSR) uSR(); cRR = ref(db, 'salas_potencial/' + sId + '/state'); uSR = onValue(cRR, (snap) => { const d = snap.val(); if(d && !window.isSendingData) { iR = true; window.appState.objects = d.objects || []; window.appState.rawStrokes = d.rawStrokes || []; window.appState.origin = d.origin || {x:null,y:null}; window.appState.boards = d.boards || [{ id: 1, name: "Pizarra 1", objects: [], rawStrokes: [], origin: { x: null, y: null } }]; window.appState.activeBoardIndex = d.activeBoardIndex !== undefined ? d.activeBoardIndex : 0; window.updateBoardsUI(); window.updateUI(); window.analizarFisica(); window.redraw(); iR = false; } }); }
-  window.enviarEstadoNube = () => { if(!cRR || iR || !auth.currentUser) return; window.isSendingData = true; set(cRR, { objects: window.appState.objects, origin: window.appState.origin, rawStrokes: window.appState.rawStrokes, boards: window.appState.boards, activeBoardIndex: window.appState.activeBoardIndex }).then(() => window.isSendingData = false); };
+    // CORRECCIÓN DE FIREBASE REQUERIDA POR EL ENTORNO
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+    // Credenciales del entorno (inyectadas al vuelo)
+    const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '"{}"';
+    const firebaseConfig = JSON.parse(firebaseConfigStr);
+    
+    let app, db, auth;
+    try {
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+    } catch(e) { console.warn("Firebase config not fully present, using local mode."); }
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-lab';
+
+    let currentRoomUnsubscribe = null;
+    let isSendingData = false;
+
+    if (auth) {
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            if (user && !user.isAnonymous) {
+                document.getElementById('auth-modal').style.display = 'none';
+                document.getElementById('user-info').innerText = `👤 ${user.email}`;
+                document.getElementById('btn-logout').style.display = 'inline-block';
+                document.getElementById('user-stats').style.display = 'inline-flex';
+            } else if (user) {
+                document.getElementById('auth-modal').style.display = 'none';
+                document.getElementById('user-info').innerText = `👤 Invitado`;
+                document.getElementById('btn-logout').style.display = 'inline-block';
+                document.getElementById('user-stats').style.display = 'inline-flex';
+            } else {
+                document.getElementById('auth-modal').style.display = 'flex';
+                document.getElementById('room-info').innerText = '🌐 Sala: Ninguna';
+            }
+        });
+    }
+
+    window.iniciarSesion = () => { if(auth) { const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value; signInWithEmailAndPassword(auth, e, p).catch(err => alert(err.message)); } };
+    window.registrarUsuario = () => { if(auth) { const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value; createUserWithEmailAndPassword(auth, e, p).catch(err => alert(err.message)); } };
+    window.iniciarSesionConGoogle = () => { if(auth) signInWithPopup(auth, new GoogleAuthProvider()); };
+    window.cerrarSesion = () => { if(auth) signOut(auth); };
+
+    window.intentarUnirseSala = async () => {
+        if (!auth || !auth.currentUser) return alert("Iniciando conexión segura...");
+        const sId = document.getElementById('room-name').value;
+        if(!sId) return;
+
+        document.getElementById('room-modal').style.display = 'none';
+        document.getElementById('room-info').innerText = '🌐 Sala: ' + sId;
+        document.getElementById('btn-share-room').style.display = 'inline-flex';
+        
+        conectarASala(sId);
+    };
+
+    function conectarASala(sId) {
+        if(currentRoomUnsubscribe) currentRoomUnsubscribe();
+        
+        // RUTA ESTRICTA REQUERIDA
+        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', sId);
+        
+        currentRoomUnsubscribe = onSnapshot(roomRef, (snap) => {
+            const d = snap.data();
+            if(d && !isSendingData) {
+                window.appState.objects = d.objects || [];
+                window.appState.rawStrokes = d.rawStrokes || [];
+                window.appState.origin = d.origin || {x:null,y:null};
+                window.appState.boards = d.boards || [{ id: 1, name: "Pizarra 1", objects: [], rawStrokes: [], origin: { x: null, y: null } }];
+                window.appState.activeBoardIndex = d.activeBoardIndex !== undefined ? d.activeBoardIndex : 0;
+                
+                // Actualizar vistas sin romper UI
+                window.updateBoardsUI(); 
+                window.updateUI(); 
+                window.analizarFisica(); 
+                window.redraw();
+            }
+        }, (error) => {
+            console.error("Error sincronizando la sala:", error);
+        });
+        window.currentRoomId = sId;
+    }
+
+    window.enviarEstadoNube = async () => {
+        if(!window.currentRoomId || isSendingData || !auth || !auth.currentUser) return;
+        isSendingData = true;
+        
+        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', window.currentRoomId);
+        try {
+            await setDoc(roomRef, { 
+                objects: window.appState.objects, 
+                origin: window.appState.origin, 
+                rawStrokes: window.appState.rawStrokes, 
+                boards: window.appState.boards, 
+                activeBoardIndex: window.appState.activeBoardIndex 
+            }, { merge: true });
+        } catch(e) {
+            console.error("Error subiendo estado:", e);
+        } finally {
+            isSendingData = false;
+        }
+    };
 </script>
 </body>
 </html>
