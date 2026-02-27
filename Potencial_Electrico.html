@@ -360,7 +360,7 @@
         <h3 style="margin-top:0; color: #4ecca3;">🔐 Acceso al Laboratorio</h3>
         <p style="font-size: 0.9rem; color: #ccc; margin-bottom: 20px;">Inicia sesión para jugar en grupo o entra como invitado para modo individual.</p>
         
-        <div id="auth-error" style="color: #ff6b6b; font-size: 0.85rem; margin-bottom: 10px; padding: 10px; border-radius: 4px;"></div>
+        <div id="auth-error" style="color: #ff6b6b; font-size: 0.85rem; margin-bottom: 10px;"></div>
         <input type="email" id="auth-email" class="auth-input" placeholder="Correo electrónico" style="margin-bottom: 8px;">
         <input type="password" id="auth-password" class="auth-input" placeholder="Contraseña" style="margin-top: 0; margin-bottom: 15px;">
         
@@ -368,15 +368,16 @@
             <div style="display: flex; gap: 10px; width: 100%;">
                 <button class="btn-tool btn-action" id="btn-login-email" style="flex: 1; justify-content: center;">Ingresar</button>
                 <button class="btn-tool" id="btn-register-email" style="flex: 1; justify-content: center; background: #5e35b1; color: white;">Crear Cuenta</button>
+            </div>
+            
+            <hr style="border:0; border-top:1px solid #444; width: 100%; margin: 5px 0;">
+            
+            <button class="btn-tool btn-action" id="btn-login-google" style="background: white; color: #333; justify-content: center; width: 100%;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="G" style="width: 16px; margin-right: 8px;">
+                Ingresar con Google
+            </button>
+            <button class="btn-tool" id="btn-login-guest" style="justify-content: center; width: 100%;">Continuar como Invitado (Individual)</button>
         </div>
-        
-        <hr style="border:0; border-top:1px solid #444; width: 100%; margin: 5px 0;">
-        
-        <button class="btn-tool btn-action" id="btn-login-google" style="background: white; color: #333; justify-content: center; width: 100%;">
-            <svg style="width: 18px; height: 18px; margin-right: 8px;" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
-            Ingresar con Google
-        </button>
-        <button class="btn-tool" id="btn-login-guest" style="justify-content: center; width: 100%;">Continuar como Invitado (Individual)</button>
     </div>
 </div>
 
@@ -425,14 +426,7 @@
     // Funciones de Modales y Gamificación
     function abrirModalPerfil() { document.getElementById('profile-modal').style.display = 'flex'; }
     function cerrarModalPerfil() { document.getElementById('profile-modal').style.display = 'none'; }
-    function abrirModalSala() { 
-        if (!window.appAuth || !window.appAuth.currentUser) {
-            document.getElementById('auth-modal').style.display = 'flex';
-            alert("⚠️ Debes iniciar sesión (o entrar como Invitado) primero para poder unirte a una sala.");
-            return;
-        }
-        document.getElementById('room-modal').style.display = 'flex'; 
-    }
+    function abrirModalSala() { document.getElementById('room-modal').style.display = 'flex'; }
     function cerrarModalSala() { document.getElementById('room-modal').style.display = 'none'; }
     function copiarInfoSala() { 
         navigator.clipboard.writeText(document.getElementById('room-info').innerText); 
@@ -556,24 +550,11 @@
     let compEx, compEy;
     function actualizarFilaCampo() {
         try {
-            if (typeof math === 'undefined') {
-                compEx = { evaluate: () => 0 };
-                compEy = { evaluate: () => 0 };
-                return;
-            }
             const strEx = document.getElementById('ex-input').value || "0";
             const strEy = document.getElementById('ey-input').value || "0";
             compEx = math.compile(strEx);
             compEy = math.compile(strEy);
-        } catch(e) { 
-            if (typeof math !== 'undefined') {
-                compEx = math.compile("0"); 
-                compEy = math.compile("0"); 
-            } else {
-                compEx = { evaluate: () => 0 }; 
-                compEy = { evaluate: () => 0 };
-            }
-        }
+        } catch(e) { compEx = math.compile("0"); compEy = math.compile("0"); }
     }
     
     function getE_ext(px, py) {
@@ -914,7 +895,7 @@
     function groupStrokes(strokes) { if(!strokes) return []; const groups = []; const visited = new Set(); for(let i=0; i<strokes.length; i++) { if(visited.has(i)) continue; const g = [i]; visited.add(i); for(let j=i+1; j<strokes.length; j++) { if(visited.has(j)) continue; if(strokesClose(strokes[i], strokes[j])) { g.push(j); visited.add(j); } } groups.push(g); } return groups; }
     function getGroupBounds(indices) { let allPts = []; indices.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p)); }); return getBounds(allPts); }
     function strokesClose(s1, s2) { if(!s1 || !s2 || s1.length === 0 || s2.length === 0) return false; const b1 = getBounds(s1); const b2 = getBounds(s2); const pad = 30; return !(b2.minX > b1.maxX + pad || b2.maxX < b1.minX - pad || b2.minY > b1.maxY + pad || b2.maxY < b1.minY - pad); }
-    function classifyGroup(indices, b) { if (!indices || indices.length === 0) return 'unknown'; const strokes = indices.map(i => state.rawStrokes[i]).filter(s => s && s.length > 0); if (strokes.length === 0) return 'unknown'; const diag = Math.hypot(b.w, b.h); if (diag < 45 && strokes.length <= 3) return 'point'; let maxL = 0; let mainStrokeIdx = -1; strokes.forEach((s, i) => { let l = 0; for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y); if(l >= maxL) { maxL = l; mainStrokeIdx = i; } }); if(mainStrokeIdx === -1) return 'unknown'; const mainStroke = strokes[mainStrokeIdx]; const distEnds = Math.hypot(mainStroke[0].x - mainStroke[mainStroke.length-1].x, mainStroke[0].y - mainStroke[mainStroke.length-1].y); const isClosed = maxL > 0 && distEnds < maxL * 0.4; if (diag > 30 && !isClosed) return 'trajectory_path'; const r = b.w / (b.h || 1); if (r > 0.3 && r < 3.0 && diag > 15 && isClosed) { const innerStrokes = strokes.filter((_, i) => i !== mainStrokeIdx); if (innerStrokes.length === 0) return 'charge_pos'; let allInnerPts = []; innerStrokes.forEach(s => allInnerPts.push(...s)); const ib = getBounds(allInnerPts); if (ib.w > (ib.h || 1) * 1.1) return 'charge_neg'; return 'charge_pos'; } return 'unknown'; }
+    function classifyGroup(indices, b) { if (!indices || indices.length === 0) return 'unknown'; const strokes = indices.map(i => state.rawStrokes[i]).filter(s => s && s.length > 0); if (strokes.length === 0) return 'unknown'; const diag = Math.hypot(b.w, b.h); if (diag < 45 && strokes.length <= 3) return 'point'; let maxL = 0; let mainStrokeIdx = -1; strokes.forEach((s, i) => { let l = 0; for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y); if(l >= maxL) { maxL = l; mainStrokeIdx = i; } }); if(mainStrokeIdx === -1) return 'unknown'; const mainStroke = strokes[mainStrokeIdx]; const distEnds = Math.hypot(mainStroke[0].x - mainStroke[mainStroke.length-1].x, mainStroke[0].y - mainStroke[mainStroke.length-1].y); const isClosed = maxL > 0 && distEnds < maxL * 0.4; if (diag > 30 && !isClosed) return 'trajectory_path'; const r = b.w / (b.h || 1); if (r > 0.3 && r < 3.0 && diag > 15 && isClosed) { const innerStrokes = strokes.filter((_, i) => i !== mainStrokeIdx); if (innerStrokes.length === 0) return 'charge_pos'; if (innerStrokes.length === 1) { const s = innerStrokes[0]; const ib = getBounds(s); if (ib.w > (ib.h || 1) * 1.2) return 'charge_neg'; return 'charge_pos'; } return 'charge_pos'; } return 'unknown'; }
 
     function analizarFisica() {
         actualizarFilaCampo(); const charges = state.objects.filter(o => o.type.startsWith('charge')), points = state.objects.filter(o => o.type === 'point'), trajectories = state.objects.filter(o => o.type === 'trajectory');
@@ -1148,7 +1129,7 @@
     // --- INTEGRACIÓN CON REALTIME DATABASE (V 12.9.0) ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
     import { getDatabase, ref, set, get, onValue, push, update, increment } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
-    import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+    import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
     // === CONFIGURACIÓN DE FIREBASE DE TU DOMINIO ===
     const firebaseConfig = {
@@ -1164,28 +1145,12 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    window.appAuth = auth; // Exponemos auth globalmente para validaciones de UI
 
     let currentRoomRef = null;
     let chatRoomRef = null;
     let isReceiving = false;
     let unsubscribeRoom = null;
     let unsubscribeChat = null;
-
-    // --- MANEJADOR GLOBAL DE ERRORES DE AUTENTICACIÓN ---
-    function handleAuthError(e) {
-        const err = document.getElementById('auth-error');
-        let msg = "Error: " + e.message;
-        
-        // Detectar si el error es debido a restricciones de dominio
-        if (e.code === 'auth/unauthorized-domain' || e.message.includes('requests-from-referer')) {
-            msg = "⚠️ Dominio bloqueado por Firebase.\n\nGoogle SignIn requiere que agregues este dominio (terminado en scf.usercontent.goog) a la lista de 'Authorized Domains' en tu consola de Firebase.\n\nPara probar ahora mismo, usa 'Continuar como Invitado' o ingresa con correo.";
-            alert(msg); 
-        } else {
-            if (err) err.innerText = msg;
-        }
-        console.error("Firebase Auth Error:", e);
-    }
 
     // --- SISTEMA DE AUTENTICACIÓN ---
     onAuthStateChanged(auth, (user) => {
@@ -1221,40 +1186,32 @@
         const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value;
         const err = document.getElementById('auth-error');
         if(!email || !password) { if(err) err.innerText = "Por favor, ingresa correo y contraseña"; return; }
-        signInWithEmailAndPassword(auth, email, password).catch(handleAuthError);
+        signInWithEmailAndPassword(auth, email, password).catch(e => { if(err) err.innerText = "Error: " + e.message; });
     });
 
     document.getElementById('btn-register-email').addEventListener('click', () => {
         const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value;
         const err = document.getElementById('auth-error');
         if(!email || !password) { if(err) err.innerText = "Por favor, ingresa correo y contraseña"; return; }
-        createUserWithEmailAndPassword(auth, email, password).catch(handleAuthError);
+        createUserWithEmailAndPassword(auth, email, password).catch(e => { if(err) err.innerText = "Error al registrar: " + e.message; });
     });
 
-    // --- SOLUCIÓN ERROR COOP: Usar Redirect en lugar de Popup ---
     document.getElementById('btn-login-google').addEventListener('click', () => {
-        signInWithRedirect(auth, new GoogleAuthProvider()).catch(handleAuthError);
-    });
-
-    // Procesar el resultado del redirect al recargar la página (silencioso en caso de error de dominio para no bloquear la app)
-    getRedirectResult(auth).then((result) => {
-        if (result) console.log("Sesión iniciada correctamente tras redirección.");
-    }).catch(e => {
-        console.warn("Redirect ignorado por falta de autorización de dominio:", e);
+        signInWithPopup(auth, new GoogleAuthProvider()).catch(e => console.error(e));
     });
 
     document.getElementById('btn-login-guest').addEventListener('click', () => {
-        signInAnonymously(auth).catch(handleAuthError);
+        signInAnonymously(auth).catch(e => console.error(e));
     });
 
     window.cerrarSesion = () => signOut(auth);
 
-    // --- SISTEMA DE GAMIFICACIÓN (APUNTANDO A usuarios) ---
+    // --- SISTEMA DE GAMIFICACIÓN (APUNTANDO A usuarios_potencial) ---
     let gamificationUnsubscribe = null;
     let gameTimerInterval = null;
 
     window.iniciarGamificacion = function(uid) {
-        const perfilRef = ref(db, 'usuarios/' + uid);
+        const perfilRef = ref(db, 'usuarios_potencial/' + uid);
         window.userGameData = {
             perfil: { puntos: 0, nivel: 1, tiempo_sesion: 0 },
             logros: { inicio_sesion: true },
@@ -1273,7 +1230,7 @@
                 window.userGameData.perfil.tiempo_sesion += 1; window.userGameData.perfil.puntos += 10;
                 actualizarUIPerfil();
             }
-            update(ref(db, 'usuarios/' + uid + '/perfil'), { tiempo_sesion: increment(1), puntos: increment(10) }).catch(()=>{});
+            update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { tiempo_sesion: increment(1), puntos: increment(10) }).catch(()=>{});
         }, 60000);
     };
 
@@ -1333,12 +1290,12 @@
         const uid = auth.currentUser.uid;
         const t = window.userGameData.tareas;
 
-        if (window.interaccionesLocales >= 5 && !t?.tarea_3) { t.tarea_3 = true; window.userGameData.perfil.puntos += 25; actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_3: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
-        if (window.interaccionesLocales >= 20 && !t?.tarea_6) { t.tarea_6 = true; window.userGameData.perfil.puntos += 50; actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_6: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
-        if (window.interaccionesLocales >= 50 && !t?.tarea_9) { t.tarea_9 = true; window.userGameData.perfil.puntos += 100; actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_9: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
-        if (window.interaccionesLocales >= 100 && !t?.tarea_12) { t.tarea_12 = true; window.userGameData.perfil.puntos += 150; actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_12: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
+        if (window.interaccionesLocales >= 5 && !t?.tarea_3) { t.tarea_3 = true; window.userGameData.perfil.puntos += 25; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_3: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(25) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
+        if (window.interaccionesLocales >= 20 && !t?.tarea_6) { t.tarea_6 = true; window.userGameData.perfil.puntos += 50; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_6: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(50) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
+        if (window.interaccionesLocales >= 50 && !t?.tarea_9) { t.tarea_9 = true; window.userGameData.perfil.puntos += 100; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_9: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
+        if (window.interaccionesLocales >= 100 && !t?.tarea_12) { t.tarea_12 = true; window.userGameData.perfil.puntos += 150; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_12: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(150) }).catch(()=>{}); window.chequearSubidaNivel(uid); }
 
-        if (window.interaccionesLocales >= 50 && !window.userGameData.logros?.fisico_experto) { window.userGameData.logros.fisico_experto = true; window.userGameData.perfil.puntos += 100; actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/logros'), { fisico_experto: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); }
+        if (window.interaccionesLocales >= 50 && !window.userGameData.logros?.fisico_experto) { window.userGameData.logros.fisico_experto = true; window.userGameData.perfil.puntos += 100; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { fisico_experto: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); }
     };
 
     window.verificarTareasFisica = function() {
@@ -1349,17 +1306,17 @@
         const trajs = window.appState.objects.filter(o => o.type === 'trajectory');
         let hizoAlgo = false; const t = window.userGameData.tareas;
 
-        if (charges.length >= 1 && !t?.tarea_1) { t.tarea_1 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_1: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(()=>{}); hizoAlgo = true; }
-        if (points.length >= 1 && !t?.tarea_2) { t.tarea_2 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_2: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(()=>{}); hizoAlgo = true; }
+        if (charges.length >= 1 && !t?.tarea_1) { t.tarea_1 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_1: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(25) }).catch(()=>{}); hizoAlgo = true; }
+        if (points.length >= 1 && !t?.tarea_2) { t.tarea_2 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_2: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(25) }).catch(()=>{}); hizoAlgo = true; }
 
-        if (charges.length >= 2 && !t?.tarea_4) { t.tarea_4 = true; window.userGameData.perfil.puntos += 50; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_4: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(()=>{}); hizoAlgo = true; }
-        if (points.length >= 2 && !t?.tarea_5) { t.tarea_5 = true; window.userGameData.perfil.puntos += 50; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_5: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(()=>{}); hizoAlgo = true; }
+        if (charges.length >= 2 && !t?.tarea_4) { t.tarea_4 = true; window.userGameData.perfil.puntos += 50; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_4: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(50) }).catch(()=>{}); hizoAlgo = true; }
+        if (points.length >= 2 && !t?.tarea_5) { t.tarea_5 = true; window.userGameData.perfil.puntos += 50; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_5: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(50) }).catch(()=>{}); hizoAlgo = true; }
 
-        if (charges.length >= 3 && !t?.tarea_7) { t.tarea_7 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_7: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); hizoAlgo = true; }
-        if (trajs.length >= 1 && !t?.tarea_8) { t.tarea_8 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_8: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); hizoAlgo = true; }
+        if (charges.length >= 3 && !t?.tarea_7) { t.tarea_7 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_7: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); hizoAlgo = true; }
+        if (trajs.length >= 1 && !t?.tarea_8) { t.tarea_8 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_8: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(()=>{}); hizoAlgo = true; }
 
-        if (charges.length >= 4 && !t?.tarea_10) { t.tarea_10 = true; window.userGameData.perfil.puntos += 150; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_10: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(()=>{}); hizoAlgo = true; }
-        if (trajs.length >= 2 && !t?.tarea_11) { t.tarea_11 = true; window.userGameData.perfil.puntos += 150; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_11: true }).catch(()=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(()=>{}); hizoAlgo = true; }
+        if (charges.length >= 4 && !t?.tarea_10) { t.tarea_10 = true; window.userGameData.perfil.puntos += 150; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_10: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(150) }).catch(()=>{}); hizoAlgo = true; }
+        if (trajs.length >= 2 && !t?.tarea_11) { t.tarea_11 = true; window.userGameData.perfil.puntos += 150; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_11: true }).catch(()=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(150) }).catch(()=>{}); hizoAlgo = true; }
 
         if(hizoAlgo) { actualizarUIPerfil(); window.chequearSubidaNivel(uid); }
     };
@@ -1369,42 +1326,30 @@
             if(!window.userGameData || !window.userGameData.tareas) return;
             const t = window.userGameData.tareas; const lvl = window.userGameData.perfil?.nivel || 1;
             if (lvl === 1 && t.tarea_1 && t.tarea_2 && t.tarea_3) {
-                window.userGameData.perfil.nivel = 2; update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 2, puntos: increment(200) }); update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_2_alcanzado: true }); alert("🌟 ¡FELICITACIONES! Has completado el Nivel 1. ¡Subiste al NIVEL 2 y ganaste 200 pts!"); actualizarUIPerfil();
+                window.userGameData.perfil.nivel = 2; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 2, puntos: increment(200) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_2_alcanzado: true }); alert("🌟 ¡FELICITACIONES! Has completado el Nivel 1. ¡Subiste al NIVEL 2 y ganaste 200 pts!"); actualizarUIPerfil();
             } else if (lvl === 2 && t.tarea_4 && t.tarea_5 && t.tarea_6) {
-                window.userGameData.perfil.nivel = 3; update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 3, puntos: increment(400) }); update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_3_alcanzado: true }); alert("🚀 ¡IMPRESIONANTE! Completaste el Nivel 2. ¡Subiste al NIVEL 3 y ganaste 400 pts!"); actualizarUIPerfil();
+                window.userGameData.perfil.nivel = 3; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 3, puntos: increment(400) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_3_alcanzado: true }); alert("🚀 ¡IMPRESIONANTE! Completaste el Nivel 2. ¡Subiste al NIVEL 3 y ganaste 400 pts!"); actualizarUIPerfil();
             } else if (lvl === 3 && t.tarea_7 && t.tarea_8 && t.tarea_9) {
-                window.userGameData.perfil.nivel = 4; update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 4, puntos: increment(800) }); update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_4_alcanzado: true }); alert("🧠 ¡ERES UN GENIO! Completaste el Nivel 3. ¡Subiste al NIVEL 4 y ganaste 800 pts!"); actualizarUIPerfil();
+                window.userGameData.perfil.nivel = 4; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 4, puntos: increment(800) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_4_alcanzado: true }); alert("🧠 ¡ERES UN GENIO! Completaste el Nivel 3. ¡Subiste al NIVEL 4 y ganaste 800 pts!"); actualizarUIPerfil();
             } else if (lvl === 4 && t.tarea_10 && t.tarea_11 && t.tarea_12) {
-                window.userGameData.perfil.nivel = 5; update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 5, puntos: increment(1500) }); update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_5_alcanzado: true }); alert("👑 ¡LEYENDA! Has completado el Laboratorio. ¡Alcanzaste el NIVEL MÁXIMO (5)!"); actualizarUIPerfil();
+                window.userGameData.perfil.nivel = 5; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 5, puntos: increment(1500) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_5_alcanzado: true }); alert("👑 ¡LEYENDA! Has completado el Laboratorio. ¡Alcanzaste el NIVEL MÁXIMO (5)!"); actualizarUIPerfil();
             }
         }, 1000);
     };
 
-    // --- SISTEMA DE SALAS Y CONTRASEÑAS (APUNTANDO A salas) ---
+    // --- SISTEMA DE SALAS Y CONTRASEÑAS (APUNTANDO A salas_potencial) ---
     window.intentarUnirseSala = async function() {
-        if (!auth.currentUser) {
-            document.getElementById('room-modal').style.display = 'none';
-            document.getElementById('auth-modal').style.display = 'flex';
-            return alert('⚠️ Debes iniciar sesión primero para unirte a un cuarto.');
-        }
-
         const salaId = document.getElementById('room-name').value.trim();
         const salaPass = document.getElementById('room-pass').value.trim();
-        
         if (!salaId || !salaPass) return alert('Debes ingresar el nombre del cuarto y su contraseña.');
-        
-        // Validación extra: Firebase no permite estos caracteres en las claves
-        if (/[.#$\[\]]/.test(salaId)) return alert('❌ El nombre del cuarto no puede contener puntos ni caracteres especiales como # o $.');
 
-        const passRef = ref(db, 'salas/' + salaId + '/password');
-        
+        const passRef = ref(db, 'salas_potencial/' + salaId + '/password');
         try {
             const snapshot = await get(passRef);
             if (snapshot.exists()) {
                 if (snapshot.val() !== salaPass) return alert('❌ Contraseña incorrecta para el cuarto: ' + salaId);
             } else {
-                await set(passRef, salaPass); 
-                alert('✅ Nuevo cuarto creado: ' + salaId);
+                await set(passRef, salaPass); alert('✅ Nuevo cuarto creado: ' + salaId);
             }
             
             document.getElementById('room-modal').style.display = 'none';
@@ -1413,18 +1358,15 @@
             document.getElementById('chat-section').style.display = 'block';
             
             conectarASala(salaId);
-        } catch (error) { 
-            console.error("Error al conectarse a Firebase:", error); 
-            alert('Error de conexión: ' + error.message + '\n\nOcurrió un problema de permisos en Firebase. Revisa la consola para más detalles.'); 
-        }
+        } catch (error) { console.error(error); alert('Error de conexión.'); }
     };
 
     function conectarASala(salaId) {
         if (unsubscribeRoom) unsubscribeRoom();
         if (unsubscribeChat) unsubscribeChat();
 
-        currentRoomRef = ref(db, 'salas/' + salaId + '/state');
-        chatRoomRef = ref(db, 'salas/' + salaId + '/chat');
+        currentRoomRef = ref(db, 'salas_potencial/' + salaId + '/state');
+        chatRoomRef = ref(db, 'salas_potencial/' + salaId + '/chat');
         
         unsubscribeRoom = onValue(currentRoomRef, (snapshot) => {
             const data = snapshot.val();
@@ -1483,4 +1425,3 @@
 </script>
 </body>
 </html>
-
