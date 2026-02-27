@@ -556,11 +556,24 @@
     let compEx, compEy;
     function actualizarFilaCampo() {
         try {
+            if (typeof math === 'undefined') {
+                compEx = { evaluate: () => 0 };
+                compEy = { evaluate: () => 0 };
+                return;
+            }
             const strEx = document.getElementById('ex-input').value || "0";
             const strEy = document.getElementById('ey-input').value || "0";
             compEx = math.compile(strEx);
             compEy = math.compile(strEy);
-        } catch(e) { compEx = math.compile("0"); compEy = math.compile("0"); }
+        } catch(e) { 
+            if (typeof math !== 'undefined') {
+                compEx = math.compile("0"); 
+                compEy = math.compile("0"); 
+            } else {
+                compEx = { evaluate: () => 0 }; 
+                compEy = { evaluate: () => 0 };
+            }
+        }
     }
     
     function getE_ext(px, py) {
@@ -901,7 +914,7 @@
     function groupStrokes(strokes) { if(!strokes) return []; const groups = []; const visited = new Set(); for(let i=0; i<strokes.length; i++) { if(visited.has(i)) continue; const g = [i]; visited.add(i); for(let j=i+1; j<strokes.length; j++) { if(visited.has(j)) continue; if(strokesClose(strokes[i], strokes[j])) { g.push(j); visited.add(j); } } groups.push(g); } return groups; }
     function getGroupBounds(indices) { let allPts = []; indices.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p)); }); return getBounds(allPts); }
     function strokesClose(s1, s2) { if(!s1 || !s2 || s1.length === 0 || s2.length === 0) return false; const b1 = getBounds(s1); const b2 = getBounds(s2); const pad = 30; return !(b2.minX > b1.maxX + pad || b2.maxX < b1.minX - pad || b2.minY > b1.maxY + pad || b2.maxY < b1.minY - pad); }
-    function classifyGroup(indices, b) { if (!indices || indices.length === 0) return 'unknown'; const strokes = indices.map(i => state.rawStrokes[i]).filter(s => s && s.length > 0); if (strokes.length === 0) return 'unknown'; const diag = Math.hypot(b.w, b.h); if (diag < 45 && strokes.length <= 3) return 'point'; let maxL = 0; let mainStrokeIdx = -1; strokes.forEach((s, i) => { let l = 0; for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y); if(l >= maxL) { maxL = l; mainStrokeIdx = i; } }); if(mainStrokeIdx === -1) return 'unknown'; const mainStroke = strokes[mainStrokeIdx]; const distEnds = Math.hypot(mainStroke[0].x - mainStroke[mainStroke.length-1].x, mainStroke[0].y - mainStroke[mainStroke.length-1].y); const isClosed = maxL > 0 && distEnds < maxL * 0.4; if (diag > 30 && !isClosed) return 'trajectory_path'; const r = b.w / (b.h || 1); if (r > 0.3 && r < 3.0 && diag > 15 && isClosed) { const innerStrokes = strokes.filter((_, i) => i !== mainStrokeIdx); if (innerStrokes.length === 0) return 'charge_pos'; if (innerStrokes.length === 1) { const s = innerStrokes[0]; const ib = getBounds(s); if (ib.w > (ib.h || 1) * 0.4) return 'charge_neg'; return 'charge_pos'; } return 'charge_pos'; } return 'unknown'; }
+    function classifyGroup(indices, b) { if (!indices || indices.length === 0) return 'unknown'; const strokes = indices.map(i => state.rawStrokes[i]).filter(s => s && s.length > 0); if (strokes.length === 0) return 'unknown'; const diag = Math.hypot(b.w, b.h); if (diag < 45 && strokes.length <= 3) return 'point'; let maxL = 0; let mainStrokeIdx = -1; strokes.forEach((s, i) => { let l = 0; for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y); if(l >= maxL) { maxL = l; mainStrokeIdx = i; } }); if(mainStrokeIdx === -1) return 'unknown'; const mainStroke = strokes[mainStrokeIdx]; const distEnds = Math.hypot(mainStroke[0].x - mainStroke[mainStroke.length-1].x, mainStroke[0].y - mainStroke[mainStroke.length-1].y); const isClosed = maxL > 0 && distEnds < maxL * 0.4; if (diag > 30 && !isClosed) return 'trajectory_path'; const r = b.w / (b.h || 1); if (r > 0.3 && r < 3.0 && diag > 15 && isClosed) { const innerStrokes = strokes.filter((_, i) => i !== mainStrokeIdx); if (innerStrokes.length === 0) return 'charge_pos'; let allInnerPts = []; innerStrokes.forEach(s => allInnerPts.push(...s)); const ib = getBounds(allInnerPts); if (ib.w > (ib.h || 1) * 1.1) return 'charge_neg'; return 'charge_pos'; } return 'unknown'; }
 
     function analizarFisica() {
         actualizarFilaCampo(); const charges = state.objects.filter(o => o.type.startsWith('charge')), points = state.objects.filter(o => o.type === 'point'), trajectories = state.objects.filter(o => o.type === 'trajectory');
