@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -110,6 +111,18 @@
         }
         .color-picker-container input[type="color"] { cursor: pointer; width: 32px; height: 32px; border: none; background: transparent; padding: 0; outline: none; }
 
+        .color-swatch {
+            width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.1); transition: transform 0.1s, border-color 0.2s;
+        }
+        .color-swatch:hover { transform: scale(1.2); border-color: white; }
+        .color-swatch.active { border-color: var(--accent-color); box-shadow: 0 0 5px var(--accent-color); }
+
+        .boards-container { display: flex; flex-direction: column; gap: 5px; background: #232333; padding: 10px; border-radius: 6px; border: 1px solid #444; }
+        .board-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #3a3a4a; border-radius: 4px; font-size: 0.85rem; cursor: pointer; transition: 0.2s; }
+        .board-item:hover { background: #4a4a5a; }
+        .board-item.active { background: var(--accent-color); color: #1e1e2e; font-weight: bold; }
+        .board-actions { display: flex; gap: 5px; margin-top: 5px; }
+
         .data-card { background: #1a1a24; padding: 10px; border-radius: 6px; border-left: 3px solid #666; margin-bottom: 8px; transition: 0.2s; }
         .data-card.selected { border-left-color: var(--selection-color); background: #252a28; }
         .data-card.is-point-A { border-left-color: var(--point-a-color); }
@@ -181,10 +194,24 @@
     <!-- Panel Izquierdo -->
     <div class="panel" id="panel-left">
         <div>
+            <div class="section-title">Pizarras de Clase</div>
+            <div class="boards-container">
+                <div id="boards-list">
+                    <!-- Dinámico -->
+                </div>
+                <div class="board-actions">
+                    <button class="btn-tool" style="flex:1; padding: 5px; font-size: 0.75rem; justify-content: center;" onclick="addNewBoard()">➕ Nueva</button>
+                    <button class="btn-tool" style="flex:1; padding: 5px; font-size: 0.75rem; justify-content: center;" onclick="duplicateActiveBoard()">⎘ Duplicar</button>
+                </div>
+            </div>
+        </div>
+
+        <div>
             <div class="section-title">Herramientas</div>
             <div class="toolbar">
                 <button class="btn-tool active" onclick="setTool('draw', this)" title="Dibuja Cargas, Puntos y Trayectorias">🤖 Lápiz IA (Objetos)</button>
                 <button class="btn-tool" onclick="setTool('draw_free', this)" title="Dibuja explicaciones libres">🖌️ Marcador (Libre)</button>
+                <button id="btn-highlighter" class="btn-tool" onclick="setTool('highlighter', this)" title="Resalta áreas importantes con transparencia">🖍️ Resaltador</button>
                 <button class="btn-tool" onclick="setTool('line', this)" title="Dibuja una línea recta">📏 Línea Recta</button>
                 <button class="btn-tool" onclick="setTool('text', this)" title="Escribe texto en el lienzo">🔤 Escribir Texto</button>
                 <button class="btn-tool" onclick="setTool('eraser', this)" title="Haz clic o arrastra para borrar objetos y trazos">🧽 Borrador</button>
@@ -196,13 +223,27 @@
             </div>
             
             <div class="color-picker-container">
-                <input type="color" id="pencil-color" value="#000000" onchange="state.currentColor = this.value">
-                <label for="pencil-color" style="font-size: 0.85rem; color: #ccc;">Color</label>
+                <input type="color" id="pencil-color" value="#000000" onchange="actualizarColorManual(this.value)">
+                <label for="pencil-color" style="font-size: 0.85rem; color: #ccc;">Selector</label>
             </div>
-            <!-- ADICIÓN: Control de Grosor -->
+
+            <div class="section-title" style="margin-top: 5px;">Colores Rápidos</div>
+            <div id="palette" style="display: flex; flex-wrap: wrap; gap: 6px; padding: 5px; background: #232333; border-radius: 6px; border: 1px solid #444;">
+                <div class="color-swatch active" style="background: #000000;" onclick="setColor('#000000', this)"></div>
+                <div class="color-swatch" style="background: #ff7675;" onclick="setColor('#ff7675', this)"></div>
+                <div class="color-swatch" style="background: #fab1a0;" onclick="setColor('#fab1a0', this)"></div>
+                <div class="color-swatch" style="background: #ffeaa7;" onclick="setColor('#ffeaa7', this)"></div>
+                <div class="color-swatch" style="background: #55efc4;" onclick="setColor('#55efc4', this)"></div>
+                <div class="color-swatch" style="background: #81ecec;" onclick="setColor('#81ecec', this)"></div>
+                <div class="color-swatch" style="background: #74b9ff;" onclick="setColor('#74b9ff', this)"></div>
+                <div class="color-swatch" style="background: #a29bfe;" onclick="setColor('#a29bfe', this)"></div>
+                <div class="color-swatch" style="background: #fd79a8;" onclick="setColor('#fd79a8', this)"></div>
+                <div class="color-swatch" style="background: #ffffff;" onclick="setColor('#ffffff', this)"></div>
+            </div>
+
             <div class="color-picker-container" style="margin-top: 5px;">
                 <label style="font-size: 0.85rem; color: #ccc; width: 50px;">Grosor:</label>
-                <input type="range" id="pencil-width" min="1" max="15" value="3" style="flex:1;">
+                <input type="range" id="pencil-width" min="1" max="25" value="3" style="flex:1;">
                 <span id="width-val" style="font-size: 0.85rem; color: #ccc; width: 20px; text-align: right;">3</span>
             </div>
             
@@ -314,7 +355,7 @@
     </div>
 </div>
 
-<!-- Modales Intactos -->
+<!-- Modales -->
 <div class="modal" id="auth-modal" style="display: flex;">
     <div class="modal-content">
         <h3 style="margin-top:0; color: #a29bfe;">🔒 Iniciar Sesión</h3>
@@ -373,29 +414,112 @@
     function toggleLeft() { leftOpen = !leftOpen; rootStyles.setProperty('--left-w', leftOpen ? '260px' : '0px'); document.getElementById('toggle-left').innerText = leftOpen ? '◀' : '▶'; document.getElementById('panel-left').style.opacity = leftOpen ? '1' : '0'; setTimeout(resizeCanvas, 300); }
     function toggleRight() { rightOpen = !rightOpen; rootStyles.setProperty('--right-w', rightOpen ? '420px' : '0px'); document.getElementById('toggle-right').innerText = rightOpen ? '▶' : '◀'; document.getElementById('panel-right').style.opacity = rightOpen ? '1' : '0'; setTimeout(resizeCanvas, 300); }
 
-    // --- ESTADO (ADICIÓN: Grosor, Selección Múltiple y Caja) ---
+    // --- ESTADO ADICIONADO: Rotación y Escalado ---
     let state = {
-        tool: 'draw', currentColor: '#000000', lineWidth: 3, // ADICIÓN: Grosor global
+        tool: 'draw', currentColor: '#000000', lineWidth: 3, 
         isDrawing: false, isDrawingFree: false, isDragging: false, draggingOrigin: false,
+        isRotating: false, isResizing: false, // ADICIÓN
         dragLastX: 0, dragLastY: 0, draggedObject: null, 
-        selectedObject: null, selectedObjects: [], selectionBox: null, // ADICIÓN: Selección grupal
+        selectedObject: null, selectedObjects: [], selectionBox: null, 
         showEquipotentials: true, showVectorField: false,
         recognitionTimer: null, 
         rawStrokes: [], currentStroke: [], currentFreeStroke: null, objects: [], calculations: {},
         origin: { x: null, y: null },
         isHidden: false, 
-        lineStart: null, currentLine: null 
+        lineStart: null, currentLine: null,
+        boards: [{ id: 1, name: "Pizarra 1", objects: [], rawStrokes: [], origin: { x: null, y: null } }],
+        activeBoardIndex: 0
     };
     window.appState = state;
     let textPos = {x:0, y:0};
 
-    // ADICIÓN: Actualizar grosor
+    const dpr = window.devicePixelRatio || 1;
+
+    function resizeCanvas() {
+        const rect = wrapper.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        ctx.resetTransform();
+        ctx.scale(dpr, dpr);
+        if (state.origin.x === null) { state.origin.x = 80; state.origin.y = rect.height - 80; }
+        redraw();
+    }
+    window.addEventListener('resize', resizeCanvas); setTimeout(resizeCanvas, 100);
+
+    // Gestión de Pizarras
+    function updateBoardsUI() {
+        const list = document.getElementById('boards-list');
+        list.innerHTML = "";
+        state.boards.forEach((board, index) => {
+            const div = document.createElement('div');
+            div.className = `board-item ${index === state.activeBoardIndex ? 'active' : ''}`;
+            div.innerHTML = `<span>📖 ${board.name}</span>`;
+            if (state.boards.length > 1) {
+                const del = document.createElement('span'); del.innerText = " ✕"; del.style.marginLeft = "auto";
+                del.onclick = (e) => { e.stopPropagation(); deleteBoard(index); };
+                div.appendChild(del);
+            }
+            div.onclick = () => switchBoard(index);
+            list.appendChild(div);
+        });
+    }
+
+    function switchBoard(index) {
+        state.boards[state.activeBoardIndex].objects = JSON.parse(JSON.stringify(state.objects));
+        state.boards[state.activeBoardIndex].rawStrokes = JSON.parse(JSON.stringify(state.rawStrokes));
+        state.boards[state.activeBoardIndex].origin = {...state.origin};
+        state.activeBoardIndex = index;
+        const b = state.boards[index];
+        state.objects = JSON.parse(JSON.stringify(b.objects));
+        state.rawStrokes = JSON.parse(JSON.stringify(b.rawStrokes));
+        state.origin = {...b.origin};
+        updateBoardsUI(); updateUI(); analizarFisica(); redraw(); requestSync(true);
+    }
+
+    function addNewBoard() {
+        const id = state.boards.length + 1;
+        state.boards.push({ id, name: `Pizarra ${id}`, objects: [], rawStrokes: [], origin: { x: 80, y: canvas.clientHeight - 80 } });
+        switchBoard(state.boards.length - 1);
+    }
+
+    function duplicateActiveBoard() {
+        const newBoard = {
+            id: Date.now(),
+            name: `${state.boards[state.activeBoardIndex].name} (Copia)`,
+            objects: JSON.parse(JSON.stringify(state.objects)),
+            rawStrokes: JSON.parse(JSON.stringify(state.rawStrokes)),
+            origin: {...state.origin}
+        };
+        state.boards.push(newBoard);
+        switchBoard(state.boards.length - 1);
+    }
+
+    function deleteBoard(index) {
+        state.boards.splice(index, 1);
+        if (state.activeBoardIndex >= state.boards.length) state.activeBoardIndex = state.boards.length - 1;
+        switchBoard(state.activeBoardIndex);
+    }
+
+    function setColor(color, el) {
+        state.currentColor = color;
+        document.getElementById('pencil-color').value = color;
+        document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+        if(el) el.classList.add('active');
+    }
+
+    function actualizarColorManual(val) {
+        state.currentColor = val;
+        document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    }
+
     document.getElementById('pencil-width').addEventListener('input', function() {
         document.getElementById('width-val').innerText = this.value;
         state.lineWidth = parseInt(this.value);
     });
 
-    // --- PARSER MATEMÁTICO DEL CAMPO VECTORIAL ---
+    // --- PARSER MATEMÁTICO ---
     let compEx, compEy;
     function actualizarFilaCampo() {
         try {
@@ -403,9 +527,7 @@
             const strEy = document.getElementById('ey-input').value || "0";
             compEx = math.compile(strEx);
             compEy = math.compile(strEy);
-        } catch(e) {
-            compEx = math.compile("0"); compEy = math.compile("0");
-        }
+        } catch(e) { compEx = math.compile("0"); compEy = math.compile("0"); }
     }
     
     function getE_ext(px, py) {
@@ -419,13 +541,6 @@
 
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
-    function resizeCanvas() {
-        canvas.width = wrapper.clientWidth; canvas.height = wrapper.clientHeight;
-        if (state.origin.x === null) { state.origin.x = 80; state.origin.y = canvas.height - 80; }
-        redraw();
-    }
-    window.addEventListener('resize', resizeCanvas); setTimeout(resizeCanvas, 100);
-
     function getCoords(e) {
         const r = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -435,7 +550,7 @@
 
     function finalizeText() {
         if(textOverlay.style.display !== 'none' && textOverlay.value.trim() !== '') {
-            state.objects.push({ type: 'text', id: Date.now(), text: textOverlay.value, x: textPos.x, y: textPos.y, color: state.currentColor });
+            state.objects.push({ type: 'text', id: Date.now(), text: textOverlay.value, x: textPos.x, y: textPos.y, color: state.currentColor, rotation: 0, scale: 1 });
             textOverlay.value = ''; textOverlay.style.display = 'none'; redraw(); requestSync(true);
         } else { textOverlay.style.display = 'none'; }
     }
@@ -462,9 +577,8 @@
         if (state.isHidden) btn.classList.add('on'); else btn.classList.remove('on');
         redraw();
     }
-    window.toggleVisibility = toggleVisibility;
 
-    // --- FÍSICA SEGUROS (Evita División por Cero) ---
+    // --- FÍSICA ---
     function getSafeScale() { return Math.max(parseFloat(document.getElementById('scale-input').value || 100), 1); }
 
     function getPotentialAt(x, y) {
@@ -472,22 +586,12 @@
         const Ke = 8.99e9; const scale = getSafeScale();
         const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
         const physX = (x - state.origin.x) / scale; const physY = (state.origin.y - y) / scale;
-        
-        if(charges.length > 0) {
-            charges.forEach(src => {
-                const r = Math.hypot(physX - src.physX, physY - src.physY);
-                if (r > 0.001) V += (Ke * src.q * chargeU) / r;
-            });
-        }
-        
-        let V_ext = 0;
-        const steps = 50;
+        if(charges.length > 0) { charges.forEach(src => { const r = Math.hypot(physX - src.physX, physY - src.physY); if (r > 0.001) V += (Ke * src.q * chargeU) / r; }); }
+        let V_ext = 0; const steps = 50;
         for(let i=0; i<steps; i++) {
-            let t1 = i/steps; let t2 = (i+1)/steps;
-            let midT = (t1+t2)/2;
+            let t1 = i/steps; let t2 = (i+1)/steps; let midT = (t1+t2)/2;
             let stepX = physX * midT; let stepY = physY * midT;
-            let E = getE_ext(stepX, stepY);
-            let dx = physX / steps; let dy = physY / steps;
+            let E = getE_ext(stepX, stepY); let dx = physX / steps; let dy = physY / steps;
             V_ext -= (E.x * dx + E.y * dy); 
         }
         return V + V_ext;
@@ -505,13 +609,13 @@
     }
 
     function drawEquipotentials(ctx) {
-        // ADICIÓN: Optimización de rendimiento. Se pausa el cálculo durante la interacción.
         if (!state.showEquipotentials || state.isHidden || state.isDrawing || state.isDrawingFree || state.isDragging || state.selectionBox) return;
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         if (charges.length === 0) return;
         ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(100, 100, 120, 0.3)'; ctx.setLineDash([]); 
         const gridSize = 8;
-        const cols = Math.ceil(canvas.width / gridSize); const rows = Math.ceil(canvas.height / gridSize);
+        const cols = Math.ceil(canvas.width / (gridSize * dpr)); 
+        const rows = Math.ceil(canvas.height / (gridSize * dpr));
         const thresholds = [-200, -100, -50, -25, -10, 10, 25, 50, 100, 200];
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
@@ -549,92 +653,61 @@
     function drawSeg(ctx, p1, p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
 
     function drawVectorField(ctx) {
-        // ADICIÓN: Optimización de rendimiento. Se pausa el cálculo durante la interacción.
         if (!state.showVectorField || state.isHidden || state.isDrawing || state.isDrawingFree || state.isDragging || state.selectionBox) return;
-        const scale = getSafeScale();
-        const Ke = 8.99e9;
+        const scale = getSafeScale(); const Ke = 8.99e9;
         const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
-        
-        ctx.lineWidth = 1.2;
-        const spacing = 35; 
-        
-        for (let y = spacing/2; y < canvas.height; y += spacing) {
-            for (let x = spacing/2; x < canvas.width; x += spacing) {
-                const physX = (x - state.origin.x) / scale;
-                const physY = (state.origin.y - y) / scale;
-                
-                let Ex = 0, Ey = 0;
-                let draw = true;
-
+        ctx.lineWidth = 1.2; const spacing = 35; 
+        const w = canvas.width/dpr; const h = canvas.height/dpr;
+        for (let y = spacing/2; y < h; y += spacing) {
+            for (let x = spacing/2; x < w; x += spacing) {
+                const physX = (x - state.origin.x) / scale; const physY = (state.origin.y - y) / scale;
+                let Ex = 0, Ey = 0; let draw = true;
                 charges.forEach(src => {
-                    const dx = physX - src.physX;
-                    const dy = physY - src.physY;
-                    const r = Math.hypot(dx, dy);
+                    const dx = physX - src.physX; const dy = physY - src.physY; const r = Math.hypot(dx, dy);
                     if (r < 0.1) draw = false; 
-                    if (r >= 0.1) {
-                        const E_mag = (Ke * src.q * chargeU) / (r * r);
-                        Ex += E_mag * (dx / r);
-                        Ey += E_mag * (dy / r);
-                    }
+                    if (r >= 0.1) { const E_mag = (Ke * src.q * chargeU) / (r * r); Ex += E_mag * (dx / r); Ey += E_mag * (dy / r); }
                 });
-                
                 if(!draw) continue;
-
-                const E_ext = getE_ext(physX, physY);
-                Ex += E_ext.x;
-                Ey += E_ext.y;
-                
+                const E_ext = getE_ext(physX, physY); Ex += E_ext.x; Ey += E_ext.y;
                 const mag = Math.hypot(Ex, Ey);
                 if (mag > 1e-3) {
-                    const len = 14; 
-                    ctx.strokeStyle = `rgba(230, 126, 34, 0.65)`; 
-                    
-                    const dirX = Ex / mag;
-                    const dirY = Ey / mag;
-                    
-                    const endX = x + dirX * len;
-                    const endY = y - dirY * len; 
-                    
-                    const headlen = 4.5; 
-                    const angle = Math.atan2(-dirY, dirX);
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(x, y);
-                    ctx.lineTo(endX, endY);
+                    const len = 14; ctx.strokeStyle = `rgba(230, 126, 34, 0.65)`; 
+                    const dirX = Ex / mag; const dirY = Ey / mag;
+                    const endX = x + dirX * len; const endY = y - dirY * len; 
+                    const headlen = 4.5; const angle = Math.atan2(-dirY, dirX);
+                    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(endX, endY);
                     ctx.lineTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
-                    ctx.moveTo(endX, endY);
-                    ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
-                    ctx.stroke();
+                    ctx.moveTo(endX, endY); ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6)); ctx.stroke();
                 }
             }
         }
     }
 
-    // --- Eventos Canvas ---
+    // --- EVENTOS CANVAS ---
     canvas.addEventListener('mousedown', handleStart); canvas.addEventListener('touchstart', handleStart);
     canvas.addEventListener('mousemove', handleMove); canvas.addEventListener('touchmove', handleMove);
     canvas.addEventListener('mouseup', handleEnd); canvas.addEventListener('touchend', handleEnd);
-
-    function eraseAt(c) {
-        const hit = findObjectAt(c);
-        if (hit && hit.type !== 'origin') {
-            if (hit.type === 'point') {
-                const pid = hit.id;
-                state.objects = state.objects.filter(o => !(o.type === 'trajectory' && (o.from === pid || o.to === pid)));
-            }
-            // Eliminar de las selecciones también
-            state.selectedObjects = state.selectedObjects.filter(o => o !== hit);
-            state.objects = state.objects.filter(o => o !== hit);
-            updateUI(); analizarFisica(); redraw();
-        }
-    }
 
     function handleStart(e) {
         if (e.touches && e.touches.length > 1) return;
         if (e.touches) e.preventDefault(); 
         const c = getCoords(e);
         if (state.tool !== 'text') finalizeText();
+
+        // ADICIÓN: Hit testing para handles de transformación
+        if (state.tool === 'move' && state.selectedObject) {
+            const b = getObjectBounds(state.selectedObject);
+            const rotateHandle = { x: b.cx + 40 * Math.sin(state.selectedObject.rotation || 0), y: b.cy - 40 * Math.cos(state.selectedObject.rotation || 0) };
+            const resizeHandle = { x: b.maxX + 10, y: b.maxY + 10 };
+            
+            if (Math.hypot(c.x - rotateHandle.x, c.y - rotateHandle.y) < 20) {
+                state.isRotating = true; state.draggedObject = state.selectedObject; return;
+            }
+            if (Math.hypot(c.x - resizeHandle.x, c.y - resizeHandle.y) < 20) {
+                state.isResizing = true; state.draggedObject = state.selectedObject; return;
+            }
+        }
 
         if (state.tool === 'text') {
             textPos = {x: c.x, y: c.y}; textOverlay.style.left = c.x + 'px'; textOverlay.style.top = c.y + 'px';
@@ -643,40 +716,30 @@
         }
 
         if (state.tool === 'line') {
-            selectObject(null);
-            state.isDrawingFree = true;
-            state.lineStart = c;
-            state.currentLine = [c, {x: c.x, y: c.y}];
-            return;
+            selectObject(null); state.isDrawingFree = true;
+            state.lineStart = c; state.currentLine = [c, {x: c.x, y: c.y}]; return;
         }
 
-        if (state.tool === 'eraser') {
-            state.isDrawing = true; 
-            eraseAt(c); return;
-        }
+        if (state.tool === 'eraser') { state.isDrawing = true; eraseAt(c); return; }
 
         if (state.tool === 'move') {
             const hit = findObjectAt(c);
             if (hit) {
                 state.isDragging = true; state.dragLastX = c.x; state.dragLastY = c.y;
                 if (hit.type === 'origin') { state.draggingOrigin = true; selectObject(null); }
-                else { 
-                    state.draggedObject = hit; 
-                    // ADICIÓN: Si seleccionamos un objeto que no está en el grupo múltiple, limpiamos el grupo y lo seleccionamos solo a él
-                    if (!state.selectedObjects.includes(hit)) { selectObject(hit); }
-                }
-            } else { 
-                selectObject(null); 
-                // ADICIÓN: Iniciar Caja de Selección Múltiple
-                state.selectionBox = { startX: c.x, startY: c.y, endX: c.x, endY: c.y };
-            }
+                else { state.draggedObject = hit; if (!state.selectedObjects.includes(hit)) { selectObject(hit); } }
+            } else { selectObject(null); state.selectionBox = { startX: c.x, startY: c.y, endX: c.x, endY: c.y }; }
             return;
         }
         
-        if (state.tool === 'draw_free') {
+        if (state.tool === 'draw_free' || state.tool === 'highlighter') {
             selectObject(null); state.isDrawingFree = true;
-            // ADICIÓN: Guardar el grosor actual en el trazo libre
-            state.currentFreeStroke = { type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor, lineWidth: state.lineWidth };
+            const isH = state.tool === 'highlighter';
+            state.currentFreeStroke = { 
+                type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor, 
+                lineWidth: isH ? Math.max(state.lineWidth, 12) : state.lineWidth,
+                isHighlighter: isH, rotation: 0, scale: 1 
+            };
             return;
         }
 
@@ -686,869 +749,315 @@
 
     function handleMove(e) {
         if (e.touches) e.preventDefault();
-        const c = getCoords(e); const scale = getSafeScale();
-        const physX = (c.x - state.origin.x) / scale; const physY = (state.origin.y - c.y) / scale;
-        
+        const c = getCoords(e); const scaleFactor = getSafeScale();
+        const physX = (c.x - state.origin.x) / scaleFactor; const physY = (state.origin.y - c.y) / scaleFactor;
         document.getElementById('coords-indicator').innerText = `x: ${physX.toFixed(2)} m, y: ${physY.toFixed(2)} m | V: ${getPotentialAt(c.x, c.y).toExponential(2)} V`;
-
-        if (state.tool === 'eraser' && state.isDrawing) { eraseAt(c); return; }
-
-        if (state.draggingOrigin) {
-            state.origin.x += (c.x - state.dragLastX); state.origin.y += (c.y - state.dragLastY);
-            state.dragLastX = c.x; state.dragLastY = c.y;
-            analizarFisica(); updateUI(); redraw(); requestSync(false); return;
+        
+        // ADICIÓN: Lógica de Rotación y Escalado
+        if (state.isRotating && state.draggedObject) {
+            const b = getObjectBounds(state.draggedObject);
+            state.draggedObject.rotation = Math.atan2(c.y - b.cy, c.x - b.cx) + Math.PI/2;
+            redraw(); return;
         }
-
-        // ADICIÓN: Dibujar Caja de Selección
-        if (state.selectionBox) {
-            state.selectionBox.endX = c.x; state.selectionBox.endY = c.y;
+        if (state.isResizing && state.draggedObject) {
+            const b = getObjectBounds(state.draggedObject);
+            const dist = Math.hypot(c.x - b.cx, c.y - b.cy);
+            const origDist = Math.hypot(b.w/2, b.h/2);
+            state.draggedObject.scale = Math.max(0.2, dist / origDist);
             redraw(); return;
         }
 
+        if (state.tool === 'eraser' && state.isDrawing) { eraseAt(c); return; }
+        if (state.draggingOrigin) {
+            state.origin.x += (c.x - state.dragLastX); state.origin.y += (c.y - state.dragLastY);
+            state.dragLastX = c.x; state.dragLastY = c.y; analizarFisica(); updateUI(); redraw(); requestSync(false); return;
+        }
+        if (state.selectionBox) { state.selectionBox.endX = c.x; state.selectionBox.endY = c.y; redraw(); return; }
+
         if (state.isDragging && state.draggedObject) {
             const dx = c.x - state.dragLastX; const dy = c.y - state.dragLastY;
-            // ADICIÓN: Mover Múltiples Objetos a la vez
             const objectsToMove = (state.selectedObjects.includes(state.draggedObject) && state.selectedObjects.length > 1) ? state.selectedObjects : [state.draggedObject];
-            
             objectsToMove.forEach(o => {
                 if (o.type === 'text') { o.x += dx; o.y += dy; } 
                 else if (o.type === 'free_stroke') { o.points.forEach(p => { p.x += dx; p.y += dy; }); } 
-                else if (o.type !== 'trajectory') { o.x += dx; o.y += dy; o.physX = (o.x - state.origin.x) / scale; o.physY = (state.origin.y - o.y) / scale; }
+                else if (o.type !== 'trajectory') { o.x += dx; o.y += dy; o.physX = (o.x - state.origin.x) / scaleFactor; o.physY = (state.origin.y - o.y) / scaleFactor; }
             });
-            
             state.dragLastX = c.x; state.dragLastY = c.y; updateFloatDelete(); redraw(); requestSync(false);
         } 
-        else if (state.tool === 'line' && state.isDrawingFree && state.lineStart) {
-            state.currentLine[1] = c; redraw();
-        }
+        else if (state.tool === 'line' && state.isDrawingFree && state.lineStart) { state.currentLine[1] = c; redraw(); }
         else if (state.isDrawingFree && state.currentFreeStroke) { 
-            // ADICIÓN: Decimación de Puntos (Evita lag por miles de puntos inútiles)
             const lastPt = state.currentFreeStroke.points[state.currentFreeStroke.points.length - 1];
-            if (Math.hypot(c.x - lastPt.x, c.y - lastPt.y) > 3) {
-                state.currentFreeStroke.points.push(c); redraw(); 
-            }
+            if (Math.hypot(c.x - lastPt.x, c.y - lastPt.y) > 2.5) { state.currentFreeStroke.points.push(c); redraw(); }
         }
         else if (state.isDrawing) { 
-            // ADICIÓN: Decimación de Puntos en trazo de IA
             const lastPt = state.currentStroke[state.currentStroke.length - 1];
-            if (Math.hypot(c.x - lastPt.x, c.y - lastPt.y) > 3) {
-                state.currentStroke.push(c); redraw(); 
-            }
+            if (Math.hypot(c.x - lastPt.x, c.y - lastPt.y) > 3) { state.currentStroke.push(c); redraw(); }
         }
     }
 
     function handleEnd(e) {
+        state.isRotating = false; state.isResizing = false;
         if (state.draggingOrigin) { state.draggingOrigin = false; state.isDragging = false; requestSync(true); return; }
         if (state.tool === 'eraser') { state.isDrawing = false; requestSync(true); return; }
-        
-        // ADICIÓN: Terminar Caja de Selección Múltiple
         if (state.selectionBox) {
-            const minX = Math.min(state.selectionBox.startX, state.selectionBox.endX);
-            const maxX = Math.max(state.selectionBox.startX, state.selectionBox.endX);
-            const minY = Math.min(state.selectionBox.startY, state.selectionBox.endY);
-            const maxY = Math.max(state.selectionBox.startY, state.selectionBox.endY);
-            
+            const minX = Math.min(state.selectionBox.startX, state.selectionBox.endX), maxX = Math.max(state.selectionBox.startX, state.selectionBox.endX);
+            const minY = Math.min(state.selectionBox.startY, state.selectionBox.endY), maxY = Math.max(state.selectionBox.startY, state.selectionBox.endY);
             state.selectedObjects = state.objects.filter(o => {
-                if (o.type === 'point' || o.type.startsWith('charge') || o.type === 'text') {
-                    return o.x >= minX && o.x <= maxX && o.y >= minY && o.y <= maxY;
-                } else if (o.type === 'free_stroke') {
-                    return o.points.some(p => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
-                }
+                if (o.type === 'point' || o.type.startsWith('charge') || o.type === 'text') { return o.x >= minX && o.x <= maxX && o.y >= minY && o.y <= maxY; }
+                else if (o.type === 'free_stroke') { return o.points.some(p => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY); }
                 return false;
             });
-            
-            state.selectedObject = state.selectedObjects.length > 0 ? state.selectedObjects[0] : null;
-            state.selectionBox = null;
-            updateFloatDelete(); redraw(); return;
+            state.selectedObject = state.selectedObjects.length > 0 ? state.selectedObjects[0] : null; state.selectionBox = null; updateFloatDelete(); redraw(); return;
         }
-
-        if (state.isDragging) { state.isDragging = false; state.draggedObject = null; updateUI(); analizarFisica(); requestSync(true); if (window.registrarInteraccion) window.registrarInteraccion(); return; }
-        
+        if (state.isDragging) { state.isDragging = false; state.draggedObject = null; updateUI(); analizarFisica(); requestSync(true); return; }
         if (state.tool === 'line' && state.isDrawingFree && state.lineStart) {
             state.isDrawingFree = false;
             if(Math.hypot(state.currentLine[0].x - state.currentLine[1].x, state.currentLine[0].y - state.currentLine[1].y) > 5) {
-                state.objects.push({ type: 'free_stroke', id: Date.now(), points: [{...state.currentLine[0]}, {...state.currentLine[1]}], color: state.currentColor, lineWidth: state.lineWidth });
+                state.objects.push({ type: 'free_stroke', id: Date.now(), points: [{...state.currentLine[0]}, {...state.currentLine[1]}], color: state.currentColor, lineWidth: state.lineWidth, rotation: 0, scale: 1 });
             }
-            state.lineStart = null; state.currentLine = null; redraw(); requestSync(true); if (window.registrarInteraccion) window.registrarInteraccion(); return;
+            state.lineStart = null; state.currentLine = null; redraw(); requestSync(true); return;
         }
-
         if (state.isDrawingFree && state.currentFreeStroke) {
-            state.isDrawingFree = false;
-            if (state.currentFreeStroke.points.length > 2) state.objects.push(state.currentFreeStroke);
-            state.currentFreeStroke = null; redraw(); requestSync(true); if (window.registrarInteraccion) window.registrarInteraccion(); return;
+            state.isDrawingFree = false; if (state.currentFreeStroke.points.length > 1) state.objects.push(state.currentFreeStroke);
+            state.currentFreeStroke = null; redraw(); requestSync(true); return;
         }
         if (state.isDrawing) {
-            state.isDrawing = false;
-            if (state.currentStroke.length > 5) state.rawStrokes.push([...state.currentStroke]);
-            state.currentStroke = [];
-            state.recognitionTimer = setTimeout(() => { detectAndConvert(); state.recognitionTimer = null; }, 1000);
-            redraw(); requestSync(true); if (window.registrarInteraccion) window.registrarInteraccion();
+            state.isDrawing = false; if (state.currentStroke.length > 5) state.rawStrokes.push([...state.currentStroke]);
+            state.currentStroke = []; state.recognitionTimer = setTimeout(() => { detectAndConvert(); state.recognitionTimer = null; }, 1000);
+            redraw(); requestSync(true);
         }
     }
 
-    // --- RECONOCIMIENTO IA ---
+    function getObjectBounds(o) {
+        if (o.type === 'free_stroke') return getBounds(o.points);
+        if (o.type === 'text') { ctx.font = 'bold 20px "Segoe UI", Arial'; const w = ctx.measureText(o.text).width; return { minX: o.x, maxX: o.x + w, minY: o.y, maxY: o.y + 24, w, h: 24, cx: o.x + w/2, cy: o.y + 12 }; }
+        const r = 20 * (o.scale || 1);
+        return { minX: o.x - r, maxX: o.x + r, minY: o.y - r, maxY: o.y + r, w: r*2, h: r*2, cx: o.x, cy: o.y };
+    }
+
     function findObjectAt(c) {
         if (Math.hypot(state.origin.x - c.x, state.origin.y - c.y) < 25) return { type: 'origin' };
         if(state.isHidden) return null; 
-
-        const textObj = state.objects.find(o => {
-            if(o.type !== 'text') return false; ctx.font = '20px "Segoe UI", Arial';
-            const w = ctx.measureText(o.text).width; return c.x >= o.x && c.x <= o.x + w && c.y >= o.y && c.y <= o.y + 24;
-        });
+        const textObj = state.objects.find(o => { if(o.type !== 'text') return false; ctx.font = '20px "Segoe UI", Arial'; const w = ctx.measureText(o.text).width; return c.x >= o.x && c.x <= o.x + w && c.y >= o.y && c.y <= o.y + 24; });
         if(textObj) return textObj;
-        const pt = state.objects.find(o => o.type === 'point' && Math.hypot(o.x - c.x, o.y - c.y) < 50); if (pt) return pt;
-        const ch = state.objects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30); if (ch) return ch;
-        
+        const pt = state.objects.find(o => o.type === 'point' && Math.hypot(o.x - c.x, o.y - c.y) < 30 * (o.scale || 1)); if (pt) return pt;
+        const ch = state.objects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30 * (o.scale || 1)); if (ch) return ch;
         const strokeObj = state.objects.find(o => {
             if(o.type !== 'free_stroke') return false; 
-            if(o.points.length === 2) {
-                const [A, B] = o.points;
-                const d = Math.abs((B.y - A.y)*c.x - (B.x - A.x)*c.y + B.x*A.y - B.y*A.x) / Math.hypot(B.y - A.y, B.x - A.x);
-                if (d > 15) return false;
-                const minX = Math.min(A.x, B.x)-15, maxX = Math.max(A.x, B.x)+15;
-                const minY = Math.min(A.y, B.y)-15, maxY = Math.max(A.y, B.y)+15;
-                return c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY;
-            }
-            return o.points.some(p => Math.hypot(p.x - c.x, p.y - c.y) < 15);
+            return o.points.some(p => Math.hypot(p.x - c.x, p.y - c.y) < 15 * (o.scale || 1));
         });
         if(strokeObj) return strokeObj;
-
-        return state.objects.find(o => {
-            if (o.type !== 'trajectory' || !o.path || o.path.length === 0) return false;
-            const mid = Math.floor(o.path.length/2); return Math.hypot(o.path[mid].x - c.x, o.path[mid].y - c.y) < 20;
-        });
+        return state.objects.find(o => { if (o.type !== 'trajectory' || !o.path || o.path.length === 0) return false; const mid = Math.floor(o.path.length/2); return Math.hypot(o.path[mid].x - c.x, o.path[mid].y - c.y) < 20; });
     }
 
-    function selectObject(obj) {
-        state.selectedObject = obj;
-        // ADICIÓN: Sincronizar array múltiple con clic único
-        state.selectedObjects = obj ? [obj] : [];
-        document.querySelectorAll('.data-card').forEach(card => card.classList.remove('selected'));
-        if (obj) {
-            updateFloatDelete(); floatDelete.style.display = 'block';
-            if (obj.type.startsWith('charge') || obj.type === 'point') {
-                const el = document.getElementById(`in-${obj.id}`); if(el) el.closest('.data-card').classList.add('selected');
-            }
-        } else { floatDelete.style.display = 'none'; }
-        redraw();
-    }
+    function selectObject(obj) { state.selectedObject = obj; state.selectedObjects = obj ? [obj] : []; document.querySelectorAll('.data-card').forEach(card => card.classList.remove('selected')); if (obj) { updateFloatDelete(); floatDelete.style.display = 'block'; if (obj.type.startsWith('charge') || obj.type === 'point') { const el = document.getElementById(`in-${obj.id}`); if(el) el.closest('.data-card').classList.add('selected'); } } else { floatDelete.style.display = 'none'; } redraw(); }
 
-    function updateFloatDelete() {
-        if(state.selectedObjects.length === 0) return;
-        // Posicionar el botón de borrar basado en el primer objeto de la selección
-        const o = state.selectedObjects[0]; let bx, by;
-        if (o.type === 'origin') return;
-        if (o.type === 'trajectory' && o.path && o.path.length > 0) {
-            const mid = Math.floor(o.path.length/2); bx = o.path[mid].x; by = o.path[mid].y - 20;
-        } else if (o.type === 'text') { bx = o.x + 20; by = o.y - 30; }
-        else if (o.type === 'free_stroke' && o.points.length > 0) {
-            const minP = o.points.reduce((prev, curr) => curr.y < prev.y ? curr : prev); bx = minP.x; by = minP.y - 30;
-        } else { bx = o.x; by = o.y - 30; }
-        if(bx !== undefined) { floatDelete.style.left = (bx - 30) + 'px'; floatDelete.style.top = by + 'px'; }
-    }
+    function updateFloatDelete() { if(state.selectedObjects.length === 0) return; const o = state.selectedObjects[0]; let bx, by; if (o.type === 'origin') return; if (o.type === 'trajectory' && o.path && o.path.length > 0) { const mid = Math.floor(o.path.length/2); bx = o.path[mid].x; by = o.path[mid].y - 20; } else if (o.type === 'text') { bx = o.x + 20; by = o.y - 30; } else if (o.type === 'free_stroke' && o.points.length > 0) { const minP = o.points.reduce((prev, curr) => curr.y < prev.y ? curr : prev); bx = minP.x; by = minP.y - 30; } else { bx = o.x; by = o.y - 30; } if(bx !== undefined) { floatDelete.style.left = (bx - 30) + 'px'; floatDelete.style.top = by + 'px'; } }
 
-    function deleteSelected() {
-        if (state.selectedObjects && state.selectedObjects.length > 0) {
-            // ADICIÓN: Borrado Múltiple
-            state.selectedObjects.forEach(obj => {
-                if (obj.type === 'point') {
-                    state.objects = state.objects.filter(o => !(o.type === 'trajectory' && (o.from === obj.id || o.to === obj.id)));
-                }
-            });
-            state.objects = state.objects.filter(o => !state.selectedObjects.includes(o));
-            selectObject(null); updateUI(); analizarFisica(); redraw(); requestSync(true);
-        }
-    }
+    function deleteSelected() { if (state.selectedObjects && state.selectedObjects.length > 0) { state.selectedObjects.forEach(obj => { if (obj.type === 'point') { state.objects = state.objects.filter(o => !(o.type === 'trajectory' && (o.from === obj.id || o.to === obj.id))); } }); state.objects = state.objects.filter(o => !state.selectedObjects.includes(o)); selectObject(null); updateUI(); analizarFisica(); redraw(); requestSync(true); } }
 
-    function getBounds(pts) {
-        if (!pts || pts.length === 0) return { minX:0, maxX:0, minY:0, maxY:0, w:0, h:0, cx:0, cy:0 };
-        let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y;
-        for (let i = 1; i < pts.length; i++) {
-            if (pts[i].x < minX) minX = pts[i].x; if (pts[i].x > maxX) maxX = pts[i].x;
-            if (pts[i].y < minY) minY = pts[i].y; if (pts[i].y > maxY) maxY = pts[i].y;
-        }
-        return { minX, maxX, minY, maxY, w: maxX - minX, h: maxY - minY, cx: (minX + maxX)/2, cy: (minY + maxY)/2 };
-    }
+    function getBounds(pts) { if (!pts || pts.length === 0) return { minX:0, maxX:0, minY:0, maxY:0, w:0, h:0, cx:0, cy:0 }; let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y; for (let i = 1; i < pts.length; i++) { if (pts[i].x < minX) minX = pts[i].x; if (pts[i].x > maxX) maxX = pts[i].x; if (pts[i].y < minY) minY = pts[i].y; if (pts[i].y > maxY) maxY = pts[i].y; } return { minX, maxX, minY, maxY, w: maxX - minX, h: maxY - minY, cx: (minX + maxX)/2, cy: (minY + maxY)/2 }; }
 
-    function getGroupBounds(indices) {
-        let allPts = []; indices.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p)); });
-        return getBounds(allPts);
-    }
-
-    function groupStrokes(strokes) {
-        if(!strokes) return [];
-        const groups = []; const visited = new Set();
-        for(let i=0; i<strokes.length; i++) {
-            if(visited.has(i)) continue;
-            const g = [i]; visited.add(i);
-            for(let j=i+1; j<strokes.length; j++) {
-                if(visited.has(j)) continue;
-                if(strokesClose(strokes[i], strokes[j])) { g.push(j); visited.add(j); }
-            }
-            groups.push(g);
-        }
-        return groups;
-    }
-
-    function strokesClose(s1, s2) {
-        if(!s1 || !s2 || s1.length === 0 || s2.length === 0) return false;
-        const b1 = getBounds(s1); const b2 = getBounds(s2); const pad = 30;
-        return !(b2.minX > b1.maxX + pad || b2.maxX < b1.minX - pad || b2.minY > b1.maxY + pad || b2.maxY < b1.minY - pad);
-    }
-
-    function classifyGroup(indices, b) {
-        if (!indices || indices.length === 0) return 'unknown';
-        const strokes = indices.map(i => state.rawStrokes[i]).filter(s => s && s.length > 0);
-        if (strokes.length === 0) return 'unknown';
-
-        const diag = Math.hypot(b.w, b.h);
-        if (diag < 45 && strokes.length <= 3) return 'point'; 
-
-        let maxL = 0; let mainStrokeIdx = -1;
-        strokes.forEach((s, i) => {
-            let l = 0; for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y);
-            if(l >= maxL) { maxL = l; mainStrokeIdx = i; }
-        });
-
-        if(mainStrokeIdx === -1) return 'unknown';
-
-        const mainStroke = strokes[mainStrokeIdx];
-        const distEnds = Math.hypot(mainStroke[0].x - mainStroke[mainStroke.length-1].x, mainStroke[0].y - mainStroke[mainStroke.length-1].y);
-        const isClosed = maxL > 0 && distEnds < maxL * 0.4;
-
-        if (diag > 30 && !isClosed) return 'trajectory_path';
-
-        const r = b.w / (b.h || 1); 
-        if (r > 0.3 && r < 3.0 && diag > 15 && isClosed) {
-            const innerStrokes = strokes.filter((_, i) => i !== mainStrokeIdx);
-            if (innerStrokes.length === 0) return 'charge_pos';
-            if (innerStrokes.length === 1) {
-                const s = innerStrokes[0]; const ib = getBounds(s);
-                if (ib.w > (ib.h || 1) * 1.2) return 'charge_neg'; 
-                return 'charge_pos';
-            }
-            return 'charge_pos';
-        }
-        return 'unknown';
-    }
-
-    function detectAndConvert() {
-        try {
-            if (!state.rawStrokes || state.rawStrokes.length === 0) return;
-            const groups = groupStrokes(state.rawStrokes);
-            const newObjects = []; const usedIndices = new Set();
-            const scale = getSafeScale();
-
-            groups.forEach(group => {
-                if(!group || group.length === 0) return;
-                const bounds = getGroupBounds(group);
-                const type = classifyGroup(group, bounds);
-                
-                let objectCreated = false; 
-
-                if (type !== 'unknown') {
-                    const currentIds = state.objects.map(o=>o.id);
-                    const nextId = (currentIds.length > 0 ? Math.max(...currentIds) : 0) + 1;
-                    const px = (bounds.cx - state.origin.x) / scale;
-                    const py = (state.origin.y - bounds.cy) / scale;
-
-                    if (type === 'point') {
-                        const pointCount = state.objects.filter(o => o.type === 'point').length + newObjects.filter(o => o.type === 'point').length;
-                        newObjects.push({ id: nextId, type: 'point', label: String.fromCharCode(65 + pointCount), x: bounds.cx, y: bounds.cy, physX: px, physY: py });
-                        objectCreated = true;
-                    }
-                    else if (type.startsWith('charge')) {
-                        const qNum = state.objects.filter(o => o.type.startsWith('charge')).length + 1;
-                        newObjects.push({ id: nextId, type: type, label: `q_${qNum}`, x: bounds.cx, y: bounds.cy, physX: px, physY: py, q: type === 'charge_pos' ? 5 : -5 });
-                        objectCreated = true;
-                    } 
-                    else if (type === 'trajectory_path') {
-                        const rawPts = []; group.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => rawPts.push(p)) });
-                        if(rawPts.length > 2) {
-                            const pStart = findPointNear(rawPts[0]); const pEnd = findPointNear(rawPts[rawPts.length-1]);
-                            if (pStart && pEnd && pStart.id !== pEnd.id) {
-                                newObjects.push({ id: nextId, type: 'trajectory', from: pStart.id, to: pEnd.id, path: rawPts });
-                                objectCreated = true;
-                            }
-                        }
-                    }
-                }
-
-                if (objectCreated) {
-                    group.forEach(i => usedIndices.add(i));
-                } else {
-                    group.forEach(i => {
-                        if(state.rawStrokes[i] && state.rawStrokes[i].length > 1) {
-                            // ADICIÓN: Trazo libre generado por rebote hereda grosor
-                            state.objects.push({ type: 'free_stroke', id: Date.now() + i, points: state.rawStrokes[i], color: state.currentColor, lineWidth: state.lineWidth });
-                            usedIndices.add(i);
-                        }
-                    });
-                }
-            });
-
-            if (usedIndices.size > 0) {
-                state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i));
-                if(newObjects.length > 0) state.objects.push(...newObjects);
-                updateUI(); analizarFisica();
-            }
-            redraw(); requestSync(true);
-        } catch(e) {
-            console.error("Seguridad activada:", e); state.rawStrokes = []; redraw(); 
-        }
-    }
+    function detectAndConvert() { try { if (!state.rawStrokes || state.rawStrokes.length === 0) return; const groups = groupStrokes(state.rawStrokes); const newObjects = []; const usedIndices = new Set(); const scaleFactor = getSafeScale(); groups.forEach(group => { if(!group || group.length === 0) return; const bounds = getGroupBounds(group); const type = classifyGroup(group, bounds); let objectCreated = false; if (type !== 'unknown') { const currentIds = state.objects.map(o=>o.id); const nextId = (currentIds.length > 0 ? Math.max(...currentIds) : 0) + 1; const px = (bounds.cx - state.origin.x) / scaleFactor, py = (state.origin.y - bounds.cy) / scaleFactor; if (type === 'point') { const pointCount = state.objects.filter(o => o.type === 'point').length + newObjects.filter(o => o.type === 'point').length; newObjects.push({ id: nextId, type: 'point', label: String.fromCharCode(65 + pointCount), x: bounds.cx, y: bounds.cy, physX: px, physY: py, rotation: 0, scale: 1 }); objectCreated = true; } else if (type.startsWith('charge')) { const qNum = state.objects.filter(o => o.type.startsWith('charge')).length + 1; newObjects.push({ id: nextId, type: type, label: `q_${qNum}`, x: bounds.cx, y: bounds.cy, physX: px, physY: py, q: type === 'charge_pos' ? 5 : -5, rotation: 0, scale: 1 }); objectCreated = true; } else if (type === 'trajectory_path') { const rawPts = []; group.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => rawPts.push(p)) }); if(rawPts.length > 2) { const pStart = findPointNear(rawPts[0]); const pEnd = findPointNear(rawPts[rawPts.length-1]); if (pStart && pEnd && pStart.id !== pEnd.id) { newObjects.push({ id: nextId, type: 'trajectory', from: pStart.id, to: pEnd.id, path: rawPts }); objectCreated = true; } } } } if (objectCreated) { group.forEach(i => usedIndices.add(i)); } else { group.forEach(i => { if(state.rawStrokes[i] && state.rawStrokes[i].length > 1) { state.objects.push({ type: 'free_stroke', id: Date.now() + i, points: state.rawStrokes[i], color: state.currentColor, lineWidth: state.lineWidth, rotation: 0, scale: 1 }); usedIndices.add(i); } }); } }); if (usedIndices.size > 0) { state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i)); if(newObjects.length > 0) state.objects.push(...newObjects); updateUI(); analizarFisica(); } redraw(); requestSync(true); } catch(e) { state.rawStrokes = []; redraw(); } }
 
     function findPointNear(c) { return state.objects.find(o => o.type === 'point' && Math.hypot(o.x - c.x, o.y - c.y) < 50); }
 
-    // --- FÍSICA: DETALLE MATEMÁTICO ---
+    function groupStrokes(strokes) { if(!strokes) return []; const groups = []; const visited = new Set(); for(let i=0; i<strokes.length; i++) { if(visited.has(i)) continue; const g = [i]; visited.add(i); for(let j=i+1; j<strokes.length; j++) { if(visited.has(j)) continue; if(strokesClose(strokes[i], strokes[j])) { g.push(j); visited.add(j); } } groups.push(g); } return groups; }
+    function getGroupBounds(indices) { let allPts = []; indices.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p)); }); return getBounds(allPts); }
+    function strokesClose(s1, s2) { if(!s1 || !s2 || s1.length === 0 || s2.length === 0) return false; const b1 = getBounds(s1); const b2 = getBounds(s2); const pad = 30; return !(b2.minX > b1.maxX + pad || b2.maxX < b1.minX - pad || b2.minY > b1.maxY + pad || b2.maxY < b1.minY - pad); }
+    function classifyGroup(indices, b) { if (!indices || indices.length === 0) return 'unknown'; const strokes = indices.map(i => state.rawStrokes[i]).filter(s => s && s.length > 0); if (strokes.length === 0) return 'unknown'; const diag = Math.hypot(b.w, b.h); if (diag < 45 && strokes.length <= 3) return 'point'; let maxL = 0; let mainStrokeIdx = -1; strokes.forEach((s, i) => { let l = 0; for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y); if(l >= maxL) { maxL = l; mainStrokeIdx = i; } }); if(mainStrokeIdx === -1) return 'unknown'; const mainStroke = strokes[mainStrokeIdx]; const distEnds = Math.hypot(mainStroke[0].x - mainStroke[mainStroke.length-1].x, mainStroke[0].y - mainStroke[mainStroke.length-1].y); const isClosed = maxL > 0 && distEnds < maxL * 0.4; if (diag > 30 && !isClosed) return 'trajectory_path'; const r = b.w / (b.h || 1); if (r > 0.3 && r < 3.0 && diag > 15 && isClosed) { const innerStrokes = strokes.filter((_, i) => i !== mainStrokeIdx); if (innerStrokes.length === 0) return 'charge_pos'; if (innerStrokes.length === 1) { const s = innerStrokes[0]; const ib = getBounds(s); if (ib.w > (ib.h || 1) * 1.2) return 'charge_neg'; return 'charge_pos'; } return 'charge_pos'; } return 'unknown'; }
+
+    // --- FÍSICA Y RENDERIZADO ---
     function analizarFisica() {
-        actualizarFilaCampo(); 
-
-        const charges = state.objects.filter(o => o.type.startsWith('charge'));
-        const points = state.objects.filter(o => o.type === 'point');
-        const trajectories = state.objects.filter(o => o.type === 'trajectory');
-        
-        const Ke = 8.99e9; const scale = getSafeScale();
-        const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
-        const q0_val = parseFloat(document.getElementById('q0-input').value || 1.0); const q0 = q0_val * 1e-6; 
-
-        charges.forEach(c => {
-            const elQ = document.getElementById(`q-${c.id}`); if(elQ) c.q = parseFloat(elQ.value);
-            c.physX = (c.x - state.origin.x) / scale; c.physY = (state.origin.y - c.y) / scale;
-        });
-
+        actualizarFilaCampo(); const charges = state.objects.filter(o => o.type.startsWith('charge')), points = state.objects.filter(o => o.type === 'point'), trajectories = state.objects.filter(o => o.type === 'trajectory');
+        const Ke = 8.99e9, scaleFactor = getSafeScale(), chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6), q0_val = parseFloat(document.getElementById('q0-input').value || 1.0), q0 = q0_val * 1e-6; 
+        charges.forEach(c => { const elQ = document.getElementById(`q-${c.id}`); if(elQ) c.q = parseFloat(elQ.value); c.physX = (c.x - state.origin.x) / scaleFactor; c.physY = (state.origin.y - c.y) / scaleFactor; });
         const pointPotentials = {};
         points.forEach(p => {
-            p.physX = (p.x - state.origin.x) / scale; p.physY = (state.origin.y - p.y) / scale;
-            
-            let V_charges = 0;
-            let chargeDetails = [];
-            charges.forEach(src => { 
-                const r = Math.hypot(p.physX - src.physX, p.physY - src.physY); 
-                if (r > 0.001) {
-                    const v_part = (Ke * src.q * chargeU) / r;
-                    V_charges += v_part;
-                    chargeDetails.push({ qLabel: src.label, qVal: src.q, r: r, v: v_part });
-                }
-            });
-            p.chargeDetails = chargeDetails;
-            
-            let V_ext = 0; const steps = 50;
-            for(let i=0; i<steps; i++) {
-                let t1 = i/steps; let t2 = (i+1)/steps; let midT = (t1+t2)/2;
-                let E = getE_ext(p.physX * midT, p.physY * midT);
-                V_ext -= (E.x * (p.physX/steps) + E.y * (p.physY/steps)); 
-            }
-            
-            p.V_charges = V_charges;
-            p.V_ext = V_ext;
-            p.V = V_charges + V_ext; 
-            pointPotentials[p.id] = p;
+            p.physX = (p.x - state.origin.x) / scaleFactor; p.physY = (state.origin.y - p.y) / scaleFactor; let V_charges = 0, chargeDetails = [];
+            charges.forEach(src => { const r = Math.hypot(p.physX - src.physX, p.physY - src.physY); if (r > 0.001) { const v_part = (Ke * src.q * chargeU) / r; V_charges += v_part; chargeDetails.push({ qLabel: src.label, qVal: src.q, r: r, v: v_part }); } });
+            p.chargeDetails = chargeDetails; let V_ext = 0; const steps = 50;
+            for(let i=0; i<steps; i++) { let t1 = i/steps, t2 = (i+1)/steps, midT = (t1+t2)/2; let E = getE_ext(p.physX * midT, p.physY * midT); V_ext -= (E.x * (p.physX/steps) + E.y * (p.physY/steps)); }
+            p.V_charges = V_charges; p.V_ext = V_ext; p.V = V_charges + V_ext; pointPotentials[p.id] = p;
         });
-
         const workResults = [];
         trajectories.forEach(tr => {
-            const pA = pointPotentials[tr.from]; const pB = pointPotentials[tr.to];
+            const pA = pointPotentials[tr.from], pB = pointPotentials[tr.to];
             if (pA && pB) {
-                let W_charges = q0 * (pB.V_charges - pA.V_charges);
-                
-                let W_ext_field = 0;
-                let path = tr.path || [{x: pA.x, y: pA.y}, {x: pB.x, y: pB.y}];
-                
-                for(let i=0; i<path.length-1; i++) {
-                    let px1 = (path[i].x - state.origin.x) / scale;
-                    let py1 = (state.origin.y - path[i].y) / scale;
-                    let px2 = (path[i+1].x - state.origin.x) / scale;
-                    let py2 = (state.origin.y - path[i+1].y) / scale;
-                    
-                    let dx = px2 - px1; let dy = py2 - py1;
-                    let midX = (px1 + px2)/2; let midY = (py1 + py2)/2;
-                    let E = getE_ext(midX, midY);
-                    
-                    W_ext_field += q0 * (E.x * dx + E.y * dy); 
-                }
-                
-                let W_total = W_charges + W_ext_field;
-
-                let hasExternalField = document.getElementById('ex-input').value !== "0" || document.getElementById('ey-input').value !== "0";
-                const maxV = Math.max(Math.abs(pA.V), Math.abs(pB.V), 1e-10);
-                const isEqui = !hasExternalField && (Math.abs(pB.V - pA.V) / maxV) < 0.03; 
-
+                let W_charges = q0 * (pB.V_charges - pA.V_charges), W_ext_field = 0, path = tr.path || [{x: pA.x, y: pA.y}, {x: pB.x, y: pB.y}];
+                for(let i=0; i<path.length-1; i++) { let px1 = (path[i].x - state.origin.x) / scaleFactor, py1 = (state.origin.y - path[i].y) / scaleFactor, px2 = (path[i+1].x - state.origin.x) / scaleFactor, py2 = (state.origin.y - path[i+1].y) / scaleFactor, dx = px2 - px1, dy = py2 - py1, midX = (px1 + px2)/2, midY = (py1 + py2)/2, E = getE_ext(midX, midY); W_ext_field += q0 * (E.x * dx + E.y * dy); }
+                let W_total = W_charges + W_ext_field, hasExt = document.getElementById('ex-input').value !== "0" || document.getElementById('ey-input').value !== "0", maxV = Math.max(Math.abs(pA.V), Math.abs(pB.V), 1e-10), isEqui = !hasExt && (Math.abs(pB.V - pA.V) / maxV) < 0.03; 
                 if (isEqui) { W_total = 0; }
-
-                workResults.push({ 
-                    from: pA.label, to: pB.label, 
-                    Va: pA.V, Vb: pB.V, dV: pB.V - pA.V, 
-                    W: W_total, W_cargas: W_charges, W_ext: W_ext_field, 
-                    q0: q0, isEqui: isEqui, hasExt: hasExternalField
-                });
+                workResults.push({ from: pA.label, to: pB.label, Va: pA.V, Vb: pB.V, dV: pB.V - pA.V, W: W_total, W_cargas: W_charges, W_ext: W_ext_field, q0: q0, isEqui: isEqui, hasExt: hasExt });
             }
         });
-
-        state.calculations = { points: pointPotentials, works: workResults };
-        updateStatement(charges.length, points.length, trajectories.length, workResults);
-        renderLatex(); redraw();
-        if (window.verificarTareasFisica) window.verificarTareasFisica();
+        state.calculations = { points: pointPotentials, works: workResults }; updateStatement(charges.length, points.length, trajectories.length, workResults); renderLatex(); redraw();
     }
-    window.analizarFisica = analizarFisica;
 
     function renderLatex() {
-        const box = document.getElementById('latex-result'); let html = "";
-        const { points, works } = state.calculations; const pointList = Object.values(points || {});
-
+        const box = document.getElementById('latex-result'); let html = ""; const { points, works } = state.calculations; const pointList = Object.values(points || {});
         if (pointList.length === 0) { html = "\\text{Dibuja puntos para calcular Potencial (V)}"; } 
         else {
-            html += "\\textbf{1. Potenciales Eléctricos ($V_p$):} \\\\";
-            const chargeUSelect = document.getElementById('charge-unit'); 
-            const exponent = chargeUSelect.value === '1e-6' ? '-6' : (chargeUSelect.value === '1e-9' ? '-9' : '-3');
-            
+            html += "\\textbf{1. Potenciales Eléctricos ($V_p$):} \\\\"; const cU = document.getElementById('charge-unit'); const exponent = cU.value === '1e-6' ? '-6' : (cU.value === '1e-9' ? '-9' : '-3');
             pointList.forEach(p => { 
                 html += `\\underline{\\text{Punto } ${p.label} (x: ${p.physX.toFixed(2)}, y: ${p.physY.toFixed(2)})}: \\\\`;
-                
-                if (p.chargeDetails && p.chargeDetails.length > 0) {
-                    let sumStr = p.chargeDetails.map(d => {
-                        let sign = d.qVal >= 0 ? "+" : "-";
-                        let val = Math.abs(d.qVal);
-                        return `${sign} \\frac{${val}}{${d.r.toFixed(2)}}`;
-                    }).join(" ");
-                    if (sumStr.startsWith("+ ")) sumStr = sumStr.substring(2); 
-
-                    html += `V_{\\text{cargas}} = k_e \\sum \\frac{q}{r} = 8.99\\times 10^9 \\left[ ${sumStr} \\right] \\times 10^{${exponent}} \\\\`;
-                    html += `V_{\\text{cargas}} = ${p.V_charges.toExponential(2)} \\text{ V} \\\\[0.3em]`;
-                }
-
-                let hasExternalField = document.getElementById('ex-input').value !== "0" || document.getElementById('ey-input').value !== "0";
-                if (hasExternalField) {
-                    html += `V_{\\text{ext}} = -\\int_{0}^{r} \\vec{E} \\cdot d\\vec{r} = ${p.V_ext.toExponential(2)} \\text{ V} \\\\`;
-                    html += `\\mathbf{V_{${p.label}}} = V_{\\text{cargas}} + V_{\\text{ext}} = \\mathbf{${p.V.toExponential(2)} \\text{ V}} \\\\[0.8em]`;
-                } else {
-                    html += `\\mathbf{V_{${p.label}} = ${p.V.toExponential(2)} \\text{ V}} \\\\[0.8em]`;
-                }
+                if (p.chargeDetails && p.chargeDetails.length > 0) { let sumStr = p.chargeDetails.map(d => { let sign = d.qVal >= 0 ? "+" : "-"; let val = Math.abs(d.qVal); return `${sign} \\frac{${val}}{${d.r.toFixed(2)}}`; }).join(" "); if (sumStr.startsWith("+ ")) sumStr = sumStr.substring(2); html += `V_{\\text{cargas}} = k_e \\sum \\frac{q}{r} = 8.99\\times 10^9 \\left[ ${sumStr} \\right] \\times 10^{${exponent}} \\\\`; html += `V_{\\text{cargas}} = ${p.V_charges.toExponential(2)} \\text{ V} \\\\[0.3em]`; }
+                if (document.getElementById('ex-input').value !== "0" || document.getElementById('ey-input').value !== "0") { html += `V_{\\text{ext}} = ${p.V_ext.toExponential(2)} \\text{ V} \\\\`; html += `\\mathbf{V_{${p.label}}} = \\mathbf{${p.V.toExponential(2)} \\text{ V}} \\\\[0.8em]`; } 
+                else { html += `\\mathbf{V_{${p.label}} = ${p.V.toExponential(2)} \\text{ V}} \\\\[0.8em]`; }
             });
         }
-
         if (works && works.length > 0) {
             html += "\\textbf{2. Trabajo Externo ($W = q_0 \\Delta V$):} \\\\";
             works.forEach(w => {
                 html += `\\underline{\\text{Trayectoria } ${w.from} \\to ${w.to}}: \\\\`;
-                if (w.isEqui) {
-                     html += `\\text{\\textbf{¡Puntos sobre la misma equipotencial!}} \\\\`;
-                     html += `V_{${w.from}} \\approx V_{${w.to}} \\Rightarrow \\Delta V \\approx 0 \\\\`;
-                     html += `\\mathbf{W_{\\text{neto}} = 0 \\text{ J}} \\\\[1em]`;
-                } else {
-                     html += `\\Delta V = V_{${w.to}} - V_{${w.from}} = (${w.Vb.toExponential(2)}) - (${w.Va.toExponential(2)}) \\\\`;
-                     html += `\\Delta V = ${w.dV.toExponential(2)} \\text{ V} \\\\[0.3em]`;
-
-                     if(w.hasExt) {
-                         html += `W_{\\text{cargas}} = q_0 \\Delta V = (${(w.q0).toExponential(1)})(${w.dV.toExponential(2)}) \\\\`;
-                         html += `W_{\\text{cargas}} = ${w.W_cargas.toExponential(2)} \\text{ J} \\\\[0.3em]`;
-                         html += `W_{\\vec{E}} = q_0 \\int_{ruta} \\vec{E} \\cdot d\\vec{r} = ${w.W_ext.toExponential(2)} \\text{ J} \\quad \\text{(A lo largo del trazo)} \\\\`;
-                         html += `W_{\\text{neto}} = W_{\\text{cargas}} + W_{\\vec{E}} \\\\`;
-                     } else {
-                         html += `W_{\\text{neto}} = q_0 \\Delta V = (${(w.q0).toExponential(1)})(${w.dV.toExponential(2)}) \\\\`;
-                     }
-                     html += `\\mathbf{W_{\\text{neto}} = ${w.W.toExponential(2)} \\text{ J}} \\\\[1em]`;
-                }
+                if (w.isEqui) { html += `\\Delta V \\approx 0 \\Rightarrow \\mathbf{W_{\\text{neto}} = 0 \\text{ J}} \\\\[1em]`; } 
+                else { html += `\\Delta V = ${w.dV.toExponential(2)} \\text{ V} \\\\[0.3em]`; if(w.hasExt) { html += `W_{\\text{cargas}} = ${w.W_cargas.toExponential(2)} \\text{ J} \\\\ W_{\\text{ext}} = ${w.W_ext.toExponential(2)} \\text{ J} \\\\`; } html += `\\mathbf{W_{\\text{neto}} = ${w.W.toExponential(2)} \\text{ J}} \\\\[1em]`; }
             });
         }
         katex.render(html, box, {displayMode:true, throwOnError:false});
     }
 
     function updateStatement(nQ, nP, nT, works) {
-        const box = document.getElementById('problem-statement');
-        const chargeUSelect = document.getElementById('charge-unit'); const cUnitTxt = chargeUSelect.options[chargeUSelect.selectedIndex].text;
-        const hasEqui = works && works.some(w => w.isEqui); const hasNormal = works && works.some(w => !w.isEqui);
-
-        if (hasEqui && !hasNormal) {
-             box.innerHTML = `<strong>¡Caso Especial Detectado!</strong><br> Al moverse por una equipotencial, $\\Delta V \\approx 0$.<br> <strong>Trabajo neto NULO</strong> ($W=0$).`;
-             box.style.borderLeftColor = "#2ecc71"; box.style.backgroundColor = "#1b2621"; 
-        } else if (hasNormal) {
-             const lastWork = works[works.length-1];
-             if (!lastWork.isEqui) {
-                box.innerHTML = `<strong>Problema:</strong><br> Las cargas están dadas en ${cUnitTxt}. Se desea mover una carga de prueba $q_0$ desde el punto ${lastWork.from} hasta ${lastWork.to}.<br><br> <strong>Trabajo Total:</strong> $W = ${lastWork.W.toExponential(2)} \\text{ J}$`;
-                box.style.borderLeftColor = "#9b59b6"; box.style.backgroundColor = "#231a29";
-             } else { box.innerHTML = "<strong>Resultados listos.</strong> Revisa el panel inferior."; }
-        } else {
-             box.style.borderLeftColor = "#9b59b6"; box.style.backgroundColor = "#2b2b3b";
-             if (nQ === 0) { box.innerHTML = `Coloca cargas fuente y/o un Campo Vectorial para generar interacciones. <br><small style="color:#888;">Escala actual: ${cUnitTxt}</small>`; return; }
-             if (nP < 2) { box.innerHTML = "Dibuja puntos en el lienzo y conéctalos con una curva."; return; }
-             if (nT === 0) { box.innerHTML = "Dibuja una trayectoria conectando dos puntos existentes."; return; }
-        }
+        const box = document.getElementById('problem-statement'); const cU = document.getElementById('charge-unit'); const cUnitTxt = cU.options[cU.selectedIndex].text;
+        const hasEqui = works && works.some(w => w.isEqui), hasNormal = works && works.some(w => !w.isEqui);
+        if (hasEqui && !hasNormal) { box.innerHTML = `<strong>¡Equipotencial!</strong> $\\Delta V \\approx 0$. <strong>Trabajo neto NULO</strong> ($W=0$).`; box.style.borderLeftColor = "#2ecc71"; } 
+        else if (hasNormal) { const lastWork = works[works.length-1]; if (!lastWork.isEqui) { box.innerHTML = `<strong>Problema:</strong> Mover $q_0$ desde ${lastWork.from} hasta ${lastWork.to}. <br> <strong>Trabajo Total:</strong> $W = ${lastWork.W.toExponential(2)} \\text{ J}$`; box.style.borderLeftColor = "#9b59b6"; } } 
+        else { if (nQ === 0) { box.innerHTML = `Dibuja cargas fuente. Escala: ${cUnitTxt}`; return; } if (nP < 2) { box.innerHTML = "Coloca dos puntos (A y B)."; return; } if (nT === 0) { box.innerHTML = "Conecta los puntos con una trayectoria."; return; } }
         renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
     }
 
-    function updateCoord(id, axis, val, type) {
-        let obj;
-        if (type === 'charge') obj = state.objects.find(o => o.id == id && o.type.startsWith('charge'));
-        else if (type === 'point') obj = state.objects.find(o => o.id == id && o.type === 'point');
-        if(!obj) return;
-        
-        const numVal = parseFloat(val); if(isNaN(numVal)) return;
-        const scale = getSafeScale();
-
-        if (axis === 'x') { obj.x = numVal * scale + state.origin.x; } else { obj.y = state.origin.y - numVal * scale; }
-        analizarFisica(); redraw(); requestSync(true);
-    }
-    window.updateCoord = updateCoord;
+    function updateCoord(id, axis, val, type) { let obj; if (type === 'charge') obj = state.objects.find(o => o.id == id && o.type.startsWith('charge')); else obj = state.objects.find(o => o.id == id && o.type === 'point'); if(!obj) return; const numVal = parseFloat(val); if(isNaN(numVal)) return; const scaleFactor = getSafeScale(); if (axis === 'x') { obj.x = numVal * scaleFactor + state.origin.x; } else { obj.y = state.origin.y - numVal * scaleFactor; } analizarFisica(); redraw(); requestSync(true); }
 
     function updateUI() {
-        const c = document.getElementById('objects-container'); c.innerHTML='';
-        const dList = document.getElementById('detection-list'); let dHtml = "";
-
-        state.objects.filter(o=>o.type.startsWith('charge')).forEach(ch => {
-            const div = document.createElement('div'); div.className='data-card';
-            // ADICIÓN: Sincronizar estilo en selección múltiple
-            if(state.selectedObjects.includes(ch)) div.classList.add('selected');
-            div.innerHTML = `
-                <div class="data-header"><strong>Fuente ${ch.label}</strong></div>
-                <div class="input-row"><label>Q</label> <input type="number" id="q-${ch.id}" value="${ch.q}" onchange="analizarFisica(); requestSync(true);"></div>
-                <div class="input-row">
-                    <label>X(m)</label> <input type="number" step="0.1" id="in-${ch.id}" value="${(ch.physX||0).toFixed(2)}" onchange="updateCoord(${ch.id}, 'x', this.value, 'charge')">
-                    <label>Y(m)</label> <input type="number" step="0.1" value="${(ch.physY||0).toFixed(2)}" onchange="updateCoord(${ch.id}, 'y', this.value, 'charge')">
-                </div>`;
-            c.appendChild(div); dHtml += `<span class="badge ${ch.type==='charge_pos'?'badge-pos':'badge-neg'}">${ch.label}</span>`;
-        });
-
-        state.objects.filter(o=>o.type === 'point').forEach(p => {
-            const div = document.createElement('div'); div.className='data-card';
-            if (p.label === 'A') div.classList.add('is-point-A'); else if (p.label === 'B') div.classList.add('is-point-B');
-            if(state.selectedObjects.includes(p)) div.classList.add('selected');
-            div.innerHTML = `
-                <div class="data-header"><strong>Punto ${p.label}</strong></div>
-                <div class="input-row">
-                    <label>X(m)</label> <input type="number" step="0.1" id="in-${p.id}" value="${(p.physX||0).toFixed(2)}" onchange="updateCoord(${p.id}, 'x', this.value, 'point')">
-                    <label>Y(m)</label> <input type="number" step="0.1" value="${(p.physY||0).toFixed(2)}" onchange="updateCoord(${p.id}, 'y', this.value, 'point')">
-                </div>`;
-            c.appendChild(div); dHtml += `<span class="badge badge-point">${p.label}</span>`;
-        });
-        
-        state.objects.filter(o=>o.type==='trajectory').forEach(t => {
-            const p1 = state.objects.find(p=>p.id===t.from); const p2 = state.objects.find(p=>p.id===t.to);
-            if(p1 && p2) dHtml += `<span class="badge badge-traj">${p1.label}→${p2.label}</span>`;
-        });
+        const container = document.getElementById('objects-container'); container.innerHTML=''; const dList = document.getElementById('detection-list'); let dHtml = "";
+        state.objects.filter(o=>o.type.startsWith('charge')).forEach(ch => { const div = document.createElement('div'); div.className='data-card'; if(state.selectedObjects.includes(ch)) div.classList.add('selected'); div.innerHTML = `<div class="data-header"><strong>Fuente ${ch.label}</strong></div><div class="input-row"><label>Q</label> <input type="number" id="q-${ch.id}" value="${ch.q}" onchange="analizarFisica(); requestSync(true);"></div><div class="input-row"><label>X(m)</label> <input type="number" step="0.1" id="in-${ch.id}" value="${(ch.physX||0).toFixed(2)}" onchange="updateCoord(${ch.id}, 'x', this.value, 'charge')"><label>Y(m)</label> <input type="number" step="0.1" value="${(ch.physY||0).toFixed(2)}" onchange="updateCoord(${ch.id}, 'y', this.value, 'charge')"></div>`; container.appendChild(div); dHtml += `<span class="badge ${ch.type==='charge_pos'?'badge-pos':'badge-neg'}">${ch.label}</span>`; });
+        state.objects.filter(o=>o.type === 'point').forEach(p => { const div = document.createElement('div'); div.className='data-card'; if (p.label === 'A') div.classList.add('is-point-A'); else if (p.label === 'B') div.classList.add('is-point-B'); if(state.selectedObjects.includes(p)) div.classList.add('selected'); div.innerHTML = `<div class="data-header"><strong>Punto ${p.label}</strong></div><div class="input-row"><label>X(m)</label> <input type="number" step="0.1" id="in-${p.id}" value="${(p.physX||0).toFixed(2)}" onchange="updateCoord(${p.id}, 'x', this.value, 'point')"><label>Y(m)</label> <input type="number" step="0.1" value="${(p.physY||0).toFixed(2)}" onchange="updateCoord(${p.id}, 'y', this.value, 'point')"></div>`; container.appendChild(div); dHtml += `<span class="badge badge-point">${p.label}</span>`; });
         dList.innerHTML = dHtml || "<i>Nada detectado</i>";
     }
-    window.updateUI = updateUI;
 
     function drawAxes() {
         if(state.origin.x === null || state.isHidden) return;
-        ctx.save(); ctx.strokeStyle = 'rgba(52, 152, 219, 0.4)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(0, state.origin.y); ctx.lineTo(canvas.width, state.origin.y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(state.origin.x, 0); ctx.lineTo(state.origin.x, canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.arc(state.origin.x, state.origin.y, 6, 0, Math.PI*2); ctx.fillStyle = '#3498db'; ctx.fill();
-        
-        const scale = getSafeScale();
-        if (scale >= 30) {
-            ctx.fillStyle = 'rgba(52, 152, 219, 0.8)'; ctx.font = '11px monospace';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-            for(let x = state.origin.x + scale; x < canvas.width; x += scale) {
-                ctx.fillRect(x - 1, state.origin.y - 4, 2, 8); ctx.fillText(Math.round((x - state.origin.x)/scale), x, state.origin.y + 6);
-            }
-            for(let x = state.origin.x - scale; x > 0; x -= scale) {
-                ctx.fillRect(x - 1, state.origin.y - 4, 2, 8); ctx.fillText(Math.round((x - state.origin.x)/scale), x, state.origin.y + 6);
-            }
-            ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-            for(let y = state.origin.y - scale; y > 0; y -= scale) {
-                ctx.fillRect(state.origin.x - 4, y - 1, 8, 2); ctx.fillText(Math.round((state.origin.y - y)/scale), state.origin.x - 6, y);
-            }
-            for(let y = state.origin.y + scale; y < canvas.height; y += scale) {
-                ctx.fillRect(state.origin.x - 4, y - 1, 8, 2); ctx.fillText(Math.round((state.origin.y - y)/scale), state.origin.x - 6, y);
-            }
-        }
+        ctx.save(); ctx.strokeStyle = 'rgba(52, 152, 219, 0.4)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, state.origin.y); ctx.lineTo(canvas.width/dpr, state.origin.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(state.origin.x, 0); ctx.lineTo(state.origin.x, canvas.height/dpr); ctx.stroke(); ctx.beginPath(); ctx.arc(state.origin.x, state.origin.y, 6, 0, Math.PI*2); ctx.fillStyle = '#3498db'; ctx.fill();
+        const scaleFactor = getSafeScale();
+        if (scaleFactor >= 30) { ctx.fillStyle = 'rgba(52, 152, 219, 0.8)'; ctx.font = '11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; 
+        for(let x = state.origin.x + scaleFactor; x < canvas.width/dpr; x += scaleFactor) { ctx.fillRect(x - 1, state.origin.y - 4, 2, 8); ctx.fillText(Math.round((x - state.origin.x)/scaleFactor), x, state.origin.y + 6); } 
+        for(let x = state.origin.x - scaleFactor; x > 0; x -= scaleFactor) { ctx.fillRect(x - 1, state.origin.y - 4, 2, 8); ctx.fillText(Math.round((x - state.origin.x)/scaleFactor), x, state.origin.y + 6); } 
+        ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; 
+        for(let y = state.origin.y - scaleFactor; y > 0; y -= scaleFactor) { ctx.fillRect(state.origin.x - 4, y - 1, 8, 2); ctx.fillText(Math.round((state.origin.y - y)/scaleFactor), state.origin.x - 6, y); } 
+        for(let y = state.origin.y + scaleFactor; y < canvas.height/dpr; y += scaleFactor) { ctx.fillRect(state.origin.x - 4, y - 1, 8, 2); ctx.fillText(Math.round((state.origin.y - y)/scaleFactor), state.origin.x - 6, y); } }
         ctx.restore();
     }
 
     function redraw() {
-        ctx.clearRect(0,0,canvas.width,canvas.height); labelsOverlay.innerHTML = '';
-        ctx.strokeStyle = '#eee'; ctx.lineWidth=1; ctx.beginPath();
-        for(let i=0; i<canvas.width; i+=20) { ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); }
-        for(let i=0; i<canvas.height; i+=20) { ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); }
-        ctx.stroke();
-
-        drawEquipotentials(ctx); 
-        drawVectorField(ctx); 
-        drawAxes(); 
-
-        // ADICIÓN: Dibujar Caja de Selección Múltiple Translúcida
-        if (state.selectionBox) {
-            ctx.fillStyle = 'rgba(78, 204, 163, 0.15)';
-            ctx.strokeStyle = '#4ecca3';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([5, 5]);
-            const x = Math.min(state.selectionBox.startX, state.selectionBox.endX);
-            const y = Math.min(state.selectionBox.startY, state.selectionBox.endY);
-            const w = Math.abs(state.selectionBox.endX - state.selectionBox.startX);
-            const h = Math.abs(state.selectionBox.endY - state.selectionBox.startY);
-            ctx.fillRect(x, y, w, h);
-            ctx.strokeRect(x, y, w, h);
-            ctx.setLineDash([]);
-        }
-
+        const w = canvas.width/dpr; const h = canvas.height/dpr;
+        ctx.clearRect(0,0,w,h); labelsOverlay.innerHTML = ''; ctx.strokeStyle = '#eee'; ctx.lineWidth=1; ctx.beginPath();
+        for(let i=0; i<w; i+=20) { ctx.moveTo(i,0); ctx.lineTo(i,h); } for(let i=0; i<h; i+=20) { ctx.moveTo(0,i); ctx.lineTo(w,i); } ctx.stroke();
+        drawEquipotentials(ctx); drawVectorField(ctx); drawAxes(); 
+        
+        if (state.selectionBox) { ctx.fillStyle = 'rgba(78, 204, 163, 0.15)'; ctx.strokeStyle = '#4ecca3'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]); const x = Math.min(state.selectionBox.startX, state.selectionBox.endX), y = Math.min(state.selectionBox.startY, state.selectionBox.endY), boxW = Math.abs(state.selectionBox.endX - state.selectionBox.startX), boxH = Math.abs(state.selectionBox.endY - state.selectionBox.startY); ctx.fillRect(x, y, boxW, boxH); ctx.strokeRect(x, y, boxW, boxH); ctx.setLineDash([]); }
+        
         if(!state.isHidden) {
             state.objects.filter(o => o.type === 'trajectory').forEach(tr => {
-                const p1 = state.objects.find(p => p.id === tr.from); const p2 = state.objects.find(p => p.id === tr.to);
-                if (p1 && p2) {
-                    ctx.save(); ctx.beginPath(); ctx.strokeStyle = 'rgba(155, 89, 182, 0.15)'; ctx.lineWidth = 10; ctx.lineCap = 'round';
-                    ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
-                    ctx.beginPath(); ctx.strokeStyle = 'rgba(155, 89, 182, 0.4)'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
-                    ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); ctx.restore();
-                }
-                if (tr.path && tr.path.length > 2) {
-                    ctx.beginPath(); ctx.strokeStyle = '#9b59b6'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([]); 
-                    const pts = tr.path; ctx.moveTo(pts[0].x, pts[0].y);
-                    for (let i = 1; i < pts.length - 2; i++) {
-                        const xc = (pts[i].x + pts[i + 1].x) / 2; const yc = (pts[i].y + pts[i + 1].y) / 2;
-                        ctx.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
-                    }
-                    ctx.quadraticCurveTo(pts[pts.length-2].x, pts[pts.length-2].y, pts[pts.length-1].x, pts[pts.length-1].y); ctx.stroke();
-                    const last = pts[pts.length-1]; let prev = pts[pts.length-2];
-                    for(let i = pts.length-2; i >= 0; i--) { const d = Math.hypot(pts[i].x - last.x, pts[i].y - last.y); if (d > 10) { prev = pts[i]; break; } }
-                    if(last && prev) {
-                        const ang = Math.atan2(last.y - prev.y, last.x - prev.x); const headLen = 12;
-                        ctx.beginPath(); ctx.moveTo(last.x, last.y);
-                        ctx.lineTo(last.x - headLen * Math.cos(ang - Math.PI / 6), last.y - headLen * Math.sin(ang - Math.PI / 6));
-                        ctx.lineTo(last.x - headLen * Math.cos(ang + Math.PI / 6), last.y - headLen * Math.sin(ang + Math.PI / 6));
-                        ctx.lineTo(last.x, last.y); ctx.fillStyle = '#9b59b6'; ctx.fill();
-                    }
-                }
+                const p1 = state.objects.find(p => p.id === tr.from), p2 = state.objects.find(p => p.id === tr.to);
+                if (p1 && p2) { ctx.save(); ctx.beginPath(); ctx.strokeStyle = 'rgba(155, 89, 182, 0.15)'; ctx.lineWidth = 10; ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); ctx.restore(); }
+                if (tr.path && tr.path.length > 2) { ctx.beginPath(); ctx.strokeStyle = '#9b59b6'; ctx.lineWidth = 3; drawSmoothPath(tr.path); ctx.stroke(); }
             });
-
-            ctx.strokeStyle = '#999';
-            // ADICIÓN: Pasar grosor almacenado a los trazos
-            state.rawStrokes.forEach(s => drawPath(s, '#999', 2)); 
-            if(state.currentStroke.length>0) drawPath(state.currentStroke, '#999', 2);
-            if(state.currentFreeStroke) drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, state.lineWidth);
+            state.rawStrokes.forEach(s => drawPath(s, '#999', 2)); if(state.currentStroke.length>0) drawPath(state.currentStroke, '#999', 2);
+            
+            if(state.currentFreeStroke) {
+                if(state.currentFreeStroke.isHighlighter) { ctx.save(); ctx.globalAlpha = 0.4; drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, state.currentFreeStroke.lineWidth); ctx.restore(); }
+                else drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, state.currentFreeStroke.lineWidth);
+            }
             if(state.currentLine) drawPath(state.currentLine, state.currentColor, state.lineWidth);
 
             state.objects.forEach(obj => {
-                // ADICIÓN: Reflejar sombra en cualquier objeto de la selección múltiple
-                const isSel = state.selectedObjects.includes(obj);
+                const isSel = state.selectedObjects.includes(obj); 
+                ctx.save();
+                
+                // ADICIÓN: Aplicar transformaciones al renderizar
+                ctx.translate(obj.x, obj.y);
+                if (obj.rotation) ctx.rotate(obj.rotation);
+                if (obj.scale) ctx.scale(obj.scale, obj.scale);
+                ctx.translate(-obj.x, -obj.y);
+
                 ctx.shadowBlur = isSel ? 10 : 0; ctx.shadowColor = '#00ff88';
 
                 if(obj.type.startsWith('charge')) {
-                    ctx.beginPath(); ctx.arc(obj.x, obj.y, 20, 0, Math.PI*2); ctx.fillStyle = obj.type==='charge_pos' ? '#3498db' : '#e74c3c';
-                    ctx.fill(); ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke(); ctx.shadowBlur=0;
-                    ctx.fillStyle='white'; ctx.font='bold 24px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-                    ctx.fillText(obj.type==='charge_pos'?'+':'-', obj.x, obj.y+2); addLabel(obj.x+25, obj.y-25, obj.label);
+                    ctx.beginPath(); ctx.arc(obj.x, obj.y, 20, 0, Math.PI*2); ctx.fillStyle = obj.type==='charge_pos' ? '#3498db' : '#e74c3c'; ctx.fill(); ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke(); ctx.fillStyle='white'; ctx.font='bold 24px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(obj.type==='charge_pos'?'+':'-', obj.x, obj.y+2); addLabel(obj.x+25, obj.y-25, obj.label);
                 } 
                 else if(obj.type === 'point') {
-                    ctx.beginPath(); ctx.arc(obj.x, obj.y, 10, 0, Math.PI*2);
-                    if (obj.label === 'A') ctx.fillStyle = '#2ecc71'; else if (obj.label === 'B') ctx.fillStyle = '#e67e22'; else ctx.fillStyle = '#95a5a6';
-                    ctx.fill(); ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke(); ctx.shadowBlur=0; addLabel(obj.x+15, obj.y-15, obj.label);
+                    ctx.beginPath(); ctx.arc(obj.x, obj.y, 10, 0, Math.PI*2); ctx.fillStyle = obj.label === 'A' ? '#2ecc71' : (obj.label === 'B' ? '#e67e22' : '#95a5a6'); ctx.fill(); ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke(); addLabel(obj.x+15, obj.y-15, obj.label);
                 }
-                else if(obj.type === 'free_stroke') { drawPath(obj.points, obj.color, obj.lineWidth || 3); ctx.shadowBlur=0; }
-                else if(obj.type === 'text') { ctx.fillStyle = obj.color; ctx.font = 'bold 20px "Segoe UI", Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(obj.text, obj.x, obj.y); ctx.shadowBlur=0; }
+                else if(obj.type === 'free_stroke') { 
+                    if(obj.isHighlighter) { ctx.save(); ctx.globalAlpha = 0.4; drawPath(obj.points, obj.color, obj.lineWidth || 12); ctx.restore(); }
+                    else drawPath(obj.points, obj.color, obj.lineWidth || 3); 
+                }
+                else if(obj.type === 'text') { ctx.fillStyle = obj.color; ctx.font = 'bold 20px "Segoe UI", Arial'; ctx.fillText(obj.text, obj.x, obj.y); }
+                
+                ctx.restore();
+
+                // ADICIÓN: Dibujar controles de transformación si está seleccionado
+                if (isSel && state.tool === 'move') {
+                    const b = getObjectBounds(obj);
+                    // Bounding Box
+                    ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
+                    ctx.save();
+                    ctx.translate(obj.x, obj.y); if (obj.rotation) ctx.rotate(obj.rotation);
+                    ctx.strokeRect(-b.w/2 - 5, -b.h/2 - 5, b.w + 10, b.h + 10);
+                    ctx.restore(); ctx.setLineDash([]);
+
+                    // Rotate Handle
+                    const rotX = b.cx + 40 * Math.sin(obj.rotation || 0), rotY = b.cy - 40 * Math.cos(obj.rotation || 0);
+                    ctx.beginPath(); ctx.arc(rotX, rotY, 8, 0, Math.PI*2); ctx.fillStyle = '#3498db'; ctx.fill(); ctx.stroke();
+                    
+                    // Resize Handle
+                    const resX = b.maxX + 10, resY = b.maxY + 10;
+                    ctx.beginPath(); ctx.arc(resX, resY, 8, 0, Math.PI*2); ctx.fillStyle = '#2ecc71'; ctx.fill(); ctx.stroke();
+                }
             });
         }
     }
-    window.redraw = redraw;
 
-    function drawPath(pts, color = '#999', width = 2) {
-        if(!pts || pts.length<2) return;
-        ctx.strokeStyle = color; ctx.lineWidth = width;
-        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
-        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.stroke();
+    function drawPath(pts, color, width) { 
+        if(!pts || pts.length<2) return; ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); drawSmoothPath(pts); ctx.stroke(); 
     }
-    
+    function drawSmoothPath(pts) {
+        if (pts.length < 2) return; ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length - 2; i++) { const xc = (pts[i].x + pts[i + 1].x) / 2, yc = (pts[i].y + pts[i + 1].y) / 2; ctx.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc); }
+        if (pts.length > 2) { ctx.quadraticCurveTo(pts[pts.length - 2].x, pts[pts.length - 2].y, pts[pts.length - 1].x, pts[pts.length - 1].y); } else { ctx.lineTo(pts[1].x, pts[1].y); }
+    }
+
     function addLabel(x, y, t) { const d = document.createElement('div'); d.className='canvas-label'; d.style.left=x+'px'; d.style.top=y+'px'; katex.render(t, d, {throwOnError:false}); labelsOverlay.appendChild(d); }
-    
     function setTool(t, b) { finalizeText(); state.tool = t; document.querySelectorAll('.btn-tool').forEach(el=>el.classList.remove('active')); if(b) b.classList.add('active'); if(t !== 'move') selectObject(null); }
-    window.setTool = setTool;
-
     function undo() { if(state.rawStrokes.length>0) state.rawStrokes.pop(); else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); } redraw(); requestSync(true); }
-    window.undo = undo;
-
-    function limpiarTodo() { state.objects=[]; state.rawStrokes=[]; updateUI(); analizarFisica(); redraw(); document.getElementById('latex-result').innerText='---'; requestSync(true); }
-    window.limpiarTodo = limpiarTodo;
-
-    function exportarImagen() {
-        const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height; const tCtx = tempCanvas.getContext('2d');
-        tCtx.fillStyle = '#ffffff'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-        tCtx.strokeStyle = 'rgba(0, 0, 0, 0.05)'; tCtx.lineWidth = 1; tCtx.beginPath();
-        for(let x = 0; x < tempCanvas.width; x += 20) { tCtx.moveTo(x, 0); tCtx.lineTo(x, tempCanvas.height); }
-        for(let y = 0; y < tempCanvas.height; y += 20) { tCtx.moveTo(0, y); tCtx.lineTo(tempCanvas.width, y); } tCtx.stroke();
-        tCtx.drawImage(canvas, 0, 0);
-        const link = document.createElement('a'); link.download = 'Potencial_Trabajo_Electrico.png'; link.href = tempCanvas.toDataURL('image/png'); link.click();
+    function limpiarTodo() { state.objects=[]; state.rawStrokes=[]; updateUI(); analizarFisica(); redraw(); requestSync(true); }
+    function exportarImagen() { const tC = document.createElement('canvas'); tC.width = canvas.width; tC.height = canvas.height; const tX = tC.getContext('2d'); tX.fillStyle = '#ffffff'; tX.fillRect(0,0,tC.width,tC.height); tX.drawImage(canvas, 0,0); const l = document.createElement('a'); l.download = 'Lab_Electrico.png'; l.href = tC.toDataURL(); l.click(); }
+    function eraseAt(c) {
+        const hit = findObjectAt(c);
+        if (hit && hit.type !== 'origin') {
+            if (hit.type === 'point') { const pid = hit.id; state.objects = state.objects.filter(o => !(o.type === 'trajectory' && (o.from === pid || o.to === pid))); }
+            state.selectedObjects = state.selectedObjects.filter(o => o !== hit); state.objects = state.objects.filter(o => o !== hit);
+            updateUI(); analizarFisica(); redraw();
+        }
     }
-    window.exportarImagen = exportarImagen;
-
-    function copiarInfoSala() {
-        const salaInfo = document.getElementById('room-info').innerText.replace('🌐 Sala: ', '');
-        if(salaInfo === 'Ninguna') return alert('No estás en ninguna sala.');
-        const texto = `¡Únete a mi simulación de Potencial Eléctrico!\n📌 Nombre de Sala: ${salaInfo}\n🔗 Ingresa aquí: ${window.location.href}`;
-        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(texto).then(() => { alert('✅ Datos de la sala copiados.'); }).catch(() => { prompt('Copia este texto para invitar:', texto); });
-        else prompt('Copia este texto para invitar:', texto);
-    }
-    window.copiarInfoSala = copiarInfoSala;
-
-    document.addEventListener("DOMContentLoaded", function() { renderMathInElement(document.getElementById('static-tip'), {delimiters: [{left: "$", right: "$", display: false}]}); });
+    setTimeout(updateBoardsUI, 500);
 </script>
 
-<!-- FIREBASE Y SALAS INTACTO -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
   import { getDatabase, ref, set, get, onValue, push, update, increment } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
   import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
-    authDomain: "laboratorio-de-coulomb.firebaseapp.com",
-    databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
-    projectId: "laboratorio-de-coulomb",
-    storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
-    messagingSenderId: "525944850850",
-    appId: "1:525944850850:web:eca9c0b79809358e8d8afb"
-  };
-
-  const app = initializeApp(firebaseConfig); const db = getDatabase(app); const auth = getAuth(app);
-  let currentRoomRef = null; let chatRoomRef = null; let isReceiving = false; let unsubscribeRoom = null; let unsubscribeChat = null;
-
-  onAuthStateChanged(auth, (user) => {
-      if (user) {
-          document.getElementById('auth-modal').style.display = 'none'; document.getElementById('user-info').innerText = `👤 ${user.email}`;
-          document.getElementById('btn-logout').style.display = 'inline-block'; document.getElementById('user-stats').style.display = 'inline-flex';
-          if (window.iniciarGamificacion) window.iniciarGamificacion(user.uid); if (!currentRoomRef) window.abrirModalSala();
-      } else {
-          document.getElementById('auth-modal').style.display = 'flex'; document.getElementById('room-modal').style.display = 'none';
-          document.getElementById('user-info').innerText = 'No conectado'; document.getElementById('user-stats').style.display = 'none';
-          document.getElementById('btn-logout').style.display = 'none'; document.getElementById('room-info').innerText = '🌐 Sala: Ninguna';
-          document.getElementById('btn-share-room').style.display = 'none'; document.getElementById('chat-section').style.display = 'none';
-          if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; } if (unsubscribeChat) { unsubscribeChat(); unsubscribeChat = null; }
-          currentRoomRef = null; chatRoomRef = null; if (window.detenerGamificacion) window.detenerGamificacion(); window.limpiarTodo();
-      }
-  });
-
-  let gamificationUnsubscribe = null; let gameTimerInterval = null;
-  window.abrirModalPerfil = function() { document.getElementById('profile-modal').style.display = 'flex'; };
-  window.cerrarModalPerfil = function() { document.getElementById('profile-modal').style.display = 'none'; };
-
-  window.iniciarGamificacion = function(uid) {
-      const perfilRef = ref(db, 'usuarios_potencial/' + uid); 
-      window.userGameData = { perfil: { puntos: 0, nivel: 1, tiempo_sesion: 0 }, logros: { inicio_sesion: true }, tareas: { tarea_1: false, tarea_2: false, tarea_3: false, tarea_4: false, tarea_5: false, tarea_6: false, tarea_7: false, tarea_8: false, tarea_9: false, tarea_10: false, tarea_11: false, tarea_12: false } };
-      gamificationUnsubscribe = onValue(perfilRef, (snapshot) => {
-          const data = snapshot.val(); if (!data) { set(perfilRef, window.userGameData).catch(e=>{}); } else { window.userGameData = data; actualizarUIPerfil(); }
-      }, (error) => { actualizarUIPerfil(); });
-
-      if (gameTimerInterval) clearInterval(gameTimerInterval);
-      gameTimerInterval = setInterval(() => {
-          if (window.userGameData && window.userGameData.perfil) { window.userGameData.perfil.tiempo_sesion += 1; window.userGameData.perfil.puntos += 10; actualizarUIPerfil(); }
-          update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { tiempo_sesion: increment(1), puntos: increment(10) }).catch(e => {});
-      }, 60000); 
-  };
-
-  window.detenerGamificacion = function() { if (gamificationUnsubscribe) { gamificationUnsubscribe(); gamificationUnsubscribe = null; } if (gameTimerInterval) { clearInterval(gameTimerInterval); gameTimerInterval = null; } window.userGameData = null; window.interaccionesLocales = 0; };
-
-  function actualizarUIPerfil() {
-      const d = window.userGameData; if (!d || !d.perfil) return; const p = d.perfil;
-      document.getElementById('user-stats').innerText = `🏆 Lvl ${p.nivel} | ${p.puntos} pts`; document.getElementById('ui-nivel').innerText = p.nivel; document.getElementById('ui-puntos').innerText = p.puntos; document.getElementById('ui-tiempo').innerText = p.tiempo_sesion;
-      const tareasDiv = document.getElementById('ui-tareas');
-      if(d.tareas) {
-          if (p.nivel === 1) { tareasDiv.innerHTML = `<div class="task-item ${d.tareas.tarea_1 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 1 carga en el lienzo</span></div><div class="task-item ${d.tareas.tarea_2 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 2 puntos (A y B)</span></div><div class="task-item ${d.tareas.tarea_3 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 1 trayectoria conectándolos</span></div>`; } 
-          else if (p.nivel === 2) { tareasDiv.innerHTML = `<div class="task-item ${d.tareas.tarea_4 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 2 cargas fuente</span></div><div class="task-item ${d.tareas.tarea_5 ? 'done' : ''}"><div class="task-check">✓</div><span>Mueve el sistema de referencia (Origen)</span></div><div class="task-item ${d.tareas.tarea_6 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 20 interacciones totales</span></div>`; } 
-          else if (p.nivel === 3) { tareasDiv.innerHTML = `<div class="task-item ${d.tareas.tarea_7 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 3 cargas fuente</span></div><div class="task-item ${d.tareas.tarea_8 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 3 puntos distintos</span></div><div class="task-item ${d.tareas.tarea_9 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 2 trayectorias</span></div>`; } 
-          else if (p.nivel === 4) { tareasDiv.innerHTML = `<div class="task-item ${d.tareas.tarea_10 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 4 cargas fuente</span></div><div class="task-item ${d.tareas.tarea_11 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 50 interacciones totales</span></div><div class="task-item ${d.tareas.tarea_12 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 100 interacciones totales</span></div>`; } 
-          else { tareasDiv.innerHTML = `<div class="task-item done"><div class="task-check">✓</div><span>¡Has completado todas las misiones del simulador!</span></div>`; }
-      }
-      const container = document.getElementById('ui-logros'); container.innerHTML = '';
-      if(d.logros) {
-          const dictLogros = { "inicio_sesion": "🎓 Bienvenido", "fisico_experto": "⚡ Físico Experto", "nivel_2_alcanzado": "🌟 Graduado Nivel 1", "nivel_3_alcanzado": "🚀 Investigador Nivel 2", "nivel_4_alcanzado": "🧠 Científico Nivel 3", "nivel_5_alcanzado": "👑 Nobel de Física" };
-          Object.keys(d.logros).forEach(key => { if(d.logros[key] && dictLogros[key]) { container.innerHTML += `<span style="background: #e67e22; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">${dictLogros[key]}</span>`; } });
-      }
-  }
-
-  window.registrarInteraccion = function() {
-      if (!auth.currentUser || !window.userGameData) return; window.interaccionesLocales = (window.interaccionesLocales || 0) + 1; const uid = auth.currentUser.uid;
-      if (window.appState.draggingOrigin && window.userGameData.perfil.nivel >= 2 && !window.userGameData.tareas?.tarea_5) { window.userGameData.tareas.tarea_5 = true; window.userGameData.perfil.puntos += 50; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_5: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); window.chequearSubidaNivel(uid); }
-      if (window.interaccionesLocales >= 20 && !window.userGameData.tareas?.tarea_6) { window.userGameData.tareas.tarea_6 = true; window.userGameData.perfil.puntos += 50; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_6: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); window.chequearSubidaNivel(uid); }
-      if (window.interaccionesLocales >= 50 && !window.userGameData.tareas?.tarea_11) { window.userGameData.tareas.tarea_11 = true; window.userGameData.perfil.puntos += 100; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_11: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); window.chequearSubidaNivel(uid); }
-      if (window.interaccionesLocales >= 100 && !window.userGameData.tareas?.tarea_12) { window.userGameData.tareas.tarea_12 = true; window.userGameData.perfil.puntos += 150; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_12: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); window.chequearSubidaNivel(uid); }
-      if (window.interaccionesLocales >= 50 && !window.userGameData.logros?.fisico_experto) { window.userGameData.logros.fisico_experto = true; window.userGameData.perfil.puntos += 100; actualizarUIPerfil(); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { fisico_experto: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); }
-  };
-
-  window.verificarTareasFisica = function() {
-      if (!auth.currentUser || !window.userGameData) return; const uid = auth.currentUser.uid;
-      const charges = window.appState.objects.filter(o => o.type.startsWith('charge')); const points = window.appState.objects.filter(o => o.type === 'point'); const trajectories = window.appState.objects.filter(o => o.type === 'trajectory');
-      let hizoAlgo = false;
-      if (charges.length >= 1 && !window.userGameData.tareas?.tarea_1) { window.userGameData.tareas.tarea_1 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_1: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{}); hizoAlgo = true; }
-      if (points.length >= 2 && !window.userGameData.tareas?.tarea_2) { window.userGameData.tareas.tarea_2 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_2: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{}); hizoAlgo = true; }
-      if (trajectories.length >= 1 && !window.userGameData.tareas?.tarea_3) { window.userGameData.tareas.tarea_3 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_3: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{}); hizoAlgo = true; }
-      if (charges.length >= 2 && !window.userGameData.tareas?.tarea_4) { window.userGameData.tareas.tarea_4 = true; window.userGameData.perfil.puntos += 50; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_4: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); hizoAlgo = true; }
-      if (charges.length >= 3 && !window.userGameData.tareas?.tarea_7) { window.userGameData.tareas.tarea_7 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_7: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); hizoAlgo = true; }
-      if (points.length >= 3 && !window.userGameData.tareas?.tarea_8) { window.userGameData.tareas.tarea_8 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_8: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); hizoAlgo = true; }
-      if (trajectories.length >= 2 && !window.userGameData.tareas?.tarea_9) { window.userGameData.tareas.tarea_9 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_9: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); hizoAlgo = true; }
-      if (charges.length >= 4 && !window.userGameData.tareas?.tarea_10) { window.userGameData.tareas.tarea_10 = true; window.userGameData.perfil.puntos += 150; update(ref(db, 'usuarios_potencial/' + uid + '/tareas'), { tarea_10: true }).catch(e=>{}); update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); hizoAlgo = true; }
-      if(hizoAlgo) { actualizarUIPerfil(); window.chequearSubidaNivel(uid); }
-  };
-
-  window.chequearSubidaNivel = function(uid) {
-      setTimeout(() => {
-          if(!window.userGameData || !window.userGameData.tareas) return;
-          const t = window.userGameData.tareas; const lvl = window.userGameData.perfil?.nivel || 1;
-          if (lvl === 1 && t.tarea_1 && t.tarea_2 && t.tarea_3) { window.userGameData.perfil.nivel = 2; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 2, puntos: increment(200) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_2_alcanzado: true }); alert("🌟 ¡FELICITACIONES! Has completado todas las misiones del Nivel 1. ¡Subiste al NIVEL 2 y ganaste 200 pts!"); actualizarUIPerfil(); }
-          else if (lvl === 2 && t.tarea_4 && t.tarea_5 && t.tarea_6) { window.userGameData.perfil.nivel = 3; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 3, puntos: increment(400) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_3_alcanzado: true }); alert("🚀 ¡IMPRESIONANTE! Completaste el Nivel 2. ¡Subiste al NIVEL 3 y ganaste 400 pts!"); actualizarUIPerfil(); }
-          else if (lvl === 3 && t.tarea_7 && t.tarea_8 && t.tarea_9) { window.userGameData.perfil.nivel = 4; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 4, puntos: increment(800) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_4_alcanzado: true }); alert("🧠 ¡ERES UN GENIO! Completaste el Nivel 3. ¡Subiste al NIVEL 4 y ganaste 800 pts!"); actualizarUIPerfil(); }
-          else if (lvl === 4 && t.tarea_10 && t.tarea_11 && t.tarea_12) { window.userGameData.perfil.nivel = 5; update(ref(db, 'usuarios_potencial/' + uid + '/perfil'), { nivel: 5, puntos: increment(1500) }); update(ref(db, 'usuarios_potencial/' + uid + '/logros'), { nivel_5_alcanzado: true }); alert("👑 ¡LEYENDA! Has completado el Laboratorio de Potencial. ¡Alcanzaste el NIVEL MÁXIMO (5)!"); actualizarUIPerfil(); }
-      }, 1000);
-  };
-
-  window.iniciarSesion = function() { const email = document.getElementById('auth-email').value.trim(); const pass = document.getElementById('auth-pass').value; if (!email || !pass) return alert('Llena ambos campos.'); signInWithEmailAndPassword(auth, email, pass).catch(error => alert('Error al entrar: ' + error.message)); };
-  window.registrarUsuario = function() { const email = document.getElementById('auth-email').value.trim(); const pass = document.getElementById('auth-pass').value; if (!email || pass.length < 6) return alert('Ingresa un correo y una clave de mínimo 6 letras/números.'); createUserWithEmailAndPassword(auth, email, pass).catch(error => alert('Error al registrar: ' + error.message)); };
-  window.iniciarSesionConGoogle = function() { const provider = new GoogleAuthProvider(); signInWithPopup(auth, provider).catch(error => alert('Error al entrar con Google: ' + error.message)); };
-  window.cerrarSesion = function() { signOut(auth); };
-  window.recuperarContrasena = function() { const email = document.getElementById('auth-email').value.trim(); if (!email) return alert('Escribe tu correo en el campo superior para recuperar tu contraseña.'); sendPasswordResetEmail(auth, email).then(() => alert('✅ Correo de recuperación enviado a ' + email)).catch((error) => alert('❌ Error: ' + error.message)); };
-
-  window.abrirModalSala = function() { if (!auth.currentUser) return alert("Primero debes iniciar sesión"); document.getElementById('room-modal').style.display = 'flex'; };
-  window.cerrarModalSala = function() { if (!currentRoomRef) alert("Trabajarás offline si no te unes a un cuarto."); document.getElementById('room-modal').style.display = 'none'; };
-
-  window.intentarUnirseSala = async function() {
-      const salaId = document.getElementById('room-name').value.trim(); const salaPass = document.getElementById('room-pass').value.trim();
-      if (!salaId || !salaPass) return alert('Debes ingresar el nombre del cuarto y su contraseña.');
-      const passRef = ref(db, 'salas_potencial/' + salaId + '/password');
-      try {
-          const snapshot = await get(passRef);
-          if (snapshot.exists()) { if (snapshot.val() !== salaPass) return alert('❌ Contraseña incorrecta para el cuarto: ' + salaId); } else { await set(passRef, salaPass); alert('✅ Nuevo cuarto creado: ' + salaId); }
-          document.getElementById('room-modal').style.display = 'none'; document.getElementById('room-info').innerText = '🌐 Sala: ' + salaId; document.getElementById('btn-share-room').style.display = 'inline-block'; document.getElementById('chat-section').style.display = 'block'; conectarASala(salaId);
-      } catch (error) { console.error(error); alert('Error de conexión.'); }
-  };
-
-  function conectarASala(salaId) {
-      if (unsubscribeRoom) unsubscribeRoom(); if (unsubscribeChat) unsubscribeChat();
-      currentRoomRef = ref(db, 'salas_potencial/' + salaId + '/state'); chatRoomRef = ref(db, 'salas_potencial/' + salaId + '/chat');
-      
-      unsubscribeRoom = onValue(currentRoomRef, (snapshot) => {
-          const data = snapshot.val();
-          if (data && !window.isSendingData) {
-              isReceiving = true; window.appState.objects = data.objects || []; window.appState.origin = data.origin || { x: null, y: null }; window.appState.rawStrokes = data.rawStrokes || []; window.appState.showEquipotentials = data.showEquipotentials !== undefined ? data.showEquipotentials : true;
-              const btnEqui = document.getElementById('btn-equipotentials'); if (window.appState.showEquipotentials) btnEqui.classList.add('on'); else btnEqui.classList.remove('on');
-              window.appState.selectedObject = null; document.getElementById('float-delete').style.display = 'none';
-              window.updateUI(); window.analizarFisica(); window.redraw(); setTimeout(() => { isReceiving = false; }, 50);
-          }
-      });
-
-      unsubscribeChat = onValue(chatRoomRef, (snapshot) => {
-          const chatBox = document.getElementById('chat-box'); chatBox.innerHTML = ''; const data = snapshot.val();
-          if (data) {
-              Object.values(data).forEach(msg => {
-                  const esMio = auth.currentUser && msg.email === auth.currentUser.email; const colorFondo = esMio ? '#2e4a3f' : '#1e3a4d'; const align = esMio ? 'right' : 'left'; const nick = msg.email.split('@')[0];
-                  chatBox.innerHTML += `<div style="text-align: ${align}; margin-bottom: 5px;"><span style="font-size: 0.7rem; color: #aaa;">${nick}</span><br><span style="background: ${colorFondo}; color: white; padding: 6px 10px; border-radius: 8px; display: inline-block; max-width: 90%; word-wrap: break-word; text-align: left;">${msg.text}</span></div>`;
-              });
-              chatBox.scrollTop = chatBox.scrollHeight;
-          } else { chatBox.innerHTML = '<i style="color: #666;">Sin mensajes. ¡Saluda a tu grupo!</i>'; }
-      });
-  }
-
-  window.enviarMensajeChat = function() {
-      const input = document.getElementById('chat-input'); const text = input.value.trim();
-      if (!text || !auth.currentUser || !chatRoomRef) return;
-      push(chatRoomRef, { email: auth.currentUser.email, text: text, timestamp: Date.now() }); input.value = '';
-  };
-
-  window.enviarEstadoNube = function() {
-      if (!currentRoomRef || isReceiving || !auth.currentUser) return; window.isSendingData = true;
-      set(currentRoomRef, { objects: window.appState.objects, origin: window.appState.origin, rawStrokes: window.appState.rawStrokes, showEquipotentials: window.appState.showEquipotentials })
-      .then(() => { window.isSendingData = false; }).catch(e => { console.error("Firebase bloqueó el guardado:", e); window.isSendingData = false; });
-  };
+  const firebaseConfig = { apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA", authDomain: "laboratorio-de-coulomb.firebaseapp.com", databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com", projectId: "laboratorio-de-coulomb", storageBucket: "laboratorio-de-coulomb.firebasestorage.app", messagingSenderId: "525944850850", appId: "1:525944850850:web:eca9c0b79809358e8d8afb" };
+  const app = initializeApp(firebaseConfig), db = getDatabase(app), auth = getAuth(app);
+  let cRR = null, iR = false, uSR = null;
+  onAuthStateChanged(auth, (user) => { if (user) { document.getElementById('auth-modal').style.display = 'none'; document.getElementById('user-info').innerText = `👤 ${user.email}`; document.getElementById('btn-logout').style.display = 'inline-block'; document.getElementById('user-stats').style.display = 'inline-flex'; if (!cRR) window.abrirModalSala(); } else { document.getElementById('auth-modal').style.display = 'flex'; document.getElementById('room-info').innerText = '🌐 Sala: Ninguna'; if (uSR) { uSR(); uSR = null; } cRR = null; } });
+  window.iniciarSesion = () => { const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value; signInWithEmailAndPassword(auth, e, p).catch(err => alert(err.message)); };
+  window.registrarUsuario = () => { const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value; createUserWithEmailAndPassword(auth, e, p).catch(err => alert(err.message)); };
+  window.iniciarSesionConGoogle = () => { signInWithPopup(auth, new GoogleAuthProvider()); };
+  window.cerrarSesion = () => { signOut(auth); };
+  window.intentarUnirseSala = async () => { const sId = document.getElementById('room-name').value, sP = document.getElementById('room-pass').value; if(!sId || !sP) return; const pR = ref(db, 'salas_potencial/' + sId + '/password'); const snap = await get(pR); if (snap.exists() && snap.val() !== sP) return alert('Clave errónea'); if(!snap.exists()) await set(pR, sP); document.getElementById('room-modal').style.display = 'none'; document.getElementById('room-info').innerText = '🌐 Sala: ' + sId; conectarASala(sId); };
+  function conectarASala(sId) { if(uSR) uSR(); cRR = ref(db, 'salas_potencial/' + sId + '/state'); uSR = onValue(cRR, (snap) => { const d = snap.val(); if(d && !window.isSendingData) { iR = true; window.appState.objects = d.objects || []; window.appState.rawStrokes = d.rawStrokes || []; window.appState.origin = d.origin || {x:null,y:null}; window.appState.boards = d.boards || [{ id: 1, name: "Pizarra 1", objects: [], rawStrokes: [], origin: { x: null, y: null } }]; window.appState.activeBoardIndex = d.activeBoardIndex !== undefined ? d.activeBoardIndex : 0; window.updateBoardsUI(); window.updateUI(); window.analizarFisica(); window.redraw(); iR = false; } }); }
+  window.enviarEstadoNube = () => { if(!cRR || iR || !auth.currentUser) return; window.isSendingData = true; set(cRR, { objects: window.appState.objects, origin: window.appState.origin, rawStrokes: window.appState.rawStrokes, boards: window.appState.boards, activeBoardIndex: window.appState.activeBoardIndex }).then(() => window.isSendingData = false); };
 </script>
 </body>
 </html>
