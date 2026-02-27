@@ -512,7 +512,7 @@
         setTimeout(resizeCanvas, 300);
     }
 
-    // Estado Global original respetado
+    // Estado Global (Mantenido intacto)
     let state = {
         tool: 'draw',
         currentColor: '#000000',
@@ -683,7 +683,7 @@
     }
     function drawSeg(ctx, p1, p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
 
-    // --- Eventos Canvas ---
+    // --- Eventos Canvas (Tu lógica exacta + requestSync) ---
     canvas.addEventListener('mousedown', handleStart);
     canvas.addEventListener('touchstart', handleStart);
     canvas.addEventListener('mousemove', handleMove);
@@ -799,14 +799,13 @@
         if (state.draggingOrigin) {
             state.draggingOrigin = false;
             state.isDragging = false;
-            requestSync(true); // Sync
+            requestSync(true);
             return;
         }
         if (state.isDragging) {
             state.isDragging = false; state.draggedObject = null;
             updateUI(); analizarFisica(); 
-            requestSync(true); // Sync
-            if (window.registrarInteraccion) window.registrarInteraccion(); // Gamificación
+            requestSync(true); if (window.registrarInteraccion) window.registrarInteraccion();
             return;
         }
         if (state.isDrawingFree && state.currentFreeStroke) {
@@ -814,8 +813,7 @@
             if (state.currentFreeStroke.points.length > 2) state.objects.push(state.currentFreeStroke);
             state.currentFreeStroke = null;
             redraw(); 
-            requestSync(true); // Sync
-            if (window.registrarInteraccion) window.registrarInteraccion(); // Gamificación
+            requestSync(true); if (window.registrarInteraccion) window.registrarInteraccion();
             return;
         }
         if (state.isDrawing) {
@@ -824,12 +822,13 @@
             state.currentStroke = [];
             state.recognitionTimer = setTimeout(() => { detectAndConvert(); state.recognitionTimer = null; }, 1000);
             redraw();
-            requestSync(true); // Sync
-            if (window.registrarInteraccion) window.registrarInteraccion(); // Gamificación
+            requestSync(true); if (window.registrarInteraccion) window.registrarInteraccion();
         }
     }
 
+    // --- RECONOCIMIENTO IA EXACTO (Tu lógica) ---
     function findObjectAt(c) {
+        // Intersección con el sistema de referencia (Origen)
         if (Math.hypot(state.origin.x - c.x, state.origin.y - c.y) < 25) return { type: 'origin' };
         
         const textObj = state.objects.find(o => {
@@ -899,12 +898,10 @@
             }
             state.objects = state.objects.filter(o => o !== state.selectedObject);
             selectObject(null);
-            updateUI(); analizarFisica(); redraw();
-            requestSync(true); // Sync
+            updateUI(); analizarFisica(); redraw(); requestSync(true);
         }
     }
 
-    // TU RECONOCIMIENTO ANTIGUO (No modificado, solo le agregué requestSync al final)
     function detectAndConvert() {
         const groups = groupStrokes(state.rawStrokes);
         const newObjects = [];
@@ -918,6 +915,7 @@
                 const currentIds = state.objects.map(o=>o.id);
                 const nextId = (currentIds.length > 0 ? Math.max(...currentIds) : 0) + 1;
                 
+                // Mapeo físico al crear
                 const px = (bounds.cx - state.origin.x) / scale;
                 const py = (state.origin.y - bounds.cy) / scale;
 
@@ -962,7 +960,7 @@
             updateUI(); analizarFisica();
         }
         redraw();
-        requestSync(true); // Sync profesional agregado
+        requestSync(true); // <--- Agregado para que funcione en red
     }
 
     function findPointNear(c) { return state.objects.find(o => o.type === 'point' && Math.hypot(o.x - c.x, o.y - c.y) < 50); }
@@ -1020,7 +1018,7 @@
         return 'unknown';
     }
 
-    // --- Física ---
+    // --- Física (Tuya + Gamificación) ---
     function analizarFisica() {
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         const points = state.objects.filter(o => o.type === 'point');
@@ -1034,6 +1032,7 @@
 
         charges.forEach(c => {
             const elQ = document.getElementById(`q-${c.id}`); if(elQ) c.q = parseFloat(elQ.value);
+            // Asegurar sincronización con el sistema de referencia
             c.physX = (c.x - state.origin.x) / scale;
             c.physY = (state.origin.y - c.y) / scale;
         });
@@ -1045,6 +1044,7 @@
 
             let V_total = 0;
             charges.forEach(src => {
+                // Distancia real en metros
                 const r = Math.hypot(p.physX - src.physX, p.physY - src.physY);
                 if (r > 0.001) V_total += (Ke * src.q * chargeU) / r;
             });
@@ -1081,7 +1081,7 @@
         // HOOK DE TAREAS FISICA (Gamificación Profesional)
         if (window.verificarTareasFisica) window.verificarTareasFisica();
     }
-    window.analizarFisica = analizarFisica; // Expuesto para Firebase
+    window.analizarFisica = analizarFisica;
 
     function renderLatex() {
         const box = document.getElementById('latex-result');
@@ -1170,7 +1170,7 @@
             obj.y = state.origin.y - numVal * scale; 
         }
         analizarFisica(); redraw();
-        requestSync(true); // Sync
+        requestSync(true);
     }
     window.updateCoord = updateCoord;
 
@@ -1217,7 +1217,7 @@
         });
         dList.innerHTML = dHtml || "<i>Nada detectado</i>";
     }
-    window.updateUI = updateUI; // Expuesto
+    window.updateUI = updateUI;
 
     function drawAxes() {
         if(state.origin.x === null) return;
@@ -1363,7 +1363,7 @@
             }
         });
     }
-    window.redraw = redraw; // Expuesto
+    window.redraw = redraw;
 
     function drawPath(pts, color = '#999', width = 2) {
         if(pts.length<2) return;
@@ -1392,15 +1392,13 @@
     function undo() { 
         if(state.rawStrokes.length>0) state.rawStrokes.pop(); 
         else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); } 
-        redraw(); 
-        requestSync(true); // Sync
+        redraw(); requestSync(true);
     }
     window.undo = undo;
 
     function limpiarTodo() { 
         state.objects=[]; state.rawStrokes=[]; updateUI(); analizarFisica(); redraw(); 
-        document.getElementById('latex-result').innerText='---'; 
-        requestSync(true); // Sync
+        document.getElementById('latex-result').innerText='---'; requestSync(true);
     }
     window.limpiarTodo = limpiarTodo;
 
