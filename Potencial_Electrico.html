@@ -425,7 +425,14 @@
     // Funciones de Modales y Gamificación
     function abrirModalPerfil() { document.getElementById('profile-modal').style.display = 'flex'; }
     function cerrarModalPerfil() { document.getElementById('profile-modal').style.display = 'none'; }
-    function abrirModalSala() { document.getElementById('room-modal').style.display = 'flex'; }
+    function abrirModalSala() { 
+        if (!window.appAuth || !window.appAuth.currentUser) {
+            document.getElementById('auth-modal').style.display = 'flex';
+            alert("⚠️ Debes iniciar sesión (o entrar como Invitado) primero para poder unirte a una sala.");
+            return;
+        }
+        document.getElementById('room-modal').style.display = 'flex'; 
+    }
     function cerrarModalSala() { document.getElementById('room-modal').style.display = 'none'; }
     function copiarInfoSala() { 
         navigator.clipboard.writeText(document.getElementById('room-info').innerText); 
@@ -1128,7 +1135,7 @@
     // --- INTEGRACIÓN CON REALTIME DATABASE (V 12.9.0) ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
     import { getDatabase, ref, set, get, onValue, push, update, increment } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
-    import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+    import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
     // === CONFIGURACIÓN DE FIREBASE DE TU DOMINIO ===
     const firebaseConfig = {
@@ -1144,6 +1151,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
+    window.appAuth = auth; // Exponemos auth globalmente para validaciones de UI
 
     let currentRoomRef = null;
     let chatRoomRef = null;
@@ -1210,9 +1218,15 @@
         createUserWithEmailAndPassword(auth, email, password).catch(handleAuthError);
     });
 
+    // --- SOLUCIÓN ERROR COOP: Usar Redirect en lugar de Popup ---
     document.getElementById('btn-login-google').addEventListener('click', () => {
-        signInWithPopup(auth, new GoogleAuthProvider()).catch(handleAuthError);
+        signInWithRedirect(auth, new GoogleAuthProvider()).catch(handleAuthError);
     });
+
+    // Procesar el resultado del redirect al recargar la página
+    getRedirectResult(auth).then((result) => {
+        if (result) console.log("Sesión iniciada correctamente tras redirección.");
+    }).catch(handleAuthError);
 
     document.getElementById('btn-login-guest').addEventListener('click', () => {
         signInAnonymously(auth).catch(handleAuthError);
@@ -1353,6 +1367,12 @@
 
     // --- SISTEMA DE SALAS Y CONTRASEÑAS (APUNTANDO A salas) ---
     window.intentarUnirseSala = async function() {
+        if (!auth.currentUser) {
+            document.getElementById('room-modal').style.display = 'none';
+            document.getElementById('auth-modal').style.display = 'flex';
+            return alert('⚠️ Debes iniciar sesión primero para unirte a un cuarto.');
+        }
+
         const salaId = document.getElementById('room-name').value.trim();
         const salaPass = document.getElementById('room-pass').value.trim();
         
