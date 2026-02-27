@@ -28,7 +28,7 @@
             --selection-color: #00ff88;
             --statement-color: #9b59b6;
             --left-w: 260px;
-            --right-w: 420px; /* Ampliado ligeramente para el LaTeX detallado */
+            --right-w: 420px; 
         }
 
         * { box-sizing: border-box; }
@@ -188,7 +188,7 @@
                 <button class="btn-tool" onclick="setTool('line', this)" title="Dibuja una línea recta">📏 Línea Recta</button>
                 <button class="btn-tool" onclick="setTool('text', this)" title="Escribe texto en el lienzo">🔤 Escribir Texto</button>
                 <button class="btn-tool" onclick="setTool('eraser', this)" title="Haz clic o arrastra para borrar objetos y trazos">🧽 Borrador</button>
-                <button class="btn-tool" onclick="setTool('move', this)" title="Mueve objetos y el Eje de Coordenadas">✋ Mover / Seleccionar</button>
+                <button class="btn-tool" onclick="setTool('move', this)" title="Mueve o selecciona múltiples objetos">✋ Mover / Seleccionar</button>
                 <button class="btn-tool" onclick="undo()">↩️ Deshacer</button>
                 <button id="btn-hide-show" class="btn-tool btn-toggle" onclick="toggleVisibility()" title="Oculta temporalmente los trazos y objetos">👻 Ocultar / Mostrar</button>
                 <button class="btn-tool btn-danger" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
@@ -197,14 +197,19 @@
             
             <div class="color-picker-container">
                 <input type="color" id="pencil-color" value="#000000" onchange="state.currentColor = this.value">
-                <label for="pencil-color" style="font-size: 0.85rem; color: #ccc;">Color (Marcador y Texto)</label>
+                <label for="pencil-color" style="font-size: 0.85rem; color: #ccc;">Color</label>
+            </div>
+            <!-- ADICIÓN: Control de Grosor -->
+            <div class="color-picker-container" style="margin-top: 5px;">
+                <label style="font-size: 0.85rem; color: #ccc; width: 50px;">Grosor:</label>
+                <input type="range" id="pencil-width" min="1" max="15" value="3" style="flex:1;">
+                <span id="width-val" style="font-size: 0.85rem; color: #ccc; width: 20px; text-align: right;">3</span>
             </div>
             
             <hr style="border:0; border-top:1px solid var(--border-color); margin: 10px 0;">
             <div class="section-title">Visualización</div>
             <div class="toolbar">
                 <button id="btn-equipotentials" class="btn-tool btn-toggle on" onclick="toggleEquipotentials()">👁️ Equipotenciales (Puntuales)</button>
-                <!-- NUEVO BOTÓN DE CAMPO VECTORIAL -->
                 <button id="btn-vector-field" class="btn-tool btn-toggle" onclick="toggleVectorField()">🏹 Campo Vectorial (Total)</button>
             </div>
         </div>
@@ -368,13 +373,13 @@
     function toggleLeft() { leftOpen = !leftOpen; rootStyles.setProperty('--left-w', leftOpen ? '260px' : '0px'); document.getElementById('toggle-left').innerText = leftOpen ? '◀' : '▶'; document.getElementById('panel-left').style.opacity = leftOpen ? '1' : '0'; setTimeout(resizeCanvas, 300); }
     function toggleRight() { rightOpen = !rightOpen; rootStyles.setProperty('--right-w', rightOpen ? '420px' : '0px'); document.getElementById('toggle-right').innerText = rightOpen ? '▶' : '◀'; document.getElementById('panel-right').style.opacity = rightOpen ? '1' : '0'; setTimeout(resizeCanvas, 300); }
 
-    // --- ESTADO ---
+    // --- ESTADO (ADICIÓN: Grosor, Selección Múltiple y Caja) ---
     let state = {
-        tool: 'draw', currentColor: '#000000',
+        tool: 'draw', currentColor: '#000000', lineWidth: 3, // ADICIÓN: Grosor global
         isDrawing: false, isDrawingFree: false, isDragging: false, draggingOrigin: false,
-        dragLastX: 0, dragLastY: 0, draggedObject: null, selectedObject: null,
-        showEquipotentials: true, 
-        showVectorField: false, // NUEVO: Estado del campo vectorial
+        dragLastX: 0, dragLastY: 0, draggedObject: null, 
+        selectedObject: null, selectedObjects: [], selectionBox: null, // ADICIÓN: Selección grupal
+        showEquipotentials: true, showVectorField: false,
         recognitionTimer: null, 
         rawStrokes: [], currentStroke: [], currentFreeStroke: null, objects: [], calculations: {},
         origin: { x: null, y: null },
@@ -383,6 +388,12 @@
     };
     window.appState = state;
     let textPos = {x:0, y:0};
+
+    // ADICIÓN: Actualizar grosor
+    document.getElementById('pencil-width').addEventListener('input', function() {
+        document.getElementById('width-val').innerText = this.value;
+        state.lineWidth = parseInt(this.value);
+    });
 
     // --- PARSER MATEMÁTICO DEL CAMPO VECTORIAL ---
     let compEx, compEy;
@@ -406,7 +417,7 @@
         } catch(e) { return {x:0, y:0}; }
     }
 
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
     function resizeCanvas() {
         canvas.width = wrapper.clientWidth; canvas.height = wrapper.clientHeight;
@@ -438,7 +449,6 @@
         redraw(); requestSync(true);
     }
     
-    // NUEVO: Alternar Campo Vectorial
     function toggleVectorField() {
         state.showVectorField = !state.showVectorField;
         const btn = document.getElementById('btn-vector-field');
@@ -495,7 +505,8 @@
     }
 
     function drawEquipotentials(ctx) {
-        if (!state.showEquipotentials || state.isHidden) return;
+        // ADICIÓN: Optimización de rendimiento. Se pausa el cálculo durante la interacción.
+        if (!state.showEquipotentials || state.isHidden || state.isDrawing || state.isDrawingFree || state.isDragging || state.selectionBox) return;
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         if (charges.length === 0) return;
         ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(100, 100, 120, 0.3)'; ctx.setLineDash([]); 
@@ -537,16 +548,16 @@
     }
     function drawSeg(ctx, p1, p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
 
-    // NUEVO: Dibujar la grilla del Campo Vectorial Total (Flechas)
     function drawVectorField(ctx) {
-        if (!state.showVectorField || state.isHidden) return;
+        // ADICIÓN: Optimización de rendimiento. Se pausa el cálculo durante la interacción.
+        if (!state.showVectorField || state.isHidden || state.isDrawing || state.isDrawingFree || state.isDragging || state.selectionBox) return;
         const scale = getSafeScale();
         const Ke = 8.99e9;
         const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         
         ctx.lineWidth = 1.2;
-        const spacing = 35; // Resolución de la cuadrícula de flechas
+        const spacing = 35; 
         
         for (let y = spacing/2; y < canvas.height; y += spacing) {
             for (let x = spacing/2; x < canvas.width; x += spacing) {
@@ -556,12 +567,11 @@
                 let Ex = 0, Ey = 0;
                 let draw = true;
 
-                // Sumar campo de cargas puntuales
                 charges.forEach(src => {
                     const dx = physX - src.physX;
                     const dy = physY - src.physY;
                     const r = Math.hypot(dx, dy);
-                    if (r < 0.1) draw = false; // Evitar la singularidad infinita dibujando flechas dentro de la carga
+                    if (r < 0.1) draw = false; 
                     if (r >= 0.1) {
                         const E_mag = (Ke * src.q * chargeU) / (r * r);
                         Ex += E_mag * (dx / r);
@@ -571,20 +581,18 @@
                 
                 if(!draw) continue;
 
-                // Sumar campo externo inyectado
                 const E_ext = getE_ext(physX, physY);
                 Ex += E_ext.x;
                 Ey += E_ext.y;
                 
                 const mag = Math.hypot(Ex, Ey);
                 if (mag > 1e-3) {
-                    const len = 14; // Longitud del vector
-                    ctx.strokeStyle = `rgba(230, 126, 34, 0.65)`; // Color Naranja elegante
+                    const len = 14; 
+                    ctx.strokeStyle = `rgba(230, 126, 34, 0.65)`; 
                     
                     const dirX = Ex / mag;
                     const dirY = Ey / mag;
                     
-                    // En HTML Canvas la 'y' crece hacia abajo, invertimos dirY
                     const endX = x + dirX * len;
                     const endY = y - dirY * len; 
                     
@@ -615,6 +623,8 @@
                 const pid = hit.id;
                 state.objects = state.objects.filter(o => !(o.type === 'trajectory' && (o.from === pid || o.to === pid)));
             }
+            // Eliminar de las selecciones también
+            state.selectedObjects = state.selectedObjects.filter(o => o !== hit);
             state.objects = state.objects.filter(o => o !== hit);
             updateUI(); analizarFisica(); redraw();
         }
@@ -650,14 +660,23 @@
             if (hit) {
                 state.isDragging = true; state.dragLastX = c.x; state.dragLastY = c.y;
                 if (hit.type === 'origin') { state.draggingOrigin = true; selectObject(null); }
-                else { state.draggedObject = hit; selectObject(hit); }
-            } else { selectObject(null); }
+                else { 
+                    state.draggedObject = hit; 
+                    // ADICIÓN: Si seleccionamos un objeto que no está en el grupo múltiple, limpiamos el grupo y lo seleccionamos solo a él
+                    if (!state.selectedObjects.includes(hit)) { selectObject(hit); }
+                }
+            } else { 
+                selectObject(null); 
+                // ADICIÓN: Iniciar Caja de Selección Múltiple
+                state.selectionBox = { startX: c.x, startY: c.y, endX: c.x, endY: c.y };
+            }
             return;
         }
         
         if (state.tool === 'draw_free') {
             selectObject(null); state.isDrawingFree = true;
-            state.currentFreeStroke = { type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor };
+            // ADICIÓN: Guardar el grosor actual en el trazo libre
+            state.currentFreeStroke = { type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor, lineWidth: state.lineWidth };
             return;
         }
 
@@ -680,30 +699,75 @@
             analizarFisica(); updateUI(); redraw(); requestSync(false); return;
         }
 
+        // ADICIÓN: Dibujar Caja de Selección
+        if (state.selectionBox) {
+            state.selectionBox.endX = c.x; state.selectionBox.endY = c.y;
+            redraw(); return;
+        }
+
         if (state.isDragging && state.draggedObject) {
             const dx = c.x - state.dragLastX; const dy = c.y - state.dragLastY;
-            const o = state.draggedObject;
-            if (o.type === 'text') { o.x += dx; o.y += dy; } 
-            else if (o.type === 'free_stroke') { o.points.forEach(p => { p.x += dx; p.y += dy; }); } 
-            else if (o.type !== 'trajectory') { o.x = c.x; o.y = c.y; o.physX = (c.x - state.origin.x) / scale; o.physY = (state.origin.y - c.y) / scale; }
+            // ADICIÓN: Mover Múltiples Objetos a la vez
+            const objectsToMove = (state.selectedObjects.includes(state.draggedObject) && state.selectedObjects.length > 1) ? state.selectedObjects : [state.draggedObject];
+            
+            objectsToMove.forEach(o => {
+                if (o.type === 'text') { o.x += dx; o.y += dy; } 
+                else if (o.type === 'free_stroke') { o.points.forEach(p => { p.x += dx; p.y += dy; }); } 
+                else if (o.type !== 'trajectory') { o.x += dx; o.y += dy; o.physX = (o.x - state.origin.x) / scale; o.physY = (state.origin.y - o.y) / scale; }
+            });
+            
             state.dragLastX = c.x; state.dragLastY = c.y; updateFloatDelete(); redraw(); requestSync(false);
         } 
         else if (state.tool === 'line' && state.isDrawingFree && state.lineStart) {
             state.currentLine[1] = c; redraw();
         }
-        else if (state.isDrawingFree && state.currentFreeStroke) { state.currentFreeStroke.points.push(c); redraw(); }
-        else if (state.isDrawing) { state.currentStroke.push(c); redraw(); }
+        else if (state.isDrawingFree && state.currentFreeStroke) { 
+            // ADICIÓN: Decimación de Puntos (Evita lag por miles de puntos inútiles)
+            const lastPt = state.currentFreeStroke.points[state.currentFreeStroke.points.length - 1];
+            if (Math.hypot(c.x - lastPt.x, c.y - lastPt.y) > 3) {
+                state.currentFreeStroke.points.push(c); redraw(); 
+            }
+        }
+        else if (state.isDrawing) { 
+            // ADICIÓN: Decimación de Puntos en trazo de IA
+            const lastPt = state.currentStroke[state.currentStroke.length - 1];
+            if (Math.hypot(c.x - lastPt.x, c.y - lastPt.y) > 3) {
+                state.currentStroke.push(c); redraw(); 
+            }
+        }
     }
 
     function handleEnd(e) {
         if (state.draggingOrigin) { state.draggingOrigin = false; state.isDragging = false; requestSync(true); return; }
         if (state.tool === 'eraser') { state.isDrawing = false; requestSync(true); return; }
+        
+        // ADICIÓN: Terminar Caja de Selección Múltiple
+        if (state.selectionBox) {
+            const minX = Math.min(state.selectionBox.startX, state.selectionBox.endX);
+            const maxX = Math.max(state.selectionBox.startX, state.selectionBox.endX);
+            const minY = Math.min(state.selectionBox.startY, state.selectionBox.endY);
+            const maxY = Math.max(state.selectionBox.startY, state.selectionBox.endY);
+            
+            state.selectedObjects = state.objects.filter(o => {
+                if (o.type === 'point' || o.type.startsWith('charge') || o.type === 'text') {
+                    return o.x >= minX && o.x <= maxX && o.y >= minY && o.y <= maxY;
+                } else if (o.type === 'free_stroke') {
+                    return o.points.some(p => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
+                }
+                return false;
+            });
+            
+            state.selectedObject = state.selectedObjects.length > 0 ? state.selectedObjects[0] : null;
+            state.selectionBox = null;
+            updateFloatDelete(); redraw(); return;
+        }
+
         if (state.isDragging) { state.isDragging = false; state.draggedObject = null; updateUI(); analizarFisica(); requestSync(true); if (window.registrarInteraccion) window.registrarInteraccion(); return; }
         
         if (state.tool === 'line' && state.isDrawingFree && state.lineStart) {
             state.isDrawingFree = false;
             if(Math.hypot(state.currentLine[0].x - state.currentLine[1].x, state.currentLine[0].y - state.currentLine[1].y) > 5) {
-                state.objects.push({ type: 'free_stroke', id: Date.now(), points: [{...state.currentLine[0]}, {...state.currentLine[1]}], color: state.currentColor });
+                state.objects.push({ type: 'free_stroke', id: Date.now(), points: [{...state.currentLine[0]}, {...state.currentLine[1]}], color: state.currentColor, lineWidth: state.lineWidth });
             }
             state.lineStart = null; state.currentLine = null; redraw(); requestSync(true); if (window.registrarInteraccion) window.registrarInteraccion(); return;
         }
@@ -757,6 +821,8 @@
 
     function selectObject(obj) {
         state.selectedObject = obj;
+        // ADICIÓN: Sincronizar array múltiple con clic único
+        state.selectedObjects = obj ? [obj] : [];
         document.querySelectorAll('.data-card').forEach(card => card.classList.remove('selected'));
         if (obj) {
             updateFloatDelete(); floatDelete.style.display = 'block';
@@ -768,8 +834,10 @@
     }
 
     function updateFloatDelete() {
-        if(!state.selectedObject || state.selectedObject.type === 'origin') return;
-        const o = state.selectedObject; let bx, by;
+        if(state.selectedObjects.length === 0) return;
+        // Posicionar el botón de borrar basado en el primer objeto de la selección
+        const o = state.selectedObjects[0]; let bx, by;
+        if (o.type === 'origin') return;
         if (o.type === 'trajectory' && o.path && o.path.length > 0) {
             const mid = Math.floor(o.path.length/2); bx = o.path[mid].x; by = o.path[mid].y - 20;
         } else if (o.type === 'text') { bx = o.x + 20; by = o.y - 30; }
@@ -780,12 +848,14 @@
     }
 
     function deleteSelected() {
-        if (state.selectedObject && state.selectedObject.type !== 'origin') {
-            if (state.selectedObject.type === 'point') {
-                const pid = state.selectedObject.id;
-                state.objects = state.objects.filter(o => !(o.type === 'trajectory' && (o.from === pid || o.to === pid)));
-            }
-            state.objects = state.objects.filter(o => o !== state.selectedObject);
+        if (state.selectedObjects && state.selectedObjects.length > 0) {
+            // ADICIÓN: Borrado Múltiple
+            state.selectedObjects.forEach(obj => {
+                if (obj.type === 'point') {
+                    state.objects = state.objects.filter(o => !(o.type === 'trajectory' && (o.from === obj.id || o.to === obj.id)));
+                }
+            });
+            state.objects = state.objects.filter(o => !state.selectedObjects.includes(o));
             selectObject(null); updateUI(); analizarFisica(); redraw(); requestSync(true);
         }
     }
@@ -909,7 +979,8 @@
                 } else {
                     group.forEach(i => {
                         if(state.rawStrokes[i] && state.rawStrokes[i].length > 1) {
-                            state.objects.push({ type: 'free_stroke', id: Date.now() + i, points: state.rawStrokes[i], color: state.currentColor });
+                            // ADICIÓN: Trazo libre generado por rebote hereda grosor
+                            state.objects.push({ type: 'free_stroke', id: Date.now() + i, points: state.rawStrokes[i], color: state.currentColor, lineWidth: state.lineWidth });
                             usedIndices.add(i);
                         }
                     });
@@ -950,7 +1021,6 @@
         points.forEach(p => {
             p.physX = (p.x - state.origin.x) / scale; p.physY = (state.origin.y - p.y) / scale;
             
-            // NUEVO: Guardar el desglose de cada cálculo para el panel LaTeX
             let V_charges = 0;
             let chargeDetails = [];
             charges.forEach(src => { 
@@ -1022,7 +1092,6 @@
     }
     window.analizarFisica = analizarFisica;
 
-    // NUEVO: Motor LaTeX Expansivo y Detallado
     function renderLatex() {
         const box = document.getElementById('latex-result'); let html = "";
         const { points, works } = state.calculations; const pointList = Object.values(points || {});
@@ -1128,7 +1197,8 @@
 
         state.objects.filter(o=>o.type.startsWith('charge')).forEach(ch => {
             const div = document.createElement('div'); div.className='data-card';
-            if(state.selectedObject === ch) div.classList.add('selected');
+            // ADICIÓN: Sincronizar estilo en selección múltiple
+            if(state.selectedObjects.includes(ch)) div.classList.add('selected');
             div.innerHTML = `
                 <div class="data-header"><strong>Fuente ${ch.label}</strong></div>
                 <div class="input-row"><label>Q</label> <input type="number" id="q-${ch.id}" value="${ch.q}" onchange="analizarFisica(); requestSync(true);"></div>
@@ -1142,7 +1212,7 @@
         state.objects.filter(o=>o.type === 'point').forEach(p => {
             const div = document.createElement('div'); div.className='data-card';
             if (p.label === 'A') div.classList.add('is-point-A'); else if (p.label === 'B') div.classList.add('is-point-B');
-            if(state.selectedObject === p) div.classList.add('selected');
+            if(state.selectedObjects.includes(p)) div.classList.add('selected');
             div.innerHTML = `
                 <div class="data-header"><strong>Punto ${p.label}</strong></div>
                 <div class="input-row">
@@ -1196,8 +1266,23 @@
         ctx.stroke();
 
         drawEquipotentials(ctx); 
-        drawVectorField(ctx); // <-- Dibujar el nuevo Campo Vectorial
+        drawVectorField(ctx); 
         drawAxes(); 
+
+        // ADICIÓN: Dibujar Caja de Selección Múltiple Translúcida
+        if (state.selectionBox) {
+            ctx.fillStyle = 'rgba(78, 204, 163, 0.15)';
+            ctx.strokeStyle = '#4ecca3';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            const x = Math.min(state.selectionBox.startX, state.selectionBox.endX);
+            const y = Math.min(state.selectionBox.startY, state.selectionBox.endY);
+            const w = Math.abs(state.selectionBox.endX - state.selectionBox.startX);
+            const h = Math.abs(state.selectionBox.endY - state.selectionBox.startY);
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeRect(x, y, w, h);
+            ctx.setLineDash([]);
+        }
 
         if(!state.isHidden) {
             state.objects.filter(o => o.type === 'trajectory').forEach(tr => {
@@ -1228,13 +1313,16 @@
                 }
             });
 
-            ctx.strokeStyle = '#999'; ctx.lineWidth=2;
-            state.rawStrokes.forEach(s => drawPath(s)); if(state.currentStroke.length>0) drawPath(state.currentStroke);
-            if(state.currentFreeStroke) drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, 3);
-            if(state.currentLine) drawPath(state.currentLine, state.currentColor, 3);
+            ctx.strokeStyle = '#999';
+            // ADICIÓN: Pasar grosor almacenado a los trazos
+            state.rawStrokes.forEach(s => drawPath(s, '#999', 2)); 
+            if(state.currentStroke.length>0) drawPath(state.currentStroke, '#999', 2);
+            if(state.currentFreeStroke) drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, state.lineWidth);
+            if(state.currentLine) drawPath(state.currentLine, state.currentColor, state.lineWidth);
 
             state.objects.forEach(obj => {
-                const isSel = (state.selectedObject === obj);
+                // ADICIÓN: Reflejar sombra en cualquier objeto de la selección múltiple
+                const isSel = state.selectedObjects.includes(obj);
                 ctx.shadowBlur = isSel ? 10 : 0; ctx.shadowColor = '#00ff88';
 
                 if(obj.type.startsWith('charge')) {
@@ -1248,7 +1336,7 @@
                     if (obj.label === 'A') ctx.fillStyle = '#2ecc71'; else if (obj.label === 'B') ctx.fillStyle = '#e67e22'; else ctx.fillStyle = '#95a5a6';
                     ctx.fill(); ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke(); ctx.shadowBlur=0; addLabel(obj.x+15, obj.y-15, obj.label);
                 }
-                else if(obj.type === 'free_stroke') { drawPath(obj.points, obj.color, 3); ctx.shadowBlur=0; }
+                else if(obj.type === 'free_stroke') { drawPath(obj.points, obj.color, obj.lineWidth || 3); ctx.shadowBlur=0; }
                 else if(obj.type === 'text') { ctx.fillStyle = obj.color; ctx.font = 'bold 20px "Segoe UI", Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(obj.text, obj.x, obj.y); ctx.shadowBlur=0; }
             });
         }
