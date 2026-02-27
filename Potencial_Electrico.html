@@ -178,9 +178,8 @@
 <header>
     <div><h2>⚡ Potencial y Trabajo Eléctrico PRO</h2></div>
     <div class="version">
-        <span id="user-info" style="color: #a29bfe; font-weight: bold;">Cargando...</span>
+        <span id="user-info" style="color: #a29bfe; font-weight: bold;">Autenticando...</span>
         <span id="user-stats" style="color: #f1c40f; font-weight: bold; margin-left: 10px; display: none; cursor: pointer; background: #2b2b3b; padding: 2px 8px; border-radius: 4px; border: 1px solid #444;" onclick="abrirModalPerfil()" title="Ver Misiones y Logros">🏆 Lvl 1 | 0 pts</span>
-        <button id="btn-logout" class="btn-tool" style="padding: 4px 8px; display: none;" onclick="cerrarSesion()">Salir</button>
         <div class="room-control">
             <span id="room-info">🌐 Sala: Ninguna</span>
             <button class="btn-tool" style="padding: 4px 8px;" onclick="abrirModalSala()">Unirse a Sala</button>
@@ -356,14 +355,28 @@
 
 <!-- Modales -->
 <div class="modal" id="auth-modal" style="display: flex;">
-    <div class="modal-content">
-        <h3 style="margin-top:0; color: #a29bfe;">🔒 Iniciar Sesión</h3>
-        <p style="font-size: 0.9rem; color: #ccc;">Para guardar y sincronizar tu trabajo, debes identificarte.</p>
-        <label>Correo Electrónico:</label><input type="email" id="auth-email" class="auth-input" placeholder="ejemplo@correo.com">
-        <label>Contraseña:</label><input type="password" id="auth-pass" class="auth-input" placeholder="Mínimo 6 caracteres">
-        <div class="auth-btn-group"><button class="btn-tool btn-action" onclick="iniciarSesion()">Entrar</button><button class="btn-tool" onclick="registrarUsuario()">Crear Cuenta</button></div>
-        <div class="auth-btn-group" style="margin-top: 10px;"><button class="btn-tool" style="background: #ffffff; color: #444; width: 100%; justify-content: center; font-weight: bold; border: 1px solid #ccc;" onclick="iniciarSesionConGoogle()"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style="width: 18px; height: 18px;">Continuar con Google</button></div>
-        <div style="text-align: center; margin-top: 15px;"><button class="btn-tool" style="background: transparent; color: #a29bfe; padding: 5px; font-size: 0.85rem; border: none; text-decoration: underline; width: 100%; justify-content: center;" onclick="recuperarContrasena()">¿Olvidaste tu contraseña?</button></div>
+    <div class="modal-content" style="text-align: center;">
+        <h3 style="margin-top:0; color: #4ecca3;">🔐 Acceso al Laboratorio</h3>
+        <p style="font-size: 0.9rem; color: #ccc; margin-bottom: 20px;">Inicia sesión para jugar en grupo o entra como invitado para modo individual.</p>
+        
+        <div id="auth-error" style="color: #ff6b6b; font-size: 0.85rem; margin-bottom: 10px;"></div>
+        <input type="email" id="auth-email" class="auth-input" placeholder="Correo electrónico" style="margin-bottom: 8px;">
+        <input type="password" id="auth-password" class="auth-input" placeholder="Contraseña" style="margin-top: 0; margin-bottom: 15px;">
+        
+        <div class="auth-btn-group" style="flex-direction: column; gap: 10px;">
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <button class="btn-tool btn-action" id="btn-login-email" style="flex: 1; justify-content: center;">Ingresar</button>
+                <button class="btn-tool" id="btn-register-email" style="flex: 1; justify-content: center; background: #5e35b1; color: white;">Crear Cuenta</button>
+            </div>
+            
+            <hr style="border:0; border-top:1px solid #444; width: 100%; margin: 5px 0;">
+            
+            <button class="btn-tool btn-action" id="btn-login-google" style="background: white; color: #333; justify-content: center; width: 100%;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="G" style="width: 16px; margin-right: 8px;">
+                Ingresar con Google
+            </button>
+            <button class="btn-tool" id="btn-login-guest" style="justify-content: center; width: 100%;">Continuar como Invitado (Individual)</button>
+        </div>
     </div>
 </div>
 
@@ -371,9 +384,8 @@
     <div class="modal-content">
         <span class="close-btn" onclick="cerrarModalSala()">&times;</span>
         <h3 style="margin-top:0; color: #a29bfe;">🌐 Unirse a un Cuarto</h3>
-        <p style="font-size: 0.9rem; color: #ccc;">Ingresa el nombre del cuarto. Si no existe, se creará con la contraseña que elijas.</p>
+        <p style="font-size: 0.9rem; color: #ccc;">Ingresa el nombre del cuarto para colaborar.</p>
         <label>Nombre del Cuarto:</label><input type="text" id="room-name" class="auth-input" placeholder="Ej: equipo_alpha">
-        <label>Contraseña del Cuarto:</label><input type="password" id="room-pass" class="auth-input" placeholder="Contraseña de acceso">
         <div class="auth-btn-group"><button class="btn-tool btn-action" onclick="intentarUnirseSala()">Entrar al Cuarto</button></div>
     </div>
 </div>
@@ -723,7 +735,6 @@
                 if (hit.type === 'origin') { state.draggingOrigin = true; selectObject(null); }
                 else { state.draggedObject = hit; if (!state.selectedObjects.includes(hit)) { selectObject(hit); } }
             } else { 
-                // ADICIÓN: Scroll/Pan con dedo desde zona vacía
                 state.draggingOrigin = true;
                 state.dragLastX = c.x;
                 state.dragLastY = c.y;
@@ -1114,7 +1125,7 @@
     // CORRECCIÓN DE FIREBASE REQUERIDA POR EL ENTORNO
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
     // Credenciales del entorno (inyectadas al vuelo)
     const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '"{}"';
@@ -1133,40 +1144,77 @@
     let isSendingData = false;
 
     if (auth) {
-        const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
+        const authModal = document.getElementById('auth-modal');
+        const authError = document.getElementById('auth-error');
+
+        // Eventos de inicio de sesión con Correo y Contraseña
+        document.getElementById('btn-login-email').addEventListener('click', async () => {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            if(!email || !password) { if(authError) authError.innerText = "Por favor, ingresa correo y contraseña"; return; }
+            try {
+                if(authError) authError.innerText = "";
+                await signInWithEmailAndPassword(auth, email, password);
+                authModal.style.display = 'none';
+            } catch(e) { 
+                console.error("Error Email Login:", e); 
+                if(authError) authError.innerText = "Error: " + e.message;
             }
-        };
-        initAuth();
+        });
+
+        document.getElementById('btn-register-email').addEventListener('click', async () => {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            if(!email || !password) { if(authError) authError.innerText = "Por favor, ingresa correo y contraseña"; return; }
+            try {
+                if(authError) authError.innerText = "";
+                await createUserWithEmailAndPassword(auth, email, password);
+                authModal.style.display = 'none';
+            } catch(e) { 
+                console.error("Error Email Register:", e); 
+                if(authError) authError.innerText = "Error al crear cuenta: " + e.message;
+            }
+        });
+
+        // Eventos de inicio de sesión manual añadidos para dominios externos
+        document.getElementById('btn-login-google').addEventListener('click', async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+                authModal.style.display = 'none';
+            } catch(e) { 
+                console.error("Error Google Login:", e); 
+            }
+        });
+
+        document.getElementById('btn-login-guest').addEventListener('click', async () => {
+            try {
+                await signInAnonymously(auth);
+                authModal.style.display = 'none';
+            } catch(e) { 
+                console.error("Error Guest Login:", e); 
+            }
+        });
 
         onAuthStateChanged(auth, (user) => {
-            if (user && !user.isAnonymous) {
-                document.getElementById('auth-modal').style.display = 'none';
-                document.getElementById('user-info').innerText = `👤 ${user.email}`;
-                document.getElementById('btn-logout').style.display = 'inline-block';
-                document.getElementById('user-stats').style.display = 'inline-flex';
-            } else if (user) {
-                document.getElementById('auth-modal').style.display = 'none';
-                document.getElementById('user-info').innerText = `👤 Invitado`;
-                document.getElementById('btn-logout').style.display = 'inline-block';
-                document.getElementById('user-stats').style.display = 'inline-flex';
+            if (user) {
+                authModal.style.display = 'none';
+                if (!user.isAnonymous) {
+                    document.getElementById('user-info').innerText = `👤 ${user.displayName || 'Usuario'}`;
+                    document.getElementById('user-stats').style.display = 'inline-flex';
+                } else {
+                    document.getElementById('user-info').innerText = `👤 Invitado-${user.uid.slice(0,4)}`;
+                    document.getElementById('user-stats').style.display = 'inline-flex';
+                }
             } else {
-                document.getElementById('auth-modal').style.display = 'flex';
+                authModal.style.display = 'flex';
                 document.getElementById('room-info').innerText = '🌐 Sala: Ninguna';
             }
         });
     }
 
-    window.iniciarSesion = () => { if(auth) { const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value; signInWithEmailAndPassword(auth, e, p).catch(err => alert(err.message)); } };
-    window.registrarUsuario = () => { if(auth) { const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value; createUserWithEmailAndPassword(auth, e, p).catch(err => alert(err.message)); } };
-    window.iniciarSesionConGoogle = () => { if(auth) signInWithPopup(auth, new GoogleAuthProvider()); };
-    window.cerrarSesion = () => { if(auth) signOut(auth); };
-
     window.intentarUnirseSala = async () => {
-        if (!auth || !auth.currentUser) return alert("Iniciando conexión segura...");
+        if (!auth || !auth.currentUser) return console.warn("Iniciando conexión segura...");
         const sId = document.getElementById('room-name').value;
         if(!sId) return;
 
