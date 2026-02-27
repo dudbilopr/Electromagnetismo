@@ -12,7 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js"></script>
     
-    <!-- NUEVA LIBRERÍA: Math.js para evaluar el Campo Vectorial escrito por el usuario -->
+    <!-- LIBRERÍA: Math.js para evaluar el Campo Vectorial -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
     
     <style>
@@ -20,15 +20,15 @@
             --bg-color: #1e1e2e;
             --panel-color: #2b2b3b;
             --accent-color: #4ecca3;
-            --point-a-color: #2ecc71; /* Verde */
-            --point-b-color: #e67e22; /* Naranja */
+            --point-a-color: #2ecc71; 
+            --point-b-color: #e67e22; 
             --danger-color: #ff6b6b;
             --text-color: #e0e0e0;
             --border-color: #444;
             --selection-color: #00ff88;
             --statement-color: #9b59b6;
             --left-w: 260px;
-            --right-w: 380px;
+            --right-w: 420px; /* Ampliado ligeramente para el LaTeX detallado */
         }
 
         * { box-sizing: border-box; }
@@ -185,14 +185,11 @@
             <div class="toolbar">
                 <button class="btn-tool active" onclick="setTool('draw', this)" title="Dibuja Cargas, Puntos y Trayectorias">🤖 Lápiz IA (Objetos)</button>
                 <button class="btn-tool" onclick="setTool('draw_free', this)" title="Dibuja explicaciones libres">🖌️ Marcador (Libre)</button>
-                <!-- NUEVO: LÍNEA RECTA -->
                 <button class="btn-tool" onclick="setTool('line', this)" title="Dibuja una línea recta">📏 Línea Recta</button>
                 <button class="btn-tool" onclick="setTool('text', this)" title="Escribe texto en el lienzo">🔤 Escribir Texto</button>
-                <!-- NUEVO: BORRADOR -->
                 <button class="btn-tool" onclick="setTool('eraser', this)" title="Haz clic o arrastra para borrar objetos y trazos">🧽 Borrador</button>
                 <button class="btn-tool" onclick="setTool('move', this)" title="Mueve objetos y el Eje de Coordenadas">✋ Mover / Seleccionar</button>
                 <button class="btn-tool" onclick="undo()">↩️ Deshacer</button>
-                <!-- NUEVO: OCULTAR / MOSTRAR -->
                 <button id="btn-hide-show" class="btn-tool btn-toggle" onclick="toggleVisibility()" title="Oculta temporalmente los trazos y objetos">👻 Ocultar / Mostrar</button>
                 <button class="btn-tool btn-danger" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
                 <button class="btn-tool" style="background: #e67e22; color: white;" onclick="exportarImagen()" title="Descargar imagen del lienzo con tus resultados">📸 Exportar Imagen</button>
@@ -207,6 +204,8 @@
             <div class="section-title">Visualización</div>
             <div class="toolbar">
                 <button id="btn-equipotentials" class="btn-tool btn-toggle on" onclick="toggleEquipotentials()">👁️ Equipotenciales (Puntuales)</button>
+                <!-- NUEVO BOTÓN DE CAMPO VECTORIAL -->
+                <button id="btn-vector-field" class="btn-tool btn-toggle" onclick="toggleVectorField()">🏹 Campo Vectorial (Total)</button>
             </div>
         </div>
         <hr style="border:0; border-top:1px solid var(--border-color); margin: 5px 0;">
@@ -238,7 +237,6 @@
                 </div>
             </div>
 
-            <!-- NUEVO: CAMPO VECTORIAL -->
             <hr style="border:0; border-top:1px solid var(--border-color); margin: 5px 0;">
             <div class="section-title">Campo Vectorial Externo $\vec{E}$</div>
             <div style="margin-bottom: 5px;">
@@ -289,12 +287,12 @@
         </div>
         
         <div>
-            <div class="section-title">Cálculos Paso a Paso</div>
+            <div class="section-title">Cálculos Paso a Paso (Detallado)</div>
             <div class="latex-box" id="latex-result">$$\text{---}$$</div>
             
             <div class="tip-card" id="static-tip">
-                <strong>💡 Nota sobre Campos Personalizados:</strong><br>
-                Al agregar un Campo Vectorial $\vec{E}$, el simulador integrará $W = \int \vec{F} \cdot d\vec{r}$ siguiendo exactamente <b>la curvatura de la trayectoria</b> que dibujaste.
+                <strong>💡 Tip de Simulación:</strong><br>
+                Enciende la capa <b>"Campo Vectorial"</b> para visualizar la dirección de la fuerza resultante en todo el espacio mediante flechas dinámicas.
             </div>
         </div>
 
@@ -368,23 +366,25 @@
 
     let leftOpen = true; let rightOpen = true;
     function toggleLeft() { leftOpen = !leftOpen; rootStyles.setProperty('--left-w', leftOpen ? '260px' : '0px'); document.getElementById('toggle-left').innerText = leftOpen ? '◀' : '▶'; document.getElementById('panel-left').style.opacity = leftOpen ? '1' : '0'; setTimeout(resizeCanvas, 300); }
-    function toggleRight() { rightOpen = !rightOpen; rootStyles.setProperty('--right-w', rightOpen ? '380px' : '0px'); document.getElementById('toggle-right').innerText = rightOpen ? '▶' : '◀'; document.getElementById('panel-right').style.opacity = rightOpen ? '1' : '0'; setTimeout(resizeCanvas, 300); }
+    function toggleRight() { rightOpen = !rightOpen; rootStyles.setProperty('--right-w', rightOpen ? '420px' : '0px'); document.getElementById('toggle-right').innerText = rightOpen ? '▶' : '◀'; document.getElementById('panel-right').style.opacity = rightOpen ? '1' : '0'; setTimeout(resizeCanvas, 300); }
 
-    // --- ESTADO (Añadido soporte para líneas y visibilidad) ---
+    // --- ESTADO ---
     let state = {
         tool: 'draw', currentColor: '#000000',
         isDrawing: false, isDrawingFree: false, isDragging: false, draggingOrigin: false,
         dragLastX: 0, dragLastY: 0, draggedObject: null, selectedObject: null,
-        showEquipotentials: true, recognitionTimer: null, 
+        showEquipotentials: true, 
+        showVectorField: false, // NUEVO: Estado del campo vectorial
+        recognitionTimer: null, 
         rawStrokes: [], currentStroke: [], currentFreeStroke: null, objects: [], calculations: {},
         origin: { x: null, y: null },
-        isHidden: false, // NUEVO
-        lineStart: null, currentLine: null // NUEVO
+        isHidden: false, 
+        lineStart: null, currentLine: null 
     };
     window.appState = state;
     let textPos = {x:0, y:0};
 
-    // --- NUEVO: PARSER MATEMÁTICO DEL CAMPO VECTORIAL ---
+    // --- PARSER MATEMÁTICO DEL CAMPO VECTORIAL ---
     let compEx, compEy;
     function actualizarFilaCampo() {
         try {
@@ -397,7 +397,6 @@
         }
     }
     
-    // Evalúa el Campo Eléctrico Externo (E) en el punto físico (x,y)
     function getE_ext(px, py) {
         if(!compEx) actualizarFilaCampo();
         try {
@@ -439,7 +438,14 @@
         redraw(); requestSync(true);
     }
     
-    // NUEVO: Ocultar / Mostrar
+    // NUEVO: Alternar Campo Vectorial
+    function toggleVectorField() {
+        state.showVectorField = !state.showVectorField;
+        const btn = document.getElementById('btn-vector-field');
+        if (state.showVectorField) btn.classList.add('on'); else btn.classList.remove('on');
+        redraw(); requestSync(true);
+    }
+    
     function toggleVisibility() {
         state.isHidden = !state.isHidden;
         const btn = document.getElementById('btn-hide-show');
@@ -457,7 +463,6 @@
         const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
         const physX = (x - state.origin.x) / scale; const physY = (state.origin.y - y) / scale;
         
-        // 1. Potencial de Cargas Puntuales
         if(charges.length > 0) {
             charges.forEach(src => {
                 const r = Math.hypot(physX - src.physX, physY - src.physY);
@@ -465,7 +470,6 @@
             });
         }
         
-        // 2. Potencial Numérico del Campo Externo (Integral desde el origen 0,0 en línea recta)
         let V_ext = 0;
         const steps = 50;
         for(let i=0; i<steps; i++) {
@@ -474,15 +478,14 @@
             let stepX = physX * midT; let stepY = physY * midT;
             let E = getE_ext(stepX, stepY);
             let dx = physX / steps; let dy = physY / steps;
-            V_ext -= (E.x * dx + E.y * dy); // V = - int E.dr
+            V_ext -= (E.x * dx + E.y * dy); 
         }
-        
         return V + V_ext;
     }
 
     function getVisualPotentialAt(x, y) {
         let V = 0; const charges = state.objects.filter(o => o.type.startsWith('charge'));
-        if (charges.length === 0) return 0; // Las equipotenciales visuales solo aplican a puntuales para no colapsar el navegador
+        if (charges.length === 0) return 0; 
         charges.forEach(src => {
             const r = Math.hypot(x - src.x, y - src.y);
             if (r < 5) { V += (src.type === 'charge_pos' ? 9999 : -9999); return; } 
@@ -534,12 +537,77 @@
     }
     function drawSeg(ctx, p1, p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
 
+    // NUEVO: Dibujar la grilla del Campo Vectorial Total (Flechas)
+    function drawVectorField(ctx) {
+        if (!state.showVectorField || state.isHidden) return;
+        const scale = getSafeScale();
+        const Ke = 8.99e9;
+        const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
+        const charges = state.objects.filter(o => o.type.startsWith('charge'));
+        
+        ctx.lineWidth = 1.2;
+        const spacing = 35; // Resolución de la cuadrícula de flechas
+        
+        for (let y = spacing/2; y < canvas.height; y += spacing) {
+            for (let x = spacing/2; x < canvas.width; x += spacing) {
+                const physX = (x - state.origin.x) / scale;
+                const physY = (state.origin.y - y) / scale;
+                
+                let Ex = 0, Ey = 0;
+                let draw = true;
+
+                // Sumar campo de cargas puntuales
+                charges.forEach(src => {
+                    const dx = physX - src.physX;
+                    const dy = physY - src.physY;
+                    const r = Math.hypot(dx, dy);
+                    if (r < 0.1) draw = false; // Evitar la singularidad infinita dibujando flechas dentro de la carga
+                    if (r >= 0.1) {
+                        const E_mag = (Ke * src.q * chargeU) / (r * r);
+                        Ex += E_mag * (dx / r);
+                        Ey += E_mag * (dy / r);
+                    }
+                });
+                
+                if(!draw) continue;
+
+                // Sumar campo externo inyectado
+                const E_ext = getE_ext(physX, physY);
+                Ex += E_ext.x;
+                Ey += E_ext.y;
+                
+                const mag = Math.hypot(Ex, Ey);
+                if (mag > 1e-3) {
+                    const len = 14; // Longitud del vector
+                    ctx.strokeStyle = `rgba(230, 126, 34, 0.65)`; // Color Naranja elegante
+                    
+                    const dirX = Ex / mag;
+                    const dirY = Ey / mag;
+                    
+                    // En HTML Canvas la 'y' crece hacia abajo, invertimos dirY
+                    const endX = x + dirX * len;
+                    const endY = y - dirY * len; 
+                    
+                    const headlen = 4.5; 
+                    const angle = Math.atan2(-dirY, dirX);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(endX, endY);
+                    ctx.lineTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
+                    ctx.moveTo(endX, endY);
+                    ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
     // --- Eventos Canvas ---
     canvas.addEventListener('mousedown', handleStart); canvas.addEventListener('touchstart', handleStart);
     canvas.addEventListener('mousemove', handleMove); canvas.addEventListener('touchmove', handleMove);
     canvas.addEventListener('mouseup', handleEnd); canvas.addEventListener('touchend', handleEnd);
 
-    // NUEVO: Función para el borrador dinámico
     function eraseAt(c) {
         const hit = findObjectAt(c);
         if (hit && hit.type !== 'origin') {
@@ -564,7 +632,6 @@
             setTimeout(() => textOverlay.focus(), 50); return;
         }
 
-        // NUEVO: Herramienta Línea
         if (state.tool === 'line') {
             selectObject(null);
             state.isDrawingFree = true;
@@ -573,9 +640,8 @@
             return;
         }
 
-        // NUEVO: Herramienta Borrador
         if (state.tool === 'eraser') {
-            state.isDrawing = true; // Activar drag de borrado
+            state.isDrawing = true; 
             eraseAt(c); return;
         }
 
@@ -606,7 +672,6 @@
         
         document.getElementById('coords-indicator').innerText = `x: ${physX.toFixed(2)} m, y: ${physY.toFixed(2)} m | V: ${getPotentialAt(c.x, c.y).toExponential(2)} V`;
 
-        // NUEVO: Borrador en movimiento
         if (state.tool === 'eraser' && state.isDrawing) { eraseAt(c); return; }
 
         if (state.draggingOrigin) {
@@ -623,8 +688,6 @@
             else if (o.type !== 'trajectory') { o.x = c.x; o.y = c.y; o.physX = (c.x - state.origin.x) / scale; o.physY = (state.origin.y - c.y) / scale; }
             state.dragLastX = c.x; state.dragLastY = c.y; updateFloatDelete(); redraw(); requestSync(false);
         } 
-        
-        // NUEVO: Movimiento de Línea
         else if (state.tool === 'line' && state.isDrawingFree && state.lineStart) {
             state.currentLine[1] = c; redraw();
         }
@@ -634,13 +697,9 @@
 
     function handleEnd(e) {
         if (state.draggingOrigin) { state.draggingOrigin = false; state.isDragging = false; requestSync(true); return; }
-        
-        // NUEVO: Terminar Borrador
         if (state.tool === 'eraser') { state.isDrawing = false; requestSync(true); return; }
-
         if (state.isDragging) { state.isDragging = false; state.draggedObject = null; updateUI(); analizarFisica(); requestSync(true); if (window.registrarInteraccion) window.registrarInteraccion(); return; }
         
-        // NUEVO: Terminar Línea
         if (state.tool === 'line' && state.isDrawingFree && state.lineStart) {
             state.isDrawingFree = false;
             if(Math.hypot(state.currentLine[0].x - state.currentLine[1].x, state.currentLine[0].y - state.currentLine[1].y) > 5) {
@@ -663,10 +722,10 @@
         }
     }
 
-    // --- RECONOCIMIENTO IA SEGURO (A PRUEBA DE ERRORES) ---
+    // --- RECONOCIMIENTO IA ---
     function findObjectAt(c) {
         if (Math.hypot(state.origin.x - c.x, state.origin.y - c.y) < 25) return { type: 'origin' };
-        if(state.isHidden) return null; // No seleccionar si está oculto
+        if(state.isHidden) return null; 
 
         const textObj = state.objects.find(o => {
             if(o.type !== 'text') return false; ctx.font = '20px "Segoe UI", Arial';
@@ -676,10 +735,8 @@
         const pt = state.objects.find(o => o.type === 'point' && Math.hypot(o.x - c.x, o.y - c.y) < 50); if (pt) return pt;
         const ch = state.objects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30); if (ch) return ch;
         
-        // Mayor área de selección para las líneas y trazos libres
         const strokeObj = state.objects.find(o => {
             if(o.type !== 'free_stroke') return false; 
-            // Para líneas rectas
             if(o.points.length === 2) {
                 const [A, B] = o.points;
                 const d = Math.abs((B.y - A.y)*c.x - (B.x - A.x)*c.y + B.x*A.y - B.y*A.x) / Math.hypot(B.y - A.y, B.x - A.x);
@@ -872,9 +929,9 @@
 
     function findPointNear(c) { return state.objects.find(o => o.type === 'point' && Math.hypot(o.x - c.x, o.y - c.y) < 50); }
 
-    // --- FÍSICA: Integración Numérica Real y Campo Vectorial ---
+    // --- FÍSICA: DETALLE MATEMÁTICO ---
     function analizarFisica() {
-        actualizarFilaCampo(); // Actualizar parser
+        actualizarFilaCampo(); 
 
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         const points = state.objects.filter(o => o.type === 'point');
@@ -893,11 +950,19 @@
         points.forEach(p => {
             p.physX = (p.x - state.origin.x) / scale; p.physY = (state.origin.y - p.y) / scale;
             
-            // Potencial de Cargas
+            // NUEVO: Guardar el desglose de cada cálculo para el panel LaTeX
             let V_charges = 0;
-            charges.forEach(src => { const r = Math.hypot(p.physX - src.physX, p.physY - src.physY); if (r > 0.001) V_charges += (Ke * src.q * chargeU) / r; });
+            let chargeDetails = [];
+            charges.forEach(src => { 
+                const r = Math.hypot(p.physX - src.physX, p.physY - src.physY); 
+                if (r > 0.001) {
+                    const v_part = (Ke * src.q * chargeU) / r;
+                    V_charges += v_part;
+                    chargeDetails.push({ qLabel: src.label, qVal: src.q, r: r, v: v_part });
+                }
+            });
+            p.chargeDetails = chargeDetails;
             
-            // Pseudo-potencial del Campo (Integral Recta desde 0,0)
             let V_ext = 0; const steps = 50;
             for(let i=0; i<steps; i++) {
                 let t1 = i/steps; let t2 = (i+1)/steps; let midT = (t1+t2)/2;
@@ -915,10 +980,8 @@
         trajectories.forEach(tr => {
             const pA = pointPotentials[tr.from]; const pB = pointPotentials[tr.to];
             if (pA && pB) {
-                // 1. Trabajo por Cargas Puntuales (Conservativo, independiente de la ruta)
                 let W_charges = q0 * (pB.V_charges - pA.V_charges);
                 
-                // 2. Trabajo por Campo Externo (Integral de Línea a lo largo de los trazos reales)
                 let W_ext_field = 0;
                 let path = tr.path || [{x: pA.x, y: pA.y}, {x: pB.x, y: pB.y}];
                 
@@ -932,12 +995,11 @@
                     let midX = (px1 + px2)/2; let midY = (py1 + py2)/2;
                     let E = getE_ext(midX, midY);
                     
-                    W_ext_field += q0 * (E.x * dx + E.y * dy); // dW = q0 * E . dr
+                    W_ext_field += q0 * (E.x * dx + E.y * dy); 
                 }
                 
                 let W_total = W_charges + W_ext_field;
 
-                // Solo si el campo es estricto en cero consideramos la equipotencial estricta
                 let hasExternalField = document.getElementById('ex-input').value !== "0" || document.getElementById('ey-input').value !== "0";
                 const maxV = Math.max(Math.abs(pA.V), Math.abs(pB.V), 1e-10);
                 const isEqui = !hasExternalField && (Math.abs(pB.V - pA.V) / maxV) < 0.03; 
@@ -960,30 +1022,61 @@
     }
     window.analizarFisica = analizarFisica;
 
+    // NUEVO: Motor LaTeX Expansivo y Detallado
     function renderLatex() {
         const box = document.getElementById('latex-result'); let html = "";
         const { points, works } = state.calculations; const pointList = Object.values(points || {});
 
         if (pointList.length === 0) { html = "\\text{Dibuja puntos para calcular Potencial (V)}"; } 
         else {
-            html += "\\textbf{1. Potenciales Eléctricos (Cargas Puntuales):} \\\\";
-            pointList.forEach(p => { html += `V_{${p.label}} = ${p.V.toExponential(2)} \\text{ V} \\\\`; });
-            html += "\\\\[0.5em]";
+            html += "\\textbf{1. Potenciales Eléctricos ($V_p$):} \\\\";
+            const chargeUSelect = document.getElementById('charge-unit'); 
+            const exponent = chargeUSelect.value === '1e-6' ? '-6' : (chargeUSelect.value === '1e-9' ? '-9' : '-3');
+            
+            pointList.forEach(p => { 
+                html += `\\underline{\\text{Punto } ${p.label} (x: ${p.physX.toFixed(2)}, y: ${p.physY.toFixed(2)})}: \\\\`;
+                
+                if (p.chargeDetails && p.chargeDetails.length > 0) {
+                    let sumStr = p.chargeDetails.map(d => {
+                        let sign = d.qVal >= 0 ? "+" : "-";
+                        let val = Math.abs(d.qVal);
+                        return `${sign} \\frac{${val}}{${d.r.toFixed(2)}}`;
+                    }).join(" ");
+                    if (sumStr.startsWith("+ ")) sumStr = sumStr.substring(2); 
+
+                    html += `V_{\\text{cargas}} = k_e \\sum \\frac{q}{r} = 8.99\\times 10^9 \\left[ ${sumStr} \\right] \\times 10^{${exponent}} \\\\`;
+                    html += `V_{\\text{cargas}} = ${p.V_charges.toExponential(2)} \\text{ V} \\\\[0.3em]`;
+                }
+
+                let hasExternalField = document.getElementById('ex-input').value !== "0" || document.getElementById('ey-input').value !== "0";
+                if (hasExternalField) {
+                    html += `V_{\\text{ext}} = -\\int_{0}^{r} \\vec{E} \\cdot d\\vec{r} = ${p.V_ext.toExponential(2)} \\text{ V} \\\\`;
+                    html += `\\mathbf{V_{${p.label}}} = V_{\\text{cargas}} + V_{\\text{ext}} = \\mathbf{${p.V.toExponential(2)} \\text{ V}} \\\\[0.8em]`;
+                } else {
+                    html += `\\mathbf{V_{${p.label}} = ${p.V.toExponential(2)} \\text{ V}} \\\\[0.8em]`;
+                }
+            });
         }
 
         if (works && works.length > 0) {
-            html += "\\textbf{2. Trabajo Externo:} \\\\";
+            html += "\\textbf{2. Trabajo Externo ($W = q_0 \\Delta V$):} \\\\";
             works.forEach(w => {
                 html += `\\underline{\\text{Trayectoria } ${w.from} \\to ${w.to}}: \\\\`;
                 if (w.isEqui) {
-                     html += `\\text{\\textbf{¡Puntos sobre la misma equipotencial!}} \\\\ \\mathbf{W_{neto} = 0 \\text{ J}} \\\\[1em]`;
+                     html += `\\text{\\textbf{¡Puntos sobre la misma equipotencial!}} \\\\`;
+                     html += `V_{${w.from}} \\approx V_{${w.to}} \\Rightarrow \\Delta V \\approx 0 \\\\`;
+                     html += `\\mathbf{W_{\\text{neto}} = 0 \\text{ J}} \\\\[1em]`;
                 } else {
+                     html += `\\Delta V = V_{${w.to}} - V_{${w.from}} = (${w.Vb.toExponential(2)}) - (${w.Va.toExponential(2)}) \\\\`;
+                     html += `\\Delta V = ${w.dV.toExponential(2)} \\text{ V} \\\\[0.3em]`;
+
                      if(w.hasExt) {
-                         html += `W_{\\text{cargas}} = q_0 \\Delta V_{\\text{cargas}} = ${w.W_cargas.toExponential(2)} \\text{ J} \\\\`;
-                         html += `W_{\\vec{E}} = q_0 \\int_{ruta} \\vec{E} \\cdot d\\vec{r} = ${w.W_ext.toExponential(2)} \\text{ J} \\\\`;
+                         html += `W_{\\text{cargas}} = q_0 \\Delta V = (${(w.q0).toExponential(1)})(${w.dV.toExponential(2)}) \\\\`;
+                         html += `W_{\\text{cargas}} = ${w.W_cargas.toExponential(2)} \\text{ J} \\\\[0.3em]`;
+                         html += `W_{\\vec{E}} = q_0 \\int_{ruta} \\vec{E} \\cdot d\\vec{r} = ${w.W_ext.toExponential(2)} \\text{ J} \\quad \\text{(A lo largo del trazo)} \\\\`;
                          html += `W_{\\text{neto}} = W_{\\text{cargas}} + W_{\\vec{E}} \\\\`;
                      } else {
-                         html += `\\Delta V = ${w.dV.toExponential(2)} \\text{ V} \\\\ W_{\\text{neto}} = q_0 \\Delta V \\\\`;
+                         html += `W_{\\text{neto}} = q_0 \\Delta V = (${(w.q0).toExponential(1)})(${w.dV.toExponential(2)}) \\\\`;
                      }
                      html += `\\mathbf{W_{\\text{neto}} = ${w.W.toExponential(2)} \\text{ J}} \\\\[1em]`;
                 }
@@ -1102,7 +1195,9 @@
         for(let i=0; i<canvas.height; i+=20) { ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); }
         ctx.stroke();
 
-        drawEquipotentials(ctx); drawAxes(); 
+        drawEquipotentials(ctx); 
+        drawVectorField(ctx); // <-- Dibujar el nuevo Campo Vectorial
+        drawAxes(); 
 
         if(!state.isHidden) {
             state.objects.filter(o => o.type === 'trajectory').forEach(tr => {
@@ -1369,3 +1464,4 @@
 </script>
 </body>
 </html>
+
