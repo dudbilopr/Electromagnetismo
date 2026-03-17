@@ -25,9 +25,19 @@
         .app-container { display: flex; flex: 1; overflow: hidden; }
 
         /* SIDEBAR DE LECCIONES */
-        .sidebar { width: 320px; background-color: var(--sidebar-bg); color: var(--sidebar-text); overflow-y: auto; border-right: 1px solid #000; }
-        .module-title { padding: 1rem 1.5rem; background-color: rgba(255,255,255,0.05); font-size: 0.85rem; text-transform: uppercase; font-weight: 600; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .lesson-list { list-style: none; padding: 0; margin: 0; }
+        .sidebar { width: 320px; background-color: var(--sidebar-bg); color: var(--sidebar-text); overflow-y: auto; border-right: 1px solid #000; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); flex-shrink: 0; display: flex; flex-direction: column;}
+        .sidebar.hidden { margin-left: -320px; }
+        
+        /* NUEVO: ENCABEZADO DEL MENÚ (COMO EN LA IMAGEN) */
+        .sidebar-header { padding: 1.2rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 600; color: #fff; letter-spacing: 2px; font-size: 0.9rem; }
+        .icon-btn { background: transparent; border: none; color: #adb5bd; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; padding: 5px; transition: color 0.2s; }
+        .icon-btn:hover { color: #fff; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .module-title { padding: 1rem 1.5rem; background-color: rgba(255,255,255,0.05); font-size: 0.85rem; text-transform: uppercase; font-weight: 600; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .module-title:hover { background-color: rgba(255,255,255,0.1); }
+        .lesson-list { list-style: none; padding: 0; margin: 0; display: block; }
+        .lesson-list.collapsed { display: none; }
         .lesson-item { padding: 0.8rem 1.5rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.95rem; transition: all 0.2s; display: flex; align-items: center; gap: 10px; }
         .lesson-item:hover { background-color: rgba(255,255,255,0.1); color: var(--sidebar-hover); }
         .lesson-item.active { background-color: var(--sidebar-active); color: #fff; }
@@ -121,11 +131,9 @@
         .chat-widget { position: fixed; bottom: 30px; right: 30px; width: auto; padding: 0 20px; height: 50px; background-color: var(--sidebar-active); color: white; border-radius: 25px; display: flex; justify-content: center; align-items: center; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; z-index: 1000; transition: transform 0.2s; gap: 10px; }
         .chat-widget:hover { transform: scale(1.05); }
 
-        /* NUEVO: ESTILOS MODAL FIREBASE (Login/Registro) */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center; }
-        .modal-content { background: #1c2331; padding: 25px; border-radius: 10px; width: 400px; text-align: left; position: relative; color: white; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; color: #888; }
-        .close-btn:hover { color: white; }
+        /* NUEVO: ESTILOS MODAL FIREBASE (Login/Registro) BLUR PROTECTOR */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 17, 26, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: #1c2331; padding: 30px; border-radius: 10px; width: 400px; text-align: left; position: relative; color: white; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
         .auth-input { width: 100%; padding: 10px; margin: 8px 0 15px 0; background: #0b111a; border: 1px solid #555; color: white; border-radius: 4px; font-size: 0.95rem; box-sizing: border-box;}
         .auth-input:focus { border-color: var(--sidebar-active); outline: none; }
         .auth-btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
@@ -139,10 +147,13 @@
 <body>
 
     <header>
-        <div>
-            <h1>Física: Electromagnetismo</h1>
-            <div style="font-size: 0.8rem; color: #adb5bd; margin-top: 4px;">
-                Prof. Dudbil Olvasada Pabón Riaño | UNAB
+        <div class="header-left">
+            <button id="toggle-sidebar" class="icon-btn" style="font-size: 1.5rem;" title="Mostrar Menú">☰</button>
+            <div>
+                <h1>Física: Electromagnetismo</h1>
+                <div style="font-size: 0.8rem; color: #adb5bd; margin-top: 4px;">
+                    Prof. Dudbil Olvasada Pabón Riaño
+                </div>
             </div>
         </div>
         <div class="progress-container">
@@ -152,14 +163,20 @@
             <!-- NUEVO: CONTROLES DE USUARIO (FIREBASE) -->
             <div style="display: flex; gap: 10px; margin-left: 15px; border-left: 1px solid #444; padding-left: 15px; align-items: center;">
                 <span id="user-info" style="font-size: 0.85rem; color: var(--accent-color); font-weight: bold; display: none;"></span>
-                <button id="btn-login-modal" onclick="abrirModalAuth()" style="background: var(--sidebar-active); color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: bold;">Iniciar Sesión</button>
+                <button id="btn-login-modal" onclick="abrirModalAuth()" style="display: none; background: var(--sidebar-active); color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: bold;">Iniciar Sesión</button>
                 <button id="btn-logout" onclick="cerrarSesion()" style="background: #dc3545; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; display: none; font-weight: bold;">Salir</button>
             </div>
         </div>
     </header>
 
     <div class="app-container">
-        <aside class="sidebar" id="sidebar-menu"></aside>
+        <aside class="sidebar" id="sidebar-menu">
+            <div class="sidebar-header">
+                <span>M E N Ú</span>
+                <button id="close-sidebar" class="icon-btn" title="Ocultar Menú">←</button>
+            </div>
+            <!-- El contenido del menú se inyecta debajo mediante JS -->
+        </aside>
 
         <main class="main-content">
             <div class="content-header">
@@ -191,7 +208,7 @@
                 <!-- PANTALLA DE BIENVENIDA Y PERFIL DEL AUTOR -->
                 <div id="welcome-screen" class="welcome-screen">
                     <div class="welcome-hint">
-                        <b>¡Hola!</b> Selecciona un tema en el menú de la izquierda para comenzar la clase.
+                        👈 <b>¡Hola!</b> Selecciona un tema en el menú de la izquierda para comenzar la clase.
                     </div>
                     
                     <div class="author-card">
@@ -275,9 +292,9 @@
     <!-- Modal de Autenticación (Login/Registro) Firebase -->
     <div class="modal" id="auth-modal">
         <div class="modal-content">
-            <span class="close-btn" onclick="cerrarModalAuth()">&times;</span>
-            <h3 style="margin-top:0; color: var(--sidebar-active);">🔒 Iniciar Sesión</h3>
-            <p style="font-size: 0.9rem; color: #ccc;">Para guardar y sincronizar tu progreso en el curso, debes identificarte.</p>
+            <!-- BOTÓN DE CERRAR ELIMINADO PARA FORZAR LOGIN -->
+            <h3 style="margin-top:0; color: var(--sidebar-active);">🔒 Iniciar Sesión Obligatorio</h3>
+            <p style="font-size: 0.9rem; color: #ccc;">Para acceder al material del curso y sincronizar tu progreso.</p>
             <label>Correo Electrónico:</label>
             <input type="email" id="auth-email" class="auth-input" placeholder="ejemplo@unab.edu.co">
             <label>Contraseña:</label>
@@ -460,14 +477,28 @@
         function inicializarPlataforma() {
             const sidebar = document.getElementById('sidebar-menu');
             
-            curriculoData.modulos.forEach(modulo => {
+            curriculoData.modulos.forEach((modulo, index) => {
                 const moduleTitle = document.createElement('div');
                 moduleTitle.className = 'module-title';
-                moduleTitle.innerText = modulo.titulo;
+                
+                // El primer módulo inicia abierto, los demás cerrados
+                const isOpen = index === 0;
+                
+                moduleTitle.innerHTML = `
+                    <span>${modulo.titulo}</span>
+                    <span class="arrow-icon ${isOpen ? 'expanded-arrow' : ''}">▶</span>
+                `;
                 sidebar.appendChild(moduleTitle);
 
                 const lessonList = document.createElement('ul');
                 lessonList.className = 'lesson-list';
+                if (!isOpen) lessonList.classList.add('collapsed');
+
+                // Lógica para expandir/colapsar el módulo al hacer clic
+                moduleTitle.onclick = () => {
+                    lessonList.classList.toggle('collapsed');
+                    moduleTitle.querySelector('.arrow-icon').classList.toggle('expanded-arrow');
+                };
                 
                 modulo.lecciones.forEach(leccion => {
                     if (leccion.tipo === 'grupo') {
@@ -680,10 +711,21 @@
             document.getElementById('auth-modal').style.display = 'flex';
         }
         function cerrarModalAuth() {
-            document.getElementById('auth-modal').style.display = 'none';
+            // Se desactiva el cierre manual. Solo se cierra automáticamente al autenticarse.
+            // document.getElementById('auth-modal').style.display = 'none';
         }
 
-        window.onload = inicializarPlataforma;
+        window.onload = () => {
+            inicializarPlataforma();
+            
+            // Eventos para el menú colapsable (Esconder/Mostrar)
+            document.getElementById('close-sidebar').addEventListener('click', () => {
+                document.getElementById('sidebar-menu').classList.add('hidden');
+            });
+            document.getElementById('toggle-sidebar').addEventListener('click', () => {
+                document.getElementById('sidebar-menu').classList.remove('hidden');
+            });
+        };
     </script>
 
     <!-- NUEVO: INTEGRACIÓN FIREBASE (Autenticación y Guardado) -->
@@ -734,11 +776,14 @@
                 });
 
             } else {
-                // Usuario NO conectado
+                // Usuario NO conectado (BARRERA DE SEGURIDAD)
                 window.currentUserUid = null;
-                document.getElementById('btn-login-modal').style.display = 'inline-block';
+                document.getElementById('btn-login-modal').style.display = 'none'; // Ya no se muestra, es automático
                 document.getElementById('btn-logout').style.display = 'none';
                 document.getElementById('user-info').style.display = 'none';
+                
+                // Abre el modal inmediatamente y como no hay botón de X, quedan bloqueados.
+                document.getElementById('auth-modal').style.display = 'flex';
             }
         });
 
@@ -797,3 +842,5 @@
     </script>
 </body>
 </html>
+
+
