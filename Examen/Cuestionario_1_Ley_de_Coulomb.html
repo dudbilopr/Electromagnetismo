@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario de Electrostática - Plataforma Pro</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f5f7;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            padding-bottom: 40px;
+        }
+
+        /* ----- HEADER & NOTIFICACIONES ----- */
+        .app-header {
+            background-color: #1a237e;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .app-header h3 { margin: 0; font-weight: 500; }
+        .user-controls { display: flex; align-items: center; gap: 15px; }
+        #user-info { font-weight: bold; background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 20px;}
+        .btn-header {
+            background: #d9534f; color: white; border: none; padding: 8px 15px; 
+            border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.3s;
+        }
+        .btn-header:hover { background: #c9302c; }
+
+        #notification-bar {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; z-index: 2000;
+            padding: 15px; text-align: center; color: white; font-weight: bold;
+        }
+
+        /* ----- MODAL DE AUTENTICACIÓN ----- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex; justify-content: center; align-items: center; z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background: white; padding: 40px 30px; border-radius: 8px; width: 100%; max-width: 350px;
+            display: flex; flex-direction: column; gap: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .modal-content h2 { margin-top: 0; color: #1a237e; }
+        .modal-content input { 
+            padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: calc(100% - 24px);
+        }
+        .modal-content button { 
+            padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.3s;
+        }
+        .btn-login { background: #0275d8; color: white; }
+        .btn-login:hover { background: #025aa5; }
+        .btn-register { background: #5cb85c; color: white; }
+        .btn-register:hover { background: #449d44; }
+        .btn-google { background: #fff; color: #444; border: 1px solid #ccc !important; display: flex; align-items: center; justify-content: center; gap: 10px;}
+        .btn-google:hover { background: #f4f4f4; }
+        .btn-google img { width: 18px; }
+        .forgot-pass { color: #0275d8; text-decoration: none; font-size: 13px; margin-top: 5px; }
+        .forgot-pass:hover { text-decoration: underline; }
+
+        /* ----- CONTENIDO DEL CUESTIONARIO ----- */
+        .container {
+            max-width: 800px; margin: 30px auto; background: #fff; padding: 30px;
+            border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 { color: #d9534f; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        h2 { color: #1a237e; margin-top: 30px; font-size: 20px;}
+        .question-block {
+            background: #fdfdfd; border: 1px solid #ddd; border-left: 5px solid #1a237e;
+            padding: 15px; margin-bottom: 20px; border-radius: 4px;
+        }
+        .options label { display: block; margin-bottom: 8px; cursor: pointer; padding: 5px; border-radius: 4px;}
+        .options label:hover { background: #f4f4f4; }
+        
+        .draggables-container { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;}
+        .draggable { background: #1a237e; color: white; padding: 8px 15px; border-radius: 4px; cursor: grab; user-select: none; font-weight: bold; }
+        .drop-zone {
+            display: inline-block; width: 120px; height: 30px; background: #eee; border: 2px dashed #999;
+            vertical-align: middle; text-align: center; line-height: 30px; border-radius: 4px; color: #777; transition: 0.3s;
+        }
+        .drop-zone.filled { background: #5cb85c; color: white; border: 2px solid #4cae4c; font-weight: bold; }
+        
+        .blank-input { width: 110px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-weight: bold; }
+        
+        button.submit-btn { background: #5cb85c; color: #fff; border: none; padding: 15px; font-size: 18px; border-radius: 4px; cursor: pointer; display: block; width: 100%; margin-top: 30px; font-weight: bold; }
+        button.submit-btn:hover { background: #449d44; }
+        
+        #feedback { margin-top: 20px; padding: 15px; border-radius: 4px; font-size: 16px; display: none; }
+        .correct { color: #4cae4c; font-weight: bold; }
+        .incorrect { color: #d9534f; font-weight: bold; }
+        .svg-container { text-align: center; margin: 15px 0; }
+        
+        /* Oculto temporalmente en JS */
+        #btn-login-modal { display: none; } 
+    </style>
+</head>
+<body>
+
+<!-- Notificaciones globales (reemplaza los alerts) -->
+<div id="notification-bar"></div>
+
+<!-- HEADER (Usuario y Logout) -->
+<header class="app-header">
+    <h3>Laboratorio de Coulomb - Plataforma Educativa</h3>
+    <div class="user-controls">
+        <span id="user-info" style="display:none;"></span>
+        <!-- Botón para abrir modal si no estuviera forzado -->
+        <button id="btn-login-modal" class="btn-header" style="display:none;">Iniciar Sesión</button>
+        <button id="btn-logout" class="btn-header" style="display:none;" onclick="window.cerrarSesion()">Cerrar Sesión</button>
+    </div>
+</header>
+
+<!-- MODAL DE AUTENTICACIÓN (Bloquea el acceso al curso) -->
+<div id="auth-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2>Ingreso al Laboratorio</h2>
+        <p style="color:#666; font-size:14px; margin-top:0;">Inicia sesión para registrar tu progreso.</p>
+        
+        <input type="email" id="auth-email" placeholder="Correo electrónico">
+        <input type="password" id="auth-pass" placeholder="Contraseña">
+        
+        <button class="btn-login" onclick="window.iniciarSesion()">Entrar</button>
+        <button class="btn-register" onclick="window.registrarUsuario()">Crear cuenta nueva</button>
+        
+        <div style="margin: 10px 0; color: #aaa; font-size: 12px;">— O entra con —</div>
+        
+        <button class="btn-google" onclick="window.iniciarSesionConGoogle()">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Google
+        </button>
+        
+        <a href="#" class="forgot-pass" onclick="window.recuperarContrasena()">Olvidé mi contraseña</a>
+    </div>
+</div>
+
+<!-- CONTENEDOR DEL CURSO -->
+<div class="container">
+    <h1>Lección 1: Electrostática Básica</h1>
+    <p>Responde a las siguientes preguntas basadas en los principios de carga eléctrica, métodos de electrización y la Ley de Coulomb.</p>
+
+    <!-- ÁREA PARA MOSTRAR QUE YA FUE COMPLETADO EN EL PASADO -->
+    <div id="progreso-previo" style="display: none; background: #dff0d8; padding: 15px; border-radius: 4px; margin-bottom: 20px; border: 1px solid #d6e9c6; color: #3c763d;">
+        🌟 <strong>¡Excelente!</strong> Ya has completado y aprobado este cuestionario previamente. Tus datos están guardados en la nube. Puedes volver a practicar si lo deseas.
+    </div>
+
+    <!-- SECCIÓN 1: SELECCIÓN MÚLTIPLE -->
+    <h2>Parte 1: Selección Múltiple</h2>
+    <div class="question-block" id="q1-block">
+        <p><strong>1.</strong> A una esfera conductora sólida se le da una carga positiva Q. ¿Cómo se distribuye la carga Q en la esfera?</p>
+        <div class="options">
+            <label><input type="radio" name="q1" value="A"> A) Está concentrada en el centro de la esfera.</label>
+            <label><input type="radio" name="q1" value="B"> B) Está distribuida uniformemente en todo el volumen de la esfera.</label>
+            <label><input type="radio" name="q1" value="C"> C) Su densidad disminuye radialmente hacia afuera desde el centro.</label>
+            <label><input type="radio" name="q1" value="D"> D) Está distribuida uniformemente SOLO en la superficie de la esfera.</label>
+        </div>
+    </div>
+
+    <div class="question-block" id="q2-block">
+        <p><strong>2.</strong> Dos esferas conductoras idénticas se cargan con <strong>+2Q</strong> y <strong>-Q</strong>, respectivamente, y están separadas por una distancia <em>d</em>.</p>
+        <div class="svg-container">
+            <svg width="250" height="80">
+                <circle cx="40" cy="40" r="25" stroke="#333" stroke-width="2" fill="#ffcccb" />
+                <text x="40" y="45" text-anchor="middle" font-weight="bold" font-size="14">+2Q</text>
+                <circle cx="210" cy="40" r="25" stroke="#333" stroke-width="2" fill="#add8e6" />
+                <text x="210" y="45" text-anchor="middle" font-weight="bold" font-size="14">-Q</text>
+                <line x1="75" y1="40" x2="175" y2="40" stroke="#333" stroke-width="2" stroke-dasharray="5,5"/>
+                <text x="125" y="30" text-anchor="middle" font-style="italic" font-size="16">d</text>
+            </svg>
+        </div>
+        <p>La magnitud de la fuerza de atracción inicial es <strong>F₁</strong>. Luego de que las esferas se tocan y se vuelven a separar a la misma distancia <em>d</em>, la magnitud de la nueva fuerza es <strong>F₂</strong>. ¿Cuál es la relación correcta?</p>
+        <div class="options">
+            <label><input type="radio" name="q2" value="A"> A) 2F₁ = F₂</label>
+            <label><input type="radio" name="q2" value="B"> B) F₁ = F₂</label>
+            <label><input type="radio" name="q2" value="C"> C) F₁ = 2F₂</label>
+            <label><input type="radio" name="q2" value="D"> D) F₁ = 8F₂</label>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 2: ARRASTRAR Y SOLTAR -->
+    <h2>Parte 2: Arrastrar y Soltar</h2>
+    <div class="question-block">
+        <p>Arrastra el concepto correcto hacia su definición correspondiente:</p>
+        <div class="draggables-container">
+            <div class="draggable" draggable="true" id="drag-friccion">Fricción</div>
+            <div class="draggable" draggable="true" id="drag-contacto">Contacto</div>
+            <div class="draggable" draggable="true" id="drag-induccion">Inducción</div>
+        </div>
+        <ul style="list-style-type: none; padding-left: 0;">
+            <li style="margin-bottom: 15px;">1. Transferencia de carga al tocar un objeto cargado con uno neutro: <div class="drop-zone" data-answer="Contacto" id="drop1">Soltar aquí</div></li>
+            <li style="margin-bottom: 15px;">2. Frotar dos objetos de diferentes materiales para que uno ceda electrones al otro: <div class="drop-zone" data-answer="Friccion" id="drop2">Soltar aquí</div></li>
+            <li style="margin-bottom: 15px;">3. Acercar un cuerpo cargado a uno neutro para polarizarlo, sin llegar a tocarlo: <div class="drop-zone" data-answer="Induccion" id="drop3">Soltar aquí</div></li>
+        </ul>
+    </div>
+
+    <!-- SECCIÓN 3: LLENAR ESPACIOS -->
+    <h2>Parte 3: Ley de Coulomb</h2>
+    <div class="question-block" id="q3-block">
+        <p>Escribe las palabras correctas para completar la definición:</p>
+        <p>
+            "La fuerza eléctrica es 
+            <input type="text" id="blank1" class="blank-input" placeholder="..."> proporcional al producto de las cargas e 
+            <input type="text" id="blank2" class="blank-input" placeholder="..."> proporcional al 
+            <input type="text" id="blank3" class="blank-input" placeholder="..."> de la distancia que las separa."
+        </p>
+    </div>
+
+    <button class="submit-btn" onclick="evaluateQuiz()">Evaluar y Guardar en Firebase</button>
+
+    <div id="feedback"></div>
+</div>
+
+<!-- SCRIPTS DE UI Y CUESTIONARIO -->
+<script>
+    // Sistema de notificaciones personalizado (Reemplaza a los alerts)
+    window.mostrarNotificacion = function(mensaje, tipo = 'error') {
+        const bar = document.getElementById('notification-bar');
+        bar.innerText = mensaje;
+        bar.style.backgroundColor = tipo === 'error' ? '#d9534f' : '#5cb85c';
+        bar.style.display = 'block';
+        setTimeout(() => { bar.style.display = 'none'; }, 5000);
+    };
+
+    // Función que conecta la base de datos con la Interfaz del Cuestionario
+    window.sincronizarProgresoVisual = function(progreso) {
+        // Asumimos que el ID de esta lección es 'leccion_electrostatica_1'
+        if (progreso && progreso['leccion_electrostatica_1']) {
+            document.getElementById('progreso-previo').style.display = 'block';
+        } else {
+            document.getElementById('progreso-previo').style.display = 'none';
+        }
+    };
+
+    // Lógica Drag and Drop
+    const draggables = document.querySelectorAll('.draggable');
+    const dropZones = document.querySelectorAll('.drop-zone');
+
+    draggables.forEach(draggable => {
+        draggable.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', draggable.innerText);
+        });
+    });
+
+    dropZones.forEach(zone => {
+        zone.addEventListener('dragover', e => e.preventDefault());
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            const data = e.dataTransfer.getData('text/plain');
+            zone.innerText = data;
+            zone.classList.add('filled');
+            zone.dataset.currentValue = data; 
+        });
+    });
+
+    // Lógica de Evaluación del Quiz
+    function evaluateQuiz() {
+        let score = 0;
+        let total = 6; 
+
+        const q1 = document.querySelector('input[name="q1"]:checked');
+        if (q1 && q1.value === "D") score++;
+
+        const q2 = document.querySelector('input[name="q2"]:checked');
+        if (q2 && q2.value === "D") score++;
+
+        const drop1 = document.getElementById('drop1').dataset.currentValue;
+        const drop2 = document.getElementById('drop2').dataset.currentValue;
+        const drop3 = document.getElementById('drop3').dataset.currentValue;
+        
+        if (drop1 === "Contacto") score++;
+        if (drop2 === "Fricción" || drop2 === "Friccion") score++;
+        if (drop3 === "Inducción" || drop3 === "Induccion") score++;
+
+        const b1 = document.getElementById('blank1').value.trim().toLowerCase();
+        const b2 = document.getElementById('blank2').value.trim().toLowerCase();
+        const b3 = document.getElementById('blank3').value.trim().toLowerCase();
+        
+        let blanksCorrect = false;
+        if (b1 === "directamente" && b2 === "inversamente" && b3 === "cuadrado") {
+            score++; blanksCorrect = true;
+        }
+
+        // Mostrar Feedback
+        const feedbackDiv = document.getElementById('feedback');
+        feedbackDiv.style.display = "block";
+        feedbackDiv.style.background = "#f9f9f9";
+        feedbackDiv.style.border = "1px solid #ccc";
+
+        let resultHTML = `<h3>Tu Puntuación: ${score} de ${total}</h3><ul>`;
+        resultHTML += `<li><strong>Pregunta 1:</strong> ${q1 && q1.value === 'D' ? '<span class="correct">Correcto</span>' : '<span class="incorrect">Incorrecto</span>'}</li>`;
+        resultHTML += `<li><strong>Pregunta 2:</strong> ${q2 && q2.value === 'D' ? '<span class="correct">Correcto</span>' : '<span class="incorrect">Incorrecto</span>'}</li>`;
+        resultHTML += `<li><strong>Conceptos (Arrastrar):</strong> ${score >= 3 ? '<span class="correct">Excelente</span>' : '<span class="incorrect">Hay errores, revisa las definiciones.</span>'}</li>`;
+        resultHTML += `<li><strong>Ley de Coulomb:</strong> ${blanksCorrect ? '<span class="correct">Correcto</span>' : '<span class="incorrect">Revisa las palabras (pista: directamente, inversamente, cuadrado).</span>'}</li>`;
+        resultHTML += `</ul>`;
+        
+        feedbackDiv.innerHTML = resultHTML;
+
+        // GUARDADO EN FIREBASE (Si aprueba más de la mitad)
+        if (score >= 4) {
+            if (typeof window.guardarProgresoNube === "function") {
+                window.guardarProgresoNube('leccion_electrostatica_1');
+                window.mostrarNotificacion('¡Buen trabajo! Progreso guardado en la nube ☁️', 'success');
+                document.getElementById('progreso-previo').style.display = 'block';
+            }
+        } else {
+             window.mostrarNotificacion('Obtuviste una calificación baja. Inténtalo de nuevo para registrar tu progreso.', 'error');
+        }
+        
+        // Desplazar hacia abajo para ver resultados
+        feedbackDiv.scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+
+<!-- SCRIPT DE FIREBASE (El tuyo, adaptado para usar el sistema de notificaciones) -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+    import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+        authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+        databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+        projectId: "laboratorio-de-coulomb",
+        storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+        messagingSenderId: "525944850850",
+        appId: "1:525944850850:web:eca9c0b79809358e8d8afb",
+        measurementId: "G-SZECJNG25E"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+    
+    window.currentUserUid = null;
+
+    // ESTADO DE AUTENTICACIÓN
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            window.currentUserUid = user.uid;
+            document.getElementById('auth-modal').style.display = 'none';
+            
+            // UI Header
+            document.getElementById('btn-login-modal').style.display = 'none';
+            document.getElementById('btn-logout').style.display = 'inline-block';
+            document.getElementById('user-info').style.display = 'inline-block';
+            
+            // Extraer nombre o correo
+            const displayName = user.displayName || user.email.split('@')[0];
+            document.getElementById('user-info').innerText = `👤 ${displayName}`;
+            
+            // Descargar progreso almacenado
+            const progresoRef = ref(db, 'usuarios/' + user.uid + '/progreso_curso');
+            get(progresoRef).then((snapshot) => {
+                if (snapshot.exists() && typeof window.sincronizarProgresoVisual === "function") {
+                    window.sincronizarProgresoVisual(snapshot.val());
+                }
+            }).catch((error) => console.warn("No se pudo descargar el progreso de Firebase.", error));
+
+        } else {
+            // Usuario NO conectado (Bloqueo)
+            window.currentUserUid = null;
+            document.getElementById('btn-login-modal').style.display = 'none'; 
+            document.getElementById('btn-logout').style.display = 'none';
+            document.getElementById('user-info').style.display = 'none';
+            document.getElementById('progreso-previo').style.display = 'none';
+            
+            document.getElementById('auth-modal').style.display = 'flex';
+        }
+    });
+
+    window.iniciarSesion = function() {
+        const email = document.getElementById('auth-email').value.trim();
+        const pass = document.getElementById('auth-pass').value;
+        if (!email || !pass) return window.mostrarNotificacion('Ingresa correo y contraseña.');
+        
+        signInWithEmailAndPassword(auth, email, pass).catch(error => {
+            window.mostrarNotificacion('Error: Credenciales incorrectas.');
+        });
+    };
+
+    window.registrarUsuario = function() {
+        const email = document.getElementById('auth-email').value.trim();
+        const pass = document.getElementById('auth-pass').value;
+        if (!email || pass.length < 6) return window.mostrarNotificacion('Correo válido y clave de min. 6 caracteres.');
+        
+        createUserWithEmailAndPassword(auth, email, pass).catch(error => {
+            window.mostrarNotificacion('Error al registrar: ' + error.message);
+        });
+    };
+
+    window.iniciarSesionConGoogle = function() {
+        const provider = new GoogleAuthProvider();
+        signInWithPopup(auth, provider).catch(error => {
+            window.mostrarNotificacion('Error al entrar con Google.');
+        });
+    };
+
+    window.cerrarSesion = function() {
+        signOut(auth);
+        window.mostrarNotificacion('Sesión cerrada correctamente.', 'success');
+    };
+
+    window.recuperarContrasena = function() {
+        const email = document.getElementById('auth-email').value.trim();
+        if (!email) {
+            return window.mostrarNotificacion('Escribe tu correo en el campo de arriba primero.');
+        }
+        sendPasswordResetEmail(auth, email)
+            .then(() => window.mostrarNotificacion('✅ Correo de recuperación enviado.', 'success'))
+            .catch((error) => window.mostrarNotificacion('❌ Error al intentar recuperar.'));
+    };
+
+    window.guardarProgresoNube = function(leccionId) {
+        if (!window.currentUserUid) return;
+        const progresoRef = ref(db, 'usuarios/' + window.currentUserUid + '/progreso_curso');
+        update(progresoRef, { [leccionId]: true })
+            .catch(e => console.warn("Error al guardar en la nube", e));
+    };
+</script>
+
+</body>
+</html>
