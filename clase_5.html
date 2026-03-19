@@ -4,136 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Presentación Interactiva - Laboratorio de Física</title>
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            /* Permitimos scroll en el eje Y si la diapositiva es larga */
-            overflow-x: hidden;
-            overflow-y: auto;
-            font-family: 'Inter', sans-serif;
-            background-color: #0f172a;
-        }
-
-        /* Contenedor que se adapta al contenido del iframe */
-        #presentation-container {
-            width: 100%;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .slide-frame {
-            width: 100%;
-            /* Altura dinámica: se ajustará vía JS para evitar el doble scroll */
-            height: 100vh; 
-            border: none;
-            display: none; /* Usamos display none/block para que el scroll del body se resetee */
-            background-color: transparent;
-        }
-
-        .slide-frame.active {
-            display: block;
-        }
-
-        /* Panel Flotante Glassmorphism */
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        }
-
-        .nav-btn {
-            transition: all 0.2s ease;
-        }
-        .nav-btn:hover:not(:disabled) {
-            background: rgba(59, 130, 246, 0.2);
-            transform: translateY(-2px);
-            color: #60a5fa;
-        }
-        .nav-btn:disabled {
-            opacity: 0.2;
-            cursor: not-allowed;
-        }
-
-        .dot {
-            transition: all 0.3s ease;
-        }
-        .dot.active {
-            background-color: #3b82f6;
-            width: 1.25rem;
-            border-radius: 999px;
-        }
-
-        /* Ocultar barra de scroll para una estética limpia pero funcional */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #475569;
-        }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow-x: hidden; overflow-y: auto; font-family: 'Inter', sans-serif; background-color: #0f172a; scroll-behavior: smooth; }
+        #presentation-container { width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
+        .slide-frame { width: 100%; height: 100vh; border: none; display: none; background-color: transparent; }
+        .slide-frame.active { display: block; }
+        .glass-panel { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
+        .nav-btn { transition: all 0.2s ease; }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.2); transform: translateY(-2px); color: #60a5fa; }
+        .nav-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+        .dot { transition: all 0.3s ease; }
+        .dot.active { background-color: #3b82f6; width: 1.25rem; border-radius: 999px; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
     </style>
 </head>
 <body class="text-white">
-
-    <!-- Barra de progreso superior fija -->
-    <div class="fixed top-0 left-0 w-full h-1 bg-slate-800 z-[100]">
-        <div id="progress-bar" class="h-full bg-blue-500 transition-all duration-500 ease-out" style="width: 0%;"></div>
-    </div>
-
-    <!-- Contenedor principal de los Iframes -->
-    <main id="presentation-container">
-        <!-- Los iframes se inyectarán aquí -->
-    </main>
-
-    <!-- Controles Flotantes Inferiores -->
+    <div class="fixed top-0 left-0 w-full h-1 bg-slate-800 z-[100]"><div id="progress-bar" class="h-full bg-blue-500 transition-all duration-500 ease-out" style="width: 0%;"></div></div>
+    <main id="presentation-container"></main>
     <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 glass-panel px-5 py-2.5 rounded-2xl">
-        
         <div class="flex items-center gap-1 mr-2">
-            <button id="btn-prev" class="nav-btn p-2 rounded-xl" title="Anterior">
-                <i class="ph-bold ph-caret-left text-lg"></i>
-            </button>
-            <button id="btn-next" class="nav-btn p-2 rounded-xl" title="Siguiente">
-                <i class="ph-bold ph-caret-right text-lg"></i>
-            </button>
+            <button id="btn-prev" class="nav-btn p-2 rounded-xl"><i class="ph-bold ph-caret-left text-lg"></i></button>
+            <button id="btn-next" class="nav-btn p-2 rounded-xl"><i class="ph-bold ph-caret-right text-lg"></i></button>
         </div>
-
-        <div id="dots-container" class="flex items-center gap-2 px-2">
-            <!-- Puntos dinámicos -->
-        </div>
-
+        <div id="dots-container" class="flex items-center gap-2 px-2"></div>
         <div class="w-px h-6 bg-white/10 mx-1"></div>
-
         <div class="flex items-center gap-3 ml-2">
             <span id="slide-counter" class="text-xs font-mono text-slate-400 min-w-[40px] text-center">1/4</span>
-            <button id="btn-fullscreen" class="nav-btn p-2 rounded-xl" title="Pantalla Completa">
-                <i class="ph-bold ph-corners-out text-lg" id="fs-icon"></i>
-            </button>
+            <button id="btn-fullscreen" class="nav-btn p-2 rounded-xl"><i class="ph-bold ph-corners-out text-lg" id="fs-icon"></i></button>
         </div>
     </nav>
 
     <script>
+        // Asegúrate de que las rutas coincidan con tu estructura en GitHub
         const slides = [
             './Clase5/Diapositiva_1.html',
             './Clase5/Diapositiva_2.html',
@@ -155,29 +63,8 @@
                 iframe.src = src;
                 iframe.className = `slide-frame ${index === 0 ? 'active' : ''}`;
                 iframe.id = `slide-${index}`;
+                // IMPORTANTE: Permitir scripts para que el postMessage funcione
                 iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
-                
-                // Forzar el estilo de scroll dentro del iframe
-                iframe.onload = () => {
-                    try {
-                        const doc = iframe.contentDocument || iframe.contentWindow.document;
-                        const style = doc.createElement('style');
-                        style.textContent = `
-                            body, html { 
-                                overflow: auto !important; 
-                                height: auto !important; 
-                                min-height: 100vh !important;
-                                background-color: transparent !important;
-                            }
-                            ::-webkit-scrollbar { display: none; } /* Ocultar scroll interno para usar el del padre */
-                        `;
-                        doc.head.appendChild(style);
-                        
-                        // Ajustar altura del iframe al contenido tras un pequeño delay (por MathJax/Threejs)
-                        setTimeout(() => adjustIframeHeight(iframe), 500);
-                    } catch (e) { console.warn("CORS prevent inline style injection"); }
-                };
-
                 container.appendChild(iframe);
 
                 const dot = document.createElement('div');
@@ -188,36 +75,27 @@
             updateUI();
         }
 
-        function adjustIframeHeight(iframe) {
-            try {
-                const doc = iframe.contentDocument || iframe.contentWindow.document;
-                const height = doc.body.scrollHeight;
-                iframe.style.height = height + 'px';
-            } catch (e) {}
-        }
+        // ESCUCHADOR DE MENSAJES (Para GitHub / Servidores)
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'resize') {
+                const iframes = document.querySelectorAll('iframe');
+                iframes.forEach(iframe => {
+                    if (iframe.contentWindow === e.source) {
+                        iframe.style.height = e.data.height + 'px';
+                    }
+                });
+            }
+        });
 
         function goToSlide(index) {
             if (index < 0 || index >= slides.length) return;
-
-            // Ocultar actual
-            const currentFrame = document.getElementById(`slide-${currentIndex}`);
-            currentFrame.classList.remove('active');
+            document.getElementById(`slide-${currentIndex}`).classList.remove('active');
             dotsContainer.children[currentIndex].classList.remove('active');
-
-            // Cambiar índice
             currentIndex = index;
-
-            // Mostrar nueva
             const nextFrame = document.getElementById(`slide-${currentIndex}`);
             nextFrame.classList.add('active');
             dotsContainer.children[currentIndex].classList.add('active');
-
-            // Resetear scroll a la parte superior al cambiar de slide
             window.scrollTo(0, 0);
-            
-            // Recalcular altura por si acaso
-            adjustIframeHeight(nextFrame);
-            
             updateUI();
         }
 
@@ -228,16 +106,16 @@
             slideCounter.textContent = `${currentIndex + 1} / ${slides.length}`;
         }
 
-        btnPrev.onclick = () => goToSlide(currentIndex - 1);
-        btnNext.onclick = () => goToSlide(currentIndex + 1);
+        btnPrev.onclick = prevSlide;
+        btnNext.onclick = nextSlide;
+        function nextSlide() { goToSlide(currentIndex + 1); }
+        function prevSlide() { goToSlide(currentIndex - 1); }
 
-        // Teclado
         window.onkeydown = (e) => {
-            if (e.key === 'ArrowRight') goToSlide(currentIndex + 1);
-            if (e.key === 'ArrowLeft') goToSlide(currentIndex - 1);
+            if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
         };
 
-        // Fullscreen
         const btnFs = document.getElementById('btn-fullscreen');
         const fsIcon = document.getElementById('fs-icon');
         btnFs.onclick = () => {
@@ -251,12 +129,6 @@
         };
 
         initPresentation();
-
-        // Ajustar altura en resize de ventana
-        window.onresize = () => {
-            const activeFrame = document.querySelector('.slide-frame.active');
-            if (activeFrame) adjustIframeHeight(activeFrame);
-        };
     </script>
 </body>
 </html>
