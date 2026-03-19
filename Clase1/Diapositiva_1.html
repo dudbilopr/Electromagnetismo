@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio de Física: Carga Eléctrica, Átomo y Materiales</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- MathJax Optimizado -->
+    <script>
+        window.MathJax = {
+            tex: { 
+                inlineMath: [['$', '$'], ['\\(', '\\)']], 
+                displayMath: [['$$', '$$'], ['\\[', '\\]']], 
+                processEscapes: true,
+                tags: 'none' 
+            },
+            startup: {
+                pageReady: () => {
+                    return MathJax.startup.defaultPageReady();
+                }
+            },
+            chtml: { matchFontHeight: false }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+    <!-- Three.js Motor 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden;
+            background-color: #0f172a; display: flex; justify-content: center; align-items: center;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        #slide-wrapper {
+            width: 100%; height: 100%; max-width: 1920px; padding: 1.5vmin;
+            box-sizing: border-box; display: flex;
+        }
+        .slide {
+            background-color: #f8fafc; width: 100%; height: 100%;
+            border-radius: 1.5vmin; box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .text-academic { font-family: 'Times New Roman', Times, serif; font-size: clamp(12px, 1.1vw, 17px); line-height: 1.4; }
+        .math-display { font-size: clamp(13px, 1.2vw, 19px); font-weight: bold; color: #1e3a8a; text-align: center; margin: 0.8vmin 0; overflow-x: auto; overflow-y: hidden;}
+        .math-small { font-size: clamp(12px, 1.1vw, 17px); font-weight: bold; color: #1e3a8a; }
+
+        .canvas-wrapper {
+            width: 100%; height: 100%; position: relative;
+            background: radial-gradient(circle at center, #ffffff, #e2e8f0);
+            border: 1px solid #cbd5e1; border-radius: 0.5rem; overflow: hidden; cursor: grab;
+        }
+        .canvas-wrapper:active { cursor: grabbing; }
+        .graph-wrapper { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 0.5rem; overflow: hidden; position: relative; }
+
+        .hint-overlay {
+            position: absolute; top: 8px; left: 8px; background: rgba(255,255,255,0.9);
+            padding: 4px 10px; border-radius: 4px; font-size: clamp(10px, 0.8vw, 13px);
+            font-weight: 600; color: #475569; pointer-events: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10;
+        }
+
+        .angle-label {
+            position: absolute; transform: translate(-50%, -50%);
+            font-weight: bold; font-family: monospace; color: #dc2626;
+            background: rgba(255, 255, 255, 0.9); padding: 2px 6px; border-radius: 6px;
+            pointer-events: none; z-index: 20; border: 1px solid #fca5a5;
+            font-size: clamp(11px, 0.9vw, 15px); display: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        input[type=range] { accent-color: #2563eb; width: 100%; }
+        .control-panel { background: #e2e8f0; border-radius: 0.5rem; padding: 1vmin; margin-bottom: 1vmin; display: flex; flex-wrap: wrap; gap: 1.5vmin; align-items: center; border: 1px solid #cbd5e1; font-size: clamp(11px, 0.9vw, 15px); }
+        .control-group { display: flex; align-items: center; gap: 0.5vmin; }
+        
+        /* Tooltips css */
+        .tip-btn { cursor: help; display: inline-flex; align-items: center; justify-content: center; width: 1.5em; height: 1.5em; border-radius: 50%; background-color: #f59e0b; color: white; font-weight: bold; font-family: sans-serif; font-size: 0.8em; margin-left: 0.5em; transition: all 0.2s; }
+        .tip-content { position: absolute; left: 100%; top: -50%; margin-left: 10px; width: max-content; max-width: 250px; background: #fffbeb; border: 1px solid #fcd34d; padding: 1vmin; border-radius: 0.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 999999; opacity: 0; visibility: hidden; transform: translateX(-10px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-family: system-ui, sans-serif; font-size: clamp(11px, 0.9vw, 14px); color: #92400e; }
+        .tip-wrapper:hover .tip-content { display: none; opacity: 1; visibility: visible; transform: translateX(0); }
+        
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="slide-wrapper">
+        <div class="slide">
+            
+            <header class="flex-none bg-slate-900 text-white flex flex-col justify-center px-[3vmin] py-[1.5vmin] border-b-[0.5vmin] border-blue-500">
+                <h1 class="font-bold tracking-wide" style="font-size: clamp(20px, 2vw, 36px);">Laboratorio: Carga Eléctrica, El Átomo y Materiales</h1>
+                <p class="text-blue-300" style="font-size: clamp(12px, 1vw, 18px);">Estructura Atómica, Conductores, Semiconductores y el Efecto de las Puntas</p>
+            </header>
+
+            <div class="flex-1 flex flex-row p-[1.5vmin] gap-[2vmin] min-h-0">
+
+                <!-- COLUMNA IZQUIERDA: TEORÍA -->
+                <div class="w-[42%] flex flex-col text-academic overflow-y-auto pr-2 custom-scroll" id="theory-container">
+                    
+                    <!-- BLOQUE 1: EL ÁTOMO -->
+                    <div id="teoria-c1" class="flex flex-col gap-[1vmin] flex-1">
+                        <div class="bg-indigo-50 p-[1.5vmin] border-l-[0.5vmin] border-indigo-600 shadow-sm rounded-r-lg relative">
+                            <p class="font-bold text-indigo-900 flex items-center">
+                                1. El Origen: La Estructura Atómica
+                                <span class="relative tip-wrapper inline-block ml-2 z-50">
+                                    <span class="tip-btn">💡</span>
+                                    <span class="tip-content"><strong>💡 Neutralidad:</strong> Los átomos suelen tener igual número de protones y electrones. Solo cuando un átomo gana o pierde electrones (ionización) manifiesta una carga neta observable.</span>
+                                </span>
+                            </p>
+                            <p class="mt-1 text-sm">Toda la materia está formada por átomos. En su núcleo denso residen los <strong>protones</strong> (+) y <strong>neutrones</strong> (0). Orbitando el núcleo se encuentran los <strong>electrones</strong> (-). La carga está cuantizada en múltiplos de la carga elemental $e$:</p>
+                            <div class="math-display">
+                                \begin{aligned}
+                                e &= 1.602 \times 10^{-19} \text{ C} \\
+                                Q_{\text{neta}} &= (N_p - N_e) \cdot e
+                                \end{aligned}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BLOQUE 2: AISLANTES -->
+                    <div id="teoria-c2" class="hidden flex-col gap-[1vmin] flex-1">
+                        <div class="bg-amber-50 p-[1.5vmin] border-l-[0.5vmin] border-amber-600 shadow-sm rounded-r-lg relative">
+                            <p class="font-bold text-amber-900 flex items-center">
+                                2. Materiales Aislantes (Dieléctricos)
+                                <span class="relative tip-wrapper inline-block ml-2 z-50">
+                                    <span class="tip-btn">💡</span>
+                                    <span class="tip-content"><strong>💡 Aislantes Comunes:</strong> Vidrio, madera, plástico, goma. Al frotarlos (fricción), los electrones transferidos se quedan fijos en la zona de contacto.</span>
+                                </span>
+                            </p>
+                            <p class="mt-1 text-sm">En un aislante, todos los electrones están fuertemente ligados a sus átomos. No pueden fluir a través del material. Si depositamos carga en su interior, permanece estática formando una densidad volumétrica $\rho$ uniforme:</p>
+                            <div class="math-display">
+                                
+                                $$\rho = \frac{Q}{V} \quad \left[\frac{\text{C}}{\text{m}^3}\right]$$
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BLOQUE 3: CONDUCTORES Y SEMICONDUCTORES -->
+                    <div id="teoria-c3" class="hidden flex-col gap-[1vmin] flex-1">
+                        <div class="bg-emerald-50 p-[1.5vmin] border-l-[0.5vmin] border-emerald-600 shadow-sm rounded-r-lg relative">
+                            <p class="font-bold text-emerald-900 flex items-center">
+                                3. Conductores y Semiconductores
+                                <span class="relative tip-wrapper inline-block ml-2 z-50">
+                                    <span class="tip-btn">💡</span>
+                                    <span class="tip-content"><strong>💡 Semiconductores:</strong> El Silicio (Si) o Germanio (Ge) son aislantes a 0K, pero a temperatura ambiente o con "dopaje", liberan electrones, comportándose de manera intermedia y controlable.</span>
+                                </span>
+                            </p>
+                            <p class="mt-1 text-sm">En los <strong>conductores</strong> (como el cobre o el oro), los electrones de valencia se liberan formando un "mar de electrones" móvil. Al repelerse entre sí, migran hacia la superficie hasta anular el campo interno:</p>
+                            <div class="math-display">
+                                $$\sigma = \frac{Q}{A} \quad ; \quad \vec{E}_{\text{int}} = 0$$
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BLOQUE 4: LA GEOMETRÍA Y LAS PUNTAS -->
+                    <div id="teoria-c4" class="hidden flex-col gap-[1vmin] flex-1">
+                        <div class="bg-rose-50 p-[1.5vmin] border-l-[0.5vmin] border-rose-600 shadow-sm rounded-r-lg relative">
+                            <p class="font-bold text-rose-900 flex items-center">
+                                4. El Poder de las Puntas (Geometría)
+                                <span class="relative tip-wrapper inline-block ml-2 z-50">
+                                    <span class="tip-btn">💡</span>
+                                    <span class="tip-content"><strong>💡 Efecto Corona:</strong> Si la punta es muy afilada, el campo eléctrico puede ionizar el aire circundante, creando chispas o fugas de carga (principio del pararrayos).</span>
+                                </span>
+                            </p>
+                            <p class="mt-1 text-sm">En conductores no esféricos (cilindros, conos, puntas), la carga <strong>no se distribuye uniformemente</strong>. La densidad superficial de carga $\sigma$ se concentra enormemente en las zonas de mayor curvatura (radios pequeños $r$):</p>
+                            <div class="math-display">
+                                $$\sigma \propto \frac{1}{r_{\text{curvatura}}}$$
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ADVERTENCIA Y CONCLUSIÓN (OBLIGATORIO) -->
+                    <div class="bg-red-100 p-[1.5vmin] border border-red-300 shadow-sm rounded-lg mt-[1vmin]">
+                        <p class="text-sm text-red-900"><strong>⚠️ Advertencia Física:</strong> Un objeto "cargado negativamente" no está hecho solo de electrones. Sigue teniendo trillones de protones; simplemente posee un pequeñísimo excedente fraccionario de electrones (generalmente 1 extra por cada $10^{12}$ átomos neutros).</p>
+                    </div>
+                    
+                    <div class="bg-slate-800 text-white p-[1.5vmin] shadow-sm rounded-lg mt-[1vmin]">
+                        <p class="text-sm"><strong>Conclusión:</strong> La carga eléctrica nace en la estructura cuántica del átomo, pero su distribución macroscópica está gobernada estrictamente por la naturaleza del material (movilidad) y la topología geométrica del objeto.</p>
+                    </div>
+                </div>
+
+                <!-- COLUMNA DERECHA: VISUALIZACIONES Y CONTROLES -->
+                <div class="w-[58%] flex flex-col min-w-0 gap-[1vmin]">
+
+                    <!-- PANEL DE CONTROL -->
+                    <div class="control-panel shadow-sm">
+                        
+                        <div class="control-group border-r border-slate-300 pr-3">
+                            <label class="font-bold text-slate-800">Modelo:</label>
+                            <select id="select-material" class="bg-white border border-slate-300 rounded px-1 py-0.5 font-bold text-slate-700 outline-none hover:border-blue-500">
+                                <option value="c1">1. Átomo (Escala Micro)</option>
+                                <option value="c2">2. Aislante: Esfera</option>
+                                <option value="c3">3. Conductor: Esfera</option>
+                                <option value="c4">4. Conductor: Cilindro y Punta</option>
+                            </select>
+                        </div>
+
+                        <!-- NUEVO SELECTOR DE ÁTOMOS -->
+                        <div class="control-group border-r border-slate-300 pr-3" id="atom-control">
+                            <label class="font-bold text-purple-700">Elemento:</label>
+                            <select id="select-atom" class="bg-white border border-slate-300 rounded px-1 py-0.5 font-bold text-slate-700 outline-none hover:border-purple-500">
+                                <option value="1">Hidrógeno (1p)</option>
+                                <option value="2">Helio (2p)</option>
+                                <option value="3">Litio (3p)</option>
+                                <option value="6" selected>Carbono (6p)</option>
+                                <option value="8">Oxígeno (8p)</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group border-r border-slate-300 pr-3" id="charge-control">
+                            <label class="font-bold text-blue-700">Carga Neta $Q$:</label>
+                            <input type="range" id="slider-q" min="-5" max="5" step="1" value="-3" class="w-[5vw]">
+                            <span id="val-q" class="font-mono font-bold w-[2vw] text-right">-3</span>
+                        </div>
+
+                        <div class="control-group flex-1 justify-end gap-2 text-[10px] md:text-sm font-semibold text-slate-700">
+                            <label><input type="checkbox" id="toggle-orbit" checked> Animar/Rotar</label>
+                            <label class="text-indigo-700 border border-indigo-200 bg-indigo-50 px-1 rounded cursor-pointer"><input type="checkbox" id="toggle-cut"> Corte 3D</label>
+                        </div>
+                    </div>
+
+                    <!-- ZONA VISUAL (3D + 2D) -->
+                    <div class="flex-1 flex gap-[1vmin] min-h-0">
+                        
+                        <!-- 3D Canvas -->
+                        <div class="w-[60%] h-full canvas-wrapper" id="canvas-3d">
+                            <div class="hint-overlay">⟲ Rotar 3D | ⚲ Zoom | <strong>Rojo (+) Azul (-)</strong></div>
+                        </div>
+
+                        <!-- 2D Graph & Stats -->
+                        <div class="w-[40%] h-full flex flex-col gap-[1vmin]">
+                            
+                            <!-- Gráfica -->
+                            <div class="flex-1 graph-wrapper p-[1vmin] flex flex-col bg-slate-50">
+                                <div class="text-center font-bold text-slate-700 mb-1" style="font-size: clamp(12px, 1vw, 15px);">Densidad de Carga $\rho / \sigma$ vs Eje Radial</div>
+                                <div class="flex-1 relative w-full" id="graph-container">
+                                    <canvas id="graph-2d" class="absolute top-0 left-0 w-full h-full"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Stats Flujo -->
+                            <div class="bg-white border border-slate-200 rounded-lg p-[1.5vmin] text-center shadow-sm">
+                                <div class="text-slate-600 font-serif italic mb-1" style="font-size: clamp(12px, 1vw, 16px);">Análisis Físico</div>
+                                <div class="font-mono font-bold text-slate-800" id="ui-material" style="font-size: clamp(13px, 1.1vw, 18px);">
+                                    Material
+                                </div>
+                                <div class="mt-2 text-slate-600 font-semibold bg-slate-100 py-1 rounded border border-slate-200 math-display" style="font-size: clamp(12px, 1.1vw, 16px);">
+                                    $Q_{\text{neta}}$: <span id="val-net-charge" class="text-blue-600 font-bold font-mono text-lg">0</span> $\mu C$
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÓGICA CORE: THREE.JS Y FÍSICA -->
+    <script>
+        // ==========================================
+        // 1. INICIALIZACIÓN DE THREE.JS Y PLANO DE CORTE
+        // ==========================================
+        const cont3D = document.getElementById('canvas-3d');
+        const scene = new THREE.Scene();
+        const cam = new THREE.PerspectiveCamera(40, cont3D.clientWidth / cont3D.clientHeight, 0.1, 100);
+        cam.position.set(0, 5, 15);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(cont3D.clientWidth, cont3D.clientHeight);
+        renderer.localClippingEnabled = false; // Se activa con el checkbox
+        cont3D.appendChild(renderer.domElement);
+        
+        const ctrl = new THREE.OrbitControls(cam, renderer.domElement);
+        ctrl.enableDamping = true; ctrl.autoRotate = true; ctrl.autoRotateSpeed = 1.5;
+        
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const light = new THREE.DirectionalLight(0xffffff, 0.8);
+        light.position.set(10, 20, 15); scene.add(light);
+
+        // Plano de corte para la vista interior (Corta en el plano Z=0, muestra Z>0 o viceversa)
+        const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+
+        // ==========================================
+        // 2. CONSTANTES FÍSICAS Y ESTADO
+        // ==========================================
+        let params = { q: -3, material: 'c1', animate: true, cut: false, Z: 6 };
+        let animationTime = 0;
+
+        // ==========================================
+        // 3. GENERADORES DE GEOMETRÍA 3D
+        // ==========================================
+        
+        // GRUPO 1: ÁTOMO (Bohr Dinámico)
+        const atomGroup = new THREE.Group(); scene.add(atomGroup);
+        const nucleusGeo = new THREE.SphereGeometry(0.5, 16, 16);
+        const protonMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, clippingPlanes: [clipPlane] });
+        const neutronMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, clippingPlanes: [clipPlane] });
+        const electronGeo = new THREE.SphereGeometry(0.25, 16, 16);
+        const electronMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, clippingPlanes: [clipPlane] });
+        
+        let electrons = [];
+        let orbits = [];
+
+        function buildAtom(Z) {
+            // Limpiar átomo anterior
+            while(atomGroup.children.length > 0){ 
+                atomGroup.remove(atomGroup.children[0]); 
+            }
+            electrons = [];
+            orbits = [];
+            
+            // Cantidad aproximada de neutrones para estabilidad
+            let N = Math.round(Z * 1.2); 
+            if(Z === 1) N = 0;
+            if(Z === 2) N = 2;
+            if(Z === 6) N = 6;
+            if(Z === 8) N = 8;
+            
+            // Construir núcleo central
+            for(let i=0; i<Z; i++) {
+                const p = new THREE.Mesh(nucleusGeo, protonMat);
+                // Posición pseudo-aleatoria acotada al centro
+                p.position.set(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).multiplyScalar(0.7 * Math.cbrt(Z));
+                atomGroup.add(p);
+            }
+            for(let i=0; i<N; i++) {
+                const n = new THREE.Mesh(nucleusGeo, neutronMat);
+                n.position.set(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).multiplyScalar(0.7 * Math.cbrt(Z));
+                atomGroup.add(n);
+            }
+            
+            // Capas Electrónicas (Bohr simplificado: n=1, n=2, n=3)
+            const shells = [ {r: 3.0, max: 2}, {r: 5.0, max: 8}, {r: 7.0, max: 18} ];
+            let totalMaxElectrons = Z + 5; // Permitimos aniones (hasta +5 electrones extra)
+            let currentE = 0;
+            
+            shells.forEach((shell) => {
+                if(currentE >= totalMaxElectrons) return;
+                
+                // Anillo de la órbita (clipping planes agregados para el corte)
+                const orbGeo = new THREE.RingGeometry(shell.r, shell.r+0.05, 64);
+                const orbMat = new THREE.MeshBasicMaterial({color: 0xcbd5e1, side: THREE.DoubleSide, clippingPlanes: [clipPlane]});
+                const orb = new THREE.Mesh(orbGeo, orbMat);
+                
+                // Rotación arbitraria para que no se superpongan todas planas
+                orb.rotation.x = Math.random() * Math.PI;
+                orb.rotation.y = Math.random() * Math.PI;
+                atomGroup.add(orb);
+                orbits.push(orb);
+                
+                for(let i=0; i<shell.max; i++) {
+                    if(currentE >= totalMaxElectrons) break;
+                    const e = new THREE.Mesh(electronGeo, electronMat);
+                    e.userData = { 
+                        radius: shell.r, 
+                        angle: (Math.PI * 2 / shell.max) * i + Math.random(), // Distribución espaciada inicial
+                        speed: 0.02 + Math.random()*0.015, 
+                        orbitIndex: orbits.length - 1 
+                    };
+                    atomGroup.add(e);
+                    electrons.push(e);
+                    currentE++;
+                }
+            });
+            atomGroup.userData.Z = Z;
+        }
+
+        // GRUPO 2: MACROSCÓPICO (Materiales)
+        const macroGroup = new THREE.Group(); scene.add(macroGroup);
+        const solidMat = new THREE.MeshPhysicalMaterial({ 
+            color: 0xe2e8f0, transparent: true, opacity: 0.5, roughness: 0.2, 
+            side: THREE.DoubleSide, clippingPlanes: [clipPlane] 
+        });
+        
+        const sphereGeo = new THREE.SphereGeometry(4, 32, 32);
+        const coneGeo = new THREE.ConeGeometry(2, 8, 32); // Para efecto puntas
+        
+        const macroMesh = new THREE.Mesh(sphereGeo, solidMat);
+        macroGroup.add(macroMesh);
+
+        // Partículas Macroscópicas (Cargas netas)
+        const maxMacroP = 500;
+        const macroPartGeo = new THREE.SphereGeometry(0.18, 8, 8);
+        const macroPartMat = new THREE.MeshBasicMaterial({ clippingPlanes: [clipPlane] });
+        const instancedMacro = new THREE.InstancedMesh(macroPartGeo, macroPartMat, maxMacroP);
+        macroGroup.add(instancedMacro);
+
+        // ==========================================
+        // 4. LÓGICA DE DISTRIBUCIÓN
+        // ==========================================
+        function forceMathJaxUpdate() {
+            if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+                // Forzamos el typeset sobre el contenedor de teoría para procesar ecuaciones recién mostradas
+                MathJax.typesetPromise([document.getElementById('theory-container')]).catch((err) => console.log(err));
+            }
+        }
+
+        function updateScene() {
+            // Control UI Visibility
+            const isAtom = params.material === 'c1';
+            document.getElementById('atom-control').style.display = isAtom ? 'flex' : 'none';
+            
+            // Lógica de menús y paneles de texto
+            const cases = ['c1', 'c2', 'c3', 'c4'];
+            cases.forEach(c => {
+                const el = document.getElementById('teoria-' + c);
+                if(el) {
+                    if (c === params.material) { 
+                        el.classList.remove('hidden'); el.classList.add('flex'); 
+                    } else { 
+                        el.classList.add('hidden'); el.classList.remove('flex'); 
+                    }
+                }
+            });
+            
+            // Re-renderizado riguroso de ecuaciones cuando cambiamos de tab
+            forceMathJaxUpdate();
+
+            // Visibilidad 3D
+            atomGroup.visible = isAtom;
+            macroGroup.visible = !isAtom;
+            
+            // Sincronizar auto-rotación de cámara con el checkbox de animación
+            ctrl.autoRotate = params.animate;
+
+            if(isAtom) {
+                // LÓGICA DEL ÁTOMO
+                if(atomGroup.userData.Z !== params.Z) {
+                    buildAtom(params.Z);
+                }
+
+                const netQ = params.q; // Carga neta seleccionada
+                let targetElectrons = params.Z - netQ; // Si Q es +, pierde e-. Si Q es -, gana e-.
+                if(targetElectrons < 0) targetElectrons = 0;
+                
+                electrons.forEach((e, index) => {
+                    e.visible = index < targetElectrons;
+                });
+
+                document.getElementById('ui-material').innerHTML = "Átomo a escala microscópica";
+                const qDisplay = netQ > 0 ? `+${netQ}` : netQ;
+                document.getElementById('val-net-charge').innerHTML = `${qDisplay} (Catión/Anión)`;
+                document.getElementById('val-net-charge').className = netQ > 0 ? "text-red-600 font-bold font-mono text-lg" : (netQ < 0 ? "text-blue-600 font-bold font-mono text-lg" : "text-slate-600 font-bold font-mono text-lg");
+
+            } else {
+                // LÓGICA MACROSCÓPICA
+                const q = params.q;
+                const absQ = Math.abs(q);
+                const count = Math.min(absQ * 40, maxMacroP);
+                instancedMacro.count = count;
+                
+                const color = q > 0 ? new THREE.Color(0xdc2626) : new THREE.Color(0x2563eb);
+                const dummy = new THREE.Object3D();
+
+                if (params.material === 'c2') {
+                    // Aislante Esfera (Volumen) -> Perfecta distribución de volumen usando raíz cúbica
+                    macroMesh.geometry = sphereGeo;
+                    solidMat.color.setHex(0xfef3c7);
+                    document.getElementById('ui-material').innerHTML = "Bloque Aislante (Volumen)";
+                    
+                    for(let i=0; i<count; i++) {
+                        // Distribución Fibonacci en volumen para máximo esparcimiento
+                        const z = 1 - (2 * (i + 0.5)) / count;
+                        const phi = Math.acos(z);
+                        const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+                        // Radio distribuido uniformemente en el volumen
+                        const r = 4 * Math.cbrt((i + 0.5) / count);
+                        
+                        dummy.position.setFromSphericalCoords(r, phi, theta);
+                        dummy.updateMatrix();
+                        instancedMacro.setMatrixAt(i, dummy.matrix);
+                        instancedMacro.setColorAt(i, color);
+                    }
+                } else if (params.material === 'c3') {
+                    // Conductor Esfera (Superficie) -> Perfecta distribución superficial de Fibonacci
+                    macroMesh.geometry = sphereGeo;
+                    solidMat.color.setHex(0x94a3b8);
+                    document.getElementById('ui-material').innerHTML = "Esfera Metálica (Superficie)";
+                    
+                    for(let i=0; i<count; i++) {
+                        const z = 1 - (2 * (i + 0.5)) / count;
+                        const phi = Math.acos(z);
+                        const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+                        const r = 4; // Solo en la superficie
+                        
+                        dummy.position.setFromSphericalCoords(r, phi, theta);
+                        dummy.updateMatrix();
+                        instancedMacro.setMatrixAt(i, dummy.matrix);
+                        instancedMacro.setColorAt(i, color);
+                    }
+                } else if (params.material === 'c4') {
+                    // Conductor Punta / Cono (Concentración geométrica en la punta)
+                    macroMesh.geometry = coneGeo;
+                    solidMat.color.setHex(0xf87171);
+                    document.getElementById('ui-material').innerHTML = "Punta Conductora (Efecto Punta)";
+                    
+                    for(let i=0; i<count; i++) {
+                        // Math.pow con bias alto fuerza a las cargas a estar mayormente cerca de la punta (y=4)
+                        const bias = Math.pow(Math.random(), 3.5); 
+                        const y = 4 - (8 * bias);
+                        const r = 2 * (4 - y) / 8; // Ecuación lineal del cono
+                        
+                        // Golden angle para repartirlas uniformemente alrededor del perímetro
+                        const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+
+                        dummy.position.set(r * Math.cos(theta), y, r * Math.sin(theta));
+                        dummy.updateMatrix();
+                        instancedMacro.setMatrixAt(i, dummy.matrix);
+                        instancedMacro.setColorAt(i, color);
+                    }
+                }
+
+                instancedMacro.instanceMatrix.needsUpdate = true;
+                if(instancedMacro.instanceColor) instancedMacro.instanceColor.needsUpdate = true;
+
+                const qDisplay = q > 0 ? `+${q}` : q;
+                document.getElementById('val-net-charge').innerHTML = `${qDisplay} $\\mu C$`;
+                document.getElementById('val-net-charge').className = q > 0 ? "text-red-600 font-bold font-mono text-lg" : (q < 0 ? "text-blue-600 font-bold font-mono text-lg" : "text-slate-600 font-bold font-mono text-lg");
+            }
+        }
+
+        // ==========================================
+        // 5. GRÁFICA 2D CONTEXTUAL
+        // ==========================================
+        const graphCont = document.getElementById('graph-container');
+        const canvas2D = document.getElementById('graph-2d');
+        const ctx = canvas2D.getContext('2d');
+
+        function resizeGraph() {
+            canvas2D.width = graphCont.clientWidth;
+            canvas2D.height = graphCont.clientHeight;
+            drawGraph();
+        }
+
+        function drawGraph() {
+            const w = canvas2D.width; const h = canvas2D.height;
+            const padX = 45; const padY = 30;
+            ctx.clearRect(0, 0, w, h);
+
+            // Ejes
+            ctx.beginPath(); ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
+            ctx.moveTo(padX, padY/2); ctx.lineTo(padX, h - padY);
+            ctx.lineTo(w - padX/2, h - padY); ctx.stroke();
+
+            ctx.fillStyle = "#475569"; ctx.font = "14px serif";
+            ctx.fillText("Densidad", 5, padY); ctx.fillText("Posición", w - padX + 5, h - padY + 15);
+
+            const midY = (h - padY) / 2 + padY/2;
+            ctx.beginPath(); ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
+            ctx.moveTo(padX, midY); ctx.lineTo(w - padX/2, midY); ctx.stroke(); ctx.setLineDash([]);
+
+            if(params.q === 0 && params.material !== 'c1') return;
+
+            const isPos = params.q > 0;
+            ctx.fillStyle = isPos ? "rgba(220, 38, 38, 0.4)" : "rgba(37, 99, 235, 0.4)";
+            ctx.strokeStyle = isPos ? "#dc2626" : "#2563eb";
+            ctx.lineWidth = 3;
+
+            const mapX = (val) => padX + (val * (w - padX * 1.5));
+
+            if (params.material === 'c1') {
+                // Átomo: Picos centrales y orbitales
+                ctx.fillStyle = "#475569"; ctx.fillText("Núcleo (+)", mapX(0.5)-20, midY - 60);
+                ctx.fillText("Órbitas (-)", mapX(0.8)-20, midY + 60);
+                
+                // Protones (Pico positivo central)
+                ctx.beginPath(); ctx.strokeStyle = "#dc2626"; ctx.moveTo(mapX(0.5), midY); ctx.lineTo(mapX(0.5), midY - 50); ctx.stroke();
+                // Electrones (Picos negativos en órbitas)
+                const targetE = params.Z - params.q;
+                if(targetE > 0) {
+                    ctx.beginPath(); ctx.strokeStyle = "#2563eb"; ctx.moveTo(mapX(0.8), midY); ctx.lineTo(mapX(0.8), midY + (targetE*5)); ctx.stroke();
+                }
+            } 
+            else if (params.material === 'c2') {
+                // Aislante: Densidad volumétrica uniforme constante
+                const yVal = isPos ? midY - 40 : midY + 40;
+                ctx.fillRect(mapX(0), isPos ? yVal : midY, mapX(0.7) - mapX(0), 40);
+                ctx.beginPath(); ctx.moveTo(mapX(0), yVal); ctx.lineTo(mapX(0.7), yVal); ctx.stroke();
+                ctx.fillStyle = "#475569"; ctx.fillText("ρ constante en volumen", mapX(0.2), isPos ? yVal - 10 : yVal + 20);
+            } 
+            else if (params.material === 'c3') {
+                // Conductor Esfera: Campo nulo interno, pico delta de Dirac en la superficie
+                const yVal = isPos ? midY - 60 : midY + 60;
+                ctx.beginPath(); ctx.moveTo(mapX(0.7), midY); ctx.lineTo(mapX(0.7), yVal); ctx.stroke();
+                ctx.beginPath(); ctx.arc(mapX(0.7), yVal, 4, 0, Math.PI*2); ctx.fillStyle = ctx.strokeStyle; ctx.fill();
+                ctx.fillStyle = "#475569"; ctx.fillText("σ pico en Superficie", mapX(0.5), isPos ? yVal - 10 : yVal + 20);
+                ctx.fillText("Interior: ρ = 0", mapX(0.1), midY - 10);
+            }
+            else if (params.material === 'c4') {
+                // Conductor Punta: Exponencial/Hiperbólico hacia la punta
+                ctx.beginPath();
+                let started = false;
+                for(let x=0; x<=0.9; x+=0.05) {
+                    const sigma = 10 + (20 / (1.01 - x));
+                    const yVal = isPos ? midY - Math.min(sigma, 80) : midY + Math.min(sigma, 80);
+                    const px = mapX(x);
+                    if(!started) { ctx.moveTo(px, yVal); started = true; }
+                    else { ctx.lineTo(px, yVal); }
+                }
+                ctx.stroke();
+                ctx.fillStyle = "#475569"; ctx.fillText("Base Ancha", mapX(0), midY - 10); ctx.fillText("Punta Afilada", mapX(0.8), isPos ? midY - 85 : midY + 85);
+            }
+        }
+
+        // ==========================================
+        // 6. EVENTOS Y BUCLE PRINCIPAL
+        // ==========================================
+        document.getElementById('select-material').addEventListener('change', (e) => {
+            params.material = e.target.value;
+            macroGroup.rotation.set(0,0,0);
+            updateScene(); drawGraph();
+        });
+
+        document.getElementById('select-atom').addEventListener('change', (e) => {
+            params.Z = parseInt(e.target.value);
+            updateScene(); drawGraph();
+        });
+
+        document.getElementById('slider-q').addEventListener('input', (e) => {
+            params.q = parseInt(e.target.value);
+            document.getElementById('val-q').textContent = params.q;
+            updateScene(); drawGraph();
+        });
+
+        document.getElementById('toggle-orbit').addEventListener('change', (e) => { 
+            params.animate = e.target.checked; 
+            ctrl.autoRotate = params.animate; 
+        });
+        
+        document.getElementById('toggle-cut').addEventListener('change', (e) => { 
+            params.cut = e.target.checked; 
+            renderer.localClippingEnabled = params.cut; // Alterna el motor de corte de Three.js
+        });
+
+        const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                if(entry.target.id === 'canvas-3d') {
+                    const { width, height } = entry.contentRect;
+                    cam.aspect = width / height; cam.updateProjectionMatrix(); renderer.setSize(width, height);
+                } else if(entry.target.id === 'graph-container') {
+                    resizeGraph();
+                }
+            }
+        });
+        resizeObserver.observe(cont3D); resizeObserver.observe(graphCont);
+
+        // Inicialización forzando MathJax en carga
+        window.addEventListener('load', () => {
+            updateScene(); 
+            drawGraph();
+            forceMathJaxUpdate();
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctrl.update(); 
+            
+            if(params.animate) {
+                if(params.material === 'c1') {
+                    // Animar dinámicamente los electrones en sus órbitas inclinadas
+                    animationTime += 0.01;
+                    
+                    // Lenta rotación 3D del átomo entero para mejor apreciación espacial
+                    atomGroup.rotation.y += 0.005;
+                    atomGroup.rotation.x += 0.002;
+
+                    electrons.forEach((e) => {
+                        if(e.visible) {
+                            const angle = e.userData.angle + (animationTime * e.userData.speed * 100);
+                            const r = e.userData.radius;
+                            const orb = orbits[e.userData.orbitIndex];
+                            
+                            // Posición local 2D (círculo simple)
+                            e.position.set(r * Math.cos(angle), r * Math.sin(angle), 0);
+                            // Transfiriendo inclinación del anillo (órbita) para que sigan el aro
+                            e.position.applyEuler(orb.rotation);
+                        }
+                    });
+                }
+            }
+
+            renderer.render(scene, cam);
+        }
+        animate();
+
+        // Tooltip global inmutable
+      (function () {
+          let globalTip = document.createElement("div");
+          globalTip.className = "tip-content";
+          globalTip.style.position = "fixed";
+          globalTip.style.zIndex = "999999";
+          globalTip.style.pointerEvents = "none";
+          globalTip.style.opacity = "0";
+          globalTip.style.visibility = "hidden";
+        
+          document.body.appendChild(globalTip);
+        
+          document.querySelectorAll(".tip-wrapper").forEach(wrapper => {
+            const localTip = wrapper.querySelector(".tip-content");
+        
+            wrapper.addEventListener("mouseenter", () => {
+              const rect = wrapper.getBoundingClientRect();
+        
+              globalTip.innerHTML = localTip.innerHTML;
+        
+              globalTip.style.top = rect.top + "px";
+              globalTip.style.left = (rect.right + 10) + "px";
+        
+              globalTip.style.opacity = "1";
+              globalTip.style.visibility = "visible";
+            });
+        
+            wrapper.addEventListener("mouseleave", () => {
+              globalTip.style.opacity = "0";
+              globalTip.style.visibility = "hidden";
+            });
+          });
+        })();
+    </script>
+</body>
+</html>
