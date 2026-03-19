@@ -76,7 +76,7 @@
             </div>
             <div class="flex gap-3 items-center">
                 <div id="auth-status" class="text-sm font-medium text-slate-500 hidden md:flex items-center gap-1 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
-                    <i class="ph ph-spinner animate-spin"></i> Conectando...
+                    <i class="ph ph-spinner animate-spin"></i> Conectando plataforma...
                 </div>
             </div>
         </div>
@@ -172,56 +172,43 @@
         </section>
     </main>
 
-    <!-- Firebase & Logic Script -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // =========================================================================
+        // === NUEVA INTEGRACIÓN FIREBASE (COMPATIBLE CON TU DASHBOARD UNAB) ===
+        // =========================================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+        import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-        // --- 1. FIREBASE SETUP ---
-        // Configuración de respaldo usando tu proyecto para GitHub Pages
-        const miFirebaseConfig = {
+        // Usamos tus credenciales exactas del Dashboard
+        const firebaseConfig = {
             apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
             authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+            databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
             projectId: "laboratorio-de-coulomb",
             storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
             messagingSenderId: "525944850850",
-            appId: "1:525944850850:web:eca9c0b79809358e8d8afb"
+            appId: "1:525944850850:web:eca9c0b79809358e8d8afb",
+            measurementId: "G-SZECJNG25E"
         };
-
-        // Usa la configuración del entorno de IA o la tuya propia en GitHub
-        const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config 
-            ? JSON.parse(__firebase_config) 
-            : miFirebaseConfig;
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'laboratorio-coulomb';
+        const db = getDatabase(app);
         let currentUser = null;
 
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Auth error:", error);
-                showToast("Modo offline. Progreso local únicamente.", "warning");
-                document.getElementById('auth-status').innerHTML = `<i class="ph ph-wifi-slash text-red-500"></i> Offline`;
-            }
-        };
-        initAuth();
-
+        // Escuchamos el estado de auth. Al estar en iframe en tu plataforma, detectará automáticamente la sesión
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             const statusEl = document.getElementById('auth-status');
             if (user) {
-                statusEl.innerHTML = `<div class="w-2 h-2 rounded-full bg-green-500 mr-1 animate-pulse"></div> <span class="truncate max-w-[100px]">${user.uid.substring(0, 6)}</span>`;
+                const userName = user.email ? user.email.split('@')[0] : 'Estudiante';
+                statusEl.innerHTML = `<div class="w-2 h-2 rounded-full bg-green-500 mr-1 animate-pulse"></div> <span class="truncate max-w-[100px]">${userName}</span>`;
                 statusEl.classList.remove('hidden');
                 loadProgress();
+            } else {
+                statusEl.innerHTML = `<i class="ph ph-warning-circle text-amber-500"></i> Debes iniciar sesión en la plataforma`;
+                statusEl.classList.remove('hidden');
             }
         });
 
@@ -366,18 +353,15 @@
             }
         ];
 
-        // --- 3. STATE MANAGEMENT ---
         let currentQuestion = 0;
         let userState = questions.map(() => ({ answered: false, flagged: false, value: null }));
         let examSubmitted = false;
 
-        // --- 4. RENDER UI ---
         function initUI() {
             renderNavGrid();
             renderAllQuestions();
             showQuestion(0);
             
-            // Bind global controls
             document.getElementById('btn-prev').addEventListener('click', () => { if(currentQuestion > 0) showQuestion(currentQuestion - 1); });
             document.getElementById('btn-next').addEventListener('click', () => { if(currentQuestion < questions.length - 1) showQuestion(currentQuestion + 1); });
             document.getElementById('btn-flag').addEventListener('click', () => toggleFlag(currentQuestion));
@@ -393,7 +377,6 @@
             document.getElementById('btn-export').addEventListener('click', exportToPDF);
             document.getElementById('btn-save').addEventListener('click', saveProgress);
 
-            // Trigger KaTeX rendering
             renderMathInElement(document.body, {
               delimiters: [
                   {left: '$$', right: '$$', display: true},
@@ -423,21 +406,12 @@
             questions.forEach((_, i) => {
                 const btn = document.getElementById(`nav-btn-${i}`);
                 if(!btn) return;
-                
-                // Base reset
                 btn.classList.remove('nav-answered', 'nav-flagged', 'nav-active', 'bg-slate-50', 'text-slate-500', 'border-slate-200');
-                
-                if (userState[i].flagged) {
-                    btn.classList.add('nav-flagged');
-                } else if (userState[i].answered) {
-                    btn.classList.add('nav-answered');
-                } else {
-                    btn.classList.add('bg-slate-50', 'text-slate-500', 'border-slate-200');
-                }
+                if (userState[i].flagged) btn.classList.add('nav-flagged');
+                else if (userState[i].answered) btn.classList.add('nav-answered');
+                else btn.classList.add('bg-slate-50', 'text-slate-500', 'border-slate-200');
 
-                if (i === currentQuestion) {
-                    btn.classList.add('nav-active');
-                }
+                if (i === currentQuestion) btn.classList.add('nav-active');
             });
         }
 
@@ -450,16 +424,12 @@
                 card.className = `q-card hidden flex flex-col h-full`;
                 card.id = `q-card-${index}`;
 
-                // Question Header
                 let html = `
                     <div class="flex justify-between items-start mb-6 gap-4">
                         <h3 class="text-xl font-bold text-slate-800 leading-relaxed"><span class="text-blue-600 mr-2 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">${index + 1}.</span> ${q.text}</h3>
                         <div id="feedback-icon-${index}" class="hidden shrink-0 mt-1"></div>
-                    </div>
-                `;
+                    </div><div class="flex-grow">`;
 
-                // Content specific to type
-                html += `<div class="flex-grow">`;
                 if (q.type === 'mcq') {
                     html += `<div class="space-y-3 mt-4">`;
                     q.options.forEach((opt, i) => {
@@ -480,10 +450,9 @@
                     </div>`;
                 }
                 else if (q.type === 'drag') {
-                    html += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">`;
-                    html += `<div class="space-y-4">
+                    html += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6"><div class="space-y-4">
                                 <h4 class="font-bold text-slate-500 text-sm uppercase tracking-wider flex items-center gap-2"><i class="ph ph-target"></i> Método de Carga</h4>`;
-                    q.pairs.forEach((p, i) => {
+                    q.pairs.forEach((p) => {
                         html += `
                         <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col gap-3 shadow-sm">
                             <span class="font-semibold text-slate-700 text-base">${p.question}</span>
@@ -492,14 +461,12 @@
                             </div>
                         </div>`;
                     });
-                    html += `</div>`;
-                    
-                    html += `<div class="space-y-4 bg-blue-50/50 p-4 rounded-2xl border border-blue-50">
+                    html += `</div><div class="space-y-4 bg-blue-50/50 p-4 rounded-2xl border border-blue-50">
                                 <h4 class="font-bold text-blue-500 text-sm uppercase tracking-wider flex items-center gap-2"><i class="ph ph-lightning"></i> Procesos Físicos</h4>`;
                     
                     let shuffled = [...q.pairs].sort(() => Math.random() - 0.5);
                     let dragHtml = `<div class="flex flex-col gap-3" id="drag-source-${index}">`;
-                    shuffled.forEach((p, i) => {
+                    shuffled.forEach((p) => {
                         dragHtml += `
                         <div class="draggable bg-white border-2 border-blue-200 text-blue-800 p-4 rounded-xl font-semibold shadow-sm hover:border-blue-400 hover:shadow-md transition-all flex items-center gap-3 cursor-grab active:scale-95" draggable="true" data-id="${p.answer}">
                             <i class="ph ph-dots-six-vertical text-blue-400 text-xl"></i> <span class="text-sm leading-tight">${p.answer}</span>
@@ -521,12 +488,10 @@
                             </div>
                         </div>
                     </div>
-                    <input type="hidden" id="input-q${index}" class="q-input" value="false">
-                    `;
+                    <input type="hidden" id="input-q${index}" class="q-input" value="false">`;
                 }
-                html += `</div>`; // End flex-grow
+                html += `</div>`; 
 
-                // Tip Section
                 html += `
                     <div class="mt-8 pt-6 border-t border-slate-100 shrink-0">
                         <button onclick="document.getElementById('tip-${index}').classList.toggle('hidden')" class="text-sm font-bold text-amber-600 hover:text-amber-700 flex items-center gap-2 transition-colors bg-amber-50 px-4 py-2 rounded-lg border border-amber-100 hover:border-amber-200">
@@ -542,29 +507,21 @@
                 container.appendChild(card);
             });
 
-            // Bind inputs
             document.querySelectorAll('.q-input').forEach(input => {
                 input.addEventListener('change', (e) => {
-                    const name = e.target.name || e.target.id;
-                    const match = name.match(/q(\d+)/);
+                    const match = (e.target.name || e.target.id).match(/q(\d+)/);
                     if(match) {
-                        const idx = parseInt(match[1]);
-                        userState[idx].answered = true;
-                        if(e.target.type === 'radio') userState[idx].value = e.target.value;
-                        else userState[idx].value = e.target.value;
+                        userState[parseInt(match[1])].answered = true;
+                        userState[parseInt(match[1])].value = e.target.value;
                         updateNavStyles();
                     }
                 });
-                
                 if (input.type === 'text') {
                     input.addEventListener('input', (e) => {
                         const match = e.target.id.match(/q(\d+)/);
-                        if(match && e.target.value.trim() !== '') {
-                            userState[parseInt(match[1])].answered = true;
+                        if(match) {
+                            userState[parseInt(match[1])].answered = (e.target.value.trim() !== '');
                             userState[parseInt(match[1])].value = e.target.value;
-                            updateNavStyles();
-                        } else if(match) {
-                            userState[parseInt(match[1])].answered = false;
                             updateNavStyles();
                         }
                     });
@@ -580,19 +537,14 @@
                     el.classList.remove('hidden');
                     const txt = el.querySelector('input[type="text"]');
                     if(txt && !examSubmitted) setTimeout(() => txt.focus(), 100);
-                    
                     if (questions[i].type === 'canvas' && !window.canvasInitialized) {
-                        setTimeout(initCanvas, 100);
-                        window.canvasInitialized = true;
+                        setTimeout(initCanvas, 100); window.canvasInitialized = true;
                     }
-                } else {
-                    el.classList.add('hidden');
-                }
+                } else el.classList.add('hidden');
             });
             
             currentQuestion = index;
             updateNavStyles();
-
             if(index !== 0) document.getElementById('instructions-panel').style.display = 'none';
 
             document.getElementById('btn-prev').disabled = index === 0;
@@ -610,58 +562,41 @@
             }
         }
 
-        function toggleFlag(index) {
-            userState[index].flagged = !userState[index].flagged;
-            showQuestion(index);
-        }
+        function toggleFlag(index) { userState[index].flagged = !userState[index].flagged; showQuestion(index); }
 
-        // --- 5. INTERACTIVES LOGIC ---
         function initDragAndDrop() {
-            const draggables = document.querySelectorAll('.draggable');
-            const dropzones = document.querySelectorAll('.dropzone');
-
-            draggables.forEach(draggable => {
+            document.querySelectorAll('.draggable').forEach(draggable => {
                 draggable.addEventListener('dragstart', (e) => {
                     draggable.classList.add('opacity-50', 'scale-95');
                     e.dataTransfer.setData('text/plain', draggable.getAttribute('data-id'));
                     setTimeout(() => draggable.classList.add('invisible'), 0);
                 });
-                draggable.addEventListener('dragend', () => {
-                    draggable.classList.remove('opacity-50', 'scale-95', 'invisible');
-                });
+                draggable.addEventListener('dragend', () => draggable.classList.remove('opacity-50', 'scale-95', 'invisible'));
             });
 
-            dropzones.forEach(zone => {
+            document.querySelectorAll('.dropzone').forEach(zone => {
                 zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
                 zone.addEventListener('dragleave', () => { zone.classList.remove('dragover'); });
                 zone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    zone.classList.remove('dragover');
+                    e.preventDefault(); zone.classList.remove('dragover');
                     const draggedId = e.dataTransfer.getData('text/plain');
                     const draggable = document.querySelector(`.draggable[data-id="${draggedId}"]`);
                     
                     if (draggable) {
                         if (zone.children.length > 0 && !zone.children[0].tagName.toLowerCase().includes('span')) {
-                            const currentChild = zone.children[0];
                             const sourceContainer = document.querySelector(`[id^='drag-source']`);
-                            if(sourceContainer) sourceContainer.appendChild(currentChild);
+                            if(sourceContainer) sourceContainer.appendChild(zone.children[0]);
                         }
-                        
                         if(zone.querySelector('span')) zone.innerHTML = '';
-                        
                         zone.appendChild(draggable);
                         zone.classList.add('bg-blue-50', 'border-solid', 'border-blue-400');
                         zone.classList.remove('border-dashed', 'text-slate-400');
                         
-                        // Eval specifically for Drag Q (Index 15)
                         const qIndex = 15;
                         const allZones = document.getElementById(`q-card-${qIndex}`).querySelectorAll('.dropzone');
                         let fullZones = 0;
                         allZones.forEach(z => { if(z.querySelector('.draggable')) fullZones++; });
-                        if(fullZones === allZones.length) {
-                            userState[qIndex].answered = true;
-                            updateNavStyles();
-                        }
+                        if(fullZones === allZones.length) { userState[qIndex].answered = true; updateNavStyles(); }
                     }
                 });
             });
@@ -675,129 +610,70 @@
             
             let cw = canvas.parentElement.clientWidth;
             let ch = canvas.parentElement.clientHeight;
-            canvas.width = cw;
-            canvas.height = ch;
+            canvas.width = cw; canvas.height = ch;
             
-            // Fixed positive charge at center left
             const fixedQ = { x: cw * 0.25, y: ch / 2, r: 24, q: 1 };
-            // Draggable positive charge
             let dragQ = { x: cw * 0.85, y: ch / 2, r: 20, q: 1, isDragging: false };
-            const targetZone = { r: cw * 0.18 }; // area to trigger "correct"
+            const targetZone = { r: cw * 0.18 };
 
             function draw() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Grid
-                ctx.strokeStyle = '#f8fafc';
-                ctx.lineWidth = 1;
+                ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 1;
                 for(let i=0; i<cw; i+=25){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,ch); ctx.stroke(); }
                 for(let i=0; i<ch; i+=25){ ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(cw,i); ctx.stroke(); }
                 
-                // Draw target radius (dotted) around fixed charge
-                ctx.beginPath();
-                ctx.arc(fixedQ.x, fixedQ.y, targetZone.r + fixedQ.r, 0, Math.PI * 2);
-                ctx.strokeStyle = '#cbd5e1';
-                ctx.setLineDash([6, 6]);
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.fillStyle = 'rgba(239, 246, 255, 0.4)'; // light blue zone
-                ctx.fill();
-                ctx.setLineDash([]); // reset
+                ctx.beginPath(); ctx.arc(fixedQ.x, fixedQ.y, targetZone.r + fixedQ.r, 0, Math.PI * 2);
+                ctx.strokeStyle = '#cbd5e1'; ctx.setLineDash([6, 6]); ctx.lineWidth = 2; ctx.stroke();
+                ctx.fillStyle = 'rgba(239, 246, 255, 0.4)'; ctx.fill(); ctx.setLineDash([]);
 
-                // Draw distance line r
-                ctx.beginPath();
-                ctx.moveTo(fixedQ.x, fixedQ.y);
-                ctx.lineTo(dragQ.x, dragQ.y);
-                ctx.strokeStyle = '#94a3b8';
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(fixedQ.x, fixedQ.y); ctx.lineTo(dragQ.x, dragQ.y);
+                ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.stroke();
 
-                // Draw Fixed Charge (+Q)
-                ctx.beginPath();
-                ctx.arc(fixedQ.x, fixedQ.y, fixedQ.r, 0, Math.PI * 2);
-                ctx.fillStyle = '#ef4444'; // Red for Positive
-                ctx.shadowColor = 'rgba(239, 68, 68, 0.5)';
-                ctx.shadowBlur = 15;
-                ctx.fill();
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 24px Inter';
-                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.beginPath(); ctx.arc(fixedQ.x, fixedQ.y, fixedQ.r, 0, Math.PI * 2);
+                ctx.fillStyle = '#ef4444'; ctx.shadowColor = 'rgba(239, 68, 68, 0.5)'; ctx.shadowBlur = 15; ctx.fill();
+                ctx.fillStyle = '#ffffff'; ctx.font = 'bold 24px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText('+', fixedQ.x, fixedQ.y); 
 
-                // Draw Drag Charge (+q)
-                ctx.beginPath();
-                ctx.arc(dragQ.x, dragQ.y, dragQ.r, 0, Math.PI * 2);
-                ctx.fillStyle = '#3b82f6'; // Blue
-                ctx.shadowColor = 'rgba(59, 130, 246, 0.5)';
-                ctx.shadowBlur = 15;
-                ctx.fill();
-                ctx.fillStyle = '#ffffff';
-                ctx.fillText('+q', dragQ.x, dragQ.y); 
-                ctx.shadowBlur = 0;
+                ctx.beginPath(); ctx.arc(dragQ.x, dragQ.y, dragQ.r, 0, Math.PI * 2);
+                ctx.fillStyle = '#3b82f6'; ctx.shadowColor = 'rgba(59, 130, 246, 0.5)'; ctx.shadowBlur = 15; ctx.fill();
+                ctx.fillStyle = '#ffffff'; ctx.fillText('+q', dragQ.x, dragQ.y); ctx.shadowBlur = 0;
 
-                // Math Logic: Calculate distance and Force vector
-                const dx = dragQ.x - fixedQ.x;
-                const dy = dragQ.y - fixedQ.y;
-                let dist = Math.sqrt(dx*dx + dy*dy);
+                const dx = dragQ.x - fixedQ.x; const dy = dragQ.y - fixedQ.y;
+                let dist = Math.max(Math.sqrt(dx*dx + dy*dy), fixedQ.r + dragQ.r);
+                const forceMag = Math.pow((cw * 0.5) / dist, 2); 
                 
-                // Prevent infinitely large forces (collision)
-                const minDist = fixedQ.r + dragQ.r;
-                if(dist < minDist) dist = minDist;
-                
-                // F = k * (q1*q2) / r^2 (Scaled for visual)
-                const baseDist = cw * 0.5; // reference distance
-                const forceMag = Math.pow(baseDist / dist, 2); 
-                
-                // Draw Force Arrow from DragQ
-                const arrowLength = Math.min(40 * forceMag, cw * 0.4); // cap length
-                const angle = Math.atan2(dy, dx); // repulsion is same direction as r vector
-                
+                const arrowLength = Math.min(40 * forceMag, cw * 0.4);
+                const angle = Math.atan2(dy, dx);
                 const endX = dragQ.x + arrowLength * Math.cos(angle);
                 const endY = dragQ.y + arrowLength * Math.sin(angle);
                 
-                ctx.beginPath();
-                ctx.moveTo(dragQ.x + dragQ.r*Math.cos(angle), dragQ.y + dragQ.r*Math.sin(angle));
-                ctx.lineTo(endX, endY);
-                ctx.strokeStyle = '#ef4444'; // Red Force arrow
-                ctx.lineWidth = 4;
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(dragQ.x + dragQ.r*Math.cos(angle), dragQ.y + dragQ.r*Math.sin(angle));
+                ctx.lineTo(endX, endY); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 4; ctx.stroke();
                 
-                // Arrowhead
-                ctx.beginPath();
-                ctx.moveTo(endX, endY);
+                ctx.beginPath(); ctx.moveTo(endX, endY);
                 ctx.lineTo(endX - 10 * Math.cos(angle - Math.PI/6), endY - 10 * Math.sin(angle - Math.PI/6));
                 ctx.lineTo(endX - 10 * Math.cos(angle + Math.PI/6), endY - 10 * Math.sin(angle + Math.PI/6));
-                ctx.fillStyle = '#ef4444';
-                ctx.fill();
+                ctx.fillStyle = '#ef4444'; ctx.fill();
 
-                // Evaluate State
                 let displayF = (forceMag * 10).toFixed(1);
                 
                 if (dist <= targetZone.r + fixedQ.r + dragQ.r) {
-                    fluxDisplay.innerHTML = `${displayF} N (Máxima)`;
-                    fluxDisplay.className = "font-black text-red-600 text-2xl mt-1";
+                    fluxDisplay.innerHTML = `${displayF} N (Máxima)`; fluxDisplay.className = "font-black text-red-600 text-2xl mt-1";
                     const inputH = document.getElementById('input-q19'); 
                     if(inputH) { inputH.value = "true"; inputH.dispatchEvent(new Event('change')); }
                 } else {
-                    fluxDisplay.innerHTML = `${displayF} N`;
-                    fluxDisplay.className = "font-bold text-slate-600 text-xl mt-1";
+                    fluxDisplay.innerHTML = `${displayF} N`; fluxDisplay.className = "font-bold text-slate-600 text-xl mt-1";
                     const inputH = document.getElementById('input-q19'); 
                     if(inputH && !examSubmitted) { inputH.value = "false"; }
                 }
             }
 
-            // Events
             const startDrag = (e) => {
                 const rect = canvas.getBoundingClientRect();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                const mouseX = clientX - rect.left;
-                const mouseY = clientY - rect.top;
-                const dist = Math.sqrt((mouseX - dragQ.x)**2 + (mouseY - dragQ.y)**2);
-                if (dist < dragQ.r * 2.5) { 
-                    dragQ.isDragging = true; 
-                    e.preventDefault(); 
-                    canvas.style.cursor = 'grabbing';
+                if (Math.sqrt((clientX - rect.left - dragQ.x)**2 + (clientY - rect.top - dragQ.y)**2) < dragQ.r * 2.5) { 
+                    dragQ.isDragging = true; e.preventDefault(); canvas.style.cursor = 'grabbing';
                 }
             };
 
@@ -805,39 +681,25 @@
                 if (dragQ.isDragging) {
                     e.preventDefault();
                     const rect = canvas.getBoundingClientRect();
-                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                    dragQ.x = clientX - rect.left;
-                    dragQ.y = clientY - rect.top;
+                    dragQ.x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+                    dragQ.y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
                     draw();
                 }
             };
             
-            const stopDrag = () => { 
-                dragQ.isDragging = false;
-                canvas.style.cursor = 'pointer';
-            };
+            const stopDrag = () => { dragQ.isDragging = false; canvas.style.cursor = 'pointer'; };
 
-            canvas.addEventListener('mousedown', startDrag);
-            canvas.addEventListener('mousemove', doDrag);
-            window.addEventListener('mouseup', stopDrag);
-            canvas.addEventListener('touchstart', startDrag, {passive: false});
-            canvas.addEventListener('touchmove', doDrag, {passive: false});
-            window.addEventListener('touchend', stopDrag);
+            canvas.addEventListener('mousedown', startDrag); canvas.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', stopDrag);
+            canvas.addEventListener('touchstart', startDrag, {passive: false}); canvas.addEventListener('touchmove', doDrag, {passive: false}); window.addEventListener('touchend', stopDrag);
 
             window.addEventListener('resize', () => {
-                cw = canvas.parentElement.clientWidth;
-                ch = canvas.parentElement.clientHeight;
-                canvas.width = cw;
-                canvas.height = ch;
-                fixedQ.x = cw * 0.25; fixedQ.y = ch/2;
-                draw();
+                cw = canvas.parentElement.clientWidth; ch = canvas.parentElement.clientHeight;
+                canvas.width = cw; canvas.height = ch; fixedQ.x = cw * 0.25; fixedQ.y = ch/2; draw();
             });
 
             draw();
         }
 
-        // --- 6. EVALUATION ---
         function cleanString(str) {
             if(!str) return "";
             return str.toLowerCase().replace(/\s+/g, '').replace(/[\(\)]/g, '').replace(/\*/g, '').replace(/\\/g, '').replace(/[{}]/g, '');
@@ -845,93 +707,66 @@
 
         function showConfirmModal() {
             let unanswered = userState.filter(s => !s.answered).length;
-            const modal = document.getElementById('confirm-modal');
             const msg = document.getElementById('confirm-message');
-
-            if(unanswered > 0) {
-                msg.textContent = `Tienes ${unanswered} pregunta(s) sin responder. ¿Seguro que deseas evaluar ahora?`;
-            } else {
-                msg.textContent = `¿Deseas enviar tus respuestas para su evaluación final?`;
-            }
-            modal.classList.remove('hidden');
+            msg.textContent = unanswered > 0 ? `Tienes ${unanswered} pregunta(s) sin responder. ¿Seguro que deseas evaluar ahora?` : `¿Deseas enviar tus respuestas para su evaluación final?`;
+            document.getElementById('confirm-modal').classList.remove('hidden');
         }
 
         function evaluateExam() {
             examSubmitted = true;
-            let score = 0;
-            let total = questions.length;
+            let score = 0; let total = questions.length;
 
             questions.forEach((q, index) => {
                 const card = document.getElementById(`q-card-${index}`);
                 const icon = document.getElementById(`feedback-icon-${index}`);
                 let isCorrect = false;
 
-                // Disable inputs
-                card.querySelectorAll('input, button.draggable').forEach(el => {
-                    el.disabled = true;
-                    if(el.draggable) el.draggable = false;
-                    if(el.classList.contains('cursor-pointer')) el.classList.remove('cursor-pointer');
-                });
+                card.querySelectorAll('input, button.draggable').forEach(el => { el.disabled = true; if(el.draggable) el.draggable = false; el.classList.remove('cursor-pointer'); });
 
                 if (q.type === 'mcq') {
                     if (userState[index].value !== null && parseInt(userState[index].value) === q.answer) isCorrect = true;
-                } 
-                else if (q.type === 'fill' || q.type === 'equation') {
+                } else if (q.type === 'fill' || q.type === 'equation') {
                     if (userState[index].value) {
-                        const uVal = cleanString(userState[index].value);
-                        const aVal = cleanString(q.answer.toString());
-                        
-                        // Strict but forgiving check for equations (e.g. k*q1*q2/r^2)
+                        const uVal = cleanString(userState[index].value); const aVal = cleanString(q.answer.toString());
                         if (uVal === aVal || (uVal.includes(aVal.replace('q1','q').replace('q2','q')))) isCorrect = true;
-                        
-                        // Fallback math comparison
                         if(q.type === 'equation' && (uVal.includes('1.6') && uVal.includes('-19'))) isCorrect = true;
 
                         if(!isCorrect) {
                             const inpCont = card.querySelector('input[type="text"]').parentElement;
                             const ansDiv = document.createElement('div');
                             ansDiv.className = "mt-2 text-sm text-red-600 font-bold bg-red-50 p-2 rounded border border-red-200";
-                            ansDiv.innerHTML = `Solución esperada: $$ ${q.answer} $$`;
+                            ansDiv.innerHTML = `Solución esperada: $$${q.answer}$$`;
                             inpCont.appendChild(ansDiv);
                             if(window.renderMathInElement) renderMathInElement(ansDiv);
                         }
                     }
-                }
-                else if (q.type === 'drag') {
+                } else if (q.type === 'drag') {
                     let correctCount = 0;
                     card.querySelectorAll('.dropzone').forEach(zone => {
-                        const target = zone.getAttribute('data-target');
-                        const child = zone.querySelector('.draggable');
+                        const target = zone.getAttribute('data-target'); const child = zone.querySelector('.draggable');
                         if (child) {
                             const pair = q.pairs.find(p => p.question === target);
-                            if (pair && pair.answer === child.getAttribute('data-id')) {
-                                correctCount++;
-                                zone.classList.add('border-green-400', 'bg-green-50');
-                            } else {
-                                zone.classList.add('border-red-400', 'bg-red-50');
-                            }
+                            if (pair && pair.answer === child.getAttribute('data-id')) { correctCount++; zone.classList.add('border-green-400', 'bg-green-50'); } 
+                            else { zone.classList.add('border-red-400', 'bg-red-50'); }
                         }
                     });
                     if (correctCount === q.pairs.length) isCorrect = true;
-                }
-                else if (q.type === 'canvas') {
+                } else if (q.type === 'canvas') {
                     if (userState[index].value === "true") isCorrect = true;
                 }
 
                 icon.classList.remove('hidden');
                 if (isCorrect) {
-                    score++;
-                    card.classList.add('correct-card');
+                    score++; card.classList.add('correct-card');
                     icon.innerHTML = `<div class="bg-green-100 p-2 rounded-full text-green-600 shadow-sm border border-green-200"><i class="ph-bold ph-check text-xl"></i></div>`;
-                    document.getElementById(`nav-btn-${index}`).style.backgroundColor = '#22c55e'; // Green
+                    document.getElementById(`nav-btn-${index}`).style.backgroundColor = '#22c55e';
                 } else {
                     card.classList.add('incorrect-card');
                     icon.innerHTML = `<div class="bg-red-100 p-2 rounded-full text-red-600 shadow-sm border border-red-200"><i class="ph-bold ph-x text-xl"></i></div>`;
-                    document.getElementById(`nav-btn-${index}`).style.backgroundColor = '#ef4444'; // Red
+                    document.getElementById(`nav-btn-${index}`).style.backgroundColor = '#ef4444';
                 }
                 document.getElementById(`nav-btn-${index}`).style.color = '#fff';
                 document.getElementById(`nav-btn-${index}`).style.borderColor = 'transparent';
-                
                 document.getElementById(`tip-${index}`).classList.remove('hidden');
             });
 
@@ -947,11 +782,11 @@
 
             const msg = document.getElementById('feedback-message');
             if (percentage >= 70) {
-                msg.textContent = "¡Aprobado! Demuestras una excelente comprensión de las fuerzas electrostáticas, interacciones entre partículas y el modelo de carga.";
+                msg.textContent = "¡Aprobado! Demuestras una excelente comprensión de las fuerzas electrostáticas y la Ley de Coulomb.";
                 msg.className = "text-xl font-bold text-green-700 mb-6 text-center max-w-lg";
                 document.getElementById('btn-save').classList.remove('hidden');
             } else {
-                msg.textContent = "Reprobado. Necesitas repasar el inverso al cuadrado de la distancia, métodos de carga y la constante de Coulomb. Requiere mínimo 70%.";
+                msg.textContent = "Reprobado. Necesitas repasar los métodos de carga y la constante de Coulomb. Requiere mínimo 70%.";
                 msg.className = "text-xl font-bold text-red-600 mb-6 text-center max-w-lg";
             }
             
@@ -966,38 +801,42 @@
 
         function hideResultsPanel() { document.getElementById('results-panel').classList.add('hidden'); }
 
-        // --- 7. FIREBASE & UTILS ---
+        // --- 7. GUARDAR EN REALTIME DATABASE (TU CÓDIGO) ---
         async function saveProgress() {
-            if (!currentUser) return showToast("Debes iniciar sesión para guardar.", "error");
+            if (!currentUser) return showToast("Inicia sesión en la plataforma principal para guardar.", "error");
             if (window.lastScore < 70) return showToast("Solo se guardan calificaciones aprobatorias (>70%).", "warning");
 
             try {
                 const btn = document.getElementById('btn-save');
                 btn.innerHTML = `<i class="ph ph-spinner animate-spin"></i> Guardando...`;
                 
-                const userDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'exam_progress', 'coulomb_exam_v1');
-                await setDoc(userDocRef, {
-                    score: window.lastScore,
-                    completedAt: new Date().toISOString()
-                }, { merge: true });
+                // Guardamos directamente en la Realtime Database usando la ruta y configuración de tu Dashboard
+                const progresoRef = ref(db, 'usuarios/' + currentUser.uid + '/progreso_curso');
+                await update(progresoRef, {
+                    'm1-q1': true, // ESTO HARÁ QUE EL CHULITO VERDE APAREZCA EN TU DASHBOARD AL CERRAR EL EXAMEN
+                    'examen_coulomb_score': window.lastScore
+                });
                 
-                showToast("¡Progreso en la nube sincronizado con éxito!", "success");
-                btn.innerHTML = `<i class="ph ph-check-circle text-lg"></i> Guardado en la nube`;
+                showToast("¡Progreso sincronizado con tu Plataforma UNAB!", "success");
+                btn.innerHTML = `<i class="ph ph-check-circle text-lg"></i> Guardado en la plataforma`;
                 btn.classList.replace('bg-green-600', 'bg-slate-700');
                 btn.classList.replace('hover:bg-green-700', 'hover:bg-slate-800');
                 btn.disabled = true;
             } catch (error) {
                 console.error("Save err:", error);
-                showToast("Error de conexión. Fallo al guardar en la red.", "error");
-                document.getElementById('btn-save').innerHTML = `<i class="ph ph-cloud-arrow-up text-lg"></i> Reintentar Guardado`;
+                showToast("Error de conexión al guardar el progreso.", "error");
+                document.getElementById('btn-save').innerHTML = `<i class="ph ph-cloud-arrow-up text-lg"></i> Reintentar`;
             }
         }
 
         async function loadProgress() {
             if (!currentUser) return;
             try {
-                const docSnap = await getDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'exam_progress', 'coulomb_exam_v1'));
-                if (docSnap.exists()) showToast(`¡Bienvenido de nuevo! Tu récord anterior es: ${docSnap.data().score}%`, "success");
+                const progresoRef = ref(db, 'usuarios/' + currentUser.uid + '/progreso_curso');
+                const snapshot = await get(progresoRef);
+                if (snapshot.exists() && snapshot.val().examen_coulomb_score) {
+                    showToast(`¡Bienvenido de nuevo! Tu récord anterior es: ${snapshot.val().examen_coulomb_score}%`, "success");
+                }
             } catch (e) { /* ignore silently */ }
         }
 
@@ -1047,9 +886,7 @@
             });
         }
 
-        // --- 8. INIT ---
         document.addEventListener('DOMContentLoaded', initUI);
-
     </script>
 </body>
 </html>
