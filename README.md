@@ -1,4 +1,4 @@
-# Electromagnetismo Computacional: Teoría y Simulación Interactiva
+# Curso de Electromagnetismo
 
 Este repositorio constituye un entorno de aprendizaje dinámico diseñado para la enseñanza y visualización de fenómenos electromagnéticos. A través de la implementación de modelos matemáticos en entornos web, se busca cerrar la brecha entre la abstracción de las ecuaciones de Maxwell y la intuición física necesaria para la ingeniería y las ciencias básicas.
 
