@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>physics10.easy | Plataforma EdTech Premium</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#0B111A',
+                            accent: '#0d6efd',
+                            premium: '#1c2331',
+                            success: '#198754'
+                        }
+                    },
+                    boxShadow: {
+                        'premium': '0 10px 40px -10px rgba(0,0,0,0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Import Maps para React, ReactDOM, Lucide y Firebase v11 Modular -->
+    <script type="importmap">
+        {
+            "imports": {
+                "react": "https://esm.sh/react@18.2.0",
+                "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                "lucide-react": "https://esm.sh/lucide-react@0.292.0",
+                "firebase/app": "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js",
+                "firebase/auth": "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js",
+                "firebase/database": "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js"
+            }
+        }
+    </script>
+
+    <!-- Babel Standalone para JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Estilos base y scrollbar premium */
+        body { background-color: #f8fafc; color: #0f172a; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .drawer-transition {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- ESPACIO FUTURO (CERTIFICACIONES) -->
+    <!-- 
+    <section id="certifications-future" class="py-12 bg-white">
+        <div class="max-w-7xl mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center">Nuestras Certificaciones (Próximamente)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+                <div class="border rounded-xl p-6 shadow-lg">Certificado Oficial UNAB</div>
+                <div class="border rounded-xl p-6 shadow-lg">Insignia Digital de Excelencia</div>
+                <div class="border rounded-xl p-6 shadow-lg">Validación Internacional</div>
+            </div>
+        </div>
+    </section>
+    -->
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            Play, BookOpen, Star, User, Settings, LogOut, CheckCircle, 
+            Lock, Unlock, MessageSquare, Menu, X, ChevronRight, ChevronDown, 
+            Award, Headphones, Rss, Download, ShoppingCart, Tag, ExternalLink, 
+            Video, FileText, CheckSquare, BarChart, File
+        } from 'lucide-react';
+        
+        import { initializeApp } from 'firebase/app';
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+        import { getDatabase, ref, get, set, update, onValue } from 'firebase/database';
+
+        /* ==========================================
+           1. CREDENCIALES DEL SISTEMA Y APIS
+        ========================================== */
+        // Integración de IA (Chatbot)
+        const CHATBOT_API_KEY = "PEGA_AQUÍ_TU_API_KEY";
+        const ADMIN_EMAIL = "dudbilopr@gmail.com";
+
+        // Firebase v11 Modular Credentials
+        const firebaseConfig = {
+            apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+            authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+            databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+            projectId: "laboratorio-de-coulomb",
+            storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+            messagingSenderId: "525944850850",
+            appId: "1:525944850850:web:eca9c0b79809358e8d8afb"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        /* REGLAS TÉCNICAS INNEGOCIABLES (Comentario Estructural):
+           Reglas de Firebase (rules_version = '2'): 
+           Configura la seguridad en la consola de Firebase para bloquear el contenido a estudiantes "Pendientes".
+           Ejemplo de regla: 
+           ".read": "auth != null && root.child('enrollments').child(auth.uid).child($courseId).child('status').val() === 'Aprobado'"
+        */
+
+        // Datos Completos del Curso (Gratis)
+        const cursoCompletoElectro = {
+            id: "electro-completo-unab",
+            title: "Física: Electromagnetismo (Completo)",
+            type: "Gratis",
+            price: 0,
+            discount: 0,
+            description: "Curso completo y oficial con simuladores, talleres, lecturas y evaluaciones por módulo.",
+            modulos: [
+                {
+                    "titulo": "Módulo 1: Electrostática - Ley de Coulomb",
+                    "lecciones": [
+                        {
+                            "id": "m1-l1", "tipo": "multivideo", "recurso": "xLyRPFL0GJ8|mrCyjv9lf3I|HpHVmuQb1gM|YgP-9fVA0-Y|gigeloLe1jI|ph341nhqOII&t|tXschFCgjrY|q1Ez2tLVy10|EhCX3JR6mHQ|8FXllt2Z9Tk|a1M2OmlwGyc|_hgOrdi7Epw",
+                            "titulo": "1. Teoría: Ley de Coulomb", "descripcion": "Selecciona la parte en el panel derecho.",
+                            "llmLink": "https://notebooklm.google.com/notebook/37622815-4b54-4808-b770-37464cb05719"
+                        },
+                        {
+                            "id": "m1-l2", "tipo": "multipresentacion", "recurso": "./clase_1.html|./clase_1.html",
+                            "titulo": "2. Diapositivas de Apoyo (2 Partes)", "descripcion": "Material visual utilizado en la clase magistral."
+                        },
+                        {
+                            "id": "m1-g1", "tipo": "grupo", "titulo": "3. Laboratorio Virtual (Simuladores)",
+                            "sublecciones": [
+                                { "id": "m1-l3", "tipo": "simulador", "recurso": "Simuladores/Coulomb.html", "titulo": "3.1 Cargas Eléctricas" },
+                                { "id": "m1-l4", "tipo": "simulador", "recurso": "Simuladores/Simulador_Cargas_Electricas.html", "titulo": "3.2 Análisis de Cargas" },
+                                { "id": "m1-l5", "tipo": "simulador", "recurso": "Simuladores/Simulador_Ley_de_Coulomb.html", "titulo": "3.3 Ley de Coulomb Interactiva" }
+                            ]
+                        },
+                        { "id": "m1-l7", "tipo": "ejercicio", "recurso": "Talleres/Taller_1_Ley_de_Coulomb.html", "titulo": "5. Taller Práctico No. 1" },
+                        { "id": "m1-q1", "tipo": "quiz", "recurso": "Examen/Cuestionario_1_Ley_de_Coulomb.html", "titulo": "6. Evaluación del Módulo 1", "descripcion": "Cuestionario de validación de conocimientos." },
+                        {
+                            "id": "m1-e1", "tipo": "enlaces", "titulo": "7. Enlaces de Interés", "descripcion": "Directorio de recursos externos y herramientas útiles para el módulo.",
+                            "secciones": [
+                                {
+                                    "tituloSeccion": "Lecturas y fundamentos teóricos",
+                                    "links": [
+                                        { "url": "https://openstax.org/books/f%C3%ADsica-universitaria-volumen-2/pages/5-3-ley-de-coulomb", "titulo": "OpenStax: Ley de Coulomb", "descripcion": "Desarrollo formal de la ley de Coulomb con enfoque universitario." },
+                                        { "url": "https://www.fisicalab.com/apartado/ley-de-coulomb", "titulo": "Fisicalab: Ley de Coulomb", "descripcion": "Explicación didáctica con ejemplos resueltos." },
+                                        { "url": "https://es.wikipedia.org/wiki/Ley_de_Coulomb", "titulo": "Wikipedia: Ley de Coulomb", "descripcion": "Historia y fundamento matemático." }
+                                    ]
+                                },
+                                {
+                                    "tituloSeccion": "Simuladores interactivos",
+                                    "links": [
+                                        { "url": "https://www.educaplus.org/game/ley-de-coulomb", "titulo": "Educaplus", "descripcion": "Simulación interactiva de fuerzas eléctricas entre cargas." },
+                                        { "url": "https://phet.colorado.edu/sims/html/coulombs-law/latest/coulombs-law_all.html", "titulo": "PHET: Ley de Coulomb", "descripcion": "Recurso interactivo educativo." }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "titulo": "Módulo 2: Electrostática - Campo Eléctrico",
+                    "lecciones": [
+                        {
+                            "id": "m2-l1", "tipo": "multivideo", "recurso": "y00efYMfQbg|-c8JxTvP9zs|CBwHsuVcXUI|hqg_89-2Lyo|c1jyhvkPqqk",
+                            "titulo": "1. Teoría: Campo Eléctrico", "descripcion": "Selecciona la parte en el panel derecho.", "llmLink": "https://notebooklm.google.com/notebook/37622815-4b54-4808-b770-37464cb05719"
+                        },
+                        {
+                            "id": "m2-l2", "tipo": "multipresentacion", "recurso": "./clase_2.html|./clase_2.html",
+                            "titulo": "2. Diapositivas de Apoyo (2 Partes)"
+                        },
+                        { "id": "m2-q1", "tipo": "quiz", "recurso": "Examen/Cuestionario_2_Campo_Electrico.html", "titulo": "6. Evaluación del Módulo 2" }
+                    ]
+                },
+                {
+                    "titulo": "Módulo 3: Electrostática - Potencial Eléctrico",
+                    "lecciones": [
+                        { "id": "m3-l1", "tipo": "multivideo", "recurso": "Klavo8gWKdY|_JRXyGSnT5o|o-5079Lk0Y8|3hBEZTL_F7Y|dA9NyRuYlyA|rf2F8kRQtls|wdghLg094w8", "titulo": "1. Teoría: Potencial Eléctrico" },
+                        { "id": "m3-q1", "tipo": "quiz", "recurso": "Examen/Cuestionario_3_Trabajo_Potencial_Electrico.html", "titulo": "6. Evaluación Módulo 3" }
+                    ]
+                },
+                {
+                    "titulo": "Módulo 4: Distribución de Cargas Continuas",
+                    "lecciones": [
+                        { "id": "m4-l1", "tipo": "multivideo", "recurso": "h57Q1fCwZgA|A9DWg5FSTx0|ZmBfYn9APkg|A9DWg5FSTx0|1cpACIOuFFU|k2dXe2AvoYs|k2w8tZeF0ug|IA5-ydK4ni8|8irn1C12G2U|MjhyOf-6VKQ", "titulo": "1. Teoría: Distribuciones Continuas" }
+                    ]
+                },
+                {
+                    "titulo": "Módulo 5: Electrostática - Ley de Gauss",
+                    "lecciones": [
+                        { "id": "m5-l1", "tipo": "multivideo", "recurso": "COGjyZI1PS8|A4qBPrfzZMk|LYmdJmTyFGQ|5XdSmm8VWKQ|38lwnRYEGEc|3aWFJdqM_Rw", "titulo": "1. Teoría: Ley de Gauss" },
+                        { "id": "m5-q1", "tipo": "quiz", "recurso": "Examen/Cuestionario_5_Flujo_Electrico_Ley_de_Gauss.html", "titulo": "6. Evaluación del Módulo 5" }
+                    ]
+                }
+            ]
+        };
+
+        /* ==========================================
+           2. COMPONENTES GLOBALES Y UI
+        ========================================== */
+        const Button = ({ children, onClick, variant = 'primary', className = '', ...props }) => {
+            const variants = {
+                primary: 'bg-brand-accent hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30',
+                secondary: 'bg-slate-800 hover:bg-slate-700 text-white',
+                success: 'bg-brand-success hover:bg-green-700 text-white',
+                outline: 'border-2 border-brand-accent text-brand-accent hover:bg-brand-accent hover:text-white',
+                danger: 'bg-red-600 hover:bg-red-700 text-white'
+            };
+            return (
+                <button 
+                    onClick={onClick} 
+                    className={`px-6 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${variants[variant]} ${className}`}
+                    {...props}
+                >
+                    {children}
+                </button>
+            );
+        };
+
+        /* ==========================================
+           3. VISTA: MAIN APP SHELL
+        ========================================== */
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('landing'); // landing, dashboard, course, admin
+            const [activeCourse, setActiveCourse] = useState(null);
+            const [authModal, setAuthModal] = useState(false);
+            
+            useEffect(() => {
+                const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                    setUser(currentUser);
+                    if(!currentUser && view !== 'landing') setView('landing');
+                });
+                return () => unsubscribe();
+            }, [view]);
+
+            const isAdmin = user?.email === ADMIN_EMAIL;
+
+            return (
+                <div className="min-h-screen flex flex-col font-sans relative">
+                    {/* Navbar */}
+                    <nav className="bg-brand-premium text-white sticky top-0 z-50 shadow-xl">
+                        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+                            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('landing')}>
+                                <div className="bg-brand-accent p-2 rounded-lg"><BookOpen size={24} /></div>
+                                <span className="text-2xl font-bold tracking-tight">physics10.easy</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-4">
+                                {/* Botón WhatsApp Regla 8 */}
+                                <a 
+                                    href="https://wa.me/573000000000" 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="hidden md:flex items-center gap-2 bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg font-bold transition-colors"
+                                >
+                                    <MessageSquare size={18} /> Asesoría
+                                </a>
+                                {/* // TODO: Aquí se cambia el número de WhatsApp */}
+
+                                {user ? (
+                                    <div className="flex items-center gap-4">
+                                        <button onClick={() => setView('dashboard')} className="hover:text-brand-accent transition flex items-center gap-2">
+                                            <User size={18}/> {user.email.split('@')[0]}
+                                        </button>
+                                        {isAdmin && (
+                                            <button onClick={() => setView('admin')} className="bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded text-sm font-bold shadow">
+                                                Admin Panel
+                                            </button>
+                                        )}
+                                        <button onClick={() => signOut(auth)} className="text-red-400 hover:text-red-300">
+                                            <LogOut size={20} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <Button onClick={() => setAuthModal(true)} variant="primary" className="py-1">
+                                        Ingresar
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </nav>
+
+                    {/* Content Router */}
+                    <main className="flex-grow">
+                        {view === 'landing' && <LandingView onCourseSelect={(c) => { setActiveCourse(c); setView('checkout'); }} />}
+                        {view === 'checkout' && <CheckoutModal course={activeCourse} onBack={() => setView('landing')} user={user} openAuth={() => setAuthModal(true)} />}
+                        {view === 'dashboard' && <StudentDashboard user={user} onPlay={(c) => { setActiveCourse(c); setView('course'); }} />}
+                        {view === 'course' && <CourseViewer course={activeCourse} user={user} onBack={() => setView('dashboard')} />}
+                        {view === 'admin' && isAdmin && <AdminPanel />}
+                    </main>
+
+                    {/* Footer con Regla 3 */}
+                    <footer className="bg-slate-900 text-slate-400 py-12 text-center">
+                        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 text-left mb-8">
+                            <div>
+                                <h3 className="text-white font-bold text-xl mb-4">physics10.easy</h3>
+                                <p className="text-sm">Potenciando el aprendizaje de ingeniería y física mediante tecnología premium.</p>
+                            </div>
+                            <div>
+                                <h3 className="text-white font-bold text-lg mb-4">Enlaces Rápidos</h3>
+                                <ul className="space-y-2 text-sm">
+                                    <li><a href="#" className="hover:text-white">Cursos</a></li>
+                                    <li><a href="#" className="hover:text-white">Simuladores</a></li>
+                                    <li><a href="#" className="hover:text-white">Términos Legales</a></li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h3 className="text-white font-bold text-lg mb-4">Soporte Técnico</h3>
+                                <p className="text-sm">Soporte garantizado 24/7 para estudiantes matriculados y en proceso.</p>
+                            </div>
+                        </div>
+                        <p>&copy; 2024 physics10.easy - Todos los derechos reservados.</p>
+                    </footer>
+
+                    {/* Auth Modal */}
+                    {authModal && <AuthModal onClose={() => setAuthModal(false)} />}
+                    
+                    {/* Chatbot Global */}
+                    <ChatbotWidget />
+                </div>
+            );
+        };
+
+        /* ==========================================
+           4. VISTA: LANDING PAGE & COPYWRITING
+        ========================================== */
+        const LandingView = ({ onCourseSelect }) => {
+            const [catalog, setCatalog] = useState([cursoCompletoElectro]);
+
+            // Cargar cursos desde DB
+            useEffect(() => {
+                const coursesRef = ref(db, 'courses');
+                onValue(coursesRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        const courseArray = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+                        setCatalog(courseArray);
+                    }
+                });
+            }, []);
+
+            return (
+                <div className="flex flex-col">
+                    {/* Hero Section (VSL) */}
+                    <section className="bg-brand-dark text-white pt-16 pb-24 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-600/20 rounded-full blur-[120px] -z-10"></div>
+                        <div className="max-w-6xl mx-auto px-4 flex flex-col items-center text-center">
+                            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6">
+                                Domina la Física.<br/><span className="text-brand-accent">Aplica en el Mundo Real.</span>
+                            </h1>
+                            <p className="text-xl md:text-2xl text-slate-300 max-w-3xl mb-12">
+                                {/* COPYWRITING REGLA 2 */}
+                                "No somos la universidad tradicional. No recitamos códigos de memoria; te entregamos escudos legales: cursos directos, plantillas listas para descargar y simuladores reales para defender tu trabajo hoy mismo."
+                            </p>
+                            
+                            {/* VSL Container */}
+                            <div className="w-full max-w-4xl bg-black rounded-2xl shadow-2xl overflow-hidden border border-slate-700 aspect-video relative group flex items-center justify-center cursor-pointer">
+                                <img src="https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&q=80&w=1600" alt="Video Cover" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-40 transition-opacity" />
+                                <div className="z-10 bg-brand-accent w-20 h-20 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(13,110,253,0.6)] group-hover:scale-110 transition-transform">
+                                    <Play fill="white" size={36} className="ml-2" />
+                                </div>
+                                <div className="absolute bottom-6 left-6 text-left z-10">
+                                    <span className="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded uppercase tracking-wider">Video Revelación</span>
+                                    <h3 className="text-2xl font-bold mt-2 text-white">Descubre el Método EdTech Premium</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* CEO & Autoridad */}
+                    <section className="py-20 bg-white">
+                        <div className="max-w-5xl mx-auto px-4 flex flex-col md:flex-row items-center gap-12">
+                            <div className="w-48 h-48 md:w-64 md:h-64 rounded-full overflow-hidden shadow-2xl flex-shrink-0 border-4 border-brand-accent">
+                                <img src="https://ui-avatars.com/api/?name=Dudbil+Pabón&background=0d6efd&color=fff&size=512" alt="Dudbil Olvasada Pabón Riaño" className="w-full h-full object-cover" />
+                            </div>
+                            <div>
+                                <h2 className="text-sm font-bold text-brand-accent uppercase tracking-widest mb-2">CEO y Experto Principal</h2>
+                                <h3 className="text-4xl font-extrabold text-slate-900 mb-4">Dudbil Olvasada Pabón Riaño</h3>
+                                <p className="text-lg text-slate-600 mb-6 leading-relaxed">
+                                    Físico, Arquitecto de Software y Educador. Mi misión es transformar la educación técnica y científica a través de herramientas interactivas, modelos de lenguaje y simuladores inmersivos. He diseñado esta plataforma para que aprendas haciendo, sin rodeos.
+                                </p>
+                                <div className="flex gap-4">
+                                    <a href="https://www.linkedin.com/in/dudbil-pabon-26b24a92/" target="_blank" className="flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-semibold hover:bg-blue-200 transition">
+                                        <ExternalLink size={18} /> LinkedIn
+                                    </a>
+                                    <a href="#" className="flex items-center gap-2 bg-pink-100 text-pink-800 px-4 py-2 rounded-lg font-semibold hover:bg-pink-200 transition">
+                                        <ExternalLink size={18} /> Instagram
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Catálogo Carrusel */}
+                    <section className="py-20 bg-slate-50">
+                        <div className="max-w-7xl mx-auto px-4">
+                            <div className="flex justify-between items-end mb-10">
+                                <div>
+                                    <h2 className="text-4xl font-extrabold text-slate-900">Catálogo Premium</h2>
+                                    <p className="text-slate-500 mt-2 text-lg">Cursos, Plantillas y Simuladores.</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button className="p-3 bg-white border shadow-sm rounded-full hover:bg-slate-100"><ChevronRight className="rotate-180" /></button>
+                                    <button className="p-3 bg-white border shadow-sm rounded-full hover:bg-slate-100"><ChevronRight /></button>
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                {catalog.map((course, idx) => (
+                                    <div key={idx} className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden hover:-translate-y-2 transition-transform duration-300 flex flex-col">
+                                        <div className="h-48 bg-slate-800 relative">
+                                            <div className="absolute top-4 left-4 bg-brand-accent text-white text-xs font-bold px-3 py-1 rounded shadow-lg uppercase">{course.type}</div>
+                                            <img src={`https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80`} alt="Course" className="w-full h-full object-cover opacity-60" />
+                                        </div>
+                                        <div className="p-6 flex-grow flex flex-col">
+                                            <h3 className="text-2xl font-bold text-slate-900 mb-2">{course.title}</h3>
+                                            <p className="text-slate-600 line-clamp-2 mb-4">{course.description}</p>
+                                            <div className="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center">
+                                                <span className="text-2xl font-extrabold text-brand-success">${course.price}</span>
+                                                <Button onClick={() => onCourseSelect(course)} variant="outline">Ver Detalles</Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Podcast & News Area */}
+                    <section className="py-20 bg-brand-premium text-white">
+                        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-12">
+                            {/* Podcast */}
+                            <div className="glass-panel p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+                                <div className="absolute -right-10 -top-10 text-white/5"><Headphones size={200} /></div>
+                                <h3 className="text-3xl font-extrabold mb-6 flex items-center gap-3"><Headphones className="text-brand-accent"/> Sesiones de Podcast</h3>
+                                <div className="bg-black/50 rounded-xl p-6 mb-6">
+                                    {/* Embed Placeholder */}
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center shadow-lg"><Play fill="white" size={32}/></div>
+                                        <div>
+                                            <span className="text-brand-accent text-sm font-bold tracking-widest uppercase mb-1 block">Episodio Reciente</span>
+                                            <h4 className="text-xl font-bold">El futuro de la IA en la Física</h4>
+                                            <p className="text-slate-400 text-sm mt-1">Duración: 45 min • Spotify</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <ul className="space-y-4">
+                                    <li className="flex justify-between items-center border-b border-white/10 pb-3 hover:pl-2 transition-all cursor-pointer">
+                                        <span className="font-semibold text-slate-300">Ep 12: Superconductores del mañana</span>
+                                        <Play size={16} className="text-slate-400"/>
+                                    </li>
+                                    <li className="flex justify-between items-center border-b border-white/10 pb-3 hover:pl-2 transition-all cursor-pointer">
+                                        <span className="font-semibold text-slate-300">Ep 11: Mitos de la mecánica cuántica</span>
+                                        <Play size={16} className="text-slate-400"/>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* News */}
+                            <div>
+                                <h3 className="text-3xl font-extrabold mb-8 flex items-center gap-3"><Rss className="text-orange-500"/> Noticias de Interés</h3>
+                                <div className="space-y-6">
+                                    {[1, 2, 3].map(i => (
+                                        <a key={i} href="#" className="flex gap-6 group">
+                                            <div className="w-32 h-24 bg-slate-800 rounded-xl overflow-hidden flex-shrink-0">
+                                                <img src={`https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=200&q=80`} className="w-full h-full object-cover group-hover:scale-110 transition-transform"/>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-lg font-bold group-hover:text-brand-accent transition-colors line-clamp-2">Nuevos avances en la simulación de campos electromagnéticos con React.</h4>
+                                                <p className="text-sm text-slate-400 mt-2">Hace 2 días • Portal Tecnológico</p>
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            );
+        };
+
+        /* ==========================================
+           5. FLUJO DE E-COMMERCE & APROBACIÓN MANUAL
+        ========================================== */
+        const CheckoutModal = ({ course, onBack, user, openAuth }) => {
+            const [coupon, setCoupon] = useState('');
+            const [discount, setDiscount] = useState(0);
+            const [loading, setLoading] = useState(false);
+            const [success, setSuccess] = useState(false);
+
+            if (!course) return null;
+
+            const applyCoupon = () => {
+                if(coupon.toUpperCase() === 'PHYSICS10') setDiscount(10);
+                else alert('Cupón inválido');
+            };
+
+            const finalPrice = Math.max(0, course.price - discount).toFixed(2);
+
+            const handleEnroll = async () => {
+                if(!user) return openAuth();
+                setLoading(true);
+                
+                try {
+                    // Si el curso es gratis, aprobar automáticamente (Modificación Regla 6)
+                    const autoStatus = course.price === 0 ? 'Aprobado' : 'Pendiente';
+
+                    // Crear registro en DB
+                    const enrollRef = ref(db, `enrollments/${user.uid}/${course.id}`);
+                    await set(enrollRef, {
+                        courseId: course.id,
+                        title: course.title,
+                        status: autoStatus, 
+                        date: new Date().toISOString(),
+                        pricePaid: finalPrice,
+                        progress: 0
+                    });
+                    
+                    setSuccess(true);
+                } catch(e) {
+                    alert("Error en la matrícula: " + e.message);
+                }
+                setLoading(false);
+            };
+
+            if (success) {
+                return (
+                    <div className="max-w-2xl mx-auto py-20 px-4 text-center">
+                        <div className="bg-white p-12 rounded-2xl shadow-premium border border-slate-100 flex flex-col items-center">
+                            <CheckCircle size={80} className="text-brand-success mb-6" />
+                            <h2 className="text-3xl font-bold mb-4">¡Matrícula Exitosa!</h2>
+                            <p className="text-slate-600 mb-8 text-lg">
+                                Tu estado actual es <strong className="text-green-600 uppercase bg-green-100 px-2 py-1 rounded">{course.price === 0 ? 'Aprobado' : 'Pendiente'}</strong>. <br/><br/>
+                                {course.price === 0 ? '¡Ya puedes acceder al curso completo desde tu dashboard!' : 'El Administrador Técnico verificará tu solicitud o comprobante de pago para otorgar el acceso final.'}
+                            </p>
+                            <Button onClick={onBack}>Ir al Dashboard</Button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="max-w-5xl mx-auto py-12 px-4 grid grid-cols-1 md:grid-cols-2 gap-12">
+                    {/* Course Info */}
+                    <div>
+                        <button onClick={onBack} className="text-slate-500 hover:text-brand-accent mb-6 flex items-center gap-1 font-semibold"><ChevronRight className="rotate-180" size={18}/> Volver</button>
+                        <h1 className="text-4xl font-extrabold mb-4">{course.title}</h1>
+                        <p className="text-lg text-slate-600 mb-8">{course.description}</p>
+                        
+                        <h3 className="font-bold text-xl mb-4 border-b pb-2">Temario Detallado</h3>
+                        <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                            {course.modulos?.map((mod, i) => (
+                                <div key={i} className="bg-white p-4 rounded-xl border shadow-sm">
+                                    <h4 className="font-bold flex items-center gap-2 text-brand-accent"><FolderIcon /> {mod.titulo}</h4>
+                                    <ul className="mt-3 space-y-2 ml-6 text-sm text-slate-600">
+                                        {mod.lecciones?.map((l, j) => (
+                                            <li key={j} className="flex items-start gap-2">
+                                                <FileText size={16} className="flex-shrink-0 mt-0.5"/> 
+                                                <span>{l.titulo}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Checkout Box */}
+                    <div>
+                        <div className="bg-white p-8 rounded-2xl shadow-premium border border-slate-100 sticky top-24">
+                            <h3 className="text-2xl font-bold mb-6">Resumen de Compra</h3>
+                            <div className="flex justify-between items-center mb-4 text-lg">
+                                <span>Precio Original</span>
+                                <span className="font-semibold">${course.price}</span>
+                            </div>
+                            {discount > 0 && (
+                                <div className="flex justify-between items-center mb-4 text-lg text-brand-success">
+                                    <span>Descuento Aplicado</span>
+                                    <span className="font-semibold">-${discount}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between items-center py-4 border-t border-b border-slate-200 mb-6">
+                                <span className="text-xl font-bold">Total a Pagar</span>
+                                <span className="text-3xl font-extrabold text-brand-accent">${finalPrice}</span>
+                            </div>
+                            
+                            <div className="flex gap-2 mb-8">
+                                <div className="relative flex-grow">
+                                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Código de cupón" 
+                                        className="w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-brand-accent"
+                                        value={coupon} onChange={e => setCoupon(e.target.value)}
+                                    />
+                                </div>
+                                <Button onClick={applyCoupon} variant="secondary">Aplicar</Button>
+                            </div>
+
+                            <Button onClick={handleEnroll} disabled={loading} className="w-full py-4 text-lg">
+                                {loading ? 'Procesando...' : (user ? 'Matricularme Ahora' : 'Inicia Sesión para Comprar')}
+                            </Button>
+                            <p className="text-xs text-center text-slate-400 mt-4">Transacción segura. Acceso sujeto a validación manual.</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const FolderIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>;
+
+        /* ==========================================
+           6. DASHBOARD & SISTEMA DE RESEÑAS
+        ========================================== */
+        const StudentDashboard = ({ user, onPlay }) => {
+            const [enrollments, setEnrollments] = useState([]);
+            const [reviewCourse, setReviewCourse] = useState(null);
+
+            useEffect(() => {
+                if(!user) return;
+                const refData = ref(db, `enrollments/${user.uid}`);
+                onValue(refData, snap => {
+                    if(snap.exists()) {
+                        const arr = Object.keys(snap.val()).map(k => snap.val()[k]);
+                        setEnrollments(arr);
+                    }
+                });
+            }, [user]);
+
+            return (
+                <div className="max-w-7xl mx-auto py-12 px-4 grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    {/* Perfil Lateral */}
+                    <div className="lg:col-span-1">
+                        <div className="bg-white p-6 rounded-2xl shadow-premium border border-slate-100 flex flex-col items-center text-center">
+                            <div className="w-24 h-24 bg-brand-accent text-white rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-lg">
+                                {user?.email?.charAt(0).toUpperCase()}
+                            </div>
+                            <h3 className="font-bold text-lg mb-1">{user?.email}</h3>
+                            <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-6">Estudiante</span>
+                            <Button variant="outline" className="w-full text-sm py-2"><Settings size={16}/> Editar Perfil</Button>
+                        </div>
+                    </div>
+
+                    {/* Cursos Matriculados */}
+                    <div className="lg:col-span-3">
+                        <h2 className="text-3xl font-extrabold mb-6">Mis Cursos</h2>
+                        <div className="space-y-6">
+                            {enrollments.length === 0 ? (
+                                <div className="bg-white p-12 text-center rounded-2xl border shadow-sm">
+                                    <BookOpen size={48} className="mx-auto text-slate-300 mb-4"/>
+                                    <p className="text-lg text-slate-500">No tienes cursos matriculados aún.</p>
+                                </div>
+                            ) : enrollments.map((enr, i) => (
+                                <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center gap-6">
+                                    <div className="w-full md:w-48 h-32 bg-slate-800 rounded-xl flex-shrink-0 relative overflow-hidden">
+                                        <img src="https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&q=80" className="w-full h-full object-cover opacity-50"/>
+                                    </div>
+                                    <div className="flex-grow w-full">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h3 className="text-xl font-bold">{enr.title}</h3>
+                                            {enr.status === 'Pendiente' ? (
+                                                <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><Lock size={12}/> Pendiente Aprobación</span>
+                                            ) : (
+                                                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={12}/> Aprobado</span>
+                                            )}
+                                        </div>
+                                        <div className="w-full bg-slate-100 h-2 rounded-full mb-2 overflow-hidden">
+                                            <div className="bg-brand-accent h-full" style={{width: `${enr.progress}%`}}></div>
+                                        </div>
+                                        <p className="text-sm text-slate-500 mb-4">Progreso: {enr.progress}%</p>
+                                        
+                                        <div className="flex gap-3">
+                                            {enr.status === 'Aprobado' ? (
+                                                <>
+                                                    <Button onClick={() => onPlay(cursoCompletoElectro)} className="py-2 text-sm">Ir al Curso <Play size={16}/></Button>
+                                                    {enr.progress >= 90 && (
+                                                        <Button onClick={() => setReviewCourse(enr)} variant="outline" className="py-2 text-sm"><Star size={16}/> Dejar Reseña</Button>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <Button disabled variant="secondary" className="py-2 text-sm opacity-50 cursor-not-allowed">Acceso Bloqueado</Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    {reviewCourse && <ReviewModal course={reviewCourse} onClose={() => setReviewCourse(null)} user={user} />}
+                </div>
+            );
+        };
+
+        // Sistema Multicriterio Gráfico
+        const ReviewModal = ({ course, onClose, user }) => {
+            const [ratings, setRatings] = useState({ clar: 0, util: 0, sop: 0 });
+            const [comment, setComment] = useState('');
+            const [submitted, setSubmitted] = useState(false);
+
+            const StarRating = ({ value, onChange }) => (
+                <div className="flex gap-1">
+                    {[1,2,3,4,5].map(s => (
+                        <Star key={s} size={24} className={`cursor-pointer transition-colors ${s <= value ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} onClick={() => onChange(s)} />
+                    ))}
+                </div>
+            );
+
+            const submit = () => {
+                if(!ratings.clar || !ratings.util || !ratings.sop || !comment) return alert('Completa todos los campos');
+                const refRev = ref(db, `reviews/${course.courseId}/${user.uid}`);
+                set(refRev, { ratings, comment, date: new Date().toISOString() });
+                setSubmitted(true);
+                setTimeout(onClose, 2000);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-lg w-full relative shadow-2xl">
+                        <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
+                        
+                        {submitted ? (
+                            <div className="text-center py-10">
+                                <CheckCircle size={64} className="text-brand-success mx-auto mb-4"/>
+                                <h3 className="text-2xl font-bold">¡Gracias por tu valoración!</h3>
+                            </div>
+                        ) : (
+                            <>
+                                <h2 className="text-2xl font-bold mb-2">Valorar Curso</h2>
+                                <p className="text-slate-500 mb-8">{course.title}</p>
+                                
+                                <div className="space-y-6 mb-8">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold text-slate-700">1. Claridad de Explicación</span>
+                                        <StarRating value={ratings.clar} onChange={(v) => setRatings({...ratings, clar: v})} />
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold text-slate-700">2. Utilidad Práctica</span>
+                                        <StarRating value={ratings.util} onChange={(v) => setRatings({...ratings, util: v})} />
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold text-slate-700">3. Calidad del Soporte</span>
+                                        <StarRating value={ratings.sop} onChange={(v) => setRatings({...ratings, sop: v})} />
+                                    </div>
+                                </div>
+
+                                <textarea 
+                                    className="w-full border-2 border-slate-200 rounded-xl p-4 focus:border-brand-accent focus:outline-none mb-6 resize-none h-32"
+                                    placeholder="Comentario Final (Obligatorio)..."
+                                    value={comment} onChange={e => setComment(e.target.value)}
+                                ></textarea>
+                                
+                                <Button onClick={submit} className="w-full py-3">Publicar Reseña</Button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        /* ==========================================
+           7. VISOR TIPO MOODLE & REGLAS DE PROGRESO
+        ========================================== */
+        const CourseViewer = ({ course, user, onBack }) => {
+            // Extraer la primera lección por defecto
+            const defaultLesson = course.modulos[0]?.lecciones[0]?.sublecciones ? course.modulos[0].lecciones[0].sublecciones[0] : course.modulos[0]?.lecciones[0];
+            const [activeLesson, setActiveLesson] = useState(defaultLesson);
+            const [drawerOpen, setDrawerOpen] = useState(true);
+            const [completedLessons, setCompletedLessons] = useState({});
+            const [activeSubIndex, setActiveSubIndex] = useState(0);
+
+            useEffect(() => {
+                setActiveSubIndex(0); // Reiniciar el índice de multi-recursos al cambiar de lección
+            }, [activeLesson]);
+
+            const markCompleted = (id) => {
+                const newComp = {...completedLessons, [id]: true};
+                setCompletedLessons(newComp);
+                
+                // Calcular progreso basado en los módulos completados (Simplificado)
+                let count = 0;
+                let total = 0;
+                course.modulos?.forEach(m => {
+                    m.lecciones?.forEach(l => {
+                        if(l.tipo === 'grupo'){
+                            l.sublecciones?.forEach(s => { total++; if(newComp[s.id]) count++; });
+                        } else {
+                            total++;
+                            if(newComp[l.id]) count++;
+                        }
+                    })
+                });
+                const perc = Math.round((count / total) * 100) || 10;
+                
+                const refP = ref(db, `enrollments/${user.uid}/${course.id}`);
+                update(refP, { progress: perc });
+            };
+
+            const renderLessonContent = () => {
+                if (!activeLesson) return null;
+                
+                if (activeLesson.tipo === 'multivideo') {
+                    const videoIds = activeLesson.recurso.split('|');
+                    return (
+                        <div className="flex w-full h-full flex-col md:flex-row">
+                            <iframe src={`https://www.youtube.com/embed/${videoIds[activeSubIndex]}`} className="w-full h-full border-none flex-grow" allowFullScreen></iframe>
+                            <div className="w-full md:w-64 bg-slate-800 p-4 overflow-y-auto flex-shrink-0 md:border-l border-white/10 flex md:block gap-2 overflow-x-auto md:overflow-x-hidden">
+                                <h4 className="font-bold mb-4 hidden md:block">Playlist Interactiva</h4>
+                                {videoIds.map((id, idx) => (
+                                    <div key={idx} onClick={() => setActiveSubIndex(idx)} className={`p-2 mb-2 cursor-pointer rounded flex-shrink-0 w-32 md:w-auto transition-colors ${activeSubIndex === idx ? 'bg-brand-accent' : 'bg-slate-700 hover:bg-slate-600'}`}>
+                                        <img src={`https://img.youtube.com/vi/${id}/mqdefault.jpg`} className="w-full rounded mb-1"/>
+                                        <span className="text-xs font-semibold">Parte {idx + 1}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                } else if (activeLesson.tipo === 'multipresentacion') {
+                    const urls = activeLesson.recurso.split('|');
+                    return (
+                        <div className="flex w-full h-full flex-col md:flex-row">
+                            <iframe src={urls[activeSubIndex]} className="w-full h-full border-none flex-grow bg-white" allowFullScreen></iframe>
+                            <div className="w-full md:w-64 bg-slate-800 p-4 overflow-y-auto flex-shrink-0 md:border-l border-white/10 flex md:block gap-2 overflow-x-auto">
+                                <h4 className="font-bold mb-4 hidden md:block">Documentos</h4>
+                                {urls.map((url, idx) => (
+                                    <div key={idx} onClick={() => setActiveSubIndex(idx)} className={`p-3 mb-2 cursor-pointer rounded flex items-center gap-2 flex-shrink-0 md:w-auto transition-colors ${activeSubIndex === idx ? 'bg-brand-accent' : 'bg-slate-700 hover:bg-slate-600'}`}>
+                                        <FileText size={16}/>
+                                        <span className="text-xs">Documento {idx + 1}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                } else if (activeLesson.tipo === 'enlaces') {
+                    return (
+                        <div className="w-full h-full overflow-y-auto p-4 md:p-8 bg-slate-50 text-slate-900 absolute inset-0">
+                            <h2 className="text-3xl font-bold mb-6">{activeLesson.titulo}</h2>
+                            <p className="text-slate-600 mb-8">{activeLesson.descripcion}</p>
+                            {activeLesson.secciones?.map((sec, i) => (
+                                <div key={i} className="mb-8">
+                                    <h3 className="text-xl font-bold mb-4 border-b pb-2">{sec.tituloSeccion}</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {sec.links.map((link, j) => (
+                                            <a key={j} href={link.url} target="_blank" rel="noreferrer" className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition border border-slate-200 block">
+                                                <h4 className="font-bold text-brand-accent mb-2 flex items-center gap-2"><ExternalLink size={16} className="flex-shrink-0"/> <span className="truncate">{link.titulo}</span></h4>
+                                                <p className="text-sm text-slate-600 line-clamp-2">{link.descripcion}</p>
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                } else if (activeLesson.tipo === 'simulador' || activeLesson.tipo === 'ejercicio' || activeLesson.tipo === 'video') {
+                    const src = activeLesson.tipo === 'video' ? `https://www.youtube.com/embed/${activeLesson.recurso}` : activeLesson.recurso;
+                    return <iframe src={src} className="w-full h-full border-none bg-white" allowFullScreen></iframe>;
+                } else if (activeLesson.tipo === 'quiz') {
+                    return (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-slate-900 text-center overflow-y-auto">
+                            <CheckSquare size={64} className="mb-6 text-brand-accent"/>
+                            <h2 className="text-3xl font-bold mb-4">{activeLesson.titulo}</h2>
+                            <p className="text-slate-400 mb-8 max-w-xl">{activeLesson.descripcion || 'Abre el cuestionario para validar tus conocimientos y registrar el progreso final de este módulo.'}</p>
+                            
+                            {activeLesson.recurso && (
+                                <Button onClick={() => window.open(activeLesson.recurso, '_blank')} className="py-4 px-8 text-lg mb-6">
+                                    Realizar Evaluación Externa <ExternalLink size={20} className="ml-2"/>
+                                </Button>
+                            )}
+                            
+                            <Button onClick={() => markCompleted(activeLesson.id)} variant="success">
+                                {completedLessons[activeLesson.id] ? '✓ Módulo Superado' : 'Marcar como Aprobado'}
+                            </Button>
+                        </div>
+                    );
+                }
+                
+                return <div className="p-8">Recurso interactivo. <a href={activeLesson.recurso} target="_blank" rel="noreferrer" className="text-brand-accent underline">Abrir en nueva pestaña</a></div>;
+            };
+
+            return (
+                <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-slate-900 text-white relative">
+                    
+                    {/* Contenido Principal */}
+                    <div className="flex-grow flex flex-col relative transition-all duration-300">
+                        {/* Header Visor */}
+                        <div className="bg-black/40 p-4 flex justify-between items-center border-b border-white/10">
+                            <button onClick={onBack} className="flex items-center gap-2 hover:text-brand-accent transition"><ChevronRight className="rotate-180"/> Salir</button>
+                            <h2 className="font-bold hidden md:block text-slate-200">{course.title}</h2>
+                            <div className="flex items-center gap-3">
+                                {activeLesson?.llmLink && (
+                                    <a href={activeLesson.llmLink} target="_blank" rel="noreferrer" className="hidden sm:flex bg-purple-600/20 text-purple-400 border border-purple-500/30 px-3 py-1.5 rounded hover:bg-purple-600/40 transition text-sm items-center gap-2 font-semibold">
+                                        <Award size={16}/> Notebook LM
+                                    </a>
+                                )}
+                                <button onClick={() => setDrawerOpen(!drawerOpen)} className="bg-brand-accent p-2 rounded hover:bg-blue-600 transition flex items-center gap-2 font-bold shadow-lg">
+                                    <Menu size={20}/> <span className="hidden sm:inline">Temario</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Reproductor / Visor (Ocupa todo el espacio) */}
+                        <div className="flex-grow flex flex-col relative overflow-hidden bg-black">
+                            {renderLessonContent()}
+                        </div>
+                    </div>
+
+                    {/* Drawer Lateral Derecho */}
+                    <div className={`w-80 bg-brand-premium border-l border-white/10 flex flex-col flex-shrink-0 drawer-transition absolute right-0 top-0 h-full z-20 ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                        <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/20">
+                            <h3 className="font-bold uppercase tracking-wider text-sm text-slate-400">Contenido</h3>
+                            <button onClick={() => setDrawerOpen(false)} className="hover:text-white text-slate-500"><X size={20}/></button>
+                        </div>
+                        <div className="overflow-y-auto flex-grow custom-scrollbar">
+                            {course.modulos?.map((mod, i) => (
+                                <div key={i} className="border-b border-white/5">
+                                    <div className="p-3 bg-white/5 font-bold flex justify-between items-center text-xs text-slate-300 uppercase tracking-wide">
+                                        {mod.titulo}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        {mod.lecciones?.map((l, j) => {
+                                            if (l.tipo === 'grupo') {
+                                                return (
+                                                    <div key={j} className="border-l-2 border-brand-accent/30 ml-2 my-1">
+                                                        <div className="px-4 py-2 text-xs font-bold text-brand-accent flex items-center gap-2"><FolderIcon/> {l.titulo}</div>
+                                                        {l.sublecciones?.map((sub, k) => (
+                                                            <button key={k} onClick={() => setActiveLesson(sub)} className={`w-full py-3 px-4 pl-6 text-left transition-all flex gap-3 items-start ${activeLesson?.id === sub.id ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 text-slate-400'}`}>
+                                                                <div className="mt-1 flex-shrink-0">
+                                                                    {completedLessons[sub.id] ? <CheckCircle size={14} className="text-brand-success"/> : <File size={14}/>}
+                                                                </div>
+                                                                <span className="text-sm leading-tight">{sub.titulo}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <button key={j} onClick={() => setActiveLesson(l)} className={`w-full p-4 text-left border-l-4 transition-all flex gap-3 items-start ${activeLesson?.id === l.id ? 'border-brand-accent bg-white/10 text-white font-semibold' : 'border-transparent hover:bg-white/5 text-slate-400'}`}>
+                                                    <div className="mt-1 flex-shrink-0">
+                                                        {completedLessons[l.id] ? <CheckCircle size={16} className="text-brand-success"/> : l.tipo === 'multivideo' ? <Video size={16}/> : l.tipo === 'quiz' ? <CheckSquare size={16}/> : <File size={16}/>}
+                                                    </div>
+                                                    <span className="text-sm leading-tight">{l.titulo}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* ==========================================
+           8. PANEL DE ADMINISTRADOR & MATRÍCULAS
+        ========================================== */
+        const AdminPanel = () => {
+            const [pendings, setPendings] = useState([]);
+
+            useEffect(() => {
+                const refP = ref(db, 'enrollments');
+                onValue(refP, snap => {
+                    const list = [];
+                    if(snap.exists()){
+                        const users = snap.val();
+                        Object.keys(users).forEach(uid => {
+                            const courses = users[uid];
+                            Object.keys(courses).forEach(cid => {
+                                if(courses[cid].status === 'Pendiente') {
+                                    list.push({...courses[cid], uid, cid});
+                                }
+                            });
+                        });
+                    }
+                    setPendings(list);
+                });
+            }, []);
+
+            const approve = (uid, cid) => {
+                update(ref(db, `enrollments/${uid}/${cid}`), { status: 'Aprobado' });
+            };
+
+            return (
+                <div className="max-w-7xl mx-auto py-12 px-4">
+                    <h2 className="text-4xl font-extrabold mb-8 flex items-center gap-4"><Settings className="text-purple-600"/> Panel Técnico</h2>
+                    
+                    <div className="bg-white rounded-2xl shadow-premium border border-slate-100 p-8">
+                        <h3 className="text-2xl font-bold mb-6 border-b pb-4">Aprobación Manual de Pagos (Regla 6)</h3>
+                        {pendings.length === 0 ? (
+                            <p className="text-slate-500">No hay matrículas pendientes de verificación.</p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-50 text-slate-500">
+                                            <th className="p-4 border-b">ID Usuario</th>
+                                            <th className="p-4 border-b">Curso</th>
+                                            <th className="p-4 border-b">Precio Pagado</th>
+                                            <th className="p-4 border-b">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pendings.map((p, i) => (
+                                            <tr key={i} className="hover:bg-slate-50 transition">
+                                                <td className="p-4 border-b text-xs font-mono">{p.uid}</td>
+                                                <td className="p-4 border-b font-semibold">{p.title}</td>
+                                                <td className="p-4 border-b text-brand-success font-bold">${p.pricePaid}</td>
+                                                <td className="p-4 border-b">
+                                                    <Button onClick={() => approve(p.uid, p.cid)} variant="success" className="py-1 px-3 text-sm">Aprobar Acceso</Button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        /* ==========================================
+           9. MODAL AUTH Y CHATBOT
+        ========================================== */
+        const AuthModal = ({ onClose }) => {
+            const [isLogin, setIsLogin] = useState(true);
+            const [email, setEmail] = useState('');
+            const [pass, setPass] = useState('');
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                try {
+                    if(isLogin) await signInWithEmailAndPassword(auth, email, pass);
+                    else await createUserWithEmailAndPassword(auth, email, pass);
+                    onClose();
+                } catch(error) {
+                    alert("Error: " + error.message);
+                }
+            };
+
+            const handleGoogle = async () => {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                    onClose();
+                } catch(error) {
+                    alert("Error con Google Auth: " + error.message);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
+                    <div className="bg-white rounded-2xl p-8 max-w-sm w-full relative shadow-2xl">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-black"><X/></button>
+                        <h2 className="text-2xl font-bold mb-6 text-center">{isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}</h2>
+                        <form onSubmit={handleSubmit} className="space-y-4 mb-4">
+                            <div>
+                                <label className="block text-sm font-semibold mb-1">Correo Electrónico</label>
+                                <input type="email" required className="w-full border p-3 rounded-lg focus:outline-brand-accent bg-slate-50" value={email} onChange={e=>setEmail(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-1">Contraseña</label>
+                                <input type="password" required minLength="6" className="w-full border p-3 rounded-lg focus:outline-brand-accent bg-slate-50" value={pass} onChange={e=>setPass(e.target.value)} />
+                            </div>
+                            <Button className="w-full py-3">{isLogin ? 'Entrar' : 'Registrarse'}</Button>
+                        </form>
+                        
+                        <div className="relative flex py-2 items-center">
+                            <div className="flex-grow border-t border-slate-200"></div>
+                            <span className="flex-shrink-0 mx-4 text-slate-400 text-sm">o continuar con</span>
+                            <div className="flex-grow border-t border-slate-200"></div>
+                        </div>
+
+                        <button onClick={handleGoogle} className="w-full mt-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition">
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                            Google
+                        </button>
+
+                        <p className="text-center mt-6 text-sm text-slate-600">
+                            {isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}
+                            <button onClick={() => setIsLogin(!isLogin)} className="text-brand-accent font-bold ml-1 hover:underline">
+                                {isLogin ? 'Regístrate' : 'Inicia Sesión'}
+                            </button>
+                        </p>
+                    </div>
+                </div>
+            );
+        };
+
+        const ChatbotWidget = () => {
+            const [open, setOpen] = useState(false);
+            return (
+                <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+                    {open && (
+                        <div className="w-80 h-96 bg-white rounded-2xl shadow-premium border border-slate-200 mb-4 flex flex-col overflow-hidden">
+                            <div className="bg-brand-premium text-white p-4 font-bold flex justify-between items-center">
+                                <span>Asistente IA Educativo</span>
+                                <button onClick={() => setOpen(false)}><X size={18}/></button>
+                            </div>
+                            <div className="flex-grow bg-slate-50 p-4 flex flex-col gap-2 overflow-y-auto text-sm">
+                                <div className="bg-white p-3 rounded-xl shadow-sm self-start max-w-[85%] border border-slate-100">
+                                    ¡Hola! Soy tu asistente pedagógico alimentado por el modelo generativo global. ¿En qué concepto físico te puedo ayudar hoy?
+                                </div>
+                            </div>
+                            <div className="p-3 border-t bg-white">
+                                <input type="text" placeholder="Escribe tu duda..." className="w-full bg-slate-100 p-2 rounded-lg text-sm outline-none" disabled />
+                            </div>
+                        </div>
+                    )}
+                    <button onClick={() => setOpen(!open)} className="bg-brand-accent text-white p-4 rounded-full shadow-lg hover:scale-105 transition-transform flex items-center justify-center">
+                        <MessageSquare size={28} />
+                    </button>
+                </div>
+            );
+        };
+
+        // Render Principal
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
