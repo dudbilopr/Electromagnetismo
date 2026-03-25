@@ -333,13 +333,22 @@
             </section>
         );
 
-        const ReviewsSection = () => {
-            const ratings = [
-                { stars: 5, pct: 85 },
-                { stars: 4, pct: 10 },
-                { stars: 3, pct: 5 },
-                { stars: 2, pct: 0 },
-                { stars: 1, pct: 0 },
+        const ReviewsSection = ({ reviews = [] }) => {
+            const total = reviews.length;
+            const avg = total > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / total).toFixed(1) : 0;
+            
+            let dist = {5:0, 4:0, 3:0, 2:0, 1:0};
+            reviews.forEach(r => {
+                const rounded = Math.round(r.rating);
+                if(dist[rounded] !== undefined) dist[rounded]++;
+            });
+
+            const ratingsDist = [
+                { stars: 5, pct: total ? (dist[5]/total)*100 : 0 },
+                { stars: 4, pct: total ? (dist[4]/total)*100 : 0 },
+                { stars: 3, pct: total ? (dist[3]/total)*100 : 0 },
+                { stars: 2, pct: total ? (dist[2]/total)*100 : 0 },
+                { stars: 1, pct: total ? (dist[1]/total)*100 : 0 },
             ];
 
             return (
@@ -349,52 +358,60 @@
                             <h2 className="text-4xl font-bold text-slate-900 mb-4">Lo que dicen nuestros profesionales</h2>
                         </div>
 
-                        <div className="grid md:grid-cols-3 gap-12">
-                            {/* Gráfico Estilo Google */}
-                            <div className="col-span-1 bg-slate-50 p-8 rounded-2xl border border-slate-100 shadow-inner">
-                                <div className="flex items-center gap-4 mb-6">
-                                    <div className="text-6xl font-bold text-slate-900">4.8</div>
-                                    <div>
-                                        <div className="flex text-yellow-400 mb-1">
-                                            {[...Array(5)].map((_, i) => <Star key={i} className="w-6 h-6 fill-current" />)}
+                        {total === 0 ? (
+                            <div className="text-center py-12 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner">
+                                <Star className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                                <h3 className="text-2xl font-bold text-slate-700 mb-2">Aún no hay reseñas</h3>
+                                <p className="text-slate-500">Nuestros estudiantes aprobados están construyendo su opinión. ¡Pronto verás sus comentarios aquí!</p>
+                            </div>
+                        ) : (
+                            <div className="grid md:grid-cols-3 gap-12">
+                                {/* Gráfico Estilo Google */}
+                                <div className="col-span-1 bg-slate-50 p-8 rounded-2xl border border-slate-100 shadow-inner h-fit">
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <div className="text-6xl font-bold text-slate-900">{avg}</div>
+                                        <div>
+                                            <div className="flex text-yellow-400 mb-1">
+                                                {[...Array(5)].map((_, i) => <Star key={i} className={`w-6 h-6 ${i < Math.round(avg) ? 'fill-current' : 'text-slate-300'}`} />)}
+                                            </div>
+                                            <p className="text-sm text-slate-500">Basado en {total} reseña(s)</p>
                                         </div>
-                                        <p className="text-sm text-slate-500">Más de 1,200 reseñas reales</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {ratingsDist.map(r => (
+                                            <div key={r.stars} className="flex items-center gap-3">
+                                                <span className="text-sm font-medium text-slate-600 w-3">{r.stars}</span>
+                                                <Star className="w-4 h-4 text-slate-400" />
+                                                <div className="flex-grow h-2 bg-slate-200 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-yellow-400 rounded-full transition-all duration-1000" style={{ width: `${r.pct}%` }}></div>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    {ratings.map(r => (
-                                        <div key={r.stars} className="flex items-center gap-3">
-                                            <span className="text-sm font-medium text-slate-600 w-3">{r.stars}</span>
-                                            <Star className="w-4 h-4 text-slate-400" />
-                                            <div className="flex-grow h-2 bg-slate-200 rounded-full overflow-hidden">
-                                                <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${r.pct}%` }}></div>
+
+                                {/* Comentarios Reales */}
+                                <div className="col-span-2 grid sm:grid-cols-2 gap-6 items-start">
+                                    {reviews.map(rev => (
+                                        <Card key={rev.id} className="p-6">
+                                            <div className="flex text-yellow-400 mb-4">
+                                                {[...Array(5)].map((_, idx) => <Star key={idx} className={`w-4 h-4 ${idx < Math.round(rev.rating) ? 'fill-current' : 'text-slate-200'}`} />)}
                                             </div>
-                                        </div>
+                                            <p className="text-slate-700 italic mb-6 break-words">"{rev.text}"</p>
+                                            <div className="flex items-center gap-3 mt-auto">
+                                                <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center text-brand-600 font-bold uppercase">
+                                                    {rev.user.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-slate-900 text-sm truncate max-w-[150px]">{rev.user}</p>
+                                                    <p className="text-xs text-slate-500">Estudiante Verificado</p>
+                                                </div>
+                                            </div>
+                                        </Card>
                                     ))}
                                 </div>
                             </div>
-
-                            {/* Comentarios Destacados */}
-                            <div className="col-span-2 grid sm:grid-cols-2 gap-6">
-                                {[1, 2].map(i => (
-                                    <Card key={i} className="p-6">
-                                        <div className="flex text-yellow-400 mb-4">
-                                            {[...Array(5)].map((_, idx) => <Star key={idx} className="w-4 h-4 fill-current" />)}
-                                        </div>
-                                        <p className="text-slate-700 italic mb-6">"El contenido no tiene rodeos. Las plantillas y los simuladores me ahorraron semanas de trabajo. Es una inversión segura."</p>
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center text-brand-600 font-bold">
-                                                U{i}
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-slate-900 text-sm">Ing. Carlos M.</p>
-                                                <p className="text-xs text-slate-500">Estudiante Verificado</p>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                ))}
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </section>
             );
@@ -641,6 +658,20 @@
             const [openModules, setOpenModules] = useState({ 0: true }); // Módulo 0 abierto por defecto
             const [openGroups, setOpenGroups] = useState({});
 
+            // --- NUEVO: Extractor Inteligente de YouTube (Evita el Error 153) ---
+            const extractYouTubeId = (url) => {
+                if (!url) return '';
+                let cleanUrl = url.trim();
+                // Si ya es un ID de 11 caracteres
+                if (/^[a-zA-Z0-9_-]{11}$/.test(cleanUrl)) return cleanUrl;
+                // Extraer de URL completa
+                const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                const match = cleanUrl.match(regExp);
+                if (match && match[2].length === 11) return match[2];
+                // Fallback por si trae basura pegada (ej: ID&t=10s)
+                return cleanUrl.split('&')[0].split('?')[0];
+            };
+
             useEffect(() => {
                 if (course && course.data && course.data.modulos[0].lecciones[0]) {
                     setActiveLesson(course.data.modulos[0].lecciones[0]);
@@ -685,27 +716,44 @@
 
                 switch (activeLesson.tipo) {
                     case 'multivideo':
-                        const videoIds = activeLesson.recurso.split('|');
-                        const safeVideoId = videoIds[activePartIndex].split('&')[0]; // Limpia parámetros extra que rompen el embed
+                        // Modificado para soportar ID::Titulo
+                        const videoParts = activeLesson.recurso.split('|').filter(Boolean).map(part => {
+                            const [urlOrId, title] = part.split('::');
+                            return { id: extractYouTubeId(urlOrId), title: title || '' };
+                        }).filter(v => v.id); // Filtrar vacíos
+
+                        if (videoParts.length === 0) return <div className="p-8 text-center text-slate-500">No hay videos configurados válidos.</div>;
+
+                        const activeVideo = videoParts[activePartIndex] || videoParts[0];
+
                         return (
                             <div className="space-y-6">
-                                <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-xl">
-                                    <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${safeVideoId}`} title="Video" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
+                                <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-xl relative">
+                                    <iframe 
+                                        className="w-full h-full absolute inset-0" 
+                                        src={`https://www.youtube.com/embed/${activeVideo.id}?rel=0`} 
+                                        title={activeVideo.title || "Video"} 
+                                        frameBorder="0" 
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                        allowFullScreen>
+                                    </iframe>
                                 </div>
-                                {videoIds.length > 1 && (
+                                {videoParts.length > 1 && (
                                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                        <h4 className="font-bold text-slate-800 mb-3 text-sm uppercase">Lista de Reproducción ({videoIds.length} Partes)</h4>
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                            {videoIds.map((id, idx) => (
+                                        <h4 className="font-bold text-slate-800 mb-3 text-sm uppercase">Lista de Reproducción ({videoParts.length} Partes)</h4>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                            {videoParts.map((part, idx) => (
                                                 <button 
                                                     key={idx} onClick={() => setActivePartIndex(idx)}
-                                                    className={`relative rounded-lg overflow-hidden border-2 transition-all ${activePartIndex === idx ? 'border-brand-500 shadow-glow' : 'border-transparent hover:border-slate-300'}`}>
-                                                    <img src={`https://img.youtube.com/vi/${id}/mqdefault.jpg`} className="w-full aspect-video object-cover" alt={`Parte ${idx+1}`} />
-                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                                        <Play className={`w-8 h-8 ${activePartIndex === idx ? 'text-brand-400' : 'text-white'}`} />
+                                                    className={`relative rounded-lg overflow-hidden border-2 transition-all group flex flex-col text-left ${activePartIndex === idx ? 'border-brand-500 shadow-glow' : 'border-slate-200 hover:border-slate-400'}`}>
+                                                    <div className="w-full aspect-video relative bg-slate-100 shrink-0">
+                                                        <img src={`https://img.youtube.com/vi/${part.id}/mqdefault.jpg`} className={`w-full h-full object-cover transition-opacity ${activePartIndex === idx ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`} alt={part.title || `Parte ${idx+1}`} />
+                                                        <div className={`absolute inset-0 flex items-center justify-center transition-colors ${activePartIndex === idx ? 'bg-brand-900/20' : 'bg-black/40 group-hover:bg-black/20'}`}>
+                                                            <Play className={`w-8 h-8 ${activePartIndex === idx ? 'text-brand-500 drop-shadow-md' : 'text-white'}`} />
+                                                        </div>
                                                     </div>
-                                                    <div className="absolute bottom-0 w-full bg-slate-900/80 text-white text-xs py-1 px-2 font-semibold truncate">
-                                                        Parte {idx + 1}
+                                                    <div className="bg-slate-900 text-white text-xs py-2 px-3 font-semibold truncate w-full" title={part.title || `Parte ${idx + 1}`}>
+                                                        {part.title || `Parte ${idx + 1}`}
                                                     </div>
                                                 </button>
                                             ))}
@@ -949,7 +997,32 @@
             );
         };
 
-        const Dashboard = ({ enrollments, setView, currentUser, setCurrentCourse, courses }) => {
+        const Dashboard = ({ enrollments, setView, currentUser, setCurrentCourse, courses, addReview }) => {
+            // Estado para el formulario de reseñas
+            const [ratings, setRatings] = useState({ q1: 0, q2: 0, q3: 0 });
+            const [comment, setComment] = useState('');
+
+            const handleReviewSubmit = (e) => {
+                e.preventDefault();
+                if (ratings.q1 === 0 || ratings.q2 === 0 || ratings.q3 === 0) {
+                    alert("Por favor, califica las tres preguntas con estrellas antes de enviar.");
+                    return;
+                }
+                const avgRating = (ratings.q1 + ratings.q2 + ratings.q3) / 3;
+                addReview({
+                    id: Date.now(),
+                    user: currentUser.name || currentUser.email.split('@')[0],
+                    rating: avgRating,
+                    text: comment,
+                    date: new Date().toISOString()
+                });
+                
+                alert("Reseña enviada con éxito. ¡Aparecerá en la página principal!");
+                // Resetear formulario
+                setRatings({ q1: 0, q2: 0, q3: 0 });
+                setComment('');
+            };
+
             return (
                 <div className="pt-24 pb-16 min-h-screen bg-slate-50">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1013,7 +1086,7 @@
                                     <Star className="w-6 h-6 text-yellow-400 fill-current" /> Deja tu Reseña Profesional
                                 </h2>
                                 <p className="text-slate-600 mb-6">Como estudiante aprobado, tu opinión construye nuestra reputación.</p>
-                                <form className="space-y-6 max-w-2xl" onSubmit={(e) => { e.preventDefault(); alert("Reseña enviada con éxito."); }}>
+                                <form className="space-y-6 max-w-2xl" onSubmit={handleReviewSubmit}>
                                     {[
                                         { id: 'q1', label: '1) Claridad del contenido' },
                                         { id: 'q2', label: '2) Utilidad práctica de los simuladores' },
@@ -1023,14 +1096,25 @@
                                             <span className="font-semibold text-slate-700 mb-2 sm:mb-0">{q.label}</span>
                                             <div className="flex text-slate-300">
                                                 {[1,2,3,4,5].map(star => (
-                                                    <Star key={star} className="w-8 h-8 cursor-pointer hover:text-yellow-400 transition-colors" />
+                                                    <Star 
+                                                        key={star} 
+                                                        onClick={() => setRatings({...ratings, [q.id]: star})}
+                                                        className={`w-8 h-8 cursor-pointer transition-colors ${ratings[q.id] >= star ? 'text-yellow-400 fill-current' : 'text-slate-300 hover:text-yellow-200'}`} 
+                                                    />
                                                 ))}
                                             </div>
                                         </div>
                                     ))}
                                     <div>
                                         <label className="block font-semibold text-slate-700 mb-2">Comentario Final</label>
-                                        <textarea className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none" rows="4" placeholder="¿Cómo te ha servido este escudo legal?" required></textarea>
+                                        <textarea 
+                                            value={comment}
+                                            onChange={(e) => setComment(e.target.value)}
+                                            className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none" 
+                                            rows="4" 
+                                            placeholder="¿Cómo te ha servido este escudo legal?" 
+                                            required
+                                        ></textarea>
                                     </div>
                                     <Button type="submit">Publicar Reseña</Button>
                                 </form>
@@ -1094,6 +1178,37 @@
                 const newCurr = [...curriculum];
                 newCurr[modIndex].lecciones = newCurr[modIndex].lecciones.filter((_, i) => i !== lessIndex);
                 setCurriculum(newCurr);
+            };
+
+            // --- Lógica para Nombres Personalizados de Multivideo ---
+            const getVideosArray = (recursoStr) => {
+                if (!recursoStr) return [];
+                return recursoStr.split('|').filter(Boolean).map(v => {
+                    const [id, title] = v.split('::');
+                    return { id: id || '', title: title || '' };
+                });
+            };
+
+            const updateVideoPart = (mIdx, lIdx, vIdx, field, value) => {
+                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
+                if(!videos[vIdx]) videos[vIdx] = {id: '', title: ''};
+                videos[vIdx][field] = value;
+                const newRecurso = videos.map(v => `${v.id}::${v.title}`).join('|');
+                updateLesson(mIdx, lIdx, 'recurso', newRecurso);
+            };
+
+            const addVideoPart = (mIdx, lIdx) => {
+                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
+                videos.push({id: '', title: ''});
+                const newRecurso = videos.map(v => `${v.id}::${v.title}`).join('|');
+                updateLesson(mIdx, lIdx, 'recurso', newRecurso);
+            };
+
+            const removeVideoPart = (mIdx, lIdx, vIdx) => {
+                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
+                videos.splice(vIdx, 1);
+                const newRecurso = videos.map(v => `${v.id}::${v.title}`).join('|');
+                updateLesson(mIdx, lIdx, 'recurso', newRecurso);
             };
 
             // --- Lógica del Builder de Quizzes Nativos ---
@@ -1371,13 +1486,32 @@
                                                                 </div>
                                                                 
                                                                 {/* Renderizado Condicional del Input según el Tipo */}
-                                                                {['multivideo', 'multipresentacion', 'simulador', 'quiz'].includes(less.tipo) && (
+                                                                {['multipresentacion', 'simulador', 'quiz'].includes(less.tipo) && (
                                                                     <input 
                                                                         value={less.recurso || ''} 
                                                                         onChange={(e) => updateLesson(mIdx, lIdx, 'recurso', e.target.value)}
                                                                         className="w-full p-1.5 border border-slate-200 rounded-md text-sm font-mono text-blue-600 focus:border-brand-500 outline-none"
-                                                                        placeholder={less.tipo === 'multivideo' ? "ID de YouTube (Ej: xLyRPFL0GJ8)" : "URL del recurso (Ej: https://...)"}
+                                                                        placeholder="URL del recurso (Ej: https://...)"
                                                                     />
+                                                                )}
+
+                                                                {less.tipo === 'multivideo' && (
+                                                                    <div className="mt-2 bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+                                                                        <div className="flex justify-between items-center mb-1 border-b border-slate-200 pb-2">
+                                                                            <span className="font-bold text-slate-700 text-xs uppercase tracking-wider">Lista de Videos (YouTube)</span>
+                                                                            <Button type="button" variant="outline" onClick={() => addVideoPart(mIdx, lIdx)} className="py-0.5 px-2 text-xs bg-white h-auto border-slate-300 text-slate-600">+ Añadir Video</Button>
+                                                                        </div>
+                                                                        {getVideosArray(less.recurso).map((v, vIdx) => (
+                                                                            <div key={vIdx} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-white p-2 rounded border border-slate-200 shadow-sm relative">
+                                                                                <div className="w-6 text-center text-xs font-bold text-slate-400 hidden sm:block">{vIdx + 1}</div>
+                                                                                <div className="flex-1 w-full space-y-1.5">
+                                                                                    <input value={v.id} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'id', e.target.value)} placeholder="URL de YouTube completa o ID" className="w-full text-xs p-2 border border-slate-200 rounded focus:border-brand-500 outline-none font-mono" />
+                                                                                    <input value={v.title} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'title', e.target.value)} placeholder="Nombre personalizado (Opcional, Ej: 'Introducción')" className="w-full text-xs p-2 border border-slate-200 rounded focus:border-brand-500 outline-none font-semibold text-slate-700" />
+                                                                                </div>
+                                                                                <button type="button" onClick={() => removeVideoPart(mIdx, lIdx, vIdx)} className="absolute top-2 right-2 sm:static sm:top-auto sm:right-auto text-slate-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-colors"><X className="w-4 h-4"/></button>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
                                                                 )}
 
                                                                 {less.tipo === 'texto' && (
@@ -1506,6 +1640,9 @@
             // Estado Global de Cursos (Permite adición/edición desde Admin)
             const [courses, setCourses] = useState(DUMMY_COURSES);
             
+            // Estado Global de Reseñas
+            const [reviews, setReviews] = useState([]);
+            
             const [currentCourse, setCurrentCourse] = useState(null);
             const [enrollments, setEnrollments] = useState([]); // [{ courseId, userId, status }]
             const [menuOpen, setMenuOpen] = useState(false);
@@ -1533,7 +1670,10 @@
                     name: formData.get('name'),
                     bio: formData.get('bio'),
                     linkedin: formData.get('linkedin'),
-                    role: formData.get('role') // Permite cambiar el rol de estudiante a admin en la demo
+                    facebook: formData.get('facebook'),
+                    instagram: formData.get('instagram'),
+                    tiktok: formData.get('tiktok'),
+                    role: formData.get('role') // Permite cambiar el rol en la demo
                 });
                 alert('Perfil actualizado con éxito');
             };
@@ -1642,7 +1782,7 @@
                                 <CeoSection />
                                 <CourseCatalog courses={courses} setView={setView} setCurrentCourse={setCurrentCourse} />
                                 <PodcastNewsSection />
-                                <ReviewsSection />
+                                <ReviewsSection reviews={reviews} />
                             </>
                         )}
                         {view === 'catalog' && (
@@ -1654,7 +1794,7 @@
                             <CourseDetailView course={currentCourse} setView={setView} currentUser={currentUser} setEnrollments={setEnrollments} />
                         )}
                         {view === 'dashboard' && currentUser && (
-                            <Dashboard enrollments={enrollments.filter(e => e.userId === currentUser.uid)} setView={setView} currentUser={currentUser} setCurrentCourse={setCurrentCourse} courses={courses} />
+                            <Dashboard enrollments={enrollments.filter(e => e.userId === currentUser.uid)} setView={setView} currentUser={currentUser} setCurrentCourse={setCurrentCourse} courses={courses} addReview={(r) => setReviews([...reviews, r])} />
                         )}
                         {view === 'player' && currentCourse && (
                             <CoursePlayer course={currentCourse} setView={setView} />
@@ -1664,7 +1804,7 @@
                         )}
                         {view === 'profile' && currentUser && (
                             <div className="pt-24 pb-16 min-h-screen bg-slate-50">
-                                <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                                     <button onClick={() => setView('dashboard')} className="flex items-center text-slate-500 hover:text-brand-600 mb-8 transition-colors">
                                         <ChevronLeft className="w-5 h-5 mr-1" /> Volver al Dashboard
                                     </button>
@@ -1676,10 +1816,11 @@
                                             <div>
                                                 <h1 className="text-3xl font-bold text-slate-900">Mi Perfil</h1>
                                                 <p className="text-slate-500">{currentUser.email}</p>
+                                                {currentUser.role === 'teacher' && <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">Cuenta de Docente</span>}
                                             </div>
                                         </div>
 
-                                        <form onSubmit={handleProfileUpdate} className="space-y-6">
+                                        <form onSubmit={handleProfileUpdate} className="space-y-8">
                                             <div className="grid sm:grid-cols-2 gap-6">
                                                 <div className="space-y-2">
                                                     <label className="font-semibold text-slate-700">Nombre Completo</label>
@@ -1687,18 +1828,22 @@
                                                 </div>
                                                 <div className="space-y-2">
                                                     <label className="font-semibold text-slate-700">Rol en la Plataforma</label>
-                                                    <select name="role" defaultValue={currentUser.email === ADMIN_EMAIL ? 'admin' : 'student'} 
+                                                    <select name="role" defaultValue={currentUser.role || (currentUser.email === ADMIN_EMAIL ? 'admin' : 'student')} 
                                                         onChange={(e) => {
                                                             if(e.target.value === 'admin') {
-                                                                setCurrentUser({...currentUser, email: ADMIN_EMAIL});
+                                                                setCurrentUser({...currentUser, email: ADMIN_EMAIL, role: 'admin'});
                                                                 alert('Rol cambiado a Administrador. Tu correo ahora es ' + ADMIN_EMAIL);
+                                                            } else if (e.target.value === 'teacher') {
+                                                                setCurrentUser({...currentUser, email: 'profesor@demo.com', role: 'teacher'});
+                                                                alert('Rol cambiado a Docente.');
                                                             } else {
-                                                                setCurrentUser({...currentUser, email: 'estudiante@demo.com'});
+                                                                setCurrentUser({...currentUser, email: 'estudiante@demo.com', role: 'student'});
                                                                 alert('Rol cambiado a Estudiante.');
                                                             }
                                                         }}
                                                         className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none bg-slate-50">
                                                         <option value="student">Estudiante</option>
+                                                        <option value="teacher">Docente</option>
                                                         <option value="admin">Administrador Técnico</option>
                                                     </select>
                                                 </div>
@@ -1709,9 +1854,26 @@
                                                 <input name="bio" defaultValue={currentUser.bio || ''} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none" placeholder="Ej. Ingeniero en Electrónica" />
                                             </div>
 
-                                            <div className="space-y-2">
-                                                <label className="font-semibold text-slate-700">LinkedIn URL</label>
-                                                <input name="linkedin" type="url" defaultValue={currentUser.linkedin || ''} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none" placeholder="https://linkedin.com/in/tu-perfil" />
+                                            <div className="border-t border-slate-200 pt-6">
+                                                <h3 className="text-lg font-bold text-slate-800 mb-4">Redes Sociales</h3>
+                                                <div className="grid sm:grid-cols-2 gap-6">
+                                                    <div className="space-y-2">
+                                                        <label className="font-semibold text-slate-700 text-sm">LinkedIn URL</label>
+                                                        <input name="linkedin" type="url" defaultValue={currentUser.linkedin || ''} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-sm" placeholder="https://linkedin.com/in/..." />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="font-semibold text-slate-700 text-sm">Facebook URL</label>
+                                                        <input name="facebook" type="url" defaultValue={currentUser.facebook || ''} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-sm" placeholder="https://facebook.com/..." />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="font-semibold text-slate-700 text-sm">Instagram URL</label>
+                                                        <input name="instagram" type="url" defaultValue={currentUser.instagram || ''} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-sm" placeholder="https://instagram.com/..." />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="font-semibold text-slate-700 text-sm">TikTok URL</label>
+                                                        <input name="tiktok" type="url" defaultValue={currentUser.tiktok || ''} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-sm" placeholder="https://tiktok.com/@..." />
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <div className="pt-6 border-t border-slate-200 flex justify-end">
