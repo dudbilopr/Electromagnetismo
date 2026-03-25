@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matriz de Gauss - Paso a Paso y Visualización 3D</title>
+
+    <!-- Librerías Externas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    
+    <!-- NUEVO: Librería de Iconos Profesionales (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+            startup: { pageReady: () => { return MathJax.startup.defaultPageReady(); } }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        /* Variables Modernizadas (Look Profesional) */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+        :root { 
+            --primary: #0f172a;       /* Slate 900 */
+            --primary-light: #1e293b; /* Slate 800 */
+            --secondary: #3b82f6;     /* Blue 500 */
+            --accent: #8b5cf6;        /* Violet 500 */
+            --bg: #f1f5f9;            /* Slate 100 */
+            --surface: #ffffff;
+            --iso: #ef4444;           /* Red 500 */
+            --cond: #10b981;          /* Emerald 500 */
+            --gauss-color: #22c55e;   /* Green 500 */
+            --grid-border: #e2e8f0;   /* Slate 200 */
+            --field: #f59e0b;         /* Amber 500 */
+            --text-main: #334155;     /* Slate 700 */
+            --text-light: #64748b;    /* Slate 500 */
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        
+        * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
+        body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* Cabecera Principal */
+        header { background: var(--surface); padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm); z-index: 50; flex-shrink: 0; border-bottom: 1px solid var(--grid-border); }
+        header h1 { color: var(--primary); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; display: flex; align-items: center; gap: 10px;}
+        
+        .controls-group { display: flex; gap: 20px; align-items: center; flex-wrap: wrap;}
+
+        /* Interruptores Modernos */
+        .toggle-container { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; background: var(--bg); padding: 8px 16px; border-radius: 9999px; border: 1px solid var(--grid-border); box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.02); transition: all 0.2s;}
+        .toggle-container:hover { border-color: #cbd5e1; }
+        .toggle-container i { width: 18px; height: 18px; }
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 30px; }
+        .slider.mat-slider { background-color: var(--iso); }
+        .slider.cut-slider { background-color: #cbd5e1; }
+        .slider.field-slider { background-color: #cbd5e1; }
+        .slider.anim-slider { background-color: #cbd5e1; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        
+        input:checked + .slider.mat-slider { background-color: var(--cond); }
+        input:checked + .slider.cut-slider { background-color: var(--secondary); }
+        input:checked + .slider.field-slider { background-color: var(--field); }
+        input:checked + .slider.anim-slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        /* Contenedor Principal */
+        .main-container { flex-grow: 1; overflow-y: auto; overflow-x: auto; padding: 24px 32px; display: flex; flex-direction: column; }
+
+        /* Panel de Filtros */
+        .filters-panel { background: var(--surface); border: 1px solid var(--grid-border); border-radius: 12px; margin-bottom: 24px; padding: 20px 28px; box-shadow: var(--shadow-sm); transition: box-shadow 0.2s; }
+        .filters-panel:hover { box-shadow: var(--shadow-md); }
+        .filters-panel summary, .user-manual summary { 
+            font-weight: 700; font-size: 1.1rem; cursor: pointer; outline: none; list-style: none; display: flex; align-items: center; gap: 10px;
+        }
+        .filters-panel summary { color: var(--primary); }
+        .filters-panel summary::-webkit-details-marker, .user-manual summary::-webkit-details-marker { display: none; }
+        .filters-panel summary:hover { color: var(--secondary); }
+        
+        .filters-content { display: flex; gap: 48px; margin-top: 20px; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid var(--grid-border); }
+        .filter-group { display: flex; flex-direction: column; gap: 10px; }
+        .filter-group h4 { color: var(--text-light); margin-bottom: 4px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .filter-group label { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; cursor: pointer; color: var(--text-main); font-weight: 500; }
+        .filter-group input[type="checkbox"] { accent-color: var(--secondary); width: 18px; height: 18px; cursor: pointer; border-radius: 4px; }
+
+        /* Manual de Usuario */
+        .user-manual { background: #eff6ff; padding: 20px 28px; border-left: 6px solid var(--secondary); margin-bottom: 28px; border-radius: 12px; box-shadow: var(--shadow-sm); font-size: 0.95rem; }
+        .user-manual summary { color: var(--secondary); font-size: 1.1rem; }
+        .user-manual ul { margin-top: 16px; padding-left: 28px; line-height: 1.7; color: var(--text-main); }
+        .user-manual li { margin-bottom: 10px; }
+        .user-manual strong { color: var(--primary); }
+
+        /* Matriz Grid CSS */
+        .gauss-matrix { display: grid; grid-template-columns: 240px repeat(5, minmax(360px, 1fr)); gap: 16px; min-width: 2050px; margin-bottom: 48px; }
+        
+        /* Cabeceras y Filas Fijas (STICKY) */
+        .col-header { height: 60px; background: var(--primary); color: white; padding: 12px; font-weight: 600; font-size: 1.05rem; text-align: center; border-radius: 12px 12px 0 0; position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .col-header.desc-header { background: var(--primary-light); z-index: 31; }
+
+        .row-header { background: #f8fafc; font-weight: 600; color: var(--primary); padding: 16px; border-right: 4px solid var(--secondary); display: flex; flex-direction: column; justify-content: center; align-items: flex-start; border-radius: 8px; border: 1px solid var(--grid-border); }
+        .row-header small { color: var(--text-light); font-weight: 400; margin-top: 4px; line-height: 1.4; }
+        
+        .cell { background: var(--surface); padding: 20px; border: 1px solid var(--grid-border); border-radius: 12px; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s ease; box-shadow: var(--shadow-sm); }
+        .cell.canvas-cell { padding: 8px; align-items: center; justify-content: center; background: #f8fafc; position: relative; }
+        
+        /* Fila 3D Fija (Sticky) */
+        .row-header[data-row="3d"], .cell[data-row="3d"] { position: sticky; top: 60px; z-index: 25; box-shadow: var(--shadow-md); border-bottom: 2px solid var(--grid-border); background: var(--surface); border-radius: 0 0 12px 12px;}
+        .cell[data-row="3d"] { padding: 12px; }
+
+        /* Celdas de Variables */
+        .vars-cell { background: #f0fdfa; border-left: 4px solid #14b8a6; font-size: 0.95rem; line-height: 1.6; }
+        .vars-cell ul { padding-left: 20px; margin-bottom: 12px; }
+        .vars-cell li { margin-bottom: 6px; }
+        .vars-cell .data-hint { font-size: 0.85rem; color: #0f766e; background: #ccfbf1; padding: 10px 12px; border-radius: 8px; margin-top: auto; font-weight: 500; display: flex; gap: 8px; align-items: flex-start;}
+
+        /* Efecto Hover para Celdas Interactivas */
+        .interactive-cell { cursor: pointer; border-left: 4px solid transparent; }
+        .interactive-cell:hover { border-color: var(--gauss-color); box-shadow: var(--shadow-lg); background-color: #f0fdf4; transform: translateY(-2px); }
+        .hover-hint { font-size: 0.8rem; color: var(--gauss-color); font-weight: 600; margin-top: auto; padding-top: 10px; border-top: 1px dashed #bbf7d0; text-align: center; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .interactive-cell:hover .hover-hint { opacity: 1; }
+
+        .canvas-3d { width: 100%; height: 240px; border-radius: 8px; overflow: hidden; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); cursor: grab; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
+        .canvas-3d:active { cursor: grabbing; }
+        .canvas-2d { width: 100%; max-width: 340px; height: 190px; background: white; border: 1px solid var(--grid-border); border-radius: 8px; }
+
+        /* Lógica Visual de Celdas */
+        .mat-aislante .only-conductor { display: none !important; }
+        .mat-conductor .only-aislante { display: none !important; }
+
+        /* Fórmulas y Paso a Paso */
+        .formula-box { background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; border-left: 4px solid var(--secondary); border-radius: 6px; font-size: 1rem; margin-top: 8px; overflow-x: auto;}
+        .step-title { color: var(--secondary); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; }
+        
+        /* Desarrollo General Universal */
+        .universal-derivation { grid-column: 2 / -1; background: #f8fafc; border: 1px solid var(--grid-border); border-left: 6px solid var(--primary); display: flex; justify-content: space-around; align-items: stretch; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); }
+        .ud-step { flex: 1; padding: 0 20px; border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; justify-content: center; }
+        .ud-step:last-child { border-right: none; }
+        .ud-step h4 { color: var(--primary); font-size: 0.95rem; margin-bottom: 8px; font-weight: 700; display: flex; align-items: center; gap: 6px;}
+        .ud-step p { font-size: 0.9rem; color: var(--text-light); }
+
+        /* Lógica de Ocultamiento Dinámico (Filtros) */
+        body.hide-col-1 .col-header[data-col="1"], body.hide-col-1 .cell[data-col="1"] { display: none !important; }
+        body.hide-col-2 .col-header[data-col="2"], body.hide-col-2 .cell[data-col="2"] { display: none !important; }
+        body.hide-col-3 .col-header[data-col="3"], body.hide-col-3 .cell[data-col="3"] { display: none !important; }
+        body.hide-col-4 .col-header[data-col="4"], body.hide-col-4 .cell[data-col="4"] { display: none !important; }
+        body.hide-col-5 .col-header[data-col="5"], body.hide-col-5 .cell[data-col="5"] { display: none !important; }
+
+        body.hide-row-vars .row-header[data-row="vars"], body.hide-row-vars .cell[data-row="vars"] { display: none !important; }
+        body.hide-row-pasos .row-header[data-row="pasos"], body.hide-row-pasos .universal-derivation { display: none !important; }
+        body.hide-row-graficas .row-header[data-row="graficas"], body.hide-row-graficas .cell[data-row="graficas"] { display: none !important; }
+        body.hide-row-interior .row-header[data-row="interior"], body.hide-row-interior .cell[data-row="interior"] { display: none !important; }
+        body.hide-row-material .row-header[data-row="material"], body.hide-row-material .cell[data-row="material"] { display: none !important; }
+        body.hide-row-exterior .row-header[data-row="exterior"], body.hide-row-exterior .cell[data-row="exterior"] { display: none !important; }
+        body.hide-row-potencial .row-header[data-row="potencial"], body.hide-row-potencial .cell[data-row="potencial"] { display: none !important; }
+
+        /* Sección de Ejemplos */
+        .examples-section { background: var(--surface); padding: 32px; border-radius: 12px; border: 1px solid var(--grid-border); margin-bottom: 48px; box-shadow: var(--shadow-md); }
+        .examples-section h2 { color: var(--primary); margin-bottom: 24px; border-bottom: 2px solid var(--grid-border); padding-bottom: 12px; font-weight: 700; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .examples-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; }
+        .example-card { background: #fefce8; border: 1px solid #fde047; padding: 24px; border-radius: 12px; font-size: 0.95rem; line-height: 1.6; box-shadow: var(--shadow-sm); }
+        .example-card h4 { color: #b45309; margin-bottom: 12px; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 8px;}
+
+        /* NUEVO: Pie de página (Footer) */
+        footer {
+            margin-top: auto;
+            text-align: center;
+            padding: 24px;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--grid-border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body class="mat-aislante">
+
+    <header>
+        <h1><i data-lucide="layers"></i> Matriz Interactiva de Gauss</h1>
+        <div class="controls-group">
+            
+            <!-- NUEVO: Botón de Animación / Giro 3D -->
+            <div class="toggle-container">
+                <i data-lucide="refresh-cw" style="color: var(--accent);"></i>
+                <span>Giro Automático</span>
+                <label class="switch">
+                    <input type="checkbox" id="anim-toggle" checked>
+                    <span class="slider anim-slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-container">
+                <i data-lucide="zap" style="color: var(--field);"></i>
+                <span style="color: var(--field);">Vectores Campo E</span>
+                <label class="switch">
+                    <input type="checkbox" id="field-toggle">
+                    <span class="slider field-slider"></span>
+                </label>
+            </div>
+            
+            <div class="toggle-container">
+                <i data-lucide="scissors" style="color: var(--secondary);"></i>
+                <span>Corte 3D</span>
+                <label class="switch">
+                    <input type="checkbox" id="cut-toggle">
+                    <span class="slider cut-slider"></span>
+                </label>
+            </div>
+            <div class="toggle-container">
+                <span style="color: var(--iso); display: flex; align-items: center; gap: 4px;"><i data-lucide="box" style="width: 14px; height:14px;"></i> Aislante</span>
+                <label class="switch">
+                    <input type="checkbox" id="mat-toggle">
+                    <span class="slider mat-slider"></span>
+                </label>
+                <span style="color: var(--cond); display: flex; align-items: center; gap: 4px;"><i data-lucide="circle-dashed" style="width: 14px; height:14px;"></i> Conductor</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        
+        <details class="user-manual">
+            <!-- Icono profesional en lugar de emoji -->
+            <summary><i data-lucide="book-open"></i> Manual de Usuario y Constante k</summary>
+            <ul>
+                <li><strong>La Constante Dieléctrica ($\epsilon_0$):</strong> En lugar de usar la constante de Coulomb ($k \approx 9 \times 10^9$), utilizamos su forma fundamental rigurosa para la Ley de Gauss: $k = \frac{1}{4\pi\epsilon_0}$. Donde $\epsilon_0$ es la permitividad del vacío ($8.85 \times 10^{-12} \frac{C^2}{N \cdot m^2}$).</li>
+                <li><strong>Rotación y Zoom:</strong> Haz <b>clic y arrastra</b> sobre el modelo 3D para rotarlo. Usa la <b>rueda del ratón</b> para zoom. Puedes pausar la rotación con el botón superior.</li>
+                <li><strong>Superficie Gaussiana interactiva:</strong> Pasa el ratón (hover) sobre las casillas de las zonas (Interior, Material, Exterior) y verás aparecer la Superficie Gaussiana (verde) con su radio interactivo $r$ etiquetado en 3D.</li>
+                <li><strong>Distribución de Cargas:</strong> Activa el <b>Corte 3D</b> y cambia entre <b>Aislante y Conductor</b>. Verás esferitas rojas (+) o azules (-) que representan cómo se distribuye la carga: los aislantes la retienen en su volumen, mientras que en los conductores migra hacia la superficie externa o interna.</li>
+            </ul>
+        </details>
+
+        <!-- PANEL DE FILTROS -->
+        <details class="filters-panel">
+            <!-- Icono profesional en lugar de emoji -->
+            <summary><i data-lucide="settings"></i> Personalizar Vista (Filtros y Ocultamiento)</summary>
+            <div class="filters-content">
+                <div class="filter-group">
+                    <h4>Columnas (Modelos)</h4>
+                    <label><input type="checkbox" checked class="col-filter" value="1"> 1. Esfera Sólida</label>
+                    <label><input type="checkbox" checked class="col-filter" value="2"> 2. Esfera Hueca</label>
+                    <label><input type="checkbox" checked class="col-filter" value="3"> 3. Cascarón Esférico</label>
+                    <label><input type="checkbox" checked class="col-filter" value="4"> 4. Cap. (Esfera Int.)</label>
+                    <label><input type="checkbox" checked class="col-filter" value="5"> 5. Cap. (Carga Punt.)</label>
+                </div>
+                <div class="filter-group">
+                    <h4>Filas (Secciones de Análisis)</h4>
+                    <label><input type="checkbox" checked class="row-filter" value="vars"> Variables y Datos</label>
+                    <label><input type="checkbox" checked class="row-filter" value="pasos"> Paso a Paso Universal</label>
+                    <label><input type="checkbox" checked class="row-filter" value="graficas"> Gráficas E vs r</label>
+                    <label><input type="checkbox" checked class="row-filter" value="interior"> Zona Interior</label>
+                    <label><input type="checkbox" checked class="row-filter" value="material"> Zona del Material</label>
+                    <label><input type="checkbox" checked class="row-filter" value="exterior"> Zona Exterior</label>
+                    <label><input type="checkbox" checked class="row-filter" value="potencial"> Potencial Eléctrico</label>
+                </div>
+            </div>
+        </details>
+
+        <div class="gauss-matrix" id="main-matrix">
+            <!-- Fila 1: Cabeceras -->
+            <div class="col-header desc-header">Descripción / Zonas</div>
+            <div class="col-header" data-col="1">1. Esfera Sólida</div>
+            <div class="col-header" data-col="2">2. Esfera Hueca</div>
+            <div class="col-header" data-col="3">3. Cascarón Esférico</div>
+            <div class="col-header" data-col="4">4. Capacitor (Esfera Int.)</div>
+            <div class="col-header" data-col="5">5. Capacitor (Carga Punt.)</div>
+
+            <!-- Fila 2: Modelos 3D (FIJA/STICKY) -->
+            <div class="row-header" data-row="3d">
+                Visualización 3D<br>
+                <small>Radios ($R$), Vectores y Cargas</small>
+            </div>
+            <div class="cell canvas-cell" data-row="3d" data-col="1"><div id="3d-solida" class="canvas-3d"></div></div>
+            <div class="cell canvas-cell" data-row="3d" data-col="2"><div id="3d-hueca" class="canvas-3d"></div></div>
+            <div class="cell canvas-cell" data-row="3d" data-col="3"><div id="3d-cascaron" class="canvas-3d"></div></div>
+            <div class="cell canvas-cell" data-row="3d" data-col="4"><div id="3d-cap-esfera" class="canvas-3d"></div></div>
+            <div class="cell canvas-cell" data-row="3d" data-col="5"><div id="3d-cap-puntual" class="canvas-3d"></div></div>
+
+            <!-- FILA 3: Variables y Datos -->
+            <div class="row-header" data-row="vars">
+                Variables y Datos<br>
+                <small>Magnitudes, unidades (S.I.) y planteamiento del problema</small>
+            </div>
+            
+            <div class="cell vars-cell" data-row="vars" data-col="1">
+                <ul>
+                    <li><strong>$Q$:</strong> Carga total (Coulombs, $C$)</li>
+                    <li><strong>$R$:</strong> Radio exterior (metros, $m$)</li>
+                    <li><strong>$r$:</strong> Radio de la gaussiana (variable, $m$)</li>
+                    <li><strong>$\rho$:</strong> Densidad volumétrica ($\frac{C}{m^3}$)</li>
+                </ul>
+                <div class="data-hint"><i data-lucide="info" style="min-width:18px;"></i> <span><strong>Problema Típico:</strong> "Una esfera aislante de radio $R$ tiene una densidad de carga uniforme $\rho$ (o carga total $Q$)...". Te pedirán hallar $E$ adentro y afuera evaluando $r$.</span></div>
+            </div>
+
+            <div class="cell vars-cell" data-row="vars" data-col="2">
+                <ul>
+                    <li><strong>$Q$:</strong> Carga neta en el material ($C$)</li>
+                    <li><strong>$R_1$:</strong> Radio interior/cavidad ($m$)</li>
+                    <li><strong>$R_2$:</strong> Radio exterior ($m$)</li>
+                    <li><strong>$\rho$:</strong> Densidad volumétrica ($\frac{C}{m^3}$)</li>
+                </ul>
+                <div class="data-hint"><i data-lucide="info" style="min-width:18px;"></i> <span><strong>Problema Típico:</strong> "Una esfera hueca conductora tiene radios $R_1$ y $R_2$ con carga total $Q$...". La trampa suele ser preguntar el campo en la cavidad vacía ($r < R_1$).</span></div>
+            </div>
+
+            <div class="cell vars-cell" data-row="vars" data-col="3">
+                <ul>
+                    <li><strong>$Q$:</strong> Carga distribuida ($C$)</li>
+                    <li><strong>$R$:</strong> Radio de la corteza ($m$)</li>
+                    <li><strong>$\sigma$:</strong> Densidad superficial ($\frac{C}{m^2}$)</li>
+                    <li><strong>$r$:</strong> Distancia desde el centro ($m$)</li>
+                </ul>
+                <div class="data-hint"><i data-lucide="info" style="min-width:18px;"></i> <span><strong>Problema Típico:</strong> "Un cascarón esférico muy delgado de radio $R$ posee una densidad superficial $\sigma$...". Aquí se asume que el grosor del cascarón es matemáticamente cero.</span></div>
+            </div>
+
+            <div class="cell vars-cell" data-row="vars" data-col="4">
+                <ul>
+                    <li><strong>$+Q, -Q$:</strong> Carga interior y exterior ($C$)</li>
+                    <li><strong>$a$:</strong> Radio esfera interior ($m$)</li>
+                    <li><strong>$b, c$:</strong> Radios int/ext del cascarón ($m$)</li>
+                </ul>
+                <div class="data-hint"><i data-lucide="info" style="min-width:18px;"></i> <span><strong>Problema Típico:</strong> "Se tiene una esfera sólida de radio $a$ y carga $+Q$ concéntrica a un cascarón esférico de radios $b$ y $c$ con carga neta $-Q$..." (Cable coaxial esférico).</span></div>
+            </div>
+
+            <div class="cell vars-cell" data-row="vars" data-col="5">
+                <ul>
+                    <li><strong>$q$:</strong> Carga puntual central ($C$)</li>
+                    <li><strong>$Q_{casc}$:</strong> Carga neta del cascarón ($C$)</li>
+                    <li><strong>$a, b$:</strong> Radios del cascarón exterior ($m$)</li>
+                </ul>
+                <div class="data-hint"><i data-lucide="info" style="min-width:18px;"></i> <span><strong>Problema Típico:</strong> "Una carga puntual $q$ se sitúa en el centro de un cascarón esférico conductor grueso de radios $a$ y $b$ con carga neta neutra ($Q_{casc}=0$)...".</span></div>
+            </div>
+
+            <!-- Fila 4: Paso a Paso General -->
+            <div class="row-header" data-row="pasos" style="border-right-color: #64748b;">
+                Paso a Paso Universal<br>
+                <small>Lado Izquierdo de la Ley</small>
+            </div>
+            <div class="universal-derivation" data-row="pasos">
+                <div class="ud-step">
+                    <h4><i data-lucide="function-square" style="width: 16px; height: 16px;"></i> Paso 1: Planteamiento</h4>
+                    <p>Partimos de la Ley de Gauss general:</p>
+                    $$\oint \vec{E} \cdot d\vec{A} = \frac{Q_{enc}}{\epsilon_0}$$
+                </div>
+                <div class="ud-step">
+                    <h4><i data-lucide="move-diagonal" style="width: 16px; height: 16px;"></i> Paso 2: Producto Punto</h4>
+                    <p>Por simetría radial, el campo $\vec{E}$ y el vector área $d\vec{A}$ son paralelos.</p>
+                    $$\vec{E} \cdot d\vec{A} = E \, dA$$
+                </div>
+                <div class="ud-step">
+                    <h4><i data-lucide="arrow-right-circle" style="width: 16px; height: 16px;"></i> Paso 3: Extraer E</h4>
+                    <p>A una distancia $r$ constante, la magnitud de $E$ sale de la integral.</p>
+                    $$E \oint dA = \frac{Q_{enc}}{\epsilon_0}$$
+                </div>
+                <div class="ud-step">
+                    <h4><i data-lucide="scaling" style="width: 16px; height: 16px;"></i> Paso 4: Área Gaussiana</h4>
+                    <p>La integral $\oint dA$ es el área de la Superficie Gaussiana esférica.</p>
+                    $$A = 4\pi r^2$$
+                </div>
+                <div class="ud-step">
+                    <h4><i data-lucide="star" style="width: 16px; height: 16px;"></i> Ecuación Maestra</h4>
+                    <p>Todo problema se reduce a hallar la Carga Encerrada ($Q_{enc}$).</p>
+                    $$E = \frac{Q_{enc}}{4\pi\epsilon_0 r^2}$$
+                </div>
+            </div>
+
+            <!-- Fila 5: Gráficas E vs r -->
+            <div class="row-header" data-row="graficas">Comportamiento<br>$E$ vs $r$</div>
+            <div class="cell canvas-cell" data-row="graficas" data-col="1"><canvas id="graph-solida" class="canvas-2d" width="340" height="190"></canvas></div>
+            <div class="cell canvas-cell" data-row="graficas" data-col="2"><canvas id="graph-hueca" class="canvas-2d" width="340" height="190"></canvas></div>
+            <div class="cell canvas-cell" data-row="graficas" data-col="3"><canvas id="graph-cascaron" class="canvas-2d" width="340" height="190"></canvas></div>
+            <div class="cell canvas-cell" data-row="graficas" data-col="4"><canvas id="graph-cap-esfera" class="canvas-2d" width="340" height="190"></canvas></div>
+            <div class="cell canvas-cell" data-row="graficas" data-col="5"><canvas id="graph-cap-puntual" class="canvas-2d" width="340" height="190"></canvas></div>
+
+            <!-- Fila 6: Zona Interior (r < a) -->
+            <div class="row-header" data-row="interior">Zona Interior (Centro)<br>$r < R_1$</div>
+            <div class="cell interactive-cell" data-row="interior" data-col="1" data-geo="solida" data-zone="interior">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span class="only-aislante">$Q_{enc} = \rho \cdot V_{gauss} = \rho (\frac{4}{3}\pi r^3) = Q\frac{r^3}{R^3}$</span>
+                <span class="only-conductor">En un conductor el interior no aloja carga neta. $Q_{enc} = 0$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box only-aislante">$$E = \frac{Q r}{4\pi\epsilon_0 R^3}$$</div>
+                <div class="formula-box only-conductor">$$E = 0$$</div>
+                <!-- Emojis reemplazados por iconos de Lucide -->
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+            <div class="cell interactive-cell" data-row="interior" data-col="2" data-geo="hueca" data-zone="interior">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span>Cavidad vacía. La Gaussiana no atrapa carga. $Q_{enc} = 0$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box">$$E = 0$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+            <div class="cell interactive-cell" data-row="interior" data-col="3" data-geo="cascaron" data-zone="interior">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span>Espacio vacío dentro de la capa delgada. $Q_{enc} = 0$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box">$$E = 0$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+            <div class="cell interactive-cell" data-row="interior" data-col="4" data-geo="cap-esfera" data-zone="interior">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span class="only-aislante">Esfera central sólida. $Q_{enc} = Q\frac{r^3}{a^3}$.</span>
+                <span class="only-conductor">Esfera central conductora. $Q_{enc} = 0$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box only-aislante">$$E = \frac{Q r}{4\pi\epsilon_0 a^3}$$</div>
+                <div class="formula-box only-conductor">$$E = 0$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+            <div class="cell interactive-cell" data-row="interior" data-col="5" data-geo="cap-puntual" data-zone="interior">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span>La superficie solo encierra a la carga puntual central. $Q_{enc} = q$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box">$$E = \frac{q}{4\pi\epsilon_0 r^2}$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+
+            <!-- Fila 7: Zona Intermedia/Material -->
+            <div class="row-header" data-row="material">Zona del Material<br>$R_1 \le r \le R_2$</div>
+            <div class="cell" data-row="material" data-col="1" style="background: var(--bg); align-items:center; justify-content:center; color:var(--text-light);">
+                <em>No aplica para esfera sólida (Continua).</em>
+            </div>
+            <div class="cell interactive-cell" data-row="material" data-col="2" data-geo="hueca" data-zone="material">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span class="only-aislante">Atrapa carga fraccionada restando el hueco: $Q_{enc} = Q \frac{r^3 - R_1^3}{R_2^3 - R_1^3}$</span>
+                <span class="only-conductor">Material conductor en equilibrio obliga a que $Q_{enc} = 0$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box only-aislante">$$E = \frac{Q}{4\pi\epsilon_0 r^2} \left( \frac{r^3 - R_1^3}{R_2^3 - R_1^3} \right)$$</div>
+                <div class="formula-box only-conductor">$$E = 0$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+            <div class="cell" data-row="material" data-col="3" style="background: var(--bg); align-items:center; justify-content:center; color:var(--text-light);">
+                <em>No aplica (Grosor $dR \to 0$).</em>
+            </div>
+            <div class="cell interactive-cell" data-row="material" data-col="4" data-geo="cap-esfera" data-zone="vacio">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span>Espacio vacío entre las placas. La Gaussiana encierra toda la esfera interna: $Q_{enc} = +Q$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box">$$E = \frac{Q}{4\pi\epsilon_0 r^2}$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+            <div class="cell interactive-cell" data-row="material" data-col="5" data-geo="cap-puntual" data-zone="material">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span class="only-aislante">Encierra la puntual más volumen parcial. $Q_{enc} = q + \rho \frac{4\pi}{3} (r^3 - a^3)$</span>
+                <span class="only-conductor">Conductor induce carga $-q$ en pared interior para $Q_{enc\_total} = 0$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box only-aislante">$$E = \frac{1}{4\pi\epsilon_0 r^2} \left[ q + \rho \frac{4\pi}{3} (r^3 - a^3) \right]$$</div>
+                <div class="formula-box only-conductor">$$E = 0$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+
+            <!-- Fila 8: Zona Exterior -->
+            <div class="row-header" data-row="exterior">Zona Exterior<br>$r > R_{max}$</div>
+            <div class="cell interactive-cell" data-row="exterior" data-col="1" data-geo="solida" data-zone="exterior">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span>Encierra la totalidad de la carga de la esfera. $Q_{enc} = Q$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box">$$E = \frac{Q}{4\pi\epsilon_0 r^2}$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+            <div class="cell interactive-cell" data-row="exterior" data-col="2" data-geo="hueca" data-zone="exterior">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span>Encierra la totalidad de la carga de la esfera hueca. $Q_{enc} = Q$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box">$$E = \frac{Q}{4\pi\epsilon_0 r^2}$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+            <div class="cell interactive-cell" data-row="exterior" data-col="3" data-geo="cascaron" data-zone="exterior">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span>Encierra todo el cascarón. $Q_{enc} = Q$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box">$$E = \frac{Q}{4\pi\epsilon_0 r^2}$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+            <div class="cell interactive-cell" data-row="exterior" data-col="4" data-geo="cap-esfera" data-zone="exterior">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span>Encierra la esfera ($+Q$) y el cascarón ($-Q$). $Q_{enc} = +Q - Q = 0$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box">$$E = 0$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+            <div class="cell interactive-cell" data-row="exterior" data-col="5" data-geo="cap-puntual" data-zone="exterior">
+                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
+                <span>Encierra la puntual ($q$) y el cascarón exterior ($Q_{casc}$). $Q_{enc} = q + Q_{casc}$.</span>
+                <div class="step-title">Paso 6: Reemplazar</div>
+                <div class="formula-box">$$E = \frac{q+Q_{casc}}{4\pi\epsilon_0 r^2}$$</div>
+                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
+            </div>
+
+            <!-- Fila 9: Potencial Eléctrico -->
+            <div class="row-header" data-row="potencial" style="border-right-color: #8b5cf6;">Potencial Eléctrico<br>$V(r)$</div>
+            <div class="cell vars-cell" data-row="potencial" data-col="1" style="border-left-color: #a78bfa; background: #faf5ff;">
+                <div class="step-title" style="color:#7c3aed;">Cálculo Detallado</div>
+                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">
+                    $$V_{ext} = -\int_{\infty}^r \frac{Q dr'}{4\pi\epsilon_0 r'^2} = \frac{Q}{4\pi\epsilon_0 r}$$
+                </div>
+                <p style="font-size:0.85rem; margin-top:5px;" class="only-aislante">Aislante: Adentro integras desde la superficie: $$V(r) = \frac{Q}{8\pi\epsilon_0 R} \left(3 - \frac{r^2}{R^2}\right)$$</p>
+                <p style="font-size:0.85rem; margin-top:5px;" class="only-conductor">Conductor: Todo el volumen interior es equipotencial: $$V_{int} = \frac{Q}{4\pi\epsilon_0 R}$$</p>
+            </div>
+            <div class="cell vars-cell" data-row="potencial" data-col="2" style="border-left-color: #a78bfa; background: #faf5ff;">
+                <div class="step-title" style="color:#7c3aed;">Cálculo Detallado</div>
+                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">
+                    $$V(r) = -\int \vec{E} \cdot d\vec{r}$$
+                </div>
+                <p style="font-size:0.85rem; margin-top:5px;">Para $r > R_2$: Decae como carga puntual ($V = kQ/r$).</p>
+                <p style="font-size:0.85rem; margin-top:5px;">En la cavidad ($r < R_1$), el campo es cero, por lo que no se requiere trabajo. $V$ se mantiene constante e igual al potencial de la superficie interna.</p>
+            </div>
+            <div class="cell vars-cell" data-row="potencial" data-col="3" style="border-left-color: #a78bfa; background: #faf5ff;">
+                <div class="step-title" style="color:#7c3aed;">Cálculo Detallado</div>
+                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">
+                    $$V(r) = \frac{Q}{4\pi\epsilon_0 r} \quad (r \ge R)$$
+                </div>
+                <p style="font-size:0.85rem; margin-top:5px;">Dentro del cascarón ($r < R$), $\vec{E}=0$, entonces el potencial no cambia respecto al borde.</p>
+                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">$$V_{int} = \frac{Q}{4\pi\epsilon_0 R}$$</div>
+            </div>
+            <div class="cell vars-cell" data-row="potencial" data-col="4" style="border-left-color: #a78bfa; background: #faf5ff;">
+                <div class="step-title" style="color:#7c3aed;">Diferencia de Potencial ($\Delta V$)</div>
+                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">
+                    $$\Delta V = -\int_b^a \frac{Q}{4\pi\epsilon_0 r^2} dr$$
+                </div>
+                <p style="font-size:0.85rem; margin-top:5px;">El trabajo para mover una carga desde el cascarón $b$ a la esfera $a$:</p>
+                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">$$\Delta V = \frac{Q}{4\pi\epsilon_0} \left( \frac{1}{a} - \frac{1}{b} \right)$$</div>
+            </div>
+            <div class="cell vars-cell" data-row="potencial" data-col="5" style="border-left-color: #a78bfa; background: #faf5ff;">
+                <div class="step-title" style="color:#7c3aed;">Diferencia de Potencial ($\Delta V$)</div>
+                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">
+                    $$\Delta V = -\int_a^r \frac{q}{4\pi\epsilon_0 r'^2} dr'$$
+                </div>
+                <p style="font-size:0.85rem; margin-top:5px;">El trabajo por unidad de carga entre la cara interna del cascarón ($a$) y una distancia $r$:</p>
+                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">$$\Delta V = \frac{q}{4\pi\epsilon_0} \left( \frac{1}{r} - \frac{1}{a} \right)$$</div>
+            </div>
+
+        </div> <!-- Fin de la Matriz -->
+
+        <!-- SECCIÓN DE EJEMPLOS EXPANDIDA -->
+        <div class="examples-section">
+            <h2><i data-lucide="lightbulb" style="color: var(--field);"></i> Ejemplos Clave y Análisis Físico Descriptivo</h2>
+            <div class="examples-grid">
+                
+                <div class="example-card">
+                    <h4><i data-lucide="zap"></i> 1. El Dipolo Eléctrico: Lucha por la Cancelación</h4>
+                    <p><strong>Contexto Físico:</strong> Un dipolo consiste en dos cargas de igual magnitud pero signos opuestos ($+q$ y $-q$) separadas por una pequeña distancia $d$.</p>
+                    <p style="margin-top: 10px;"><strong>Análisis:</strong> Desde lejos, casi parecen ocupar el mismo punto ($\sum q = 0$). Sin embargo, la separación espacial crea un desequilibrio. Físicamente, los campos intentan anularse de forma destructiva, pero sobrevive un "campo residual" débil. En lugar de decaer como $1/r^2$, el campo del dipolo decae mucho más rápido, proporcional a **$1/r^3$**. Es la base para entender moléculas dieléctricas como el agua.</p>
+                </div>
+
+                <div class="example-card">
+                    <h4><i data-lucide="shield"></i> 2. Esfera Sólida: Conductora vs Aislante</h4>
+                    <p class="only-conductor"><strong>El Blindaje (Conductor):</strong> Los electrones son libres. La repulsión coulómbica los obliga a huir hasta la superficie. No se detendrán hasta que el campo interno sea **cero**. Esto convierte el volumen interior en una **región equipotencial**; mover una carga adentro no requiere trabajo.</p>
+                    <p class="only-aislante"><strong>El Resorte Tridimensional (Aislante):</strong> Las cargas están "congeladas" en el volumen. A medida que penetramos hacia el centro, dejamos menos carga encerrada empujando hacia afuera. El campo decrece linealmente ($\vec{E} \propto r$), actuando físicamente como la fuerza restauradora de un resorte. El potencial llega a su pico en el centro.</p>
+                </div>
+
+                <div class="example-card">
+                    <h4><i data-lucide="circle-dashed"></i> 3. Esfera Hueca: Cavidad Segura</h4>
+                    <p><strong>El Vacío Ignora la Corteza:</strong> Independientemente de si el material exterior es aislante o un conductor grueso, si trazas una superficie Gaussiana dentro del hueco interior ($r < R_1$), la carga encerrada es **estrictamente cero**. Esto garantiza que el campo en la cavidad sea cero por simetría, protegiendo cualquier objeto en su interior de las cargas de la propia esfera.</p>
+                </div>
+
+                <div class="example-card">
+                    <h4><i data-lucide="maximize"></i> 4. Cascarón Esférico: Jaula de Faraday</h4>
+                    <p><strong>Discontinuidad Abrupta:</strong> Un cascarón conductor delgado aísla electromagnéticamente su interior de campos externos. Al graficar el campo eléctrico, notarás una discontinuidad matemáticamente violenta exactamente en $r=R$ (salta de $0$ a un valor máximo). En electromagnetismo, un salto abrupto en el campo eléctrico es la firma inequívoca de cruzar una lámina bidimensional de carga ($\sigma$).</p>
+                </div>
+
+                <div class="example-card">
+                    <h4><i data-lucide="battery"></i> 5. Capacitor Esférico: Trampa de Energía</h4>
+                    <p><strong>Almacenamiento Confinado:</strong> Al colocar un cascarón exterior con carga exactamente opuesta ($-Q$) a la esfera interior ($+Q$), ocurre algo mágico: al aplicar Gauss en el exterior ($r>c$), la carga neta encerrada es cero ($+Q - Q = 0$). Todo el campo eléctrico exterior desaparece. Toda la energía del sistema queda "atrapada" en el vacío entre los dos radios.</p>
+                </div>
+
+                <div class="example-card">
+                    <h4><i data-lucide="target"></i> 6. Carga Puntual en Cascarón Neutro</h4>
+                    <p class="only-conductor"><strong>Inducción Perfecta (Conductor):</strong> Si colocas una carga $+q$ en el centro, ésta "arrancará" electrones de la estructura atómica del conductor, atrayendo una carga $-q$ a la pared interior. Como el cascarón es neutro, ese déficit de electrones deja a la pared exterior con una carga neta inducida de $+q$.</p>
+                    <p class="only-aislante"><strong>Superposición Rígida (Aislante):</strong> Si el cascarón es aislante, las cargas no pueden migrar para proteger nada. El campo eléctrico resultante en cualquier punto del espacio será simplemente la suma vectorial directa del campo de la carga puntual central y del volumen del cascarón.</p>
+                </div>
+
+            </div>
+        </div>
+        
+        <!-- NUEVO: Pie de página Profesional -->
+        <footer>
+            <i data-lucide="code-2" style="width: 16px; height: 16px;"></i>
+            <span>&copy; 2026 Todos los derechos reservados. | Desarrollo de Software Educativo y Simulación Física Interactiva</span>
+        </footer>
+
+    </div> <!-- Fin Main Container -->
+
+    <script>
+        // Inicializar los iconos de Lucide
+        lucide.createIcons();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const body = document.body;
+            const matToggle = document.getElementById('mat-toggle');
+            const cutToggle = document.getElementById('cut-toggle');
+            const fieldToggle = document.getElementById('field-toggle');
+            const animToggle = document.getElementById('anim-toggle'); // NUEVO TOGGLE
+            
+            let isConductor = false;
+            let isAnimatingSpin = true; // Control de giro
+
+            // Almacenaje Global para acceso cruzado de funciones
+            const globalMaterials = [];
+            const electricFieldGroups = [];
+            window.threeScenes = {}; 
+            window.chargeGroups = {}; 
+            
+            const globalClipPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+
+            // Objeto 3D global: Superficie Gaussiana a inyectar en hover
+            const gaussMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, wireframe: true, transparent: true, opacity: 0.9 });
+            const gaussianSphere = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), gaussMat);
+
+            // Materiales Globales para las esferitas de carga (con soporte a corte 3D)
+            const globalChargeMatPos = new THREE.MeshBasicMaterial({ color: 0xff4444, side: THREE.DoubleSide });
+            const globalChargeMatNeg = new THREE.MeshBasicMaterial({ color: 0x3b82f6, side: THREE.DoubleSide });
+            globalMaterials.push(globalChargeMatPos, globalChargeMatNeg);
+
+            // --- LÓGICA DE LOS FILTROS DINÁMICOS ---
+            const colFilters = document.querySelectorAll('.col-filter');
+            const rowFilters = document.querySelectorAll('.row-filter');
+            const mainMatrix = document.getElementById('main-matrix');
+
+            function applyFilters() {
+                let visibleCols = 0;
+                colFilters.forEach(cb => {
+                    if (cb.checked) {
+                        body.classList.remove('hide-col-' + cb.value);
+                        visibleCols++;
+                    } else {
+                        body.classList.add('hide-col-' + cb.value);
+                    }
+                });
+                rowFilters.forEach(cb => {
+                    if (cb.checked) body.classList.remove('hide-row-' + cb.value);
+                    else body.classList.add('hide-row-' + cb.value);
+                });
+                mainMatrix.style.gridTemplateColumns = `240px repeat(${visibleCols > 0 ? visibleCols : 1}, minmax(360px, 1fr))`;
+            }
+
+            colFilters.forEach(cb => cb.addEventListener('change', applyFilters));
+            rowFilters.forEach(cb => cb.addEventListener('change', applyFilters));
+            // ----------------------------------------
+
+            // --- FUNCIONES DE GRÁFICAS 2D ---
+            function drawAllGraphs() {
+                drawGraph('graph-solida', 'solida');
+                drawGraph('graph-hueca', 'hueca');
+                drawGraph('graph-cascaron', 'cascaron');
+                drawGraph('graph-cap-esfera', 'cap-esfera');
+                drawGraph('graph-cap-puntual', 'cap-puntual');
+            }
+
+            function drawGraph(canvasId, type) {
+                const canvas = document.getElementById(canvasId);
+                const ctx = canvas.getContext('2d');
+                const w = canvas.width; const h = canvas.height;
+                
+                ctx.clearRect(0, 0, w, h);
+                
+                // Dibujar Ejes
+                ctx.beginPath();
+                ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5;
+                ctx.moveTo(30, 10); ctx.lineTo(30, h - 30);
+                ctx.lineTo(w - 10, h - 30);
+                ctx.stroke();
+                ctx.fillStyle = '#475569'; ctx.font = 'bold 12px Inter, sans-serif';
+                ctx.fillText('E', 15, 20); ctx.fillText('r', w - 20, h - 15);
+
+                const drawCurve = (startX, endX, func, color, isDashed=false) => {
+                    ctx.beginPath();
+                    ctx.strokeStyle = color; ctx.lineWidth = 3;
+                    if(isDashed) ctx.setLineDash([5, 5]); else ctx.setLineDash([]);
+                    for(let x = startX; x <= endX; x++) {
+                        let y = func(x);
+                        if(y > h - 40) y = h - 40; 
+                        
+                        if(x === startX) ctx.moveTo(30 + x, h - 30 - y);
+                        else ctx.lineTo(30 + x, h - 30 - y);
+                    }
+                    ctx.stroke(); ctx.setLineDash([]);
+                };
+
+                const curveColor = isConductor ? '#10b981' : '#ef4444'; 
+                const r1 = 60, r2 = 120, r3 = 200;
+                
+                if (type === 'solida') {
+                    if (isConductor) {
+                        drawCurve(0, r1, (x) => 0, curveColor); 
+                        drawCurve(r1, r3, (x) => 800000 / (x*x), curveColor);
+                        drawCurve(r1, r1, (x) => { ctx.moveTo(30+r1, h-30); ctx.lineTo(30+r1, h-30-800000/(r1*r1)); }, curveColor, true);
+                    } else {
+                        drawCurve(0, r1, (x) => (x/r1)*100, curveColor); 
+                        drawCurve(r1, r3, (x) => 100 * (r1*r1)/(x*x), curveColor); 
+                    }
+                    ctx.fillText('R', 30+r1-5, h-15);
+                } 
+                else if (type === 'hueca') {
+                    drawCurve(0, r1, (x) => 0, curveColor); 
+                    if (isConductor) {
+                        drawCurve(r1, r2, (x) => 0, curveColor); 
+                        drawCurve(r2, r3, (x) => 1500000 / (x*x), curveColor); 
+                        drawCurve(r2, r2, (x) => { ctx.moveTo(30+r2, h-30); ctx.lineTo(30+r2, h-30-1500000/(r2*r2)); }, curveColor, true);
+                    } else {
+                        drawCurve(r1, r2, (x) => 100 * (Math.pow(x,3) - Math.pow(r1,3))/(Math.pow(r2,3) - Math.pow(r1,3)) * (r2*r2)/(x*x), curveColor); 
+                        drawCurve(r2, r3, (x) => 100 * (r2*r2)/(x*x), curveColor);
+                    }
+                    ctx.fillText('R₁', 30+r1-5, h-15); ctx.fillText('R₂', 30+r2-5, h-15);
+                }
+                else if (type === 'cascaron') {
+                    drawCurve(0, r1, (x) => 0, curveColor); 
+                    drawCurve(r1, r3, (x) => 1000000 / (x*x), curveColor); 
+                    drawCurve(r1, r1, (x) => { ctx.moveTo(30+r1, h-30); ctx.lineTo(30+r1, h-30-1000000/(r1*r1)); }, curveColor, true);
+                    ctx.fillText('R', 30+r1-5, h-15);
+                }
+                else if (type === 'cap-esfera') {
+                    if (isConductor) drawCurve(0, r1, (x)=>0, '#3b82f6');
+                    else drawCurve(0, r1, (x) => (x/r1)*100, '#3b82f6');
+                    
+                    let maxE = isConductor ? 800000/(r1*r1) : 100;
+                    if(isConductor) drawCurve(r1, r1, (x)=>{ctx.moveTo(30+r1, h-30); ctx.lineTo(30+r1, h-30-maxE);}, '#3b82f6', true);
+                    drawCurve(r1, r2, (x) => maxE * (r1*r1)/(x*x), '#3b82f6');
+                    
+                    let eAtR2 = maxE * (r1*r1)/(r2*r2);
+                    if(isConductor) {
+                        drawCurve(r2, r2, (x)=>{ctx.moveTo(30+r2, h-30); ctx.lineTo(30+r2, h-30-eAtR2);}, curveColor, true);
+                        drawCurve(r2, r3, (x)=>0, curveColor); 
+                    } else {
+                        drawCurve(r2, r3, (x) => eAtR2 * (r2*r2)/(x*x), curveColor);
+                    }
+                }
+                else if (type === 'cap-puntual') {
+                    drawCurve(15, r1, (x) => 150000 / (x*x), '#ef4444');
+                    if(isConductor) {
+                        drawCurve(r1, r2, (x) => 0, '#10b981');
+                        drawCurve(r2, r3, (x) => 150000 / (x*x), '#10b981');
+                    } else {
+                        drawCurve(r1, r2, (x) => 50000 / (x*x) + (x)*0.2, '#ef4444');
+                        drawCurve(r2, r3, (x) => 150000 / (x*x), '#ef4444');
+                    }
+                }
+            }
+            
+            // --- FUNCIONES 3D: Vectores, Textos y Cargas ---
+            function createElectricFieldVectors(radius) {
+                const vectorGroup = new THREE.Group();
+                const color = 0xf59e0b; 
+                const arrowLength = 0.5;
+                const headLength = 0.15;
+                const headWidth = 0.1;
+
+                for (let i = 1; i <= 4; i++) {
+                    const phi = (i / 5) * Math.PI; 
+                    for (let j = 0; j < 8; j++) {
+                        const theta = (j / 8) * Math.PI * 2; 
+
+                        const x = radius * Math.sin(phi) * Math.cos(theta);
+                        const y = radius * Math.cos(phi);
+                        const z = radius * Math.sin(phi) * Math.sin(theta);
+
+                        const origin = new THREE.Vector3(x, y, z);
+                        const dir = origin.clone().normalize();
+
+                        const arrow = new THREE.ArrowHelper(dir, origin, arrowLength, color, headLength, headWidth);
+                        vectorGroup.add(arrow);
+                    }
+                }
+                vectorGroup.add(new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,radius,0), arrowLength, color, headLength, headWidth));
+                vectorGroup.add(new THREE.ArrowHelper(new THREE.Vector3(0,-1,0), new THREE.Vector3(0,-radius,0), arrowLength, color, headLength, headWidth));
+
+                vectorGroup.visible = false;
+                return vectorGroup;
+            }
+
+            function makeTextSprite(message, fontColor) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 256; canvas.height = 128;
+                
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+                ctx.roundRect(64, 24, 128, 80, 20);
+                ctx.fill();
+
+                ctx.font = 'bold 50px Arial';
+                ctx.fillStyle = fontColor || '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(message, 128, 64);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false }); 
+                const sprite = new THREE.Sprite(spriteMat);
+                sprite.scale.set(0.6, 0.3, 1);
+                return sprite;
+            }
+
+            function createCharges(count, radiusMin, radiusMax, materialObj, isSurfaceOnly) {
+                const group = new THREE.Group();
+                const geo = new THREE.SphereGeometry(0.05, 8, 8);
+                
+                for(let i=0; i<count; i++) {
+                    const mesh = new THREE.Mesh(geo, materialObj);
+                    
+                    const u = Math.random();
+                    const v = Math.random();
+                    const theta = u * 2.0 * Math.PI;
+                    const phi = Math.acos(2.0 * v - 1.0);
+                    
+                    let r = radiusMax;
+                    if(!isSurfaceOnly) {
+                        const r3Min = Math.pow(radiusMin, 3);
+                        const r3Max = Math.pow(radiusMax, 3);
+                        r = Math.pow(r3Min + Math.random() * (r3Max - r3Min), 1/3);
+                    }
+                    
+                    mesh.position.set(
+                        r * Math.sin(phi) * Math.cos(theta),
+                        r * Math.cos(phi),
+                        r * Math.sin(phi) * Math.sin(theta)
+                    );
+                    group.add(mesh);
+                }
+                return group;
+            }
+
+            function init3D(containerId, geoType) {
+                const container = document.getElementById(containerId);
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+                camera.position.z = 4.5; 
+                
+                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.localClippingEnabled = true; 
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                container.appendChild(renderer.domElement);
+                
+                const controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableZoom = true;
+                
+                const light = new THREE.DirectionalLight(0xffffff, 1);
+                light.position.set(5, 5, 5);
+                scene.add(light);
+                scene.add(new THREE.AmbientLight(0x888888));
+                
+                let mesh, mesh2;
+                
+                const matAislante = new THREE.MeshPhongMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.6, side: THREE.DoubleSide, clipIntersection: false });
+                const matHueco = new THREE.MeshPhongMaterial({ color: 0x14b8a6, transparent: true, opacity: 0.5, side: THREE.DoubleSide, clipIntersection: false });
+                const matCarga = new THREE.MeshPhongMaterial({ color: 0xfacc15, side: THREE.DoubleSide, clipIntersection: false });
+                const matWire = new THREE.MeshPhongMaterial({ color: 0xf97316, wireframe: true, side: THREE.DoubleSide, clipIntersection: false });
+                const matCapInt = new THREE.MeshBasicMaterial({color: 0x334155, wireframe: true, side: THREE.DoubleSide, clipIntersection: false});
+                const matCapExt1 = new THREE.MeshPhongMaterial({ color: 0xef4444, transparent: true, opacity: 0.3, side: THREE.DoubleSide, clipIntersection: false });
+                const matCapExt2 = new THREE.MeshPhongMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.4, side: THREE.DoubleSide, clipIntersection: false });
+
+                globalMaterials.push(matAislante, matHueco, matCarga, matWire, matCapInt, matCapExt1, matCapExt2);
+
+                let fieldRadius = 1.6;
+
+                const groupAislante = new THREE.Group();
+                const groupConductor = new THREE.Group();
+                const staticGroup = new THREE.Group(); 
+
+                if (geoType === 'solida') {
+                    mesh = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), matAislante);
+                    fieldRadius = 1.3;
+                    scene.add(mesh);
+                    
+                    const labelR = makeTextSprite("R", "#fff"); labelR.position.set(1.4, 0, 0); staticGroup.add(labelR);
+                    groupAislante.add(createCharges(200, 0, 1.2, globalChargeMatPos, false)); 
+                    groupConductor.add(createCharges(200, 1.2, 1.2, globalChargeMatPos, true)); 
+                } 
+                else if (geoType === 'hueca') {
+                    mesh = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), matHueco);
+                    mesh2 = new THREE.Mesh(new THREE.SphereGeometry(0.8, 32, 32), matCapInt);
+                    fieldRadius = 1.6;
+                    scene.add(mesh); scene.add(mesh2);
+                    
+                    const labelR1 = makeTextSprite("R\u2081", "#fff"); labelR1.position.set(0.8, 0.4, 0); staticGroup.add(labelR1);
+                    const labelR2 = makeTextSprite("R\u2082", "#fff"); labelR2.position.set(1.7, 0, 0); staticGroup.add(labelR2);
+                    
+                    groupAislante.add(createCharges(250, 0.8, 1.5, globalChargeMatPos, false)); 
+                    groupConductor.add(createCharges(200, 1.5, 1.5, globalChargeMatPos, true)); 
+                } 
+                else if (geoType === 'cascaron') {
+                    mesh = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), matWire);
+                    fieldRadius = 1.6;
+                    scene.add(mesh);
+                    
+                    const labelR = makeTextSprite("R", "#fff"); labelR.position.set(1.7, 0, 0); staticGroup.add(labelR);
+                    groupAislante.add(createCharges(200, 1.5, 1.5, globalChargeMatPos, true));
+                    groupConductor.add(createCharges(200, 1.5, 1.5, globalChargeMatPos, true));
+                } 
+                else if (geoType === 'cap-esfera') {
+                    mesh = new THREE.Mesh(new THREE.SphereGeometry(0.7, 32, 32), matAislante);
+                    mesh2 = new THREE.Mesh(new THREE.SphereGeometry(1.6, 32, 32), matCapExt1);
+                    fieldRadius = 1.7;
+                    scene.add(mesh); scene.add(mesh2);
+                    
+                    const labelA = makeTextSprite("a", "#fff"); labelA.position.set(0.9, 0, 0); staticGroup.add(labelA);
+                    const labelB = makeTextSprite("b", "#fff"); labelB.position.set(1.8, 0, 0); staticGroup.add(labelB);
+
+                    staticGroup.add(createCharges(200, 1.6, 1.6, globalChargeMatNeg, true));
+
+                    groupAislante.add(createCharges(80, 0, 0.7, globalChargeMatPos, false));
+                    groupConductor.add(createCharges(80, 0.7, 0.7, globalChargeMatPos, true));
+                } 
+                else if (geoType === 'cap-puntual') {
+                    mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), matCarga);
+                    mesh2 = new THREE.Mesh(new THREE.SphereGeometry(1.6, 32, 32), matCapExt2);
+                    fieldRadius = 1.7;
+                    scene.add(mesh); scene.add(mesh2);
+
+                    const labelQ = makeTextSprite("q", "#fff"); labelQ.position.set(0.4, 0.3, 0); staticGroup.add(labelQ);
+                    const labelA = makeTextSprite("a", "#fff"); labelA.position.set(1.8, 0, 0); staticGroup.add(labelA);
+
+                    groupConductor.add(createCharges(100, 1.6, 1.6, globalChargeMatNeg, true)); 
+                    groupConductor.add(createCharges(100, 1.75, 1.75, globalChargeMatPos, true)); 
+                }
+                
+                groupConductor.visible = isConductor;
+                groupAislante.visible = !isConductor;
+
+                scene.add(staticGroup);
+                scene.add(groupAislante);
+                scene.add(groupConductor);
+                
+                window.chargeGroups[geoType] = { ais: groupAislante, con: groupConductor };
+
+                const eFieldGroup = createElectricFieldVectors(fieldRadius);
+                scene.add(eFieldGroup);
+                electricFieldGroups.push(eFieldGroup);
+
+                window.threeScenes[geoType] = scene;
+
+                function animate() {
+                    requestAnimationFrame(animate);
+                    
+                    // Lógica de Giro Controlado por el Toggle
+                    if (isAnimatingSpin && !cutToggle.checked) {
+                        if(mesh) { mesh.rotation.y += 0.005; mesh.rotation.x += 0.002; }
+                        if(mesh2) { mesh2.rotation.y += 0.005; mesh2.rotation.x += 0.002; }
+                        eFieldGroup.rotation.y += 0.005; eFieldGroup.rotation.x += 0.002;
+                        staticGroup.rotation.y += 0.005; staticGroup.rotation.x += 0.002;
+                        groupAislante.rotation.y += 0.005; groupAislante.rotation.x += 0.002;
+                        groupConductor.rotation.y += 0.005; groupConductor.rotation.x += 0.002;
+                    } else if (cutToggle.checked) {
+                        if(mesh) { mesh.rotation.set(0,0,0); }
+                        if(mesh2) { mesh2.rotation.set(0,0,0); }
+                        eFieldGroup.rotation.set(0,0,0);
+                        staticGroup.rotation.set(0,0,0);
+                        groupAislante.rotation.set(0,0,0);
+                        groupConductor.rotation.set(0,0,0);
+                    }
+                    // Si isAnimatingSpin es falso pero cutToggle no está activo, se quedan en su ángulo actual.
+
+                    controls.update();
+                    renderer.render(scene, camera);
+                }
+                animate();
+
+                window.addEventListener('resize', () => {
+                    if(!container) return;
+                    camera.aspect = container.clientWidth / container.clientHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(container.clientWidth, container.clientHeight);
+                });
+            }
+
+            // --- Toggles Event Listeners ---
+
+            animToggle.addEventListener('change', (e) => {
+                isAnimatingSpin = e.target.checked;
+            });
+
+            matToggle.addEventListener('change', (e) => {
+                isConductor = e.target.checked;
+                
+                if(isConductor) {
+                    body.classList.remove('mat-aislante');
+                    body.classList.add('mat-conductor');
+                } else {
+                    body.classList.remove('mat-conductor');
+                    body.classList.add('mat-aislante');
+                }
+
+                for (const geo in window.chargeGroups) {
+                    window.chargeGroups[geo].con.visible = isConductor;
+                    window.chargeGroups[geo].ais.visible = !isConductor;
+                }
+
+                drawAllGraphs();
+            });
+
+            cutToggle.addEventListener('change', (e) => {
+                const isCut = e.target.checked;
+                globalMaterials.forEach(mat => {
+                    mat.clippingPlanes = isCut ? [globalClipPlane] : [];
+                });
+            });
+
+            fieldToggle.addEventListener('change', (e) => {
+                const isVisible = e.target.checked;
+                electricFieldGroups.forEach(group => { group.visible = isVisible; });
+            });
+            
+            drawAllGraphs();
+
+            setTimeout(() => {
+                init3D('3d-solida', 'solida');
+                init3D('3d-hueca', 'hueca');
+                init3D('3d-cascaron', 'cascaron');
+                init3D('3d-cap-esfera', 'cap-esfera');
+                init3D('3d-cap-puntual', 'cap-puntual');
+
+                const rSprite = makeTextSprite("r", "#22c55e");
+                
+                const cellsInteract = document.querySelectorAll('.interactive-cell');
+                cellsInteract.forEach(cell => {
+                    cell.addEventListener('mouseenter', () => {
+                        const geo = cell.dataset.geo;
+                        const zone = cell.dataset.zone;
+                        const sceneToEdit = window.threeScenes[geo];
+                        if(!sceneToEdit) return;
+
+                        const radiiMap = {
+                            'solida': { 'interior': 0.8, 'exterior': 1.8 },
+                            'hueca': { 'interior': 0.5, 'material': 1.15, 'exterior': 1.9 },
+                            'cascaron': { 'interior': 1.0, 'exterior': 1.9 },
+                            'cap-esfera': { 'interior': 0.5, 'vacio': 1.15, 'exterior': 2.0 },
+                            'cap-puntual': { 'interior': 0.8, 'material': 1.6, 'exterior': 2.0 }
+                        };
+
+                        const selectedRadius = (radiiMap[geo] && radiiMap[geo][zone]) ? radiiMap[geo][zone] : 1;
+                        
+                        gaussianSphere.geometry.dispose();
+                        gaussianSphere.geometry = new THREE.SphereGeometry(selectedRadius, 32, 16);
+                        
+                        rSprite.position.set(selectedRadius * 1.1, 0, selectedRadius * 0.5);
+                        gaussianSphere.add(rSprite);
+
+                        sceneToEdit.add(gaussianSphere);
+                    });
+
+                    cell.addEventListener('mouseleave', () => {
+                        const geo = cell.dataset.geo;
+                        const sceneToEdit = window.threeScenes[geo];
+                        if(sceneToEdit) {
+                            gaussianSphere.remove(rSprite);
+                            sceneToEdit.remove(gaussianSphere);
+                        }
+                    });
+                });
+                
+            }, 300);
+        });
+    </script>
+</body>
+</html>
