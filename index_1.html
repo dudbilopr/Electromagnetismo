@@ -62,7 +62,7 @@
             MessageCircle, BarChart3, ChevronRight, Video, FileText, Activity, 
             Podcast, Newspaper, GraduationCap, ChevronLeft, CreditCard, Clock, 
             Check, HelpCircle, Link as LinkIcon, Folder, AlertCircle, LogOut, Github,
-            Instagram, Facebook, Youtube, Send, Ticket, Users, Award, Briefcase, Network
+            Instagram, Facebook, Youtube, Send, Ticket, Users, Award, Briefcase, Network, Image as ImageIcon
         } from 'lucide-react';
         
         // Importaciones de Firebase
@@ -264,9 +264,9 @@
         };
 
         const INITIAL_COURSES = [
-            { id: 'c1', title: 'Física Electromagnética: Nivel Avanzado', type: 'Premium', price: 0, image: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&q=80&w=800', description: 'Domina los conceptos de cargas, campos, potencial y la Ley de Gauss a través de simuladores reales y teoría profunda.', data: curriculoCompletoData },
-            { id: 'c2', title: 'Plantillas de Laboratorio Pro', type: 'Plantillas', price: 29.99, image: 'https://images.unsplash.com/photo-1580982327559-c1202864be05?auto=format&fit=crop&q=80&w=800', description: 'Documentos legales y plantillas de reportes listas para descargar y adaptar a tu entorno profesional.', data: { modulos: [] } },
-            { id: 'c3', title: 'Ciencia de Datos Aplicada a la Física', type: 'Pago', price: 149.99, image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=800', description: 'Curso premium. Análisis de grandes volúmenes de datos experimentales usando Python.', data: { modulos: [] } }
+            { id: 'c1', title: 'Física Electromagnética: Nivel Avanzado', type: 'Premium', price: 0, image: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&q=80&w=800', description: 'Domina los conceptos de cargas, campos, potencial y la Ley de Gauss a través de simuladores reales y teoría profunda.', authorId: 'admin', data: curriculoCompletoData },
+            { id: 'c2', title: 'Plantillas de Laboratorio Pro', type: 'Plantillas', price: 29.99, image: 'https://images.unsplash.com/photo-1580982327559-c1202864be05?auto=format&fit=crop&q=80&w=800', description: 'Documentos legales y plantillas de reportes listas para descargar y adaptar a tu entorno profesional.', authorId: 'admin', data: { modulos: [] } },
+            { id: 'c3', title: 'Ciencia de Datos Aplicada a la Física', type: 'Pago', price: 149.99, image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=800', description: 'Curso premium. Análisis de grandes volúmenes de datos experimentales usando Python.', authorId: 'admin', data: { modulos: [] } }
         ];
 
         // ==========================================
@@ -305,6 +305,20 @@
             const match = cleanUrl.match(regExp);
             if (match && match[2].length === 11) return match[2];
             return cleanUrl.split('&')[0].split('?')[0]; 
+        };
+
+        // Función Auxiliar para Calcular Progreso General de un Curso
+        const getCourseProgressPct = (courseData, progressData) => {
+            if (!courseData || !progressData) return 0;
+            let tot = 0, done = 0;
+            courseData.modulos?.forEach(m => m.lecciones?.forEach(l => {
+                if (l.tipo === 'grupo') {
+                    l.sublecciones?.forEach(s => { tot++; if(progressData[s.id]) done++; });
+                } else {
+                    tot++; if(progressData[l.id]) done++;
+                }
+            }));
+            return tot === 0 ? 0 : Math.round((done/tot)*100);
         };
 
         // ==========================================
@@ -566,7 +580,9 @@
                                         </div>
                                         <p className="text-slate-700 leading-relaxed mb-8 font-medium italic">"{rev.text}"</p>
                                         <div className="flex items-center gap-4 mt-auto border-t border-slate-100 pt-4">
-                                            <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center text-white font-bold">{rev.user?.charAt(0) || 'U'}</div>
+                                            <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
+                                                {rev.photoURL ? <img src={rev.photoURL} className="w-full h-full object-cover" /> : (rev.user?.charAt(0) || 'U')}
+                                            </div>
                                             <div><p className="font-bold text-slate-900">{rev.user}</p></div>
                                         </div>
                                     </Card>
@@ -744,6 +760,97 @@
             );
         };
 
+        // --- CHAT ESPECÍFICO POR CURSO ---
+        const CourseChatWidget = ({ currentUser, courseId, courseTitle }) => {
+            const [open, setOpen] = useState(false);
+            const [msg, setMsg] = useState('');
+            const [messages, setMessages] = useState([]);
+            const scrollRef = useRef(null);
+
+            useEffect(() => {
+                if(!courseId) return;
+                const unsub = onSnapshot(collection(db, 'artifacts', APP_ID, 'public', 'data', `chat_${courseId}`), snap => {
+                    const msgs = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.timestamp - b.timestamp);
+                    setMessages(msgs);
+                });
+                return () => unsub();
+            }, [courseId]);
+
+            useEffect(() => {
+                if(open && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }, [messages, open]);
+
+            const sendMsg = async (e) => {
+                e.preventDefault();
+                if(!msg.trim() || !currentUser) return;
+                try {
+                    await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', `chat_${courseId}`), {
+                        text: msg,
+                        uid: currentUser.uid,
+                        userName: currentUser.name || currentUser.email.split('@')[0],
+                        photoURL: currentUser.photoURL || null,
+                        timestamp: Date.now()
+                    });
+                    setMsg('');
+                } catch(err) { console.error("Error enviando mensaje: ", err); }
+            };
+
+            return (
+                <div className="fixed bottom-6 right-6 z-50">
+                    {open && (
+                        <div className="bg-white w-80 sm:w-96 h-[500px] rounded-3xl shadow-2xl border border-slate-200 flex flex-col mb-4 overflow-hidden animate-in slide-in-from-bottom-5">
+                            <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-brand-500 rounded-full flex items-center justify-center">
+                                        <Users className="w-5 h-5"/>
+                                    </div>
+                                    <div className="max-w-[180px] sm:max-w-[220px]">
+                                        <span className="font-bold block truncate">Foro del Curso</span>
+                                        <span className="text-[10px] text-brand-300 uppercase truncate block" title={courseTitle}>{courseTitle}</span>
+                                    </div>
+                                </div>
+                                <button onClick={() => setOpen(false)}><X className="w-5 h-5"/></button>
+                            </div>
+                            <div className="flex-1 p-4 bg-slate-50 overflow-y-auto space-y-4" ref={scrollRef}>
+                                {messages.length === 0 ? (
+                                    <p className="text-center text-slate-400 text-sm mt-4">Foro vacío. ¡Escribe el primer mensaje a tus compañeros!</p>
+                                ) : (
+                                    messages.map(m => {
+                                        const isMe = m.uid === currentUser?.uid;
+                                        return (
+                                            <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                                <div className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                        {m.photoURL ? <img src={m.photoURL} className="w-full h-full object-cover" /> : <User className="w-3 h-3 text-slate-500" />}
+                                                    </div>
+                                                    <div>
+                                                        <span className={`text-[10px] font-bold text-slate-400 mb-1 px-1 block ${isMe ? 'text-right' : 'text-left'}`}>{m.userName}</span>
+                                                        <div className={`px-4 py-2 rounded-2xl max-w-[200px] sm:max-w-[250px] text-sm font-medium shadow-sm ${isMe ? 'bg-brand-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'}`}>
+                                                            {m.text}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    })
+                                )}
+                            </div>
+                            <div className="p-4 bg-white border-t border-slate-100">
+                                <form className="flex gap-2" onSubmit={sendMsg}>
+                                    <input type="text" value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Discute con tu clase..." className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm" />
+                                    <button type="submit" className="bg-slate-900 text-white p-3 rounded-xl hover:bg-brand-600 transition-colors"><Send className="w-4 h-4"/></button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                    <button onClick={() => setOpen(!open)} className="w-auto h-14 px-5 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-premium hover:scale-105 transition-all ml-auto gap-3">
+                        {open ? <X className="w-5 h-5"/> : <Users className="w-5 h-5" />}
+                        <span className="font-bold hidden sm:inline">{open ? 'Cerrar Foro' : 'Foro del Curso'}</span>
+                    </button>
+                </div>
+            );
+        };
+
         const CoursePlayer = ({ course, setView, currentUser }) => {
             const [sidebarOpen, setSidebarOpen] = useState(true);
             const [activeLesson, setActiveLesson] = useState(null);
@@ -881,14 +988,7 @@
                 }
             };
 
-            let totalLessons = 0; let completedCount = 0;
-            if (course?.data) {
-                course.data.modulos.forEach(mod => mod.lecciones.forEach(l => {
-                    if (l.tipo === 'grupo') { l.sublecciones.forEach(sub => { totalLessons++; if(progress[sub.id]) completedCount++; }); }
-                    else { totalLessons++; if(progress[l.id]) completedCount++; }
-                }));
-            }
-            const pct = totalLessons === 0 ? 0 : Math.round((completedCount / totalLessons) * 100);
+            const pct = getCourseProgressPct(course?.data, progress);
 
             return (
                 <div className="flex h-screen bg-slate-100 pt-[72px]">
@@ -906,7 +1006,7 @@
                             </Button>
                         </header>
                         <div className="flex-1 overflow-auto p-4 sm:p-8 bg-slate-50">
-                            <div className="max-w-[1400px] mx-auto">
+                            <div className="max-w-[1400px] mx-auto pb-24">
                                 <h2 className="text-3xl font-extrabold mb-6 text-slate-900">{activeLesson?.titulo}</h2>
                                 {renderResource()}
                                 {activeLesson?.tipo !== 'quiz_nativo' && activeLesson?.tipo !== 'quiz' && (
@@ -966,6 +1066,8 @@
                             </div>
                         </div>
                     </div>
+                    {/* Instanciación del Chat por Curso (Dentro de CoursePlayer para asegurar su scope) */}
+                    <CourseChatWidget currentUser={currentUser} courseId={course.id} courseTitle={course.title} />
                 </div>
             );
         };
@@ -976,17 +1078,18 @@
 
             const handleReviewSubmit = async (e) => {
                 e.preventDefault();
-                if (ratings.q1 === 0) return alert("Califica antes de enviar.");
+                if (ratings.q1 === 0 || ratings.q2 === 0 || ratings.q3 === 0) return alert("Por favor, califica los 3 criterios antes de enviar.");
                 const avgRating = (ratings.q1 + ratings.q2 + ratings.q3) / 3;
                 
                 try {
                     await addDoc(getPublicRef('reviews'), {
                         user: currentUser.name || currentUser.email.split('@')[0],
+                        photoURL: currentUser.photoURL || null,
                         rating: avgRating,
                         text: comment,
                         date: new Date().toISOString()
                     });
-                    alert("Reseña publicada.");
+                    alert("Reseña publicada con éxito.");
                     setRatings({q1:0,q2:0,q3:0}); setComment('');
                 } catch(err) { alert("Error: "+err.message); }
             };
@@ -998,16 +1101,23 @@
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="bg-slate-900 rounded-3xl p-8 mb-12 flex flex-col sm:flex-row justify-between items-start sm:items-center text-white shadow-xl relative overflow-hidden">
                             <div className="absolute right-0 top-0 w-64 h-64 bg-brand-500/20 rounded-full mix-blend-screen filter blur-3xl"></div>
-                            <div className="relative z-10 mb-6 sm:mb-0">
-                                <h1 className="text-3xl font-extrabold mb-2">Bienvenido, {currentUser.name || currentUser.email}</h1>
-                                <p className="text-slate-400">Área de trabajo personal.</p>
+                            
+                            <div className="relative z-10 flex items-center gap-6 mb-6 sm:mb-0">
+                                <div className="w-20 h-20 bg-brand-600 rounded-full flex items-center justify-center text-2xl font-bold shadow-lg border-2 border-slate-700 overflow-hidden shrink-0">
+                                    {currentUser.photoURL ? <img src={currentUser.photoURL} className="w-full h-full object-cover" /> : (currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <User className="w-8 h-8"/>)}
+                                </div>
+                                <div>
+                                    <h1 className="text-3xl font-extrabold mb-1">Bienvenido, {currentUser.name || currentUser.email}</h1>
+                                    <p className="text-slate-400">Área de trabajo personal.</p>
+                                </div>
                             </div>
+
                             <div className="relative z-10 flex gap-3">
-                                {currentUser.role === 'admin' && (
-                                    <Button variant="danger" onClick={() => setView('admin')} className="shadow-none border border-red-500 hover:bg-red-700 bg-red-600">Admin Panel</Button>
+                                {(currentUser.role === 'admin' || currentUser.role === 'teacher') && (
+                                    <Button variant="primary" onClick={() => setView('admin')} className="shadow-none bg-brand-600 hover:bg-brand-500"><Shield className="w-4 h-4 mr-2"/> Gestión {currentUser.role === 'teacher' ? 'Docente' : 'Admin'}</Button>
                                 )}
                                 <Button variant="outline" onClick={() => setView('profile')} className="border-white/20 text-white hover:bg-white hover:text-slate-900 shadow-none">
-                                    <User className="w-4 h-4 mr-2" /> Mi Perfil
+                                    <User className="w-4 h-4 mr-2" /> Editar Perfil
                                 </Button>
                             </div>
                         </div>
@@ -1024,7 +1134,7 @@
                             </div>
                         )}
 
-                        <h2 className="text-2xl font-extrabold text-slate-900 mb-8"><BookOpen className="inline w-6 h-6 text-brand-500"/> Mis Rutas</h2>
+                        <h2 className="text-2xl font-extrabold text-slate-900 mb-8"><BookOpen className="inline w-6 h-6 text-brand-500"/> Mis Rutas Matriculadas</h2>
                         {myEnrollments.length === 0 ? (
                             <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 shadow-sm">
                                 <BookOpen className="w-16 h-16 text-slate-200 mx-auto mb-4" />
@@ -1058,16 +1168,24 @@
 
                         {approvedCount > 0 && (
                             <div className="mt-16 bg-white p-8 rounded-3xl shadow-xl border border-slate-200">
-                                <h2 className="text-2xl font-extrabold text-slate-900 mb-6"><Star className="inline w-6 h-6 text-yellow-400 fill-current" /> Publicar Reseña</h2>
+                                <h2 className="text-2xl font-extrabold text-slate-900 mb-6"><Star className="inline w-6 h-6 text-yellow-400 fill-current" /> Publicar Reseña Profesional</h2>
                                 <form onSubmit={handleReviewSubmit} className="space-y-6 max-w-2xl">
-                                    <div className="bg-slate-50 p-4 rounded-xl flex items-center justify-between">
-                                        <span className="font-bold text-slate-700">Calificación General</span>
-                                        <div className="flex">
-                                            {[1,2,3,4,5].map(s => <Star key={s} onClick={() => setRatings({...ratings, q1: s, q2: s, q3: s})} className={`w-8 h-8 cursor-pointer ${ratings.q1 >= s ? 'text-yellow-400 fill-current' : 'text-slate-300'}`} />)}
-                                        </div>
+                                    <div className="space-y-3 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                        {[
+                                            { id: 'q1', label: '1. Claridad del contenido y teoría' },
+                                            { id: 'q2', label: '2. Utilidad práctica de simuladores' },
+                                            { id: 'q3', label: '3. Calidad del soporte en plataforma' }
+                                        ].map(q => (
+                                            <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                                                <span className="font-bold text-slate-700 text-sm mb-2 sm:mb-0">{q.label}</span>
+                                                <div className="flex">
+                                                    {[1,2,3,4,5].map(s => <Star key={s} onClick={() => setRatings({...ratings, [q.id]: s})} className={`w-7 h-7 cursor-pointer ${ratings[q.id] >= s ? 'text-yellow-400 fill-current' : 'text-slate-300 hover:text-yellow-200'}`} />)}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <textarea value={comment} onChange={e => setComment(e.target.value)} required rows="4" className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-medium" placeholder="Escribe tu opinión aquí..."></textarea>
-                                    <Button type="submit" className="w-full py-4">Publicar</Button>
+                                    <textarea value={comment} onChange={e => setComment(e.target.value)} required rows="4" className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-medium" placeholder="Escribe tu opinión detallada aquí..."></textarea>
+                                    <Button type="submit" className="w-full py-4 text-lg">Publicar y Validar Plataforma</Button>
                                 </form>
                             </div>
                         )}
@@ -1076,115 +1194,76 @@
             );
         };
 
-        // --- FORO GLOBAL / GRUPO CHAT ---
-        const GroupChatWidget = ({ currentUser, messages }) => {
+        const ChatbotWidget = () => {
             const [open, setOpen] = useState(false);
-            const [msg, setMsg] = useState('');
-            const scrollRef = useRef(null);
-
-            useEffect(() => {
-                if(open && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-            }, [messages, open]);
-
-            const sendMsg = async (e) => {
-                e.preventDefault();
-                if(!msg.trim() || !currentUser) return;
-                try {
-                    await addDoc(getPublicRef('chat_general'), {
-                        text: msg,
-                        uid: currentUser.uid,
-                        userName: currentUser.name || currentUser.email.split('@')[0],
-                        timestamp: Date.now()
-                    });
-                    setMsg('');
-                } catch(err) { console.error("Error enviando mensaje: ", err); }
-            };
-
             return (
-                <div className="fixed bottom-6 right-6 z-50">
+                <div className="fixed bottom-6 left-6 z-50">
                     {open && (
-                        <div className="bg-white w-80 sm:w-96 h-[500px] rounded-3xl shadow-2xl border border-slate-200 flex flex-col mb-4 overflow-hidden animate-in slide-in-from-bottom-5">
-                            <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-brand-500 rounded-full flex items-center justify-center">
-                                        <MessageCircle className="w-5 h-5"/>
-                                    </div>
-                                    <div>
-                                        <span className="font-bold block">Foro Comunidad</span>
-                                        <span className="text-[10px] text-brand-300 uppercase">Chat Global en Vivo</span>
-                                    </div>
+                        <div className="bg-white w-80 h-96 rounded-2xl shadow-2xl border border-slate-200 flex flex-col mb-4 overflow-hidden transform transition-all">
+                            <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
+                                <span className="font-bold flex items-center gap-2"><MessageCircle className="w-5 h-5 text-brand-400"/> IA Asistente Técnico</span>
+                                <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5"/></button>
+                            </div>
+                            <div className="flex-1 p-4 bg-slate-50 overflow-y-auto text-sm text-slate-600">
+                                <div className="bg-white p-3 rounded-lg shadow-sm mb-2 border border-slate-200 inline-block font-medium">
+                                    ¡Hola! Soy el bot IA de física y ciencia de datos. (En modo demostración)
                                 </div>
-                                <button onClick={() => setOpen(false)}><X className="w-5 h-5"/></button>
                             </div>
-                            <div className="flex-1 p-4 bg-slate-50 overflow-y-auto space-y-4" ref={scrollRef}>
-                                {messages.length === 0 ? (
-                                    <p className="text-center text-slate-400 text-sm mt-4">Sé el primero en saludar en el foro.</p>
-                                ) : (
-                                    messages.map(m => {
-                                        const isMe = m.uid === currentUser?.uid;
-                                        return (
-                                            <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                                <span className="text-[10px] font-bold text-slate-400 mb-1 px-1">{m.userName}</span>
-                                                <div className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm font-medium shadow-sm ${isMe ? 'bg-brand-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'}`}>
-                                                    {m.text}
-                                                </div>
-                                            </div>
-                                        )
-                                    })
-                                )}
-                            </div>
-                            <div className="p-4 bg-white border-t border-slate-100">
-                                {currentUser ? (
-                                    <form className="flex gap-2" onSubmit={sendMsg}>
-                                        <input type="text" value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Escribe al grupo..." className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm" />
-                                        <button type="submit" className="bg-slate-900 text-white p-3 rounded-xl hover:bg-brand-600 transition-colors"><Send className="w-4 h-4"/></button>
-                                    </form>
-                                ) : (
-                                    <p className="text-center text-xs text-red-500 font-bold">Inicia sesión para participar en el foro.</p>
-                                )}
+                            <div className="p-3 bg-white border-t border-slate-200 flex gap-2">
+                                <input type="text" placeholder="Hazme una pregunta técnica..." className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-500" />
+                                <button className="bg-slate-900 text-white p-2 rounded-lg hover:bg-brand-600 transition-colors"><ChevronRight className="w-5 h-5"/></button>
                             </div>
                         </div>
                     )}
-                    <button onClick={() => setOpen(!open)} className="w-auto h-16 px-6 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-premium hover:scale-105 transition-all ml-auto border-2 border-brand-400 gap-3">
-                        {open ? <X className="w-6 h-6"/> : <MessageCircle className="w-6 h-6" />}
-                        <span className="font-bold hidden sm:inline">{open ? 'Cerrar Foro' : 'Foro Global'}</span>
+                    <button 
+                        onClick={() => setOpen(!open)}
+                        className="w-14 h-14 bg-slate-900 text-white rounded-full flex items-center justify-center shadow-premium hover:scale-110 transition-transform relative group border-2 border-brand-500">
+                        <MessageCircle className="w-6 h-6 text-brand-400" />
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-brand-500 rounded-full border-2 border-slate-900"></span>
                     </button>
                 </div>
             );
         };
 
-        const AdminPanel = ({ courses, setCourses }) => {
-            const [activeTab, setActiveTab] = useState('courses'); // courses, enrollments, users, coupons
+        const AdminPanel = ({ currentUser, courses, setCourses }) => {
+            const [activeTab, setActiveTab] = useState('courses'); // courses, enrollments, users, coupons, grades
             const [showCourseModal, setShowCourseModal] = useState(false);
             const [editingCourse, setEditingCourse] = useState(null);
 
-            // Estados Administrativos
+            const isAdmin = currentUser?.role === 'admin';
+            const isTeacher = currentUser?.role === 'teacher';
+            // Docentes solo ven y editan sus cursos, o admin ve todos
+            const visibleCourses = isAdmin ? courses : courses.filter(c => c.authorId === currentUser?.uid);
+
             const [allEnrollments, setAllEnrollments] = useState([]);
             const [directory, setDirectory] = useState([]);
             const [coupons, setCoupons] = useState([]);
-
-            // Estado Manual Enrollment
             const [enrollForm, setEnrollForm] = useState({ uid: '', courseId: '' });
-            
-            // Estado Cupones
             const [couponForm, setCouponForm] = useState({ code: '', discount: '' });
-
-            // Estado Builder
             const [curriculum, setCurriculum] = useState([]);
 
-            // Cargar datos pesados (Matrículas y Directorio)
             useEffect(() => {
-                if (activeTab === 'enrollments' || activeTab === 'users') {
+                if (activeTab === 'enrollments' || activeTab === 'users' || activeTab === 'grades') {
                     const loadDirAndEnrolls = async () => {
                         const dirSnap = await getDocs(getPublicRef('directory'));
                         const dirData = dirSnap.docs.map(d => ({id: d.id, ...d.data()}));
                         setDirectory(dirData);
 
-                        if(activeTab === 'enrollments') {
+                        if(activeTab === 'enrollments' || activeTab === 'grades') {
                             let all = [];
                             for(const userDoc of dirData) {
                                 const enrSnap = await getDocs(getPrivateRef(userDoc.id, 'enrollments'));
-                                enrSnap.forEach(e => all.push({ uid: userDoc.id, userName: userDoc.name, id: e.id, ...e.data() }));
+                                for (const e of enrSnap.docs) {
+                                    // Filtra para cargar solo matriculas de cursos que el usuario actual puede ver
+                                    if (isAdmin || visibleCourses.find(c => c.id === e.id)) {
+                                        let progressData = {};
+                                        if (activeTab === 'grades') {
+                                            const progSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'users', userDoc.id, 'progress', e.id));
+                                            if(progSnap.exists()) progressData = progSnap.data();
+                                        }
+                                        all.push({ uid: userDoc.id, userName: userDoc.name, id: e.id, progressData, ...e.data() });
+                                    }
+                                }
                             }
                             setAllEnrollments(all);
                         }
@@ -1192,15 +1271,14 @@
                     loadDirAndEnrolls();
                 }
                 
-                if (activeTab === 'coupons') {
+                if (activeTab === 'coupons' && isAdmin) {
                     const unsubCoup = onSnapshot(getPublicRef('coupons'), snap => {
                         setCoupons(snap.docs.map(d => ({ id: d.id, ...d.data() })));
                     });
                     return () => unsubCoup();
                 }
-            }, [activeTab]);
+            }, [activeTab, courses]);
 
-            // --- CURSOS Y BUILDER ---
             useEffect(() => {
                 if (editingCourse && editingCourse.data && editingCourse.data.modulos) {
                     setCurriculum(editingCourse.data.modulos);
@@ -1220,12 +1298,13 @@
                     price: parseFloat(formData.get('price')),
                     image: formData.get('image'),
                     description: formData.get('description'),
+                    authorId: editingCourse ? editingCourse.authorId : currentUser.uid,
                     data: { modulos: curriculum }
                 };
 
                 try {
                     await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'courses', newCourse.id), newCourse);
-                    alert("Curso guardado exitosamente en la base de datos.");
+                    alert("Curso guardado exitosamente en Firestore.");
                     setShowCourseModal(false);
                     setEditingCourse(null);
                 } catch(err) {
@@ -1234,12 +1313,12 @@
             };
 
             const handleDeleteCourse = async (id) => {
-                if(confirm('¿Eliminar de Firebase permanentemente? Esta acción es irreversible.')) {
+                if(confirm('¿Eliminar curso permanentemente de la plataforma?')) {
                     await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'courses', id));
                 }
             };
 
-            // Lógica Builder (Compacta)
+            // Lógica Builder Compacta
             const addModule = () => setCurriculum([...curriculum, { titulo: 'Nuevo Módulo', lecciones: [] }]);
             const updateModuleTitle = (index, value) => { const newCurr = [...curriculum]; newCurr[index].titulo = value; setCurriculum(newCurr); };
             const deleteModule = (index) => setCurriculum(curriculum.filter((_, i) => i !== index));
@@ -1247,28 +1326,10 @@
             const updateLesson = (modIndex, lessIndex, field, value) => { const newCurr = [...curriculum]; newCurr[modIndex].lecciones[lessIndex][field] = value; setCurriculum(newCurr); };
             const deleteLesson = (modIndex, lessIndex) => { const newCurr = [...curriculum]; newCurr[modIndex].lecciones = newCurr[modIndex].lecciones.filter((_, i) => i !== lessIndex); setCurriculum(newCurr); };
             
-            const getVideosArray = (recursoStr) => {
-                if (!recursoStr) return [];
-                return recursoStr.split('|').filter(Boolean).map(v => {
-                    const [id, title] = v.split('::'); return { id: id || '', title: title || '' };
-                });
-            };
-            const updateVideoPart = (mIdx, lIdx, vIdx, field, value) => {
-                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
-                if(!videos[vIdx]) videos[vIdx] = {id: '', title: ''};
-                videos[vIdx][field] = value;
-                updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|'));
-            };
-            const addVideoPart = (mIdx, lIdx) => {
-                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
-                videos.push({id: '', title: ''});
-                updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|'));
-            };
-            const removeVideoPart = (mIdx, lIdx, vIdx) => {
-                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
-                videos.splice(vIdx, 1);
-                updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|'));
-            };
+            const getVideosArray = (recursoStr) => { if (!recursoStr) return []; return recursoStr.split('|').filter(Boolean).map(v => { const [id, title] = v.split('::'); return { id: id || '', title: title || '' }; }); };
+            const updateVideoPart = (mIdx, lIdx, vIdx, field, value) => { const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso); if(!videos[vIdx]) videos[vIdx] = {id: '', title: ''}; videos[vIdx][field] = value; updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|')); };
+            const addVideoPart = (mIdx, lIdx) => { const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso); videos.push({id: '', title: ''}); updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|')); };
+            const removeVideoPart = (mIdx, lIdx, vIdx) => { const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso); videos.splice(vIdx, 1); updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|')); };
             
             const addQuestion = (mIdx, lIdx) => { const newCurr = [...curriculum]; if (!newCurr[mIdx].lecciones[lIdx].preguntas) newCurr[mIdx].lecciones[lIdx].preguntas = []; newCurr[mIdx].lecciones[lIdx].preguntas.push({ pregunta: '', opciones: [''], correcta: 0 }); setCurriculum(newCurr); };
             const updateQuestion = (mIdx, lIdx, qIdx, field, value) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx][field] = value; setCurriculum(newCurr); };
@@ -1277,77 +1338,75 @@
             const updateOption = (mIdx, lIdx, qIdx, oIdx, value) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones[oIdx] = value; setCurriculum(newCurr); };
             const removeOption = (mIdx, lIdx, qIdx, oIdx) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones = newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones.filter((_, i) => i !== oIdx); if (newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta >= oIdx && newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta > 0) newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta -= 1; setCurriculum(newCurr); };
 
-            // --- ACCIONES ADMINISTRATIVAS ---
+            // Acciones Administrativas
+            const handleInitDatabase = async () => {
+                if(confirm("¿Inyectar cursos por defecto en Firebase?")) {
+                    for(const c of INITIAL_COURSES) { await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'courses', c.id), c); }
+                    alert("Cursos inyectados correctamente.");
+                }
+            };
             const handleApproveEnrollment = async (uid, enrId) => {
                 try {
                     await updateDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'enrollments', enrId), { status: 'Aprobado' });
                     setAllEnrollments(allEnrollments.map(e => e.id === enrId && e.uid === uid ? {...e, status: 'Aprobado'} : e));
                 } catch(e) { alert("Error: " + e.message); }
             };
-
             const handleManualEnroll = async (e) => {
                 e.preventDefault();
                 if(!enrollForm.uid || !enrollForm.courseId) return;
                 try {
                     await setDoc(doc(db, 'artifacts', APP_ID, 'users', enrollForm.uid, 'enrollments', enrollForm.courseId), {
-                        courseId: enrollForm.courseId,
-                        status: 'Aprobado',
-                        date: new Date().toISOString(),
-                        manual: true
+                        courseId: enrollForm.courseId, status: 'Aprobado', date: new Date().toISOString(), manual: true
                     });
                     alert("Matrícula forzada exitosamente.");
                     setEnrollForm({uid:'', courseId:''});
                 } catch(err) { alert(err.message); }
             };
-
             const handleUpdateRole = async (uid, newRole) => {
                 if(!confirm(`¿Seguro de cambiar el rol a ${newRole}?`)) return;
                 try {
-                    // Update en el perfil y en el directorio
                     await setDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'data'), { role: newRole }, { merge: true });
                     await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'directory', uid), { role: newRole }, { merge: true });
                     setDirectory(directory.map(d => d.id === uid ? {...d, role: newRole} : d));
                 } catch(err) { alert(err.message); }
             };
-
             const handleCreateCoupon = async (e) => {
                 e.preventDefault();
                 const code = couponForm.code.toUpperCase().trim();
                 const disc = parseFloat(couponForm.discount);
-                if(!code || disc <= 0 || disc > 1) return alert("Código inválido o descuento fuera de rango (0.1 a 1.0)");
-                
+                if(!code || disc <= 0 || disc > 1) return alert("Código/Descuento inválido");
                 await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'coupons', code), { discount: disc, active: true });
                 setCouponForm({code:'', discount:''});
                 alert("Cupón Creado.");
             };
-
-            const handleDeleteCoupon = async (id) => {
-                await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'coupons', id));
-            };
+            const handleDeleteCoupon = async (id) => await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'coupons', id));
 
             return (
                 <div className="pt-24 pb-16 min-h-screen bg-slate-100">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                             <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 bg-brand-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><Shield className="w-8 h-8" /></div>
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg ${isAdmin ? 'bg-brand-600' : 'bg-blue-600'}`}>
+                                    <Shield className="w-8 h-8" />
+                                </div>
                                 <div>
-                                    <h1 className="text-3xl font-extrabold text-slate-900">Centro de Comando</h1>
-                                    <p className="text-slate-500 font-bold text-sm">Privilegios: Root Admin</p>
+                                    <h1 className="text-3xl font-extrabold text-slate-900">Gestión {isAdmin ? 'Admin' : 'Docente'}</h1>
+                                    <p className="text-slate-500 font-bold text-sm">Privilegios de acceso restringido</p>
                                 </div>
                             </div>
-                            <div className="flex flex-wrap bg-slate-100 rounded-xl p-1.5 shadow-inner border border-slate-200 w-full sm:w-auto">
+                            <div className="flex flex-wrap bg-slate-100 rounded-xl p-1.5 shadow-inner border border-slate-200 w-full md:w-auto">
                                 {[
-                                    { id: 'courses', label: 'Cursos', icon: BookOpen },
-                                    { id: 'enrollments', label: 'Matrículas', icon: Award },
-                                    { id: 'users', label: 'Usuarios', icon: Users },
-                                    { id: 'coupons', label: 'Cupones', icon: Ticket }
-                                ].map(tab => (
+                                    { id: 'courses', label: 'Cursos', icon: BookOpen, show: true },
+                                    { id: 'enrollments', label: 'Matrículas', icon: Award, show: isAdmin }, // Solo admin gestiona plata
+                                    { id: 'grades', label: 'Seguimiento / Notas', icon: Activity, show: true }, // Docentes y Admin
+                                    { id: 'users', label: 'Usuarios', icon: Users, show: isAdmin },
+                                    { id: 'coupons', label: 'Cupones', icon: Ticket, show: isAdmin }
+                                ].filter(t => t.show).map(tab => (
                                     <button 
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)} 
-                                        className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === tab.id ? 'bg-white text-brand-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
-                                        <tab.icon className="w-4 h-4 hidden md:block" /> {tab.label}
+                                        className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === tab.id ? 'bg-white text-brand-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                                        <tab.icon className="w-4 h-4 hidden sm:block" /> {tab.label}
                                     </button>
                                 ))}
                             </div>
@@ -1356,13 +1415,15 @@
                         {/* --- TAB CURSOS --- */}
                         {activeTab === 'courses' && (
                             <div className="space-y-6">
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-3">
+                                    {isAdmin && visibleCourses.length === 0 && <Button onClick={handleInitDatabase} variant="outline" className="shadow-sm">Inicializar Cursos Demo</Button>}
                                     <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true); }} className="shadow-brand-500/30">
                                         + Diseñar Nuevo Curso
                                     </Button>
                                 </div>
+                                {visibleCourses.length === 0 && <p className="text-center text-slate-500 py-12">No tienes cursos asignados como autor.</p>}
                                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {courses.map(course => (
+                                    {visibleCourses.map(course => (
                                         <Card key={course.id} className="border-2 border-transparent hover:border-brand-500 transition-colors">
                                             <div className="relative h-48">
                                                 <img src={course.image} className="w-full h-full object-cover" alt="" />
@@ -1386,8 +1447,8 @@
                             </div>
                         )}
 
-                        {/* --- TAB MATRÍCULAS --- */}
-                        {activeTab === 'enrollments' && (
+                        {/* --- TAB MATRÍCULAS (Solo Admin) --- */}
+                        {activeTab === 'enrollments' && isAdmin && (
                             <div className="grid lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
                                     <div className="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
@@ -1450,8 +1511,56 @@
                             </div>
                         )}
 
-                        {/* --- TAB USUARIOS Y ROLES --- */}
-                        {activeTab === 'users' && (
+                        {/* --- TAB SEGUIMIENTO / CALIFICACIONES --- */}
+                        {activeTab === 'grades' && (
+                            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                                <div className="p-6 border-b border-slate-200 bg-slate-50">
+                                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Activity className="text-brand-500 w-5 h-5"/> Seguimiento de Alumnos</h2>
+                                    <p className="text-sm text-slate-500 mt-1">Supervisa el progreso técnico de los estudiantes en los cursos a tu cargo.</p>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-slate-50">
+                                            <tr className="text-slate-500 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
+                                                <th className="p-4">Estudiante</th>
+                                                <th className="p-4">Curso Asignado</th>
+                                                <th className="p-4">Estado Matrícula</th>
+                                                <th className="p-4">Progreso Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {allEnrollments.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-slate-400 font-medium">Ningún estudiante matriculado en tus cursos.</td></tr>}
+                                            {allEnrollments.map((enr, i) => {
+                                                const cObj = courses.find(c => c.id === enr.courseId);
+                                                const pct = getCourseProgressPct(cObj?.data, enr.progressData);
+                                                return (
+                                                    <tr key={i} className="hover:bg-slate-50">
+                                                        <td className="p-4">
+                                                            <p className="font-bold text-slate-900 text-sm">{enr.userName}</p>
+                                                        </td>
+                                                        <td className="p-4 font-bold text-slate-700 text-sm">{cObj?.title || enr.courseId}</td>
+                                                        <td className="p-4">
+                                                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase ${enr.status==='Aprobado'?'bg-green-50 text-green-700':'bg-amber-50 text-amber-700'}`}>{enr.status}</span>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-24 h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                                                                    <div className={`h-full ${pct === 100 ? 'bg-green-500' : 'bg-brand-500'}`} style={{width:`${pct}%`}}></div>
+                                                                </div>
+                                                                <span className="text-xs font-extrabold text-slate-700 w-8">{pct}%</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- TAB USUARIOS Y ROLES (Solo Admin) --- */}
+                        {activeTab === 'users' && isAdmin && (
                             <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
                                 <div className="p-6 border-b border-slate-200 bg-slate-50">
                                     <h2 className="text-xl font-bold text-slate-800">Control de Accesos y Roles</h2>
@@ -1498,8 +1607,8 @@
                             </div>
                         )}
 
-                        {/* --- TAB CUPONES --- */}
-                        {activeTab === 'coupons' && (
+                        {/* --- TAB CUPONES (Solo Admin) --- */}
+                        {activeTab === 'coupons' && isAdmin && (
                             <div className="grid lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-1 bg-white rounded-3xl p-6 shadow-xl border border-slate-200 h-fit">
                                     <h3 className="font-extrabold text-lg text-slate-900 mb-4 border-b border-slate-100 pb-2">Generar Cupón</h3>
@@ -1634,7 +1743,7 @@
                                                                     {['multipresentacion', 'simulador'].includes(less.tipo) && (
                                                                         <div>
                                                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1"><LinkIcon className="w-3 h-3"/> Enlace al Recurso (URL o Github)</label>
-                                                                            <input value={less.recurso || ''} onChange={(e) => updateLesson(mIdx, lIdx, 'recurso', e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg font-mono text-sm text-brand-700 outline-none bg-white shadow-inner" />
+                                                                            <input value={less.recurso || ''} onChange={(e) => updateLesson(mIdx, lIdx, 'recurso', e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg font-mono text-sm text-brand-700 focus:border-brand-500 outline-none bg-white shadow-inner" />
                                                                         </div>
                                                                     )}
 
@@ -1642,43 +1751,67 @@
                                                                         <div className="space-y-3">
                                                                             <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                                                                                 <span className="font-bold text-slate-800 text-xs uppercase flex items-center gap-1"><Youtube className="w-4 h-4 text-red-500"/> Lista Reproducción</span>
-                                                                                <Button type="button" variant="outline" onClick={() => addVideoPart(mIdx, lIdx)} className="py-1 px-3 text-xs bg-white">+ Añadir Fragmento</Button>
+                                                                                <Button type="button" variant="outline" onClick={() => addVideoPart(mIdx, lIdx)} className="py-1 px-3 text-xs bg-white h-auto border-slate-300 text-slate-600">+ Añadir Video</Button>
                                                                             </div>
                                                                             {getVideosArray(less.recurso).map((v, vIdx) => (
-                                                                                <div key={vIdx} className="flex flex-col sm:flex-row gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm relative">
+                                                                                <div key={vIdx} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-white p-2 rounded border border-slate-200 shadow-sm relative">
                                                                                     <div className="w-6 text-center text-xs font-bold text-slate-400 hidden sm:block mt-2">{vIdx + 1}</div>
-                                                                                    <input value={v.id} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'id', e.target.value)} placeholder="ID Video (Ej: dQw4w9WgXcQ)" className="flex-1 text-xs p-2 border border-slate-200 rounded outline-none font-mono" />
-                                                                                    <input value={v.title} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'title', e.target.value)} placeholder="Título fragmento" className="flex-1 text-xs p-2 border border-slate-200 rounded outline-none font-semibold text-slate-700" />
-                                                                                    <button type="button" onClick={() => removeVideoPart(mIdx, lIdx, vIdx)} className="p-2 text-slate-400 hover:text-red-500 rounded"><X className="w-4 h-4"/></button>
+                                                                                    <div className="flex-1 w-full space-y-1.5">
+                                                                                        <input value={v.id} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'id', e.target.value)} placeholder="URL de YouTube completa o ID" className="w-full text-xs p-2 border border-slate-200 rounded focus:border-brand-500 outline-none font-mono" />
+                                                                                        <input value={v.title} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'title', e.target.value)} placeholder="Nombre personalizado (Opcional, Ej: 'Introducción')" className="w-full text-xs p-2 border border-slate-200 rounded focus:border-brand-500 outline-none font-semibold text-slate-700" />
+                                                                                    </div>
+                                                                                    <button type="button" onClick={() => removeVideoPart(mIdx, lIdx, vIdx)} className="absolute top-2 right-2 sm:static sm:top-auto sm:right-auto text-slate-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-colors"><X className="w-4 h-4"/></button>
                                                                                 </div>
                                                                             ))}
                                                                         </div>
                                                                     )}
 
                                                                     {less.tipo === 'texto' && (
-                                                                        <textarea value={less.contenidoText || ''} onChange={(e) => updateLesson(mIdx, lIdx, 'contenidoText', e.target.value)} className="w-full p-4 border border-slate-200 rounded-xl text-sm outline-none bg-white font-serif leading-relaxed" placeholder="Contenido de lectura..." rows="5" />
+                                                                        <textarea value={less.contenidoText || ''} onChange={(e) => updateLesson(mIdx, lIdx, 'contenidoText', e.target.value)} className="w-full p-4 border border-slate-200 rounded-xl text-sm focus:border-brand-500 outline-none bg-white font-serif leading-relaxed" placeholder="Contenido de lectura..." rows="5" />
                                                                     )}
 
                                                                     {less.tipo === 'quiz_nativo' && (
-                                                                        <div className="space-y-4">
+                                                                        <div className="mt-2 bg-slate-100 border border-slate-200 rounded-lg p-4 space-y-4">
                                                                             <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                                                                                <span className="font-extrabold text-slate-800 text-xs uppercase flex items-center gap-1"><HelpCircle className="w-4 h-4 text-brand-500"/> Preguntas</span>
-                                                                                <Button type="button" variant="outline" onClick={() => addQuestion(mIdx, lIdx)} className="py-1 px-3 text-xs bg-white">+ Añadir Pregunta</Button>
+                                                                                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Constructor de Preguntas</span>
+                                                                                <Button type="button" variant="outline" onClick={() => addQuestion(mIdx, lIdx)} className="py-1 px-3 text-xs bg-white h-auto">+ Añadir Pregunta</Button>
                                                                             </div>
                                                                             {(less.preguntas || []).map((q, qIdx) => (
                                                                                 <div key={qIdx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative space-y-3">
-                                                                                    <button type="button" onClick={() => removeQuestion(mIdx, lIdx, qIdx)} className="absolute top-2 right-2 text-slate-400 hover:text-red-500"><X className="w-4 h-4"/></button>
-                                                                                    <input value={q.pregunta || ''} onChange={(e) => updateQuestion(mIdx, lIdx, qIdx, 'pregunta', e.target.value)} placeholder="Enunciado" className="w-11/12 text-sm font-bold p-2 border border-slate-200 rounded-lg outline-none bg-slate-50" />
+                                                                                    <button type="button" onClick={() => removeQuestion(mIdx, lIdx, qIdx)} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-colors"><X className="w-5 h-5"/></button>
                                                                                     
-                                                                                    <div className="pl-3 border-l-2 border-brand-100 space-y-2">
+                                                                                    <div className="space-y-1">
+                                                                                        <label className="text-xs font-bold text-slate-500 uppercase">Pregunta {qIdx + 1}</label>
+                                                                                        <input 
+                                                                                            value={q.pregunta || ''} 
+                                                                                            onChange={(e) => updateQuestion(mIdx, lIdx, qIdx, 'pregunta', e.target.value)} 
+                                                                                            placeholder={`Escribe el enunciado de la pregunta...`} 
+                                                                                            className="w-11/12 text-sm font-bold p-2 border border-slate-200 rounded-md focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none block"
+                                                                                        />
+                                                                                    </div>
+                                                                                    
+                                                                                    <div className="space-y-2 pl-2 border-l-2 border-brand-100">
+                                                                                        <label className="text-xs font-bold text-slate-500 uppercase">Opciones (Marca la correcta)</label>
                                                                                         {(q.opciones || []).map((opt, oIdx) => (
                                                                                             <div key={oIdx} className={`flex items-center gap-2 p-1.5 rounded-lg border ${q.correcta === oIdx ? 'border-green-400 bg-green-50' : 'border-slate-100'}`}>
-                                                                                                <input type="radio" name={`r-${mIdx}-${lIdx}-${qIdx}`} checked={q.correcta === oIdx} onChange={() => updateQuestion(mIdx, lIdx, qIdx, 'correcta', oIdx)} className="w-4 h-4 text-green-600" />
-                                                                                                <input value={opt} onChange={(e) => updateOption(mIdx, lIdx, qIdx, oIdx, e.target.value)} className="flex-grow text-sm p-1 border border-transparent rounded bg-transparent outline-none font-medium" />
-                                                                                                <button type="button" onClick={() => removeOption(mIdx, lIdx, qIdx, oIdx)} className="text-red-300 hover:text-red-500 p-1"><X className="w-4 h-4"/></button>
+                                                                                                <input 
+                                                                                                    type="radio" 
+                                                                                                    name={`correct-${mIdx}-${lIdx}-${qIdx}`} 
+                                                                                                    checked={q.correcta === oIdx} 
+                                                                                                    onChange={() => updateQuestion(mIdx, lIdx, qIdx, 'correcta', oIdx)} 
+                                                                                                    className="w-4 h-4 text-brand-600 focus:ring-brand-500 cursor-pointer" 
+                                                                                                    title="Marcar como respuesta correcta" 
+                                                                                                />
+                                                                                                <input 
+                                                                                                    value={opt} 
+                                                                                                    onChange={(e) => updateOption(mIdx, lIdx, qIdx, oIdx, e.target.value)} 
+                                                                                                    placeholder={`Escribe la opción ${oIdx+1}`} 
+                                                                                                    className="flex-grow text-sm p-1.5 border border-slate-200 bg-white rounded-md focus:border-brand-500 outline-none" 
+                                                                                                />
+                                                                                                <button type="button" onClick={() => removeOption(mIdx, lIdx, qIdx, oIdx)} className="text-red-400 hover:text-red-600 p-1"><X className="w-4 h-4"/></button>
                                                                                             </div>
                                                                                         ))}
-                                                                                        <button type="button" onClick={() => addOption(mIdx, lIdx, qIdx)} className="text-xs text-brand-600 font-bold bg-brand-50 px-3 py-1.5 rounded mt-1">+ Opción</button>
+                                                                                        <button type="button" onClick={() => addOption(mIdx, lIdx, qIdx)} className="text-xs text-brand-600 hover:text-brand-800 font-bold bg-brand-50 px-3 py-1.5 rounded-md mt-2">+ Añadir Opción</button>
                                                                                     </div>
                                                                                 </div>
                                                                             ))}
@@ -1801,12 +1934,12 @@
                         name: fd.get('name'), bio: fd.get('bio'), linkedin: fd.get('linkedin'),
                         orcid: fd.get('orcid'), scholar: fd.get('scholar'), researchgate: fd.get('researchgate'),
                         github: fd.get('github'), twitter: fd.get('twitter'), instagram: fd.get('instagram'), 
-                        youtube: fd.get('youtube'), tiktok: fd.get('tiktok')
+                        youtube: fd.get('youtube'), tiktok: fd.get('tiktok'), photoURL: fd.get('photoURL')
                     };
                     await setDoc(getProfileRef(currentUser.uid), updates, { merge: true });
-                    await updateDoc(getDirectoryRef(currentUser.uid), { name: fd.get('name') });
+                    await updateDoc(getDirectoryRef(currentUser.uid), { name: fd.get('name'), photoURL: fd.get('photoURL') });
                     setCurrentUser({...currentUser, ...updates});
-                    alert("Redes y perfil guardados permanentemente en Firestore.");
+                    alert("Redes, foto y perfil guardados permanentemente en Firestore.");
                     setView('dashboard');
                 } catch(err) { alert("Error: " + err.message); }
             };
@@ -1823,13 +1956,18 @@
                             {currentUser ? (
                                 <>
                                     <button onClick={() => setView('dashboard')} className="text-slate-600 font-bold hover:text-brand-600 flex items-center gap-2 transition-colors uppercase tracking-wider text-sm"><User className="w-4 h-4"/> Workspace</button>
-                                    {currentUser.role === 'admin' && (
-                                        <button onClick={() => setView('admin')} className="text-white bg-slate-900 font-bold hover:bg-brand-600 flex items-center gap-2 px-4 py-2 rounded-lg shadow-sm transition-colors uppercase tracking-wider text-xs"><Shield className="w-4 h-4"/> Admin</button>
+                                    {(currentUser.role === 'admin' || currentUser.role === 'teacher') && (
+                                        <button onClick={() => setView('admin')} className={`text-white font-bold flex items-center gap-2 px-4 py-2 rounded-lg shadow-sm transition-colors uppercase tracking-wider text-xs ${currentUser.role === 'admin' ? 'bg-slate-900 hover:bg-brand-600' : 'bg-blue-600 hover:bg-blue-500'}`}>
+                                            <Shield className="w-4 h-4"/> Gestión {currentUser.role === 'teacher' ? 'Docente' : 'Admin'}
+                                        </button>
                                     )}
                                     <div className="flex items-center gap-4 border-l-2 border-slate-100 pl-6">
                                         <div className="flex flex-col text-right">
                                             <span className="text-sm font-bold text-slate-900">{currentUser.name}</span>
-                                            <span className={`text-[10px] font-extrabold uppercase tracking-widest ${currentUser.role==='admin'?'text-red-500':'text-brand-500'}`}>{currentUser.role}</span>
+                                            <span className={`text-[10px] font-extrabold uppercase tracking-widest ${currentUser.role==='admin'?'text-red-500': currentUser.role === 'teacher' ? 'text-blue-500' : 'text-brand-500'}`}>{currentUser.role}</span>
+                                        </div>
+                                        <div className="w-10 h-10 rounded-full border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm cursor-pointer" onClick={() => setView('profile')}>
+                                            {currentUser.photoURL ? <img src={currentUser.photoURL} className="w-full h-full object-cover" /> : <User className="w-5 h-5 text-slate-400" />}
                                         </div>
                                         <button onClick={logout} title="Cerrar Sesión" className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-full bg-slate-50 text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"><LogOut className="w-4 h-4"/></button>
                                     </div>
@@ -1871,8 +2009,8 @@
                         {view === 'player' && currentCourse && currentUser && (
                             <CoursePlayer course={currentCourse} setView={setView} currentUser={currentUser} />
                         )}
-                        {view === 'admin' && currentUser?.role === 'admin' && (
-                            <AdminPanel courses={courses} />
+                        {view === 'admin' && (currentUser?.role === 'admin' || currentUser?.role === 'teacher') && (
+                            <AdminPanel currentUser={currentUser} courses={courses} />
                         )}
                         {view === 'profile' && currentUser && (
                             <div className="pt-24 pb-16 min-h-screen bg-slate-50">
@@ -1882,13 +2020,13 @@
                                     <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 border border-slate-200 relative overflow-hidden">
                                         <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 transform translate-x-1/2 -translate-y-1/2"></div>
                                         
-                                        <div className="flex items-center gap-6 mb-10 border-b border-slate-100 pb-8 relative z-10">
-                                            <div className="w-24 h-24 bg-slate-900 text-white rounded-3xl flex items-center justify-center text-4xl font-bold shadow-xl transform rotate-3">
-                                                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-10 border-b border-slate-100 pb-8 relative z-10">
+                                            <div className="w-32 h-32 bg-slate-900 text-white rounded-3xl flex items-center justify-center text-5xl font-bold shadow-xl transform rotate-3 overflow-hidden border-4 border-white">
+                                                {currentUser.photoURL ? <img src={currentUser.photoURL} className="w-full h-full object-cover transform -rotate-3" /> : (currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
                                             </div>
-                                            <div>
+                                            <div className="text-center sm:text-left">
                                                 <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Mi Perfil</h1>
-                                                <p className="text-slate-500 font-bold mt-1 text-sm bg-slate-100 px-3 py-1 inline-block rounded-full">{currentUser.email}</p>
+                                                <p className="text-slate-500 font-bold mt-2 text-sm bg-slate-100 px-3 py-1 inline-block rounded-full">{currentUser.email}</p>
                                             </div>
                                         </div>
 
@@ -1904,6 +2042,11 @@
                                                     <div>
                                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Cargo / Biografía Corta</label>
                                                         <input name="bio" defaultValue={currentUser.bio} className="w-full p-3.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-medium text-slate-700 shadow-sm" placeholder="Ej. Investigador en Física Aplicada" />
+                                                    </div>
+                                                    <div className="sm:col-span-2">
+                                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1"><ImageIcon className="w-4 h-4"/> URL Foto de Perfil (Avatar)</label>
+                                                        <input name="photoURL" type="url" defaultValue={currentUser.photoURL} className="w-full p-3.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-mono text-sm text-slate-700 shadow-sm" placeholder="https://mi-servidor.com/mifoto.jpg" />
+                                                        <p className="text-xs text-slate-400 mt-1 font-medium">Sube una imagen a internet (Imgur, GitHub, etc.) y pega el enlace directo aquí.</p>
                                                     </div>
                                                 </div>
                                             </section>
@@ -1978,7 +2121,7 @@
                     )}
                     
                     <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-                    <GroupChatWidget currentUser={currentUser} messages={chatMessages} />
+                    <ChatbotWidget />
                 </div>
             );
         };
