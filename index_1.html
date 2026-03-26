@@ -67,7 +67,7 @@
         
         // Importaciones modulares de Firebase (Listas para usar cuando se agregue la config)
         import { initializeApp } from "firebase/app";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
         import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addDoc } from "firebase/firestore";
 
         // ==========================================
@@ -91,6 +91,18 @@
             messagingSenderId: "TU_SENDER",
             appId: "TU_APP_ID"
         };
+
+        // Inicialización segura (evita errores si no se ha configurado)
+        let app, auth, db;
+        try {
+            if (firebaseConfig.apiKey !== "TU_API_KEY") {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            }
+        } catch (error) {
+            console.warn("Firebase no inicializado:", error);
+        }
 
         /* ========================================================
         REGLAS DE FIREBASE (rules_version = '2') - COPIAR EN CONSOLA
@@ -266,6 +278,39 @@
 
             if (!isOpen) return null;
 
+            const handleGoogleLogin = async () => {
+                if (!auth) {
+                    // Mock fallback si aún no has puesto tu API_KEY de Firebase
+                    onLogin({
+                        uid: `google-user-${Date.now()}`,
+                        email: 'estudiante.google@gmail.com',
+                        role: 'student',
+                        name: 'Estudiante Google'
+                    });
+                    onClose();
+                    return;
+                }
+
+                try {
+                    const provider = new GoogleAuthProvider();
+                    const result = await signInWithPopup(auth, provider);
+                    const user = result.user;
+                    
+                    const isSystemAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+                    onLogin({
+                        uid: user.uid,
+                        email: user.email,
+                        role: isSystemAdmin ? 'admin' : 'student',
+                        name: user.displayName || user.email.split('@')[0],
+                        photoURL: user.photoURL
+                    });
+                    onClose();
+                } catch (error) {
+                    console.error("Error en Google Login:", error);
+                    alert("Error al iniciar sesión con Google: " + error.message);
+                }
+            };
+
             const handleSubmit = (e) => {
                 e.preventDefault();
                 if (isRegister && !acceptedTerms) {
@@ -332,6 +377,25 @@
                                 {isRegister ? 'Registrarme' : 'Ingresar al Portal'}
                             </Button>
                         </form>
+
+                        <div className="mt-6">
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-slate-200"></div>
+                                </div>
+                                <div className="relative flex justify-center text-sm">
+                                    <span className="px-2 bg-white text-slate-500">O continúa con</span>
+                                </div>
+                            </div>
+                            <button 
+                                type="button" 
+                                onClick={handleGoogleLogin}
+                                className="mt-4 w-full flex items-center justify-center gap-3 px-4 py-3 border border-slate-300 rounded-xl shadow-sm bg-white text-slate-700 font-bold hover:bg-slate-50 transition-colors"
+                            >
+                                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                                Continuar con Google
+                            </button>
+                        </div>
 
                         <div className="mt-8 text-center text-sm text-slate-600 border-t border-slate-100 pt-6">
                             {isRegister ? '¿Ya tienes cuenta? ' : '¿Primera vez aquí? '}
