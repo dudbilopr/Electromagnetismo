@@ -1293,6 +1293,618 @@
             );
         };
 
+        const AdminPanel = ({ currentUser, courses }) => {
+            const [activeTab, setActiveTab] = useState('courses'); // courses, enrollments, users, coupons, grades
+            const [showCourseModal, setShowCourseModal] = useState(false);
+            const [editingCourse, setEditingCourse] = useState(null);
+
+            const isAdmin = currentUser?.role === 'admin';
+            const isTeacher = currentUser?.role === 'teacher';
+            // Docentes solo ven y editan sus cursos, admin ve todos
+            const visibleCourses = isAdmin ? courses : courses.filter(c => c.authorId === currentUser?.uid);
+
+            const [allEnrollments, setAllEnrollments] = useState([]);
+            const [directory, setDirectory] = useState([]);
+            const [coupons, setCoupons] = useState([]);
+            const [enrollForm, setEnrollForm] = useState({ uid: '', courseId: '' });
+            const [couponForm, setCouponForm] = useState({ code: '', discount: '' });
+            const [curriculum, setCurriculum] = useState([]);
+
+            useEffect(() => {
+                if (activeTab === 'enrollments' || activeTab === 'users' || activeTab === 'grades') {
+                    const loadDirAndEnrolls = async () => {
+                        const dirSnap = await getDocs(getPublicRef('directory'));
+                        const dirData = dirSnap.docs.map(d => ({id: d.id, ...d.data()}));
+                        setDirectory(dirData);
+
+                        if(activeTab === 'enrollments' || activeTab === 'grades') {
+                            let all = [];
+                            for(const userDoc of dirData) {
+                                const enrSnap = await getDocs(getPrivateRef(userDoc.id, 'enrollments'));
+                                for (const e of enrSnap.docs) {
+                                    if (isAdmin || visibleCourses.find(c => c.id === e.id)) {
+                                        let progressData = {};
+                                        if (activeTab === 'grades') {
+                                            const progSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'users', userDoc.id, 'progress', e.id));
+                                            if(progSnap.exists()) progressData = progSnap.data();
+                                        }
+                                        all.push({ uid: userDoc.id, userName: userDoc.name, id: e.id, progressData, ...e.data() });
+                                    }
+                                }
+                            }
+                            setAllEnrollments(all);
+                        }
+                    };
+                    loadDirAndEnrolls();
+                }
+                
+                if (activeTab === 'coupons' && isAdmin) {
+                    const unsubCoup = onSnapshot(getPublicRef('coupons'), snap => {
+                        setCoupons(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                    });
+                    return () => unsubCoup();
+                }
+            }, [activeTab, courses]);
+
+            useEffect(() => {
+                if (editingCourse && editingCourse.data && editingCourse.data.modulos) {
+                    setCurriculum(editingCourse.data.modulos);
+                } else {
+                    setCurriculum([]);
+                }
+            }, [editingCourse]);
+
+            const handleSaveCourse = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                
+                const newCourse = {
+                    id: editingCourse ? editingCourse.id : `c${Date.now()}`,
+                    title: formData.get('title'),
+                    type: formData.get('type'),
+                    price: parseFloat(formData.get('price')),
+                    image: formData.get('image'),
+                    description: formData.get('description'),
+                    authorId: editingCourse ? editingCourse.authorId : currentUser.uid,
+                    data: { modulos: curriculum }
+                };
+
+                try {
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'courses', newCourse.id), newCourse);
+                    alert("Curso guardado exitosamente en Firestore.");
+                    setShowCourseModal(false);
+                    setEditingCourse(null);
+                } catch(err) {
+                    alert("Error guardando curso: " + err.message);
+                }
+            };
+
+            const handleDeleteCourse = async (id) => {
+                if(confirm('¿Eliminar curso permanentemente de la plataforma?')) {
+                    await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'courses', id));
+                }
+            };
+
+            // Lógica Builder Compacta
+            const addModule = () => setCurriculum([...curriculum, { titulo: 'Nuevo Módulo', lecciones: [] }]);
+            const updateModuleTitle = (index, value) => { const newCurr = [...curriculum]; newCurr[index].titulo = value; setCurriculum(newCurr); };
+            const deleteModule = (index) => setCurriculum(curriculum.filter((_, i) => i !== index));
+            const addLesson = (modIndex) => { const newCurr = [...curriculum]; newCurr[modIndex].lecciones.push({ id: `l-${Date.now()}`, titulo: 'Nueva Lección', tipo: 'multivideo', recurso: '', descripcion: '' }); setCurriculum(newCurr); };
+            const updateLesson = (modIndex, lessIndex, field, value) => { const newCurr = [...curriculum]; newCurr[modIndex].lecciones[lessIndex][field] = value; setCurriculum(newCurr); };
+            const deleteLesson = (modIndex, lessIndex) => { const newCurr = [...curriculum]; newCurr[modIndex].lecciones = newCurr[modIndex].lecciones.filter((_, i) => i !== lessIndex); setCurriculum(newCurr); };
+            
+            const getVideosArray = (recursoStr) => { if (!recursoStr) return []; return recursoStr.split('|').filter(Boolean).map(v => { const [id, title] = v.split('::'); return { id: id || '', title: title || '' }; }); };
+            const updateVideoPart = (mIdx, lIdx, vIdx, field, value) => { const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso); if(!videos[vIdx]) videos[vIdx] = {id: '', title: ''}; videos[vIdx][field] = value; updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|')); };
+            const addVideoPart = (mIdx, lIdx) => { const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso); videos.push({id: '', title: ''}); updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|')); };
+            const removeVideoPart = (mIdx, lIdx, vIdx) => { const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso); videos.splice(vIdx, 1); updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|')); };
+            
+            const addQuestion = (mIdx, lIdx) => { const newCurr = [...curriculum]; if (!newCurr[mIdx].lecciones[lIdx].preguntas) newCurr[mIdx].lecciones[lIdx].preguntas = []; newCurr[mIdx].lecciones[lIdx].preguntas.push({ pregunta: '', opciones: [''], correcta: 0 }); setCurriculum(newCurr); };
+            const updateQuestion = (mIdx, lIdx, qIdx, field, value) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx][field] = value; setCurriculum(newCurr); };
+            const removeQuestion = (mIdx, lIdx, qIdx) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas = newCurr[mIdx].lecciones[lIdx].preguntas.filter((_, i) => i !== qIdx); setCurriculum(newCurr); };
+            const addOption = (mIdx, lIdx, qIdx) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones.push(''); setCurriculum(newCurr); };
+            const updateOption = (mIdx, lIdx, qIdx, oIdx, value) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones[oIdx] = value; setCurriculum(newCurr); };
+            const removeOption = (mIdx, lIdx, qIdx, oIdx) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones = newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones.filter((_, i) => i !== oIdx); if (newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta >= oIdx && newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta > 0) newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta -= 1; setCurriculum(newCurr); };
+
+            const handleInitDatabase = async () => {
+                if(confirm("¿Inyectar cursos por defecto en Firebase?")) {
+                    for(const c of INITIAL_COURSES) { await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'courses', c.id), c); }
+                    alert("Cursos inyectados correctamente.");
+                }
+            };
+            const handleApproveEnrollment = async (uid, enrId) => {
+                try {
+                    await updateDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'enrollments', enrId), { status: 'Aprobado' });
+                    setAllEnrollments(allEnrollments.map(e => e.id === enrId && e.uid === uid ? {...e, status: 'Aprobado'} : e));
+                } catch(e) { alert("Error: " + e.message); }
+            };
+            const handleManualEnroll = async (e) => {
+                e.preventDefault();
+                if(!enrollForm.uid || !enrollForm.courseId) return;
+                try {
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'users', enrollForm.uid, 'enrollments', enrollForm.courseId), {
+                        courseId: enrollForm.courseId, status: 'Aprobado', date: new Date().toISOString(), manual: true
+                    });
+                    alert("Matrícula forzada exitosamente.");
+                    setEnrollForm({uid:'', courseId:''});
+                } catch(err) { alert(err.message); }
+            };
+            const handleUpdateRole = async (uid, newRole) => {
+                if(!confirm(`¿Seguro de cambiar el rol a ${newRole}?`)) return;
+                try {
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'data'), { role: newRole }, { merge: true });
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'directory', uid), { role: newRole }, { merge: true });
+                    setDirectory(directory.map(d => d.id === uid ? {...d, role: newRole} : d));
+                } catch(err) { alert(err.message); }
+            };
+            const handleCreateCoupon = async (e) => {
+                e.preventDefault();
+                const code = couponForm.code.toUpperCase().trim();
+                const disc = parseFloat(couponForm.discount);
+                if(!code || disc <= 0 || disc > 1) return alert("Código/Descuento inválido");
+                await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'coupons', code), { discount: disc, active: true });
+                setCouponForm({code:'', discount:''});
+                alert("Cupón Creado.");
+            };
+            const handleDeleteCoupon = async (id) => await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'coupons', id));
+
+            return (
+                <div className="pt-24 pb-16 min-h-screen bg-slate-100">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg ${isAdmin ? 'bg-brand-600' : 'bg-blue-600'}`}>
+                                    <Shield className="w-8 h-8" />
+                                </div>
+                                <div>
+                                    <h1 className="text-3xl font-extrabold text-slate-900">Gestión {isAdmin ? 'Admin' : 'Docente'}</h1>
+                                    <p className="text-slate-500 font-bold text-sm">Privilegios de acceso restringido</p>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap bg-slate-100 rounded-xl p-1.5 shadow-inner border border-slate-200 w-full md:w-auto">
+                                {[
+                                    { id: 'courses', label: 'Cursos', icon: BookOpen, show: true },
+                                    { id: 'enrollments', label: 'Matrículas', icon: Award, show: isAdmin },
+                                    { id: 'grades', label: 'Seguimiento / Notas', icon: Activity, show: true },
+                                    { id: 'users', label: 'Usuarios', icon: Users, show: isAdmin },
+                                    { id: 'coupons', label: 'Cupones', icon: Ticket, show: isAdmin }
+                                ].filter(t => t.show).map(tab => (
+                                    <button 
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)} 
+                                        className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === tab.id ? 'bg-white text-brand-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                                        <tab.icon className="w-4 h-4 hidden sm:block" /> {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {activeTab === 'courses' && (
+                            <div className="space-y-6">
+                                <div className="flex justify-end gap-3">
+                                    {isAdmin && visibleCourses.length === 0 && <Button onClick={handleInitDatabase} variant="outline" className="shadow-sm">Inicializar Cursos Demo</Button>}
+                                    <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true); }} className="shadow-brand-500/30">
+                                        + Diseñar Nuevo Curso
+                                    </Button>
+                                </div>
+                                {visibleCourses.length === 0 && <p className="text-center text-slate-500 py-12">No tienes cursos asignados como autor.</p>}
+                                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {visibleCourses.map(course => (
+                                        <Card key={course.id} className="border-2 border-transparent hover:border-brand-500 transition-colors">
+                                            <div className="relative h-48">
+                                                <img src={course.image} className="w-full h-full object-cover" alt="" />
+                                                <div className="absolute top-3 right-3 flex gap-2">
+                                                    <button onClick={() => { setEditingCourse(course); setShowCourseModal(true); }} className="bg-white/95 p-2 rounded-lg shadow-md hover:bg-white text-brand-600 transition-transform hover:scale-105">
+                                                        Editar LMS
+                                                    </button>
+                                                    <button onClick={() => handleDeleteCourse(course.id)} className="bg-red-500/90 p-2 rounded-lg shadow-md hover:bg-red-600 text-white transition-transform hover:scale-105">
+                                                        <X className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                                <span className="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">{course.type}</span>
+                                            </div>
+                                            <div className="p-6">
+                                                <h3 className="font-extrabold text-lg text-slate-900 mb-1 truncate">{course.title}</h3>
+                                                <p className="text-sm font-bold text-brand-600">${course.price}</p>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'enrollments' && isAdmin && (
+                            <div className="grid lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-2 bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                                    <div className="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                                        <h2 className="text-xl font-bold text-slate-800">Auditoría Global de Matrículas</h2>
+                                        <span className="text-xs font-bold bg-slate-900 text-white px-3 py-1.5 rounded-full">{allEnrollments.length} Registros</span>
+                                    </div>
+                                    <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead className="sticky top-0 bg-slate-50 shadow-sm z-10">
+                                                <tr className="text-slate-500 text-xs uppercase tracking-wider font-bold">
+                                                    <th className="p-4">Estudiante</th>
+                                                    <th className="p-4">Curso ID</th>
+                                                    <th className="p-4">Estado</th>
+                                                    <th className="p-4 text-right">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {allEnrollments.map((enr, i) => (
+                                                    <tr key={i} className="hover:bg-slate-50">
+                                                        <td className="p-4">
+                                                            <p className="font-bold text-slate-900 text-sm">{enr.userName}</p>
+                                                            <p className="text-xs text-slate-400 font-mono mt-0.5">{enr.uid}</p>
+                                                        </td>
+                                                        <td className="p-4 font-bold text-slate-700 text-sm">{enr.courseId}</td>
+                                                        <td className="p-4">
+                                                            <span className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider ${enr.status==='Aprobado'?'bg-green-100 text-green-700':'bg-amber-100 text-amber-700'}`}>{enr.status}</span>
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            {enr.status === 'Pendiente' && <Button onClick={() => handleApproveEnrollment(enr.uid, enr.id)} className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-500 shadow-none">Aprobar Pago</Button>}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <div className="lg:col-span-1">
+                                    <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-200 sticky top-24">
+                                        <h3 className="font-extrabold text-lg text-slate-900 mb-4 border-b border-slate-100 pb-2">Forzar Matrícula Manual</h3>
+                                        <form onSubmit={handleManualEnroll} className="space-y-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Seleccionar Estudiante</label>
+                                                <select required value={enrollForm.uid} onChange={e=>setEnrollForm({...enrollForm, uid: e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl outline-none focus:border-brand-500 font-medium text-sm">
+                                                    <option value="">Seleccione UID...</option>
+                                                    {directory.map(d => <option key={d.id} value={d.id}>{d.name} ({d.email})</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Seleccionar Curso</label>
+                                                <select required value={enrollForm.courseId} onChange={e=>setEnrollForm({...enrollForm, courseId: e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl outline-none focus:border-brand-500 font-bold text-sm text-slate-700">
+                                                    <option value="">Seleccione Curso...</option>
+                                                    {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                                                </select>
+                                            </div>
+                                            <Button type="submit" className="w-full mt-2">Crear Matrícula Directa</Button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'grades' && (
+                            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                                <div className="p-6 border-b border-slate-200 bg-slate-50">
+                                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Activity className="text-brand-500 w-5 h-5"/> Seguimiento de Alumnos</h2>
+                                    <p className="text-sm text-slate-500 mt-1">Supervisa el progreso técnico de los estudiantes en los cursos a tu cargo.</p>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-slate-50">
+                                            <tr className="text-slate-500 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
+                                                <th className="p-4">Estudiante</th>
+                                                <th className="p-4">Curso Asignado</th>
+                                                <th className="p-4">Estado Matrícula</th>
+                                                <th className="p-4">Progreso Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {allEnrollments.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-slate-400 font-medium">Ningún estudiante matriculado en tus cursos.</td></tr>}
+                                            {allEnrollments.map((enr, i) => {
+                                                const cObj = courses.find(c => c.id === enr.courseId);
+                                                const pct = getCourseProgressPct(cObj?.data, enr.progressData);
+                                                return (
+                                                    <tr key={i} className="hover:bg-slate-50">
+                                                        <td className="p-4">
+                                                            <p className="font-bold text-slate-900 text-sm">{enr.userName}</p>
+                                                        </td>
+                                                        <td className="p-4 font-bold text-slate-700 text-sm">{cObj?.title || enr.courseId}</td>
+                                                        <td className="p-4">
+                                                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase ${enr.status==='Aprobado'?'bg-green-50 text-green-700':'bg-amber-50 text-amber-700'}`}>{enr.status}</span>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-24 h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                                                                    <div className={`h-full ${pct === 100 ? 'bg-green-500' : 'bg-brand-500'}`} style={{width:`${pct}%`}}></div>
+                                                                </div>
+                                                                <span className="text-xs font-extrabold text-slate-700 w-8">{pct}%</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'users' && isAdmin && (
+                            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                                <div className="p-6 border-b border-slate-200 bg-slate-50">
+                                    <h2 className="text-xl font-bold text-slate-800">Control de Accesos y Roles</h2>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-slate-50">
+                                            <tr className="text-slate-500 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
+                                                <th className="p-4">Estudiante (Nombre / Email)</th>
+                                                <th className="p-4">UID Único</th>
+                                                <th className="p-4">Rol Actual</th>
+                                                <th className="p-4">Cambiar Rol</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {directory.map(user => (
+                                                <tr key={user.id} className="hover:bg-slate-50">
+                                                    <td className="p-4">
+                                                        <p className="font-bold text-slate-900 text-sm">{user.name}</p>
+                                                        <p className="text-xs text-slate-500">{user.email}</p>
+                                                    </td>
+                                                    <td className="p-4 font-mono text-xs text-slate-400">{user.id}</td>
+                                                    <td className="p-4">
+                                                        <span className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-widest ${user.role === 'admin' ? 'bg-red-100 text-red-700' : user.role === 'teacher' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                                            {user.role || 'student'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <select 
+                                                            value={user.role || 'student'} 
+                                                            onChange={(e) => handleUpdateRole(user.id, e.target.value)}
+                                                            className="p-1.5 border border-slate-300 rounded-md text-xs font-bold text-slate-700 outline-none focus:ring-1 focus:ring-brand-500 bg-white shadow-sm"
+                                                        >
+                                                            <option value="student">Estudiante</option>
+                                                            <option value="teacher">Docente</option>
+                                                            <option value="admin">Administrador</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'coupons' && isAdmin && (
+                            <div className="grid lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-1 bg-white rounded-3xl p-6 shadow-xl border border-slate-200 h-fit">
+                                    <h3 className="font-extrabold text-lg text-slate-900 mb-4 border-b border-slate-100 pb-2">Generar Cupón</h3>
+                                    <form onSubmit={handleCreateCoupon} className="space-y-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Código (Ej. PROMO50)</label>
+                                            <input required value={couponForm.code} onChange={e=>setCouponForm({...couponForm, code: e.target.value.toUpperCase()})} className="w-full p-2.5 border border-slate-300 rounded-xl outline-none focus:border-brand-500 font-mono text-sm uppercase text-brand-700 font-bold" />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Descuento (0.1 a 1.0)</label>
+                                            <input required type="number" step="0.01" min="0.01" max="1" value={couponForm.discount} onChange={e=>setCouponForm({...couponForm, discount: e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl outline-none focus:border-brand-500 font-mono text-sm" placeholder="Ej. 0.5 para 50%" />
+                                        </div>
+                                        <Button type="submit" className="w-full mt-2 bg-slate-900 hover:bg-slate-800">Crear Código</Button>
+                                    </form>
+                                </div>
+                                <div className="lg:col-span-2">
+                                    <div className="grid sm:grid-cols-2 gap-4">
+                                        {coupons.map(c => (
+                                            <div key={c.id} className="bg-white p-5 rounded-2xl border-2 border-dashed border-brand-200 flex items-center justify-between group hover:border-solid hover:border-brand-500 transition-colors shadow-sm">
+                                                <div>
+                                                    <span className="font-mono text-xl font-extrabold text-brand-600 block">{c.id}</span>
+                                                    <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded uppercase">{c.discount * 100}% Dcto</span>
+                                                </div>
+                                                <button onClick={() => handleDeleteCoupon(c.id)} className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors">
+                                                    <X className="w-5 h-5"/>
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {coupons.length === 0 && <p className="text-slate-400 italic font-medium p-8">No hay cupones activos. Crea uno nuevo.</p>}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {showCourseModal && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-0 sm:p-4">
+                            <div className="bg-white w-full h-full sm:h-auto sm:max-h-[95vh] sm:rounded-[2rem] max-w-6xl flex flex-col shadow-2xl relative overflow-hidden border border-slate-200">
+                                <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
+                                    <div>
+                                        <h2 className="text-2xl font-extrabold text-slate-900">{editingCourse ? 'Arquitectura del Curso' : 'Nuevo Proyecto Educativo'}</h2>
+                                        <p className="text-sm text-slate-500 font-medium">Motor LMS integrado directamente a Firestore.</p>
+                                    </div>
+                                    <button onClick={() => setShowCourseModal(false)} className="bg-white border border-slate-200 rounded-full p-2 text-slate-400 hover:text-slate-900 transition-colors shadow-sm"><X className="w-6 h-6" /></button>
+                                </div>
+                                
+                                <form onSubmit={handleSaveCourse} className="p-6 sm:p-8 overflow-y-auto flex-grow space-y-10 bg-white">
+                                    <section className="space-y-6">
+                                        <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2"><Briefcase className="w-5 h-5 text-brand-500"/> Ficha Técnica</h3>
+                                        <div className="grid sm:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Título Público</label>
+                                                <input name="title" defaultValue={editingCourse?.title} required className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-bold text-slate-900" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Etiqueta de Clasificación</label>
+                                                <select name="type" defaultValue={editingCourse?.type || 'Pago'} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none bg-slate-50 font-medium">
+                                                    <option value="Gratis">Módulo Gratuito</option>
+                                                    <option value="Premium">Certificación Premium</option>
+                                                    <option value="Pago">Curso Individual</option>
+                                                    <option value="Plantillas">Recursos/Plantillas</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid sm:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Precio Base (USD) <span className="text-xs text-brand-600 ml-2 font-normal">0 = Libre</span></label>
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-3.5 text-slate-400 font-bold">$</span>
+                                                    <input name="price" type="number" step="0.01" defaultValue={editingCourse?.price || 0} required className="w-full pl-8 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-bold font-mono text-slate-900" />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Banner Principal (URL)</label>
+                                                <input name="image" type="url" defaultValue={editingCourse?.image} required className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-mono text-sm" />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-bold text-slate-700">Promesa de Valor (Descripción)</label>
+                                            <textarea name="description" defaultValue={editingCourse?.description} required rows="2" className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-medium text-slate-700"></textarea>
+                                        </div>
+                                    </section>
+
+                                    <section className="space-y-6 pt-4 border-t border-slate-200">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                                            <div>
+                                                <h3 className="text-xl font-extrabold text-slate-900 flex items-center gap-2"><BookOpen className="w-6 h-6 text-brand-500"/> Constructor del Currículo</h3>
+                                            </div>
+                                            <Button type="button" variant="secondary" onClick={addModule} className="py-2.5 px-6 shadow-sm">+ Añadir Módulo</Button>
+                                        </div>
+                                        
+                                        <div className="space-y-8">
+                                            {curriculum.map((mod, mIdx) => (
+                                                <div key={mIdx} className="bg-slate-50 border border-slate-200 rounded-3xl p-6 relative">
+                                                    <div className="absolute top-6 -left-4 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md">{mIdx+1}</div>
+                                                    
+                                                    <div className="flex gap-3 mb-6">
+                                                        <input value={mod.titulo} onChange={(e) => updateModuleTitle(mIdx, e.target.value)} className="flex-grow p-3 border border-slate-300 rounded-xl font-extrabold text-lg text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none" placeholder="Nombre del Módulo Principal" />
+                                                        <button type="button" onClick={() => deleteModule(mIdx)} className="px-4 border border-red-200 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-colors font-bold text-sm shadow-sm flex items-center gap-2">
+                                                            <X className="w-4 h-4"/>
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-4 pl-4 border-l-2 border-slate-200 ml-2">
+                                                        {mod.lecciones.map((less, lIdx) => (
+                                                            <div key={lIdx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4 relative group">
+                                                                <button type="button" onClick={() => deleteLesson(mIdx, lIdx)} className="absolute top-4 right-4 p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"><X className="w-5 h-5"/></button>
+                                                                
+                                                                <div className="pr-12 grid sm:grid-cols-3 gap-3">
+                                                                    <div className="sm:col-span-2">
+                                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Título de Lección</label>
+                                                                        <input value={less.titulo} onChange={(e) => updateLesson(mIdx, lIdx, 'titulo', e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg font-bold text-slate-800 focus:border-brand-500 outline-none bg-slate-50" />
+                                                                    </div>
+                                                                    <div className="sm:col-span-1">
+                                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Tipo Recurso</label>
+                                                                        <select value={less.tipo} onChange={(e) => updateLesson(mIdx, lIdx, 'tipo', e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg font-bold text-slate-700 bg-slate-50 outline-none">
+                                                                            <option value="multivideo">Video/YouTube</option>
+                                                                            <option value="multipresentacion">Documentos / PDFs</option>
+                                                                            <option value="simulador">Simulador / Embed</option>
+                                                                            <option value="texto">Texto Enriquecido</option>
+                                                                            <option value="quiz_nativo">Quiz Nativo Interactivo</option>
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-4">
+                                                                    {['multipresentacion', 'simulador', 'quiz'].includes(less.tipo) && (
+                                                                        <div>
+                                                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1"><LinkIcon className="w-3 h-3"/> Enlace al Recurso (URL o Github)</label>
+                                                                            <input value={less.recurso || ''} onChange={(e) => updateLesson(mIdx, lIdx, 'recurso', e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg font-mono text-sm text-brand-700 focus:border-brand-500 outline-none bg-white shadow-inner" />
+                                                                        </div>
+                                                                    )}
+
+                                                                    {less.tipo === 'multivideo' && (
+                                                                        <div className="space-y-3">
+                                                                            <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                                                                                <span className="font-bold text-slate-800 text-xs uppercase flex items-center gap-1"><Youtube className="w-4 h-4 text-red-500"/> Lista Reproducción</span>
+                                                                                <Button type="button" variant="outline" onClick={() => addVideoPart(mIdx, lIdx)} className="py-1 px-3 text-xs bg-white h-auto border-slate-300 text-slate-600">+ Añadir Video</Button>
+                                                                            </div>
+                                                                            {getVideosArray(less.recurso).map((v, vIdx) => (
+                                                                                <div key={vIdx} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-white p-2 rounded border border-slate-200 shadow-sm relative">
+                                                                                    <div className="w-6 text-center text-xs font-bold text-slate-400 hidden sm:block mt-2">{vIdx + 1}</div>
+                                                                                    <div className="flex-1 w-full space-y-1.5">
+                                                                                        <input value={v.id} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'id', e.target.value)} placeholder="URL de YouTube completa o ID" className="w-full text-xs p-2 border border-slate-200 rounded focus:border-brand-500 outline-none font-mono" />
+                                                                                        <input value={v.title} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'title', e.target.value)} placeholder="Nombre personalizado (Opcional, Ej: 'Introducción')" className="w-full text-xs p-2 border border-slate-200 rounded focus:border-brand-500 outline-none font-semibold text-slate-700" />
+                                                                                    </div>
+                                                                                    <button type="button" onClick={() => removeVideoPart(mIdx, lIdx, vIdx)} className="absolute top-2 right-2 sm:static sm:top-auto sm:right-auto text-slate-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-colors"><X className="w-4 h-4"/></button>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {less.tipo === 'texto' && (
+                                                                        <textarea value={less.contenidoText || ''} onChange={(e) => updateLesson(mIdx, lIdx, 'contenidoText', e.target.value)} className="w-full p-4 border border-slate-200 rounded-xl text-sm focus:border-brand-500 outline-none bg-white font-serif leading-relaxed" placeholder="Contenido de lectura..." rows="5" />
+                                                                    )}
+
+                                                                    {less.tipo === 'quiz_nativo' && (
+                                                                        <div className="mt-2 bg-slate-100 border border-slate-200 rounded-lg p-4 space-y-4">
+                                                                            <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                                                                                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Constructor de Preguntas</span>
+                                                                                <Button type="button" variant="outline" onClick={() => addQuestion(mIdx, lIdx)} className="py-1 px-3 text-xs bg-white h-auto">+ Añadir Pregunta</Button>
+                                                                            </div>
+                                                                            {(less.preguntas || []).map((q, qIdx) => (
+                                                                                <div key={qIdx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative space-y-3">
+                                                                                    <button type="button" onClick={() => removeQuestion(mIdx, lIdx, qIdx)} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-colors"><X className="w-5 h-5"/></button>
+                                                                                    
+                                                                                    <div className="space-y-1">
+                                                                                        <label className="text-xs font-bold text-slate-500 uppercase">Pregunta {qIdx + 1}</label>
+                                                                                        <input 
+                                                                                            value={q.pregunta || ''} 
+                                                                                            onChange={(e) => updateQuestion(mIdx, lIdx, qIdx, 'pregunta', e.target.value)} 
+                                                                                            placeholder={`Escribe el enunciado de la pregunta...`} 
+                                                                                            className="w-11/12 text-sm font-bold p-2 border border-slate-200 rounded-md focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none block"
+                                                                                        />
+                                                                                    </div>
+                                                                                    
+                                                                                    <div className="space-y-2 pl-2 border-l-2 border-brand-100">
+                                                                                        <label className="text-xs font-bold text-slate-500 uppercase">Opciones (Marca la correcta)</label>
+                                                                                        {(q.opciones || []).map((opt, oIdx) => (
+                                                                                            <div key={oIdx} className={`flex items-center gap-2 p-1.5 rounded-lg border ${q.correcta === oIdx ? 'border-green-400 bg-green-50' : 'border-slate-100'}`}>
+                                                                                                <input 
+                                                                                                    type="radio" 
+                                                                                                    name={`correct-${mIdx}-${lIdx}-${qIdx}`} 
+                                                                                                    checked={q.correcta === oIdx} 
+                                                                                                    onChange={() => updateQuestion(mIdx, lIdx, qIdx, 'correcta', oIdx)} 
+                                                                                                    className="w-4 h-4 text-brand-600 focus:ring-brand-500 cursor-pointer" 
+                                                                                                    title="Marcar como respuesta correcta" 
+                                                                                                />
+                                                                                                <input 
+                                                                                                    value={opt} 
+                                                                                                    onChange={(e) => updateOption(mIdx, lIdx, qIdx, oIdx, e.target.value)} 
+                                                                                                    placeholder={`Escribe la opción ${oIdx+1}`} 
+                                                                                                    className="flex-grow text-sm p-1.5 border border-slate-200 bg-white rounded-md focus:border-brand-500 outline-none" 
+                                                                                                />
+                                                                                                <button type="button" onClick={() => removeOption(mIdx, lIdx, qIdx, oIdx)} className="text-red-400 hover:text-red-600 p-1"><X className="w-4 h-4"/></button>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                        <button type="button" onClick={() => addOption(mIdx, lIdx, qIdx)} className="text-xs text-brand-600 hover:text-brand-800 font-bold bg-brand-50 px-3 py-1.5 rounded-md mt-2">+ Añadir Opción</button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        
+                                                        <Button type="button" variant="outline" onClick={() => addLesson(mIdx)} className="py-2 text-sm w-full mt-2 border-dashed bg-transparent border-slate-300 text-slate-500 hover:border-solid hover:text-brand-600">
+                                                            + Incorporar Lección al Módulo
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {curriculum.length === 0 && (
+                                                <div className="text-center p-8 border-2 border-dashed border-slate-300 rounded-xl text-slate-500">
+                                                    No hay módulos. Haz clic en "+ Añadir Módulo" para empezar.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
+
+                                    <div className="pt-4 flex justify-end gap-3 sticky bottom-0 bg-white py-4 border-t border-slate-100">
+                                        <Button type="button" variant="outline" onClick={() => setShowCourseModal(false)}>Cancelar</Button>
+                                        <Button type="submit">Guardar Curso</Button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
         const ChatbotWidget = () => {
             const [open, setOpen] = useState(false);
             return (
