@@ -1,0 +1,2169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>physics10.easy | Domina la Física Real</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            900: '#134e4a',
+                            950: '#042f2e',
+                        },
+                        dark: {
+                            800: '#0f172a',
+                            900: '#020617',
+                        }
+                    },
+                    boxShadow: {
+                        'premium': '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                        'glow': '0 0 20px rgba(20, 184, 166, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & ReactDOM -->
+    <script type="importmap">
+        {
+            "imports": {
+                "react": "https://esm.sh/react@18.2.0",
+                "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                "lucide-react": "https://esm.sh/lucide-react@0.292.0",
+                "firebase/app": "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js",
+                "firebase/auth": "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js",
+                "firebase/firestore": "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js"
+            }
+        }
+    </script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-brand-500 selection:text-white">
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            Play, BookOpen, Star, CheckCircle, Lock, Menu, X, User, Shield, 
+            MessageCircle, BarChart3, ChevronRight, Video, FileText, Activity, 
+            Podcast, Newspaper, GraduationCap, ChevronLeft, CreditCard, Clock, 
+            Check, HelpCircle, Link as LinkIcon, Folder, AlertCircle, LogOut, Github,
+            Instagram, Facebook, Youtube
+        } from 'lucide-react';
+        
+        // Importaciones modulares de Firebase (Listas para usar cuando se agregue la config)
+        import { initializeApp } from "firebase/app";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addDoc } from "firebase/firestore";
+
+        // ==========================================
+        // 1. CREDENCIALES DEL SISTEMA Y APIS (OBLIGATORIO)
+        // ==========================================
+        const CHATBOT_API_KEY = "PEGA_AQUÍ_TU_API_KEY";
+        const ADMIN_EMAIL = "dudbilopr@gmail.com";
+        
+        // TODO: Aquí se cambia el número de WhatsApp
+        const WHATSAPP_NUMBER = "573000000000";
+
+        // ==========================================
+        // CONFIGURACIÓN FIREBASE v11 MODULAR
+        // Reemplaza estos valores para activar la persistencia real.
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_DOMINIO",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_BUCKET",
+            messagingSenderId: "TU_SENDER",
+            appId: "TU_APP_ID"
+        };
+
+        /* ========================================================
+        REGLAS DE FIREBASE (rules_version = '2') - COPIAR EN CONSOLA
+        ========================================================
+        rules_version = '2';
+        service cloud.firestore {
+          match /databases/{database}/documents {
+            match /artifacts/{appId} {
+              
+              // 1. LLAVE MAESTRA: Solo tú eres el administrador
+              function esAdmin() {
+                return request.auth != null && request.auth.token.email == 'dudbilopr@gmail.com';
+              }
+
+              // 2. ROL DE DOCENTE: Permite verificar si alguien es profesor
+              function esDocente() {
+                return request.auth != null && 
+                  get(/databases/$(database)/documents/artifacts/$(appId)/users/$(request.auth.uid)/profile/data).data.role == 'teacher';
+              }
+
+              // 3. DATOS PRIVADOS (Progreso y compras de los alumnos)
+              match /users/{userId}/{document=**} {
+                allow read, write: if request.auth != null && (request.auth.uid == userId || esAdmin());
+              }
+
+              // 4. DATOS PÚBLICOS (Cursos, Promos, Instructores, Directorio, Chats)
+              match /public/data/{collectionName}/{docId} {
+                allow read: if true;
+                allow write: if esAdmin() && collectionName != 'transactions';
+                allow write: if esDocente() && (collectionName == 'courses' || collectionName == 'instructors');
+                allow write: if request.auth != null && collectionName == 'directory' && docId == request.auth.uid;
+                allow create: if request.auth != null && collectionName.matches('chat_.*');
+                allow create: if request.auth != null && collectionName == 'reviews';
+              }
+
+              // 5. EL CEREBRO FINANCIERO (Transacciones)
+              match /public/data/transactions/{transactionId} {
+                allow read, create: if esAdmin();
+                allow update, delete: if false; 
+              }
+            }
+          }
+        }
+        ========================================================
+        */
+
+        // ==========================================
+        // BASE DE DATOS DEL CURSO INTEGRADA (Módulos 1 al 5)
+        // ==========================================
+        const M1_VIDEOS = "xLyRPFL0GJ8::Conceptos Básicos|mrCyjv9lf3I::Carga Eléctrica|HpHVmuQb1gM::Aislantes y Conductores|YgP-9fVA0-Y::Ley de Coulomb|gigeloLe1jI::Fuerza Resultante";
+        const M2_VIDEOS = "y00efYMfQbg::Introducción al Campo|-c8JxTvP9zs::Líneas de Campo|CBwHsuVcXUI::Cálculo de Intensidad";
+        const M3_VIDEOS = "Klavo8gWKdY::Energía Potencial|_JRXyGSnT5o::Potencial Eléctrico|o-5079Lk0Y8::Superficies Equipotenciales";
+        const M4_VIDEOS = "h57Q1fCwZgA::Distribuciones Continuas|A9DWg5FSTx0::Densidad de Carga|ZmBfYn9APkg::Campo de un Anillo";
+        const M5_VIDEOS = "COGjyZI1PS8::Flujo Eléctrico|A4qBPrfzZMk::Teorema de Gauss|LYmdJmTyFGQ::Aplicaciones: Esfera y Cilindro";
+
+        const curriculoCompletoData = {
+            "modulos": [
+                {
+                    "titulo": "Módulo 1: Electrostática - Ley de Coulomb",
+                    "lecciones": [
+                        { "id": "m1-l1", "tipo": "multivideo", "recurso": M1_VIDEOS, "titulo": "1. Teoría: Ley de Coulomb", "descripcion": "Estudio detallado de la fuerza electrostática." },
+                        { "id": "m1-l2", "tipo": "multipresentacion", "recurso": "./clase_1.html", "titulo": "2. Diapositivas de Apoyo" },
+                        { "id": "m1-g1", "tipo": "grupo", "titulo": "3. Laboratorio Virtual (Simuladores)", "sublecciones": [
+                            { "id": "m1-l3", "tipo": "simulador", "recurso": "Simuladores/Coulomb.html", "titulo": "3.1 Cargas Eléctricas" },
+                            { "id": "m1-l4", "tipo": "simulador", "recurso": "Simuladores/Simulador_Cargas_Electricas.html", "titulo": "3.2 Análisis de Cargas" },
+                            { "id": "m1-l5", "tipo": "simulador", "recurso": "Simuladores/Simulador_Ley_de_Coulomb.html", "titulo": "3.3 Ley de Coulomb Interactiva" }
+                        ]},
+                        { "id": "m1-l7", "tipo": "ejercicio", "recurso": "Talleres/Taller_1_Ley_de_Coulomb.html", "titulo": "4. Taller Práctico No. 1" },
+                        { "id": "m1-q1", "tipo": "quiz", "recurso": "Examen/Cuestionario_1_Ley_de_Coulomb.html", "titulo": "5. Evaluación del Módulo 1" }
+                    ]
+                },
+                {
+                    "titulo": "Módulo 2: Electrostática - Campo Eléctrico",
+                    "lecciones": [
+                        { "id": "m2-l1", "tipo": "multivideo", "recurso": M2_VIDEOS, "titulo": "1. Teoría: Campo Eléctrico" },
+                        { "id": "m2-g1", "tipo": "grupo", "titulo": "2. Laboratorio Virtual", "sublecciones": [
+                            { "id": "m2-l3", "tipo": "simulador", "recurso": "Simuladores/Campo_Electrico.html", "titulo": "2.1 Campo Eléctrico Interactivo" }
+                        ]},
+                        { "id": "m2-q1", "tipo": "quiz", "recurso": "Examen/Cuestionario_2_Campo_Electrico.html", "titulo": "3. Evaluación del Módulo 2" }
+                    ]
+                },
+                {
+                    "titulo": "Módulo 3: Electrostática - Potencial Eléctrico",
+                    "lecciones": [
+                        { "id": "m3-l1", "tipo": "multivideo", "recurso": M3_VIDEOS, "titulo": "1. Teoría: Potencial Eléctrico" },
+                        { "id": "m3-g1", "tipo": "grupo", "titulo": "2. Laboratorio Virtual", "sublecciones": [
+                            { "id": "m3-l3", "tipo": "simulador", "recurso": "Simuladores/Potencial_Electrico.html", "titulo": "2.1 Superficies Equipotenciales" }
+                        ]},
+                        { "id": "m3-q1", "tipo": "quiz", "recurso": "Examen/Cuestionario_3_Trabajo_Potencial_Electrico.html", "titulo": "3. Evaluación del Módulo 3" }
+                    ]
+                },
+                {
+                    "titulo": "Módulo 4: Distribución de Cargas Continuas",
+                    "lecciones": [
+                        { "id": "m4-l1", "tipo": "multivideo", "recurso": M4_VIDEOS, "titulo": "1. Teoría: Distribuciones Continuas" },
+                        { "id": "m4-g1", "tipo": "grupo", "titulo": "2. Laboratorio Virtual", "sublecciones": [
+                            { "id": "m4-l3", "tipo": "simulador", "recurso": "Simuladores/Varilla_Cargada.html", "titulo": "2.1 Varilla Cargada" },
+                            { "id": "m4-l4", "tipo": "simulador", "recurso": "Simuladores/Anillo_Disco_Cilindro (1).html", "titulo": "2.2 Anillo y Disco" }
+                        ]},
+                        { "id": "m4-q1", "tipo": "quiz", "recurso": "Examen/Cuestionario_4_Distribuciones_de_Carga_continua.html", "titulo": "3. Evaluación del Módulo 4" }
+                    ]
+                },
+                {
+                    "titulo": "Módulo 5: Electrostática - Ley de Gauss",
+                    "lecciones": [
+                        { "id": "m5-l1", "tipo": "multivideo", "recurso": M5_VIDEOS, "titulo": "1. Teoría: Ley de Gauss" },
+                        { "id": "m5-g1", "tipo": "grupo", "titulo": "2. Laboratorios y Aplicaciones", "sublecciones": [
+                            { "id": "m5-l3", "tipo": "simulador", "recurso": "Simuladores/Tabla_Gauss.html", "titulo": "2.1 Superficies Gaussianas" },
+                            { "id": "m5-l4", "tipo": "simulador", "recurso": "Simuladores/Flujo_Electrico.html", "titulo": "2.2 Flujo Eléctrico" }
+                        ]},
+                        { "id": "m5-q1", "tipo": "quiz", "recurso": "Examen/Cuestionario_5_Flujo_Electrico_Ley_de_Gauss.html", "titulo": "3. Evaluación del Módulo 5" }
+                    ]
+                }
+            ]
+        };
+
+        const INITIAL_COURSES = [
+            { id: 'c1', title: 'Física Electromagnética: Nivel Avanzado', type: 'Premium', price: 0, image: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&q=80&w=800', description: 'Domina los conceptos de cargas, campos, potencial y la Ley de Gauss a través de simuladores reales y teoría profunda.', data: curriculoCompletoData },
+            { id: 'c2', title: 'Plantillas de Laboratorio Pro', type: 'Plantillas', price: 29.99, image: 'https://images.unsplash.com/photo-1580982327559-c1202864be05?auto=format&fit=crop&q=80&w=800', description: 'Documentos legales y plantillas de reportes listas para descargar y adaptar a tu entorno profesional.', data: { modulos: [] } },
+            { id: 'c3', title: 'Ciencia de Datos Aplicada a la Física', type: 'Pago', price: 149.99, image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=800', description: 'Curso premium. Análisis de grandes volúmenes de datos experimentales usando Python.', data: { modulos: [] } }
+        ];
+
+        // ==========================================
+        // COMPONENTES DE UI Y UTILIDADES
+        // ==========================================
+
+        const Button = ({ children, variant = 'primary', className = '', ...props }) => {
+            const base = "inline-flex items-center justify-center px-6 py-3 font-semibold rounded-lg transition-all duration-300 transform active:scale-95";
+            const variants = {
+                primary: "bg-brand-600 text-white hover:bg-brand-500 shadow-lg hover:shadow-brand-500/50 hover:-translate-y-1",
+                secondary: "bg-dark-800 text-white hover:bg-dark-900 shadow-lg hover:-translate-y-1",
+                outline: "border-2 border-brand-600 text-brand-600 hover:bg-brand-50 hover:-translate-y-1",
+                danger: "bg-red-600 text-white hover:bg-red-500 shadow-lg"
+            };
+            return <button className={`${base} ${variants[variant]} ${className}`} {...props}>{children}</button>;
+        };
+
+        const Card = ({ children, className = '' }) => (
+            <div className={`bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 ${className}`}>
+                {children}
+            </div>
+        );
+
+        // Resuelve URLs relativas hacia GitHub Pages o embebe limpiamente
+        const resolveResourceUrl = (path) => {
+            if (!path) return '';
+            if (path.startsWith('http')) return path;
+            // Limpiar './' si existe
+            const cleanPath = path.startsWith('./') ? path.substring(2) : path;
+            return `https://dudbilopr.github.io/Electromagnetismo/${cleanPath}`;
+        };
+
+        // Extractor Seguro de YouTube (Fix Error 153)
+        const extractYouTubeId = (url) => {
+            if (!url) return '';
+            let cleanUrl = url.trim();
+            if (/^[a-zA-Z0-9_-]{11}$/.test(cleanUrl)) return cleanUrl;
+            const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = cleanUrl.match(regExp);
+            if (match && match[2].length === 11) return match[2];
+            return cleanUrl.split('&')[0].split('?')[0]; // Fallback
+        };
+
+        // ==========================================
+        // MODALES GLOBALES
+        // ==========================================
+
+        const AuthModal = ({ isOpen, onClose, onLogin }) => {
+            const [isRegister, setIsRegister] = useState(false);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+            if (!isOpen) return null;
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (isRegister && !acceptedTerms) {
+                    alert("Debes aceptar las políticas de privacidad para registrarte.");
+                    return;
+                }
+                // Simulación de Auth (En producción aquí iría signInWithEmailAndPassword o createUserWithEmailAndPassword)
+                const isSystemAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+                onLogin({
+                    uid: isSystemAdmin ? 'admin-master-id' : `user-${Date.now()}`,
+                    email: email,
+                    role: isSystemAdmin ? 'admin' : 'student',
+                    name: email.split('@')[0]
+                });
+                onClose();
+            };
+
+            return (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative border border-slate-200">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-2 transition-colors">
+                            <X className="w-5 h-5" />
+                        </button>
+                        
+                        <div className="text-center mb-8">
+                            <div className="w-16 h-16 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-4 transform rotate-3">
+                                <Lock className="w-8 h-8" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-slate-900">{isRegister ? 'Crear Cuenta' : 'Acceso Estudiantes'}</h2>
+                            <p className="text-slate-500 text-sm mt-2">Plataforma Exclusiva physics10.easy</p>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Correo Electrónico</label>
+                                <input 
+                                    type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                                    className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all" 
+                                    placeholder="estudiante@universidad.edu"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Contraseña</label>
+                                <input 
+                                    type="password" required value={password} onChange={e => setPassword(e.target.value)}
+                                    className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all" 
+                                    placeholder="••••••••"
+                                />
+                            </div>
+
+                            {isRegister && (
+                                <div className="flex items-start gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                    <input 
+                                        type="checkbox" id="terms" required checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)}
+                                        className="mt-1 w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500"
+                                    />
+                                    <label htmlFor="terms" className="text-xs text-slate-600 leading-relaxed">
+                                        Acepto las <a href="#" className="text-brand-600 font-bold hover:underline">Políticas de Privacidad</a> y autorizo el tratamiento de mis datos personales según la normativa vigente.
+                                    </label>
+                                </div>
+                            )}
+
+                            <Button type="submit" className="w-full text-lg shadow-brand-500/30">
+                                {isRegister ? 'Registrarme' : 'Ingresar al Portal'}
+                            </Button>
+                        </form>
+
+                        <div className="mt-8 text-center text-sm text-slate-600 border-t border-slate-100 pt-6">
+                            {isRegister ? '¿Ya tienes cuenta? ' : '¿Primera vez aquí? '}
+                            <button onClick={() => setIsRegister(!isRegister)} className="text-brand-600 font-bold hover:underline">
+                                {isRegister ? 'Inicia Sesión' : 'Regístrate'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ==========================================
+        // VISTAS PRINCIPALES
+        // ==========================================
+
+        const HeroSection = ({ setView }) => (
+            <section className="relative bg-slate-900 text-white overflow-hidden py-24 lg:py-32 min-h-[90vh] flex items-center">
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80')] bg-cover bg-center opacity-10"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/95 to-slate-900/60"></div>
+                
+                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+                    <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+                        
+                        {/* Copywriting y Branding */}
+                        <div className="text-left">
+                            <div className="inline-flex items-center px-4 py-2 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 mb-6 text-sm font-bold tracking-wide shadow-[0_0_15px_rgba(20,184,166,0.15)]">
+                                <Activity className="w-4 h-4 mr-2" /> Ciencia Interactiva y Datos
+                            </div>
+                            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 tracking-tight leading-tight text-white">
+                                Domina la Física. <br/>
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-teal-200">
+                                    Defiende tu Ciencia.
+                                </span>
+                            </h1>
+                            <p className="text-lg md:text-xl text-slate-300 mb-10 leading-relaxed max-w-xl font-light">
+                                Transformamos la complejidad del universo en aprendizaje interactivo. No somos una academia tradicional; combinamos la física pura con simuladores y ciencia de datos para que domines la ciencia haciendo, no solo memorizando.
+                            </p>
+                            
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <Button onClick={() => setView('catalog')} className="text-lg px-8 py-4 w-full sm:w-auto shadow-brand-500/30 font-bold">
+                                    Explorar Rutas <ChevronRight className="ml-2 w-5 h-5" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Video Destacado */}
+                        <div className="relative w-full max-w-2xl mx-auto lg:ml-auto">
+                            <div className="absolute -inset-1 bg-gradient-to-tr from-brand-500 to-blue-500 rounded-3xl blur-xl opacity-30 group-hover:opacity-50 transition duration-1000 animate-pulse"></div>
+                            
+                            <div className="relative bg-slate-800 rounded-2xl p-2 shadow-2xl border border-slate-700/50">
+                                <div className="aspect-video bg-black rounded-xl overflow-hidden relative group flex items-center justify-center">
+                                    {/* <!-- TODO: INSERTA TU VIDEO DE PRESENTACIÓN AQUÍ --> */}
+                                    {/* Reemplaza la imagen por un iframe de YouTube si lo deseas */}
+                                    <img src="https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&q=80&w=1200" alt="VSL Thumbnail" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500" />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <button className="w-24 h-24 bg-brand-600/90 backdrop-blur rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(20,184,166,0.6)] transform group-hover:scale-110 transition-all duration-300 border-2 border-brand-400">
+                                            <Play className="w-10 h-10 text-white ml-2 fill-current" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+        );
+
+        const CeoSection = () => (
+            <section className="py-24 bg-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-brand-50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 transform translate-x-1/3 -translate-y-1/3"></div>
+                
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                    <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
+                        <div className="w-full lg:w-5/12">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-brand-600 rounded-3xl transform translate-x-4 translate-y-4 opacity-10"></div>
+                                <div className="absolute inset-0 border-2 border-brand-200 rounded-3xl transform -translate-x-4 -translate-y-4"></div>
+                                <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=800" alt="Dudbil Olvasada Pabón Riaño" className="relative rounded-3xl shadow-2xl object-cover h-[500px] w-full" />
+                            </div>
+                        </div>
+                        <div className="w-full lg:w-7/12">
+                            <div className="inline-flex items-center px-4 py-2 rounded-full bg-slate-100 text-slate-600 mb-6 text-sm font-bold tracking-wide border border-slate-200">
+                                Liderazgo Académico
+                            </div>
+                            <h2 className="text-4xl lg:text-5xl font-extrabold mb-4 text-slate-900 tracking-tight">Dudbil Olvasada Pabón Riaño</h2>
+                            <p className="text-xl text-brand-600 font-bold mb-8 flex items-center gap-2 border-b border-slate-100 pb-6">
+                                <GraduationCap className="w-7 h-7" /> Físico | Coordinador y Profesor de Data Science
+                            </p>
+                            
+                            <div className="space-y-5 text-lg text-slate-600 leading-relaxed mb-10 font-medium">
+                                <p>
+                                    Mi enfoque destruye el paradigma de la enseñanza tradicional. No dictamos física para que apruebes un examen; la enseñamos para que resuelvas problemas reales utilizando tecnología avanzada.
+                                </p>
+                                <p>
+                                    A través de <strong className="text-slate-900 bg-brand-50 px-2 py-1 rounded">simuladores interactivos desarrollados a medida</strong> y el análisis de datos, transformamos conceptos abstractos en herramientas tangibles para tu desarrollo profesional.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-4">
+                                <a href="https://www.linkedin.com/in/dudbilopr" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-6 py-3 bg-[#0A66C2] text-white rounded-lg hover:bg-[#004182] font-semibold transition-colors shadow-lg hover:-translate-y-1 transform duration-300">
+                                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                                    Conectar
+                                </a>
+                                <a href="https://github.com/dudbilopr" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-semibold transition-colors shadow-lg hover:-translate-y-1 transform duration-300">
+                                    <Github className="w-5 h-5" /> Repositorios
+                                </a>
+                                
+                                <div className="flex items-center gap-2 ml-4">
+                                    <a href="#" className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-pink-100 hover:text-pink-600 transition-colors"><Instagram className="w-5 h-5"/></a>
+                                    <a href="#" className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 transition-colors"><Facebook className="w-5 h-5"/></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+
+        const CourseCatalog = ({ courses, setView, setCurrentCourse }) => (
+            <section className="py-24 bg-slate-50" id="catalog">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-16">
+                        <h2 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Catálogo de Formación</h2>
+                        <p className="text-xl text-slate-600 font-medium">Ciencia de datos, física y simuladores. Elige tu ruta.</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                        {courses.map(course => (
+                            <Card key={course.id} className="flex flex-col group">
+                                <div className="relative h-56 overflow-hidden">
+                                    <img src={course.image} alt={course.title} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-80"></div>
+                                    <div className="absolute top-4 right-4 bg-white/95 backdrop-blur px-4 py-1.5 rounded-full text-xs font-bold text-slate-900 shadow-sm uppercase tracking-wider">
+                                        {course.type}
+                                    </div>
+                                </div>
+                                <div className="p-8 flex flex-col flex-grow">
+                                    <h3 className="text-2xl font-bold text-slate-900 mb-3 leading-snug group-hover:text-brand-600 transition-colors">{course.title}</h3>
+                                    <p className="text-slate-600 mb-8 flex-grow leading-relaxed">{course.description}</p>
+                                    <div className="flex items-center justify-between mt-auto pt-6 border-t border-slate-100">
+                                        <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                                            {course.price == 0 ? <span className="text-brand-600">GRATIS</span> : `$${course.price}`}
+                                        </span>
+                                        <Button 
+                                            onClick={() => { setCurrentCourse(course); setView('courseDetail'); }}
+                                            variant="primary" className="px-5 py-2.5 text-sm shadow-md">
+                                            Ingresar
+                                        </Button>
+                                    </div>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            </section>
+        );
+
+        const PodcastNewsSection = () => (
+            <section className="py-24 bg-dark-900 text-white relative overflow-hidden">
+                {/* Background Grid Pattern */}
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+PC9zdmc+')] opacity-20"></div>
+
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-16 relative z-10">
+                    {/* Podcast Panel */}
+                    <div>
+                        <div className="flex items-center gap-4 mb-10">
+                            <div className="w-14 h-14 bg-brand-500/20 rounded-2xl flex items-center justify-center border border-brand-500/30">
+                                <Podcast className="w-7 h-7 text-brand-400" />
+                            </div>
+                            <h2 className="text-3xl font-bold tracking-tight">Podcast: La Ciencia Real</h2>
+                        </div>
+                        <div className="bg-dark-800 rounded-3xl p-8 border border-slate-700/50 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500 rounded-full mix-blend-screen filter blur-[60px] opacity-20"></div>
+                            
+                            {/* Dummy Spotify Embed */}
+                            <div className="aspect-[16/5] bg-slate-900 rounded-xl mb-8 flex items-center justify-center overflow-hidden border border-slate-700 group cursor-pointer">
+                                 <div className="text-center">
+                                    <Play className="w-10 h-10 text-brand-400 mx-auto mb-2 transform group-hover:scale-110 transition-transform" />
+                                    <p className="text-slate-400 text-sm font-semibold tracking-widest uppercase">Reproductor Spotify / YouTube</p>
+                                 </div>
+                            </div>
+                            <div className="space-y-4">
+                                {[
+                                    {t: "Análisis de Datos en la Física Cuántica", d: "Hace 1 semana • 45 min"},
+                                    {t: "El Futuro de los Simuladores Educativos", d: "Hace 2 semanas • 38 min"},
+                                    {t: "Emprendimiento Tech en Ciencias", d: "Hace 1 mes • 52 min"}
+                                ].map((ep, i) => (
+                                    <div key={i} className="flex items-center gap-5 p-4 hover:bg-dark-700 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-slate-600 group">
+                                        <div className="w-14 h-14 bg-slate-800 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-brand-600 transition-colors">
+                                            <Play className="w-6 h-6 text-brand-400 ml-1 group-hover:text-white" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-slate-200 text-lg group-hover:text-white">{ep.t}</h4>
+                                            <p className="text-sm text-slate-500 mt-1">{ep.d}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* News Panel */}
+                    <div>
+                        <div className="flex items-center gap-4 mb-10">
+                            <div className="w-14 h-14 bg-blue-500/20 rounded-2xl flex items-center justify-center border border-blue-500/30">
+                                <Newspaper className="w-7 h-7 text-blue-400" />
+                            </div>
+                            <h2 className="text-3xl font-bold tracking-tight">Noticias y Actualizaciones</h2>
+                        </div>
+                        <div className="space-y-6">
+                            {[
+                                { title: "Nuevo módulo de Termodinámica con Data Science", src: "Actualización Plataforma" },
+                                { title: "Dudbil Pabón expone en congreso internacional EdTech", src: "Evento Destacado" },
+                                { title: "Lanzamiento de nuevas plantillas de laboratorio 2026", src: "Recursos Libres" }
+                            ].map((news, i) => (
+                                <a href="#" key={i} className="block bg-dark-800 rounded-2xl p-6 md:p-8 border border-slate-700/50 shadow-lg hover:border-brand-500 transition-all hover:-translate-y-1 group">
+                                    <div className="flex justify-between items-center gap-4">
+                                        <div>
+                                            <span className="text-xs font-bold text-brand-400 uppercase tracking-widest mb-3 block">{news.src}</span>
+                                            <h3 className="text-xl font-bold text-slate-200 group-hover:text-white transition-colors leading-snug">{news.title}</h3>
+                                        </div>
+                                        <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center shrink-0 group-hover:bg-brand-500 transition-colors">
+                                            <ChevronRight className="w-6 h-6 text-slate-400 group-hover:text-white" />
+                                        </div>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+
+        const ReviewsSection = ({ reviews = [] }) => {
+            const total = reviews.length;
+            const avg = total > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / total).toFixed(1) : 0;
+            
+            let dist = {5:0, 4:0, 3:0, 2:0, 1:0};
+            reviews.forEach(r => {
+                const rounded = Math.round(r.rating);
+                if(dist[rounded] !== undefined) dist[rounded]++;
+            });
+
+            const ratingsDist = [
+                { stars: 5, pct: total ? (dist[5]/total)*100 : 0 },
+                { stars: 4, pct: total ? (dist[4]/total)*100 : 0 },
+                { stars: 3, pct: total ? (dist[3]/total)*100 : 0 },
+                { stars: 2, pct: total ? (dist[2]/total)*100 : 0 },
+                { stars: 1, pct: total ? (dist[1]/total)*100 : 0 },
+            ];
+
+            return (
+                <section className="py-24 bg-white border-t border-slate-100">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="text-center mb-16 max-w-3xl mx-auto">
+                            <h2 className="text-4xl font-extrabold text-slate-900 mb-6 tracking-tight">Calidad Validada por Estudiantes</h2>
+                            <p className="text-lg text-slate-600">Nuestros simuladores y metodología han transformado la forma de aprender ciencia exacta.</p>
+                        </div>
+
+                        {total === 0 ? (
+                            <div className="text-center py-16 bg-slate-50 rounded-3xl border border-slate-200 shadow-inner">
+                                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
+                                    <Star className="w-10 h-10 text-slate-300" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-slate-800 mb-3">Sé el primero en calificar</h3>
+                                <p className="text-slate-500 max-w-md mx-auto">Los estudiantes que aprueben los cursos podrán dejar su reseña detallada aquí.</p>
+                            </div>
+                        ) : (
+                            <div className="grid md:grid-cols-12 gap-12 items-start">
+                                {/* Panel Estadístico */}
+                                <div className="md:col-span-4 bg-slate-50 p-8 rounded-3xl border border-slate-200 shadow-sm sticky top-24">
+                                    <div className="text-center border-b border-slate-200 pb-8 mb-8">
+                                        <div className="text-7xl font-extrabold text-slate-900 tracking-tighter mb-2">{avg}</div>
+                                        <div className="flex justify-center text-yellow-400 mb-3">
+                                            {[...Array(5)].map((_, i) => <Star key={i} className={`w-7 h-7 ${i < Math.round(avg) ? 'fill-current' : 'text-slate-300'}`} />)}
+                                        </div>
+                                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{total} Reseñas Verificadas</p>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {ratingsDist.map(r => (
+                                            <div key={r.stars} className="flex items-center gap-4">
+                                                <span className="text-sm font-bold text-slate-700 w-4">{r.stars}</span>
+                                                <Star className="w-4 h-4 text-slate-400" />
+                                                <div className="flex-grow h-3 bg-slate-200 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-yellow-400 rounded-full transition-all duration-1000" style={{ width: `${r.pct}%` }}></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Listado de Comentarios */}
+                                <div className="md:col-span-8 grid sm:grid-cols-2 gap-6">
+                                    {reviews.map(rev => (
+                                        <Card key={rev.id} className="p-8 border-slate-200 bg-white shadow-md hover:shadow-xl">
+                                            <div className="flex justify-between items-start mb-6">
+                                                <div className="flex text-yellow-400">
+                                                    {[...Array(5)].map((_, idx) => <Star key={idx} className={`w-5 h-5 ${idx < Math.round(rev.rating) ? 'fill-current' : 'text-slate-200'}`} />)}
+                                                </div>
+                                                <span className="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded flex items-center gap-1">
+                                                    <CheckCircle className="w-3 h-3"/> Aprobado
+                                                </span>
+                                            </div>
+                                            <p className="text-slate-700 leading-relaxed mb-8 text-lg font-medium">"{rev.text}"</p>
+                                            <div className="flex items-center gap-4 mt-auto border-t border-slate-100 pt-6">
+                                                <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center text-white font-bold text-lg uppercase shadow-inner">
+                                                    {rev.user.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-slate-900">{rev.user}</p>
+                                                    <p className="text-xs text-slate-500 font-medium">{new Date(rev.date).toLocaleDateString()}</p>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            );
+        };
+
+        const CourseDetailView = ({ course, setView, currentUser, setEnrollments, setShowAuthModal }) => {
+            const [showCheckout, setShowCheckout] = useState(false);
+            const [coupon, setCoupon] = useState('');
+            const [discount, setDiscount] = useState(0);
+
+            const finalPrice = Math.max(0, course.price * (1 - discount));
+
+            const handleEnroll = () => {
+                if (!currentUser) {
+                    setShowCheckout(false);
+                    setShowAuthModal(true); // Fuerza a abrir el login
+                    return;
+                }
+                
+                const status = course.price === 0 ? 'Aprobado' : 'Pendiente';
+                
+                setEnrollments(prev => [...prev, {
+                    courseId: course.id,
+                    userId: currentUser.uid,
+                    status: status,
+                    date: new Date().toISOString()
+                }]);
+
+                alert(status === 'Pendiente' ? 
+                    "Matrícula en estado PENDIENTE. El administrador verificará tu pago." : 
+                    "Matrícula APROBADA. ¡Bienvenido al curso!");
+                
+                setShowCheckout(false);
+                setView('dashboard');
+            };
+
+            return (
+                <div className="pt-24 pb-16 min-h-screen bg-slate-50">
+                    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <button onClick={() => setView('catalog')} className="flex items-center text-slate-500 hover:text-brand-600 font-bold mb-8 transition-colors group">
+                            <ChevronLeft className="w-5 h-5 mr-1 transform group-hover:-translate-x-1 transition-transform" /> Volver al catálogo
+                        </button>
+
+                        <div className="bg-white rounded-[2rem] shadow-2xl overflow-hidden mb-12 border border-slate-200">
+                            {/* Header del Curso */}
+                            <div className="h-72 sm:h-96 relative">
+                                <img src={course.image} alt={course.title} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent"></div>
+                                <div className="absolute bottom-10 left-10 right-10">
+                                    <span className="inline-block px-4 py-1.5 bg-brand-500 text-white text-xs font-bold rounded-full mb-4 uppercase tracking-widest shadow-lg">
+                                        {course.type}
+                                    </span>
+                                    <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight leading-tight">{course.title}</h1>
+                                </div>
+                            </div>
+
+                            <div className="p-8 md:p-12 grid lg:grid-cols-3 gap-16">
+                                {/* Columna Izquierda: Detalles */}
+                                <div className="lg:col-span-2 space-y-12">
+                                    <section>
+                                        <h3 className="text-2xl font-extrabold text-slate-900 mb-6 flex items-center gap-3">
+                                            <BookOpen className="w-7 h-7 text-brand-500" /> Descripción
+                                        </h3>
+                                        <p className="text-slate-600 leading-relaxed text-lg">{course.description}</p>
+                                    </section>
+                                    
+                                    {course.data && course.data.modulos && course.data.modulos.length > 0 && (
+                                        <section>
+                                            <h3 className="text-2xl font-extrabold text-slate-900 mb-6 flex items-center gap-3">
+                                                <FileText className="w-7 h-7 text-brand-500" /> Estructura del Currículo
+                                            </h3>
+                                            <div className="space-y-4">
+                                                {course.data.modulos.map((mod, i) => (
+                                                    <div key={i} className="border border-slate-200 bg-slate-50 rounded-2xl p-6 hover:border-brand-300 transition-colors group">
+                                                        <h4 className="font-bold text-slate-900 text-lg flex items-start gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-brand-600 shrink-0 mt-0.5 border border-slate-200 group-hover:bg-brand-500 group-hover:text-white transition-colors">{i+1}</div>
+                                                            {mod.titulo}
+                                                        </h4>
+                                                        <div className="mt-4 ml-11 flex flex-wrap gap-2">
+                                                            <span className="text-xs font-bold bg-white px-3 py-1 rounded-full border border-slate-200 text-slate-600">{mod.lecciones.length} Recursos</span>
+                                                            <span className="text-xs font-bold bg-white px-3 py-1 rounded-full border border-slate-200 text-slate-600">Simuladores Incluidos</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    )}
+                                </div>
+
+                                {/* Columna Derecha: Sticky Pricing */}
+                                <div className="lg:col-span-1">
+                                    <div className="bg-white p-8 rounded-3xl border border-slate-200 sticky top-28 shadow-xl">
+                                        <div className="text-center border-b border-slate-100 pb-8 mb-8">
+                                            <p className="text-slate-500 font-bold uppercase tracking-wider text-sm mb-2">Inversión</p>
+                                            <div className="text-5xl font-extrabold text-slate-900 tracking-tight">
+                                                {course.price === 0 ? <span className="text-brand-600">GRATIS</span> : `$${course.price}`}
+                                            </div>
+                                        </div>
+                                        
+                                        <ul className="space-y-5 mb-10 text-slate-600 font-medium">
+                                            <li className="flex items-center"><Clock className="w-6 h-6 mr-4 text-brand-500 shrink-0" /> Acceso vitalicio a la plataforma</li>
+                                            <li className="flex items-center"><GraduationCap className="w-6 h-6 mr-4 text-brand-500 shrink-0" /> Certificado de validación</li>
+                                            <li className="flex items-center"><Activity className="w-6 h-6 mr-4 text-brand-500 shrink-0" /> Simuladores 100% interactivos</li>
+                                            <li className="flex items-center"><User className="w-6 h-6 mr-4 text-brand-500 shrink-0" /> Soporte por IA y comunidad</li>
+                                        </ul>
+                                        
+                                        <Button onClick={() => setShowCheckout(true)} className="w-full text-lg py-4 shadow-brand-500/30">
+                                            Matricularme Ahora
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Checkout Modal */}
+                    {showCheckout && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative border border-slate-200">
+                                <button onClick={() => setShowCheckout(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-2">
+                                    <X className="w-5 h-5" />
+                                </button>
+                                
+                                <div className="flex items-center justify-center w-16 h-16 bg-brand-100 text-brand-600 rounded-2xl mb-6 mx-auto">
+                                    <CreditCard className="w-8 h-8" />
+                                </div>
+                                <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">Checkout Seguro</h2>
+                                
+                                <div className="bg-slate-50 p-5 rounded-2xl mb-8 border border-slate-100">
+                                    <p className="font-bold text-slate-900 text-lg mb-4">{course.title}</p>
+                                    <div className="space-y-3 border-t border-slate-200 pt-4">
+                                        <div className="flex justify-between items-center text-slate-600 font-medium">
+                                            <span>Subtotal:</span>
+                                            <span className={discount > 0 ? "line-through text-slate-400" : "font-bold text-slate-900"}>${course.price.toFixed(2)}</span>
+                                        </div>
+                                        {discount > 0 && (
+                                            <div className="flex justify-between items-center text-green-600 font-bold">
+                                                <span>Descuento aplicado:</span>
+                                                <span>-${(course.price * discount).toFixed(2)}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-center text-xl font-extrabold text-slate-900 pt-2 border-t border-slate-200">
+                                            <span>Total:</span>
+                                            <span>${finalPrice.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {course.price > 0 && (
+                                    <div className="mb-8">
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">Cupón de Descuento</label>
+                                        <div className="flex gap-2">
+                                            <input 
+                                                type="text" 
+                                                value={coupon} 
+                                                onChange={e => setCoupon(e.target.value.toUpperCase())}
+                                                className="flex-grow rounded-xl border border-slate-300 px-4 py-3 focus:ring-2 focus:ring-brand-500 outline-none font-bold text-slate-700"
+                                                placeholder="Ej. PROMO50"
+                                            />
+                                            <Button variant="secondary" onClick={() => {
+                                                if(coupon === 'PROMO50') setDiscount(0.5);
+                                                else alert("Cupón inválido o expirado");
+                                            }}>Aplicar</Button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="bg-blue-50/50 border border-blue-100 text-blue-800 p-4 rounded-xl text-sm mb-8 flex gap-3 font-medium">
+                                    <HelpCircle className="w-5 h-5 flex-shrink-0 text-blue-500" />
+                                    <p>
+                                        {course.price > 0 ? 
+                                        "Al confirmar, tu solicitud quedará PENDIENTE. Envía el comprobante al WhatsApp para habilitar tu acceso." : 
+                                        "Este curso es gratuito. El acceso será inmediato tras la confirmación."}
+                                    </p>
+                                </div>
+
+                                <Button onClick={handleEnroll} className="w-full text-lg py-4">
+                                    Confirmar Matrícula
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- COMPONENTE QUIZ NATIVO ---
+        const NativeQuiz = ({ lesson, onPass, isCompleted }) => {
+            const [answers, setAnswers] = useState({});
+            const [submitted, setSubmitted] = useState(false);
+            const [score, setScore] = useState(0);
+
+            useEffect(() => {
+                setAnswers({});
+                setSubmitted(false);
+                setScore(0);
+            }, [lesson.id]);
+
+            const handleSubmit = () => {
+                let correct = 0;
+                lesson.preguntas?.forEach((q, i) => {
+                    if (answers[i] === q.correcta) correct++;
+                });
+                const pct = lesson.preguntas?.length ? (correct / lesson.preguntas.length) * 100 : 0;
+                setScore(pct);
+                setSubmitted(true);
+                if (pct >= 80 && !isCompleted) onPass();
+            };
+
+            if (!lesson.preguntas || lesson.preguntas.length === 0) {
+                return <div className="p-12 text-center text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">Este quiz aún no tiene preguntas configuradas por el docente.</div>;
+            }
+
+            return (
+                <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-xl max-w-4xl mx-auto">
+                    <h3 className="text-3xl font-extrabold text-slate-900 mb-8 flex items-center gap-3 border-b border-slate-100 pb-6">
+                        <HelpCircle className="text-brand-500 w-10 h-10"/> {lesson.titulo}
+                    </h3>
+                    <div className="space-y-10">
+                        {lesson.preguntas.map((q, i) => (
+                            <div key={i} className="p-8 bg-slate-50 rounded-2xl border border-slate-100 relative">
+                                <span className="absolute -top-4 -left-4 w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-bold shadow-lg">{i+1}</span>
+                                <p className="font-bold text-slate-900 mb-6 text-xl pl-4">{q.pregunta}</p>
+                                <div className="space-y-4">
+                                    {q.opciones.map((opt, oIdx) => (
+                                        <label key={oIdx} className={`flex items-center gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${answers[i] === oIdx ? 'border-brand-500 bg-brand-50 shadow-md' : 'border-slate-200 hover:border-slate-300 bg-white'} ${submitted && answers[i] === oIdx && q.correcta !== oIdx ? 'border-red-500 bg-red-50' : ''} ${submitted && q.correcta === oIdx ? 'border-green-500 bg-green-50 ring-4 ring-green-100' : ''}`}>
+                                            <input type="radio" disabled={submitted} name={`q-${i}`} checked={answers[i] === oIdx} onChange={() => setAnswers({...answers, [i]: oIdx})} className="w-6 h-6 text-brand-600 focus:ring-brand-500 accent-brand-600" />
+                                            <span className={`text-lg font-medium ${submitted && q.correcta === oIdx ? 'text-green-800 font-bold' : 'text-slate-700'}`}>{opt}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-12 pt-8 border-t border-slate-200 flex flex-col items-center gap-6">
+                        {submitted ? (
+                            <div className={`w-full p-6 rounded-2xl font-bold text-center text-lg shadow-sm border ${score >= 80 ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                                Tu puntuación final: {score.toFixed(0)}% <br/>
+                                <span className="text-sm font-medium mt-2 block">{score >= 80 ? '¡Aprobado! Tu progreso ha sido guardado.' : 'Necesitas un mínimo de 80% para aprobar. Repasa la teoría.'}</span>
+                            </div>
+                        ) : (
+                            <p className="text-slate-500 font-medium text-center bg-slate-100 px-6 py-3 rounded-full">Responde a todas las preguntas para habilitar el envío.</p>
+                        )}
+                        {!submitted ? (
+                            <Button onClick={handleSubmit} disabled={Object.keys(answers).length < lesson.preguntas?.length} className="w-full max-w-md py-4 text-lg">
+                                Enviar Respuestas y Calificar
+                            </Button>
+                        ) : (
+                            score < 80 && <Button variant="outline" onClick={() => { setSubmitted(false); setAnswers({}); }} className="w-full max-w-md py-4">Reintentar Evaluación</Button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const CoursePlayer = ({ course, setView, currentUser }) => {
+            const [sidebarOpen, setSidebarOpen] = useState(true);
+            const [activeLesson, setActiveLesson] = useState(null);
+            
+            // Progreso en LocalStorage (En prod: Firestore)
+            const [progress, setProgress] = useState(() => {
+                const saved = localStorage.getItem(`progreso_${currentUser.uid}_${course.id}`);
+                return saved ? JSON.parse(saved) : {};
+            }); 
+            
+            const [timer, setTimer] = useState(0);
+            const [activePartIndex, setActivePartIndex] = useState(0);
+
+            // Acordeón Sidebar
+            const [openModules, setOpenModules] = useState({ 0: true }); 
+            const [openGroups, setOpenGroups] = useState({});
+
+            // Extractor YouTube Avanzado (Maneja ID::Titulo)
+            const getVideosData = (recursoStr) => {
+                if (!recursoStr) return [];
+                return recursoStr.split('|').filter(Boolean).map(part => {
+                    const [urlOrId, title] = part.split('::');
+                    return { id: extractYouTubeId(urlOrId), title: title || 'Video Interactivo' };
+                }).filter(v => v.id);
+            };
+
+            useEffect(() => {
+                if (course && course.data && course.data.modulos[0] && course.data.modulos[0].lecciones[0]) {
+                    setActiveLesson(course.data.modulos[0].lecciones[0]);
+                }
+            }, [course]);
+
+            useEffect(() => {
+                setActivePartIndex(0); 
+                if (!activeLesson || progress[activeLesson.id]) return;
+                setTimer(0);
+                const interval = setInterval(() => {
+                    setTimer(prev => prev + 1);
+                }, 1000);
+                return () => clearInterval(interval);
+            }, [activeLesson]);
+
+            const markAsCompleted = () => {
+                const REQUIRED_TIME = 10; // Segundos mínimos para simular estudio real
+                if (timer < REQUIRED_TIME && activeLesson.tipo !== 'quiz') {
+                    alert(`Debes estudiar este material al menos ${REQUIRED_TIME} segundos antes de completarlo.`);
+                    return;
+                }
+                const newProgress = {...progress, [activeLesson.id]: true};
+                setProgress(newProgress);
+                localStorage.setItem(`progreso_${currentUser.uid}_${course.id}`, JSON.stringify(newProgress));
+            };
+
+            const toggleModule = (index) => setOpenModules(prev => ({...prev, [index]: !prev[index]}));
+            const toggleGroup = (id) => setOpenGroups(prev => ({...prev, [id]: !prev[id]}));
+
+            const renderResource = () => {
+                if (!activeLesson) return null;
+
+                switch (activeLesson.tipo) {
+                    case 'multivideo':
+                        const videos = getVideosData(activeLesson.recurso);
+                        if (videos.length === 0) return <div className="p-8 text-center text-slate-500 bg-slate-100 rounded-2xl">No hay videos válidos configurados.</div>;
+                        const activeVideo = videos[activePartIndex] || videos[0];
+
+                        return (
+                            <div className="space-y-8">
+                                <div className="aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl relative border border-slate-800 group">
+                                    <iframe 
+                                        className="w-full h-full absolute inset-0" 
+                                        src={`https://www.youtube.com/embed/${activeVideo.id}?rel=0&modestbranding=1&showinfo=0`} 
+                                        title={activeVideo.title} 
+                                        frameBorder="0" 
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                        allowFullScreen>
+                                    </iframe>
+                                </div>
+                                
+                                {videos.length > 1 && (
+                                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                                        <h4 className="font-extrabold text-slate-900 mb-6 flex items-center gap-2">
+                                            <Video className="w-5 h-5 text-brand-500" /> Lista de Reproducción de la Lección
+                                        </h4>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                            {videos.map((part, idx) => (
+                                                <button 
+                                                    key={idx} onClick={() => setActivePartIndex(idx)}
+                                                    className={`relative rounded-xl overflow-hidden border-2 transition-all group flex flex-col text-left ${activePartIndex === idx ? 'border-brand-500 shadow-[0_0_15px_rgba(20,184,166,0.2)]' : 'border-slate-200 hover:border-slate-400'}`}>
+                                                    <div className="w-full aspect-video relative bg-slate-900 shrink-0">
+                                                        <img src={`https://img.youtube.com/vi/${part.id}/mqdefault.jpg`} className={`w-full h-full object-cover transition-opacity duration-300 ${activePartIndex === idx ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`} alt={part.title} />
+                                                        <div className={`absolute inset-0 flex items-center justify-center transition-colors ${activePartIndex === idx ? 'bg-brand-900/30' : 'bg-black/50 group-hover:bg-black/20'}`}>
+                                                            <Play className={`w-8 h-8 transition-transform ${activePartIndex === idx ? 'text-brand-500 scale-110 drop-shadow-lg' : 'text-white'}`} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-white p-3">
+                                                        <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${activePartIndex === idx ? 'text-brand-600' : 'text-slate-400'}`}>Parte {idx+1}</p>
+                                                        <p className="text-sm font-bold text-slate-900 truncate" title={part.title}>{part.title}</p>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    case 'multipresentacion':
+                        const docs = activeLesson.recurso.split('|').filter(Boolean);
+                        const targetDoc = resolveResourceUrl(docs[activePartIndex]);
+                        return (
+                            <div className="space-y-6">
+                                <div className="flex flex-wrap gap-3 mb-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                    {docs.map((_, idx) => (
+                                        <Button key={idx} variant={activePartIndex === idx ? 'primary' : 'outline'} onClick={() => setActivePartIndex(idx)} className="text-sm px-5 py-2">
+                                            Documento {idx + 1}
+                                        </Button>
+                                    ))}
+                                    <a href={targetDoc} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center text-sm font-bold text-brand-600 hover:text-brand-800 bg-brand-50 px-5 py-2 rounded-lg transition-colors">
+                                        Abrir en Pantalla Completa <ChevronRight className="w-4 h-4 ml-1" />
+                                    </a>
+                                </div>
+                                <div className="w-full h-[75vh] min-h-[600px] bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative">
+                                    <iframe src={targetDoc} className="w-full h-full absolute inset-0" title={`Documento ${activePartIndex+1}`} frameBorder="0" allowFullScreen></iframe>
+                                </div>
+                            </div>
+                        );
+                    case 'texto':
+                        return (
+                            <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-xl max-w-4xl mx-auto">
+                                <h3 className="text-3xl font-extrabold text-slate-900 mb-8 flex items-center gap-3 border-b border-slate-100 pb-6"><FileText className="text-brand-500 w-10 h-10"/> {activeLesson.titulo}</h3>
+                                <div className="prose prose-lg max-w-none prose-slate prose-headings:font-bold prose-a:text-brand-600 whitespace-pre-wrap leading-relaxed font-serif">
+                                    {activeLesson.contenidoText}
+                                </div>
+                            </div>
+                        );
+                    case 'quiz_nativo':
+                        return <NativeQuiz lesson={activeLesson} onPass={() => markAsCompleted()} isCompleted={progress[activeLesson.id]} />;
+                    case 'simulador':
+                    case 'ejercicio':
+                    case 'quiz':
+                        const externalUrl = resolveResourceUrl(activeLesson.recurso.split('|')[0]);
+                        return (
+                            <div className="space-y-6">
+                                <div className="bg-white rounded-2xl p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center border border-slate-200 shadow-sm gap-6">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-xl flex items-center justify-center shrink-0">
+                                            {activeLesson.tipo === 'simulador' ? <Activity className="w-6 h-6"/> : <HelpCircle className="w-6 h-6"/>}
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-extrabold text-slate-900 mb-1">{activeLesson.titulo}</h3>
+                                            <a href={externalUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-brand-600 hover:text-brand-800 flex items-center group">
+                                                Lanzar en ventana independiente <ChevronRight className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {activeLesson.tipo === 'quiz' && (
+                                        <Button onClick={() => { alert("Validación externa completada."); markAsCompleted(); }} variant="secondary" className="shrink-0 px-8">
+                                            Validar Aprobación
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="w-full h-[80vh] min-h-[600px] bg-slate-900 rounded-3xl shadow-2xl border-4 border-slate-800 overflow-hidden relative group">
+                                    <iframe src={externalUrl} className="w-full h-full absolute inset-0 bg-white" title={activeLesson.titulo} frameBorder="0" allowFullScreen></iframe>
+                                    <div className="absolute top-4 right-4 bg-black/50 backdrop-blur text-white text-xs px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 pointer-events-none">
+                                        <Lock className="w-3 h-3"/> Entorno Seguro
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    case 'enlaces':
+                        return (
+                            <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-xl max-w-4xl mx-auto">
+                                <div className="text-center mb-12 border-b border-slate-100 pb-10">
+                                    <div className="w-20 h-20 bg-brand-50 text-brand-500 rounded-2xl flex items-center justify-center mx-auto mb-6 transform rotate-3">
+                                        <LinkIcon className="w-10 h-10" />
+                                    </div>
+                                    <h3 className="text-3xl font-extrabold text-slate-900 mb-4">{activeLesson.titulo}</h3>
+                                    <p className="text-lg text-slate-600 max-w-2xl mx-auto">{activeLesson.descripcion}</p>
+                                </div>
+                                <div className="space-y-12">
+                                    {(activeLesson.secciones || []).map((sec, idx) => (
+                                        <div key={idx}>
+                                            <h4 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                                                <Folder className="w-6 h-6 text-slate-400" /> {sec.tituloSeccion}
+                                            </h4>
+                                            <div className="grid sm:grid-cols-2 gap-4">
+                                                {(sec.links || []).map((link, lIdx) => (
+                                                    <a key={lIdx} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-4 p-5 rounded-2xl border border-slate-200 hover:border-brand-500 hover:shadow-lg transition-all group bg-slate-50 hover:bg-white hover:-translate-y-1">
+                                                        <div className="w-12 h-12 bg-white border border-slate-200 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-brand-500 group-hover:border-brand-500 transition-colors shadow-sm">
+                                                            <LinkIcon className="w-5 h-5 text-slate-500 group-hover:text-white" />
+                                                        </div>
+                                                        <div>
+                                                            <h5 className="font-bold text-slate-900 text-sm mb-1.5 group-hover:text-brand-600 transition-colors leading-tight">{link.titulo}</h5>
+                                                            <p className="text-xs text-slate-500 leading-relaxed font-medium line-clamp-2">{link.descripcion}</p>
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    default:
+                        return <div className="p-12 text-center text-slate-500 bg-slate-100 rounded-2xl">Tipo de recurso desconocido.</div>;
+                }
+            };
+
+            // Cálculo total de progreso
+            let totalLessons = 0;
+            let completedCount = 0;
+            if (course && course.data) {
+                course.data.modulos.forEach(mod => {
+                    mod.lecciones.forEach(l => {
+                        if (l.tipo === 'grupo') {
+                            l.sublecciones.forEach(sub => { totalLessons++; if(progress[sub.id]) completedCount++; });
+                        } else {
+                            totalLessons++; if(progress[l.id]) completedCount++;
+                        }
+                    });
+                });
+            }
+            const progressPercentage = totalLessons === 0 ? 0 : Math.round((completedCount / totalLessons) * 100);
+
+            if (!course || !course.data) return <div className="p-24 text-center font-bold text-2xl text-slate-400">Datos del curso corruptos.</div>;
+
+            return (
+                <div className="flex h-screen bg-slate-100 pt-[72px]">
+                    {/* Main Content Area */}
+                    <div className="flex-1 flex flex-col min-w-0">
+                        {/* Header del Reproductor */}
+                        <header className="h-20 border-b border-slate-200 flex items-center justify-between px-6 sm:px-10 bg-white shrink-0 shadow-sm z-10 relative">
+                            <div className="absolute bottom-0 left-0 h-1 bg-brand-500 transition-all duration-500" style={{width: `${progressPercentage}%`}}></div>
+                            
+                            <div className="flex items-center gap-6">
+                                <button onClick={() => setView('dashboard')} className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-all">
+                                    <ChevronLeft className="w-6 h-6" />
+                                </button>
+                                <div>
+                                    <h1 className="font-extrabold text-xl text-slate-900 truncate max-w-[200px] sm:max-w-md md:max-w-xl">{course.title}</h1>
+                                    <p className="text-sm font-bold text-slate-500 mt-0.5">Tu progreso: <span className="text-brand-600">{progressPercentage}% completado</span></p>
+                                </div>
+                            </div>
+                            <Button variant="outline" className="hidden sm:flex" onClick={() => setSidebarOpen(!sidebarOpen)}>
+                                {sidebarOpen ? 'Ocultar Temario' : 'Ver Temario'} <Menu className="w-4 h-4 ml-2"/>
+                            </Button>
+                        </header>
+                        
+                        <div className="flex-1 overflow-auto p-4 sm:p-8 lg:p-12 relative">
+                            <div className="max-w-[1400px] mx-auto">
+                                <div className="mb-8">
+                                    <h2 className="text-4xl font-extrabold text-slate-900 mb-3 tracking-tight">{activeLesson?.titulo}</h2>
+                                    {activeLesson?.descripcion && <p className="text-lg text-slate-600 font-medium">{activeLesson.descripcion}</p>}
+                                </div>
+                                
+                                {renderResource()}
+
+                                {activeLesson?.tipo !== 'quiz_nativo' && activeLesson?.tipo !== 'quiz' && (
+                                    <div className="mt-12 flex flex-col sm:flex-row justify-between items-center bg-white p-8 rounded-3xl shadow-lg border border-slate-200 gap-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 ${progress[activeLesson?.id] ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                                                {progress[activeLesson?.id] ? <CheckCircle className="w-8 h-8"/> : <Clock className="w-8 h-8"/>}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Estado del Recurso</p>
+                                                <p className="text-xl text-slate-900 font-extrabold">
+                                                    {progress[activeLesson?.id] ? 'Completada Exitosamente' : `En estudio... (${timer}s)`}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {!progress[activeLesson?.id] && (
+                                            <Button onClick={markAsCompleted} className={`px-8 py-4 text-lg ${timer < 10 ? 'opacity-50 cursor-not-allowed' : ''}`} variant={timer < 10 ? 'secondary' : 'primary'}>
+                                                Marcar como Completado
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Sidebar Drawer (Temario) */}
+                    <div className={`${sidebarOpen ? 'w-[380px]' : 'w-0'} shrink-0 bg-white border-l border-slate-200 transition-all duration-300 overflow-y-auto shadow-2xl relative z-20`}>
+                        <div className="p-6">
+                            <h3 className="font-extrabold text-xl text-slate-900 mb-6 flex items-center gap-3"><BookOpen className="w-6 h-6 text-brand-500"/> Contenido del Curso</h3>
+                            <div className="space-y-4">
+                                {course.data.modulos.map((mod, i) => (
+                                    <div key={i} className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                                        <button 
+                                            onClick={() => toggleModule(i)}
+                                            className="w-full px-5 py-4 bg-slate-50 hover:bg-slate-100 text-left flex justify-between items-center transition-colors border-b border-slate-100">
+                                            <span className="font-extrabold text-slate-900 text-sm truncate pr-4 leading-snug">{mod.titulo}</span>
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${openModules[i] ? 'bg-brand-100 text-brand-600' : 'bg-white border border-slate-200 text-slate-400'}`}>
+                                                <ChevronRight className={`w-4 h-4 transition-transform ${openModules[i] ? 'rotate-90' : ''}`} />
+                                            </div>
+                                        </button>
+                                        
+                                        {openModules[i] && (
+                                            <div className="p-3 space-y-1.5 bg-white">
+                                                {mod.lecciones.map((lesson, j) => {
+                                                    if (lesson.tipo === 'grupo') {
+                                                        const isGroupOpen = openGroups[lesson.titulo];
+                                                        return (
+                                                            <div key={j} className="mb-2 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                                                                <button onClick={() => toggleGroup(lesson.titulo)} className="w-full px-4 py-3 text-sm font-bold text-slate-700 bg-white flex justify-between items-center hover:bg-slate-50">
+                                                                    <span className="truncate flex items-center gap-2"><Folder className="w-4 h-4 text-brand-500"/> {lesson.titulo}</span>
+                                                                    <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${isGroupOpen ? 'rotate-90' : ''}`} />
+                                                                </button>
+                                                                {isGroupOpen && (
+                                                                    <div className="p-2 space-y-1 bg-slate-50">
+                                                                        {lesson.sublecciones.map(sub => (
+                                                                            <button 
+                                                                                key={sub.id} 
+                                                                                onClick={() => setActiveLesson(sub)}
+                                                                                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all flex items-center justify-between group ${activeLesson?.id === sub.id ? 'bg-brand-500 text-white shadow-md' : 'text-slate-600 hover:bg-white border border-transparent hover:border-slate-200'}`}
+                                                                            >
+                                                                                <span className="truncate pr-2 flex items-center gap-2">
+                                                                                    <div className={`w-1.5 h-1.5 rounded-full ${activeLesson?.id === sub.id ? 'bg-white' : 'bg-slate-300'}`}></div>
+                                                                                    {sub.titulo}
+                                                                                </span>
+                                                                                {progress[sub.id] && <CheckCircle className={`w-4 h-4 shrink-0 ${activeLesson?.id === sub.id ? 'text-white' : 'text-green-500'}`} />}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )
+                                                    }
+                                                    return (
+                                                        <button 
+                                                            key={lesson.id} 
+                                                            onClick={() => setActiveLesson(lesson)}
+                                                            className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-between group border border-transparent ${activeLesson?.id === lesson.id ? 'bg-brand-50 border-brand-200 text-brand-900 shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:border-slate-200'}`}
+                                                        >
+                                                            <span className="flex items-center gap-3 truncate pr-2">
+                                                                {lesson.tipo === 'multivideo' ? <Video className={`w-4 h-4 shrink-0 ${activeLesson?.id === lesson.id ? 'text-brand-600' : 'text-slate-400'}`}/> : 
+                                                                 (lesson.tipo === 'quiz' || lesson.tipo === 'quiz_nativo') ? <HelpCircle className={`w-4 h-4 shrink-0 ${activeLesson?.id === lesson.id ? 'text-brand-600' : 'text-slate-400'}`}/> : 
+                                                                 <FileText className={`w-4 h-4 shrink-0 ${activeLesson?.id === lesson.id ? 'text-brand-600' : 'text-slate-400'}`}/>}
+                                                                <span className={`truncate ${activeLesson?.id === lesson.id ? 'font-bold' : ''}`}>{lesson.titulo}</span>
+                                                            </span>
+                                                            {progress[lesson.id] && <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />}
+                                                        </button>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Dashboard = ({ enrollments, setView, currentUser, setCurrentCourse, courses, addReview, onLogout }) => {
+            const [ratings, setRatings] = useState({ q1: 0, q2: 0, q3: 0 });
+            const [comment, setComment] = useState('');
+
+            const handleReviewSubmit = (e) => {
+                e.preventDefault();
+                if (ratings.q1 === 0 || ratings.q2 === 0 || ratings.q3 === 0) {
+                    alert("Por favor, califica las tres métricas antes de enviar tu reseña.");
+                    return;
+                }
+                const avgRating = (ratings.q1 + ratings.q2 + ratings.q3) / 3;
+                addReview({
+                    id: Date.now(),
+                    user: currentUser.name,
+                    rating: avgRating,
+                    text: comment,
+                    date: new Date().toISOString()
+                });
+                alert("Reseña profesional publicada. ¡Gracias por validar la plataforma!");
+                setRatings({ q1: 0, q2: 0, q3: 0 });
+                setComment('');
+            };
+
+            const stats = {
+                total: enrollments.length,
+                approved: enrollments.filter(e => e.status === 'Aprobado').length,
+                pending: enrollments.filter(e => e.status === 'Pendiente').length
+            };
+
+            return (
+                <div className="pt-24 pb-16 min-h-screen bg-slate-50">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        {/* Header Dashboard */}
+                        <div className="bg-slate-900 rounded-3xl p-8 sm:p-12 mb-12 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-8">
+                            <div className="absolute right-0 top-0 w-64 h-64 bg-brand-500/20 rounded-full mix-blend-screen filter blur-3xl"></div>
+                            <div className="relative z-10 text-center md:text-left">
+                                <span className="inline-block px-3 py-1 bg-white/10 border border-white/20 text-white rounded-full text-xs font-bold tracking-widest uppercase mb-4">Área de Trabajo</span>
+                                <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">Bienvenido, {currentUser.name}</h1>
+                                <p className="text-slate-400 font-medium">Gestiona tu aprendizaje y certificaciones.</p>
+                            </div>
+                            <div className="relative z-10 flex flex-wrap justify-center gap-4 bg-white/5 p-2 rounded-2xl border border-white/10">
+                                <div className="px-6 py-4 text-center">
+                                    <p className="text-3xl font-extrabold text-white">{stats.approved}</p>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Activos</p>
+                                </div>
+                                <div className="px-6 py-4 text-center border-l border-white/10">
+                                    <p className="text-3xl font-extrabold text-amber-400">{stats.pending}</p>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Pendientes</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Listado de Cursos */}
+                        <div className="mb-16">
+                            <h2 className="text-2xl font-extrabold text-slate-900 mb-8 flex items-center gap-3">
+                                <BookOpen className="w-6 h-6 text-brand-500"/> Mis Rutas de Aprendizaje
+                            </h2>
+                            {enrollments.length === 0 ? (
+                                <div className="text-center py-20 bg-white rounded-3xl shadow-sm border border-slate-200">
+                                    <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-dashed border-slate-200">
+                                        <BookOpen className="w-10 h-10 text-slate-300" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-slate-900 mb-3">Workspace Vacío</h3>
+                                    <p className="text-slate-500 mb-8 max-w-md mx-auto">Aún no te has matriculado en ningún curso. Explora el catálogo para comenzar tu formación técnica.</p>
+                                    <Button onClick={() => setView('catalog')} className="px-8 py-4 text-lg">Explorar Catálogo</Button>
+                                </div>
+                            ) : (
+                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                    {enrollments.map((enr, i) => {
+                                        const course = courses.find(c => c.id === enr.courseId);
+                                        if(!course) return null;
+                                        const isApproved = enr.status === 'Aprobado';
+                                        
+                                        return (
+                                            <Card key={i} className={`flex flex-col relative group ${!isApproved ? 'opacity-90' : ''}`}>
+                                                <div className="h-48 relative overflow-hidden">
+                                                    <img src={course.image} className={`w-full h-full object-cover transition-transform duration-700 ${isApproved ? 'group-hover:scale-110' : 'filter grayscale blur-sm'}`} alt="" />
+                                                    <div className="absolute inset-0 bg-slate-900/50"></div>
+                                                    {!isApproved && (
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-md">
+                                                            <span className="px-5 py-2 bg-amber-500 text-white font-bold rounded-xl flex items-center gap-2 shadow-2xl">
+                                                                <Clock className="w-5 h-5"/> En Verificación
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="p-8 flex-grow flex flex-col">
+                                                    <h3 className="text-xl font-bold text-slate-900 mb-4 leading-snug">{course.title}</h3>
+                                                    <div className="mt-auto border-t border-slate-100 pt-6">
+                                                        <Button 
+                                                            disabled={!isApproved}
+                                                            onClick={() => { setCurrentCourse(course); setView('player'); }}
+                                                            className={`w-full py-3 ${!isApproved ? 'bg-slate-200 text-slate-500 hover:bg-slate-200 cursor-not-allowed shadow-none border-none' : ''}`}>
+                                                            {isApproved ? 'Ingresar al Entorno' : 'Acceso Bloqueado'}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Sistema de Reseñas */}
+                        {stats.approved > 0 && (
+                            <div className="bg-white p-10 md:p-14 rounded-3xl shadow-xl border border-slate-200 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+                                
+                                <div className="relative z-10 max-w-3xl">
+                                    <h2 className="text-3xl font-extrabold text-slate-900 mb-4 flex items-center gap-3">
+                                        <Star className="w-8 h-8 text-yellow-400 fill-current" /> Evaluación de Calidad
+                                    </h2>
+                                    <p className="text-lg text-slate-600 mb-10 font-medium">Tu retroalimentación técnica valida nuestra metodología frente a la comunidad científica y educativa.</p>
+                                    
+                                    <form className="space-y-8" onSubmit={handleReviewSubmit}>
+                                        <div className="space-y-4 bg-slate-50 p-6 md:p-8 rounded-2xl border border-slate-100">
+                                            <h4 className="font-bold text-slate-900 text-lg mb-4 border-b border-slate-200 pb-2">Métricas Cuantitativas</h4>
+                                            {[
+                                                { id: 'q1', label: '1. Rigor y claridad del contenido teórico' },
+                                                { id: 'q2', label: '2. Funcionalidad de los simuladores interactivos' },
+                                                { id: 'q3', label: '3. Experiencia UX de la plataforma' }
+                                            ].map(q => (
+                                                <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                                    <span className="font-bold text-slate-700 mb-3 sm:mb-0 text-sm">{q.label}</span>
+                                                    <div className="flex text-slate-200 gap-1">
+                                                        {[1,2,3,4,5].map(star => (
+                                                            <Star 
+                                                                key={star} 
+                                                                onClick={() => setRatings({...ratings, [q.id]: star})}
+                                                                className={`w-8 h-8 cursor-pointer transition-transform hover:scale-110 ${ratings[q.id] >= star ? 'text-yellow-400 fill-current drop-shadow-sm' : 'hover:text-yellow-200'}`} 
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="bg-slate-50 p-6 md:p-8 rounded-2xl border border-slate-100">
+                                            <label className="block font-bold text-slate-900 text-lg mb-4">Dictamen Final</label>
+                                            <textarea 
+                                                value={comment}
+                                                onChange={(e) => setComment(e.target.value)}
+                                                className="w-full p-5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-shadow text-slate-700 font-medium" 
+                                                rows="4" 
+                                                placeholder="Detalla cómo esta plataforma aportó a tu formación técnica..." 
+                                                required
+                                            ></textarea>
+                                        </div>
+                                        <Button type="submit" className="w-full sm:w-auto px-10 py-4 text-lg">Publicar Evaluación</Button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminPanel = ({ enrollments, setEnrollments, courses, setCourses }) => {
+            const [activeTab, setActiveTab] = useState('enrollments'); 
+            const [showCourseModal, setShowCourseModal] = useState(false);
+            const [editingCourse, setEditingCourse] = useState(null);
+
+            // Estado para el Constructor Visual
+            const [curriculum, setCurriculum] = useState([]);
+            
+            useEffect(() => {
+                if (editingCourse && editingCourse.data && editingCourse.data.modulos) {
+                    setCurriculum(editingCourse.data.modulos);
+                } else {
+                    setCurriculum([]);
+                }
+            }, [editingCourse]);
+
+            // --- LÓGICA DEL BUILDER (Módulos, Lecciones, Grupos) ---
+            const addModule = () => setCurriculum([...curriculum, { titulo: 'Nuevo Módulo Teórico', lecciones: [] }]);
+            const updateModuleTitle = (index, value) => { const newCurr = [...curriculum]; newCurr[index].titulo = value; setCurriculum(newCurr); };
+            const deleteModule = (index) => setCurriculum(curriculum.filter((_, i) => i !== index));
+
+            const addLesson = (modIndex) => {
+                const newCurr = [...curriculum];
+                newCurr[modIndex].lecciones.push({ id: `l-${Date.now()}`, titulo: 'Recurso Nuevo', tipo: 'multivideo', recurso: '', descripcion: '' });
+                setCurriculum(newCurr);
+            };
+            const updateLesson = (modIndex, lessIndex, field, value) => {
+                const newCurr = [...curriculum];
+                newCurr[modIndex].lecciones[lessIndex][field] = value;
+                setCurriculum(newCurr);
+            };
+            const deleteLesson = (modIndex, lessIndex) => {
+                const newCurr = [...curriculum];
+                newCurr[modIndex].lecciones = newCurr[modIndex].lecciones.filter((_, i) => i !== lessIndex);
+                setCurriculum(newCurr);
+            };
+
+            // Multivideo Builder
+            const getVideosArray = (recursoStr) => {
+                if (!recursoStr) return [];
+                return recursoStr.split('|').filter(Boolean).map(v => {
+                    const [id, title] = v.split('::');
+                    return { id: id || '', title: title || '' };
+                });
+            };
+            const updateVideoPart = (mIdx, lIdx, vIdx, field, value) => {
+                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
+                if(!videos[vIdx]) videos[vIdx] = {id: '', title: ''};
+                videos[vIdx][field] = value;
+                updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|'));
+            };
+            const addVideoPart = (mIdx, lIdx) => {
+                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
+                videos.push({id: '', title: ''});
+                updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|'));
+            };
+            const removeVideoPart = (mIdx, lIdx, vIdx) => {
+                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
+                videos.splice(vIdx, 1);
+                updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|'));
+            };
+
+            // Native Quiz Builder
+            const addQuestion = (mIdx, lIdx) => {
+                const newCurr = [...curriculum];
+                if (!newCurr[mIdx].lecciones[lIdx].preguntas) newCurr[mIdx].lecciones[lIdx].preguntas = [];
+                newCurr[mIdx].lecciones[lIdx].preguntas.push({ pregunta: '', opciones: [''], correcta: 0 });
+                setCurriculum(newCurr);
+            };
+            const updateQuestion = (mIdx, lIdx, qIdx, field, value) => {
+                const newCurr = [...curriculum];
+                newCurr[mIdx].lecciones[lIdx].preguntas[qIdx][field] = value;
+                setCurriculum(newCurr);
+            };
+            const removeQuestion = (mIdx, lIdx, qIdx) => {
+                const newCurr = [...curriculum];
+                newCurr[mIdx].lecciones[lIdx].preguntas = newCurr[mIdx].lecciones[lIdx].preguntas.filter((_, i) => i !== qIdx);
+                setCurriculum(newCurr);
+            };
+            const addOption = (mIdx, lIdx, qIdx) => {
+                const newCurr = [...curriculum];
+                newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones.push('');
+                setCurriculum(newCurr);
+            };
+            const updateOption = (mIdx, lIdx, qIdx, oIdx, value) => {
+                const newCurr = [...curriculum];
+                newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones[oIdx] = value;
+                setCurriculum(newCurr);
+            };
+            const removeOption = (mIdx, lIdx, qIdx, oIdx) => {
+                const newCurr = [...curriculum];
+                newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones = newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones.filter((_, i) => i !== oIdx);
+                if (newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta >= oIdx && newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta > 0) {
+                    newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta -= 1;
+                }
+                setCurriculum(newCurr);
+            };
+
+            // Acciones Admin
+            const handleApprove = (index) => {
+                if(confirm('¿Confirmar pago y habilitar acceso?')) {
+                    const updated = [...enrollments];
+                    updated[index].status = 'Aprobado';
+                    setEnrollments(updated);
+                }
+            };
+            const handleDeleteEnrollment = (index) => {
+                if(confirm('¿Revocar acceso definitivamente?')) {
+                    const updated = enrollments.filter((_, i) => i !== index);
+                    setEnrollments(updated);
+                }
+            };
+            const handleDeleteCourse = (id) => {
+                if(confirm('¿Deseas ELIMINAR el curso del catálogo público?')) {
+                    setCourses(courses.filter(c => c.id !== id));
+                }
+            };
+            const handleSaveCourse = (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newCourse = {
+                    id: editingCourse ? editingCourse.id : `c${Date.now()}`,
+                    title: formData.get('title'),
+                    type: formData.get('type'),
+                    price: parseFloat(formData.get('price')),
+                    image: formData.get('image'),
+                    description: formData.get('description'),
+                    data: { modulos: curriculum }
+                };
+
+                if (editingCourse) setCourses(courses.map(c => c.id === editingCourse.id ? newCourse : c));
+                else setCourses([...courses, newCourse]);
+                
+                setShowCourseModal(false);
+                setEditingCourse(null);
+            };
+
+            return (
+                <div className="pt-24 pb-16 min-h-screen bg-slate-100">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200">
+                            <div className="flex items-center gap-5">
+                                <div className="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg">
+                                    <Shield className="w-8 h-8" />
+                                </div>
+                                <div>
+                                    <h1 className="text-3xl font-extrabold text-slate-900">Control Central</h1>
+                                    <p className="text-slate-500 font-medium text-sm uppercase tracking-wider mt-1">Nivel: Master Admin</p>
+                                </div>
+                            </div>
+                            <div className="flex bg-slate-100 rounded-xl p-1.5 shadow-inner border border-slate-200">
+                                <button onClick={() => setActiveTab('enrollments')} className={`px-6 py-2.5 rounded-lg font-bold text-sm transition-all ${activeTab === 'enrollments' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>Auditoría Matrículas</button>
+                                <button onClick={() => setActiveTab('courses')} className={`px-6 py-2.5 rounded-lg font-bold text-sm transition-all ${activeTab === 'courses' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>Motor Cursos LMS</button>
+                            </div>
+                        </div>
+
+                        {activeTab === 'enrollments' && (
+                            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                                <div className="p-8 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                                    <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2"><CreditCard className="w-5 h-5"/> Registros Financieros</h2>
+                                    <span className="text-xs font-bold bg-slate-900 text-white px-3 py-1.5 rounded-full uppercase tracking-widest">{enrollments.length} Operaciones</span>
+                                </div>
+                                <div className="p-0 overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-white text-slate-400 text-xs uppercase tracking-widest border-b-2 border-slate-100">
+                                                <th className="p-5 font-bold">Identificador Usuario</th>
+                                                <th className="p-5 font-bold">Producto Adquirido</th>
+                                                <th className="p-5 font-bold">Fecha Tx.</th>
+                                                <th className="p-5 font-bold">Estado Legal</th>
+                                                <th className="p-5 font-bold text-right">Acción Requerida</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {enrollments.length === 0 && <tr><td colSpan="5" className="p-12 text-center text-slate-400 font-bold text-lg">La base de datos de matrículas está vacía.</td></tr>}
+                                            {enrollments.map((enr, i) => {
+                                                const cTitle = courses.find(c => c.id === enr.courseId)?.title || enr.courseId;
+                                                return (
+                                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="p-5 font-bold text-slate-900">{enr.userId}</td>
+                                                        <td className="p-5 text-slate-600 font-medium">{cTitle}</td>
+                                                        <td className="p-5 text-slate-500 text-sm font-mono">{new Date(enr.date).toLocaleDateString()}</td>
+                                                        <td className="p-5">
+                                                            <span className={`inline-flex px-3 py-1 text-xs font-bold rounded-md uppercase tracking-wider border ${enr.status === 'Aprobado' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                                                {enr.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-5 text-right space-x-2">
+                                                            {enr.status === 'Pendiente' && (
+                                                                <Button variant="outline" className="px-4 py-1.5 text-xs border-green-500 text-green-600 hover:bg-green-500 hover:text-white" onClick={() => handleApprove(i)}>
+                                                                    Validar Pago
+                                                                </Button>
+                                                            )}
+                                                            <Button variant="outline" className="px-4 py-1.5 text-xs border-red-200 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500" onClick={() => handleDeleteEnrollment(i)}>
+                                                                Revocar
+                                                            </Button>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'courses' && (
+                            <div className="space-y-8">
+                                <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                                    <p className="text-slate-600 font-medium hidden sm:block">Gestiona la oferta académica pública visible en la landing.</p>
+                                    <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true); }} className="shadow-brand-500/30 px-8">
+                                        + Diseñar Nuevo Curso
+                                    </Button>
+                                </div>
+                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                    {courses.map(course => (
+                                        <Card key={course.id} className="flex flex-col border-2 border-transparent hover:border-brand-500">
+                                            <div className="relative h-48">
+                                                <img src={course.image} className="w-full h-full object-cover" alt={course.title} />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent opacity-60"></div>
+                                                <div className="absolute top-4 right-4 flex gap-2">
+                                                    <button onClick={() => { setEditingCourse(course); setShowCourseModal(true); }} className="bg-white/95 backdrop-blur px-4 py-2 rounded-lg font-bold text-sm text-brand-600 shadow hover:bg-white transition-colors">
+                                                        Modificar
+                                                    </button>
+                                                    <button onClick={() => handleDeleteCourse(course.id)} className="bg-red-500/90 backdrop-blur p-2 rounded-lg shadow hover:bg-red-600 text-white transition-colors">
+                                                        <X className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                                <span className="absolute bottom-4 left-4 text-xs font-bold bg-white/20 backdrop-blur text-white px-3 py-1 rounded-full uppercase tracking-wider">{course.type}</span>
+                                            </div>
+                                            <div className="p-6 flex-grow flex flex-col">
+                                                <h3 className="font-extrabold text-xl text-slate-900 mb-2 leading-tight">{course.title}</h3>
+                                                <p className="text-sm text-slate-500 line-clamp-2 mb-6 font-medium">{course.description}</p>
+                                                <div className="mt-auto flex justify-between items-center border-t border-slate-100 pt-4">
+                                                    <span className="text-xs text-slate-400 font-bold uppercase">Precio Lista</span>
+                                                    <span className="font-extrabold text-xl text-slate-900">${course.price}</span>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Modal del Constructor (Moodle-like) */}
+                    {showCourseModal && (
+                        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[100] flex items-center justify-center p-0 sm:p-6">
+                            <div className="bg-white w-full h-full sm:h-auto sm:max-h-[95vh] sm:rounded-[2rem] max-w-5xl flex flex-col shadow-2xl relative overflow-hidden border border-slate-200">
+                                <div className="p-6 sm:p-8 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
+                                    <div>
+                                        <h2 className="text-2xl font-extrabold text-slate-900">{editingCourse ? 'Arquitectura del Curso' : 'Nuevo Proyecto Educativo'}</h2>
+                                        <p className="text-sm text-slate-500 font-medium">Configuración de metadatos y currículo interno.</p>
+                                    </div>
+                                    <button onClick={() => setShowCourseModal(false)} className="bg-white border border-slate-200 rounded-full p-2 text-slate-400 hover:text-slate-900 transition-colors shadow-sm"><X className="w-6 h-6" /></button>
+                                </div>
+                                
+                                <form onSubmit={handleSaveCourse} className="p-6 sm:p-10 overflow-y-auto flex-grow space-y-10 bg-white">
+                                    {/* Metadatos Generales */}
+                                    <section className="space-y-6">
+                                        <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2"><FileText className="w-5 h-5 text-brand-500"/> Ficha Técnica</h3>
+                                        <div className="grid sm:grid-cols-2 gap-8">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Título Público</label>
+                                                <input name="title" defaultValue={editingCourse?.title} required className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none font-bold text-slate-900 transition-shadow" placeholder="Ej. Electromagnetismo Avanzado" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Etiqueta de Clasificación</label>
+                                                <select name="type" defaultValue={editingCourse?.type || 'Pago'} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none bg-slate-50 font-medium">
+                                                    <option value="Gratis">Módulo Gratuito</option>
+                                                    <option value="Premium">Certificación Premium</option>
+                                                    <option value="Pago">Curso Individual</option>
+                                                    <option value="Plantillas">Recursos/Plantillas</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid sm:grid-cols-2 gap-8">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Precio Base (USD) <span className="text-xs text-brand-600 ml-2 font-normal">Valor 0 = Acceso Libre</span></label>
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-3.5 text-slate-400 font-bold">$</span>
+                                                    <input name="price" type="number" step="0.01" defaultValue={editingCourse?.price || 0} required className="w-full pl-8 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-bold font-mono text-slate-900" />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Banner Principal (URL Imagen)</label>
+                                                <input name="image" type="url" defaultValue={editingCourse?.image} placeholder="https://unsplash.com/..." required className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-mono text-sm" />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-bold text-slate-700">Promesa de Valor (Descripción Corta)</label>
+                                            <textarea name="description" defaultValue={editingCourse?.description} required rows="3" className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-medium text-slate-700 leading-relaxed"></textarea>
+                                        </div>
+                                    </section>
+
+                                    {/* Moodle Builder */}
+                                    <section className="space-y-6 pt-8 border-t border-slate-200">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                                            <div>
+                                                <h3 className="text-xl font-extrabold text-slate-900 flex items-center gap-2"><BookOpen className="w-6 h-6 text-brand-500"/> Constructor del Currículo</h3>
+                                                <p className="text-sm text-slate-500 font-medium">Estructura jerárquica (Módulos &gt; Lecciones &gt; Recursos)</p>
+                                            </div>
+                                            <Button type="button" variant="secondary" onClick={addModule} className="py-2.5 px-6 shadow-sm">+ Añadir Nuevo Módulo</Button>
+                                        </div>
+                                        
+                                        <div className="space-y-8">
+                                            {curriculum.map((mod, mIdx) => (
+                                                <div key={mIdx} className="bg-slate-50 border border-slate-200 rounded-3xl p-6 sm:p-8 relative">
+                                                    <div className="absolute top-8 -left-4 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md border-4 border-white">{mIdx+1}</div>
+                                                    
+                                                    <div className="flex gap-4 mb-8">
+                                                        <input 
+                                                            value={mod.titulo} 
+                                                            onChange={(e) => updateModuleTitle(mIdx, e.target.value)}
+                                                            className="flex-grow p-4 border border-slate-300 rounded-xl font-extrabold text-xl text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none shadow-sm"
+                                                            placeholder="Título del Módulo Principal"
+                                                        />
+                                                        <button type="button" onClick={() => deleteModule(mIdx)} className="px-4 border border-red-200 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-colors font-bold text-sm shadow-sm flex items-center gap-2 shrink-0">
+                                                            <X className="w-4 h-4"/> <span className="hidden sm:inline">Borrar</span>
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-4 pl-4 sm:pl-8 border-l-2 border-slate-200 ml-4">
+                                                        {mod.lecciones.map((less, lIdx) => (
+                                                            <div key={lIdx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-5 relative group">
+                                                                <button type="button" onClick={() => deleteLesson(mIdx, lIdx)} className="absolute top-4 right-4 p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"><X className="w-5 h-5"/></button>
+                                                                
+                                                                <div className="pr-12">
+                                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 block">Configuración Base</label>
+                                                                    <div className="flex flex-col sm:flex-row gap-4">
+                                                                        <input 
+                                                                            value={less.titulo} 
+                                                                            onChange={(e) => updateLesson(mIdx, lIdx, 'titulo', e.target.value)}
+                                                                            className="flex-grow p-3 border border-slate-200 rounded-xl font-bold text-slate-800 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-slate-50"
+                                                                            placeholder="Título descriptivo de la lección"
+                                                                        />
+                                                                        <select 
+                                                                            value={less.tipo}
+                                                                            onChange={(e) => updateLesson(mIdx, lIdx, 'tipo', e.target.value)}
+                                                                            className="p-3 border border-slate-200 rounded-xl font-bold text-slate-700 bg-slate-50 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                                                                        >
+                                                                            <optgroup label="Audiovisual">
+                                                                                <option value="multivideo">Video(s) YouTube</option>
+                                                                                <option value="multipresentacion">PDF / Docs Externos</option>
+                                                                            </optgroup>
+                                                                            <optgroup label="Interactivo">
+                                                                                <option value="simulador">Simulador GitHub/HTML</option>
+                                                                                <option value="quiz_nativo">Evaluación Nativa</option>
+                                                                                <option value="quiz">Evaluación Externa</option>
+                                                                            </optgroup>
+                                                                            <optgroup label="Lectura">
+                                                                                <option value="texto">Texto Enriquecido</option>
+                                                                                <option value="ejercicio">Guía Práctica</option>
+                                                                            </optgroup>
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                {/* Renderizador de Campos según el Tipo */}
+                                                                <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-4">
+                                                                    {['multipresentacion', 'simulador', 'ejercicio', 'quiz'].includes(less.tipo) && (
+                                                                        <div>
+                                                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block flex items-center gap-1"><LinkIcon className="w-3 h-3"/> Enlace al Recurso (URL o Path GitHub)</label>
+                                                                            <input 
+                                                                                value={less.recurso || ''} 
+                                                                                onChange={(e) => updateLesson(mIdx, lIdx, 'recurso', e.target.value)}
+                                                                                className="w-full p-3 border border-slate-200 rounded-lg font-mono text-sm text-brand-700 focus:border-brand-500 outline-none bg-white shadow-inner"
+                                                                                placeholder="Ej: Simuladores/Coulomb.html ó https://..."
+                                                                            />
+                                                                        </div>
+                                                                    )}
+
+                                                                    {less.tipo === 'multivideo' && (
+                                                                        <div className="space-y-4">
+                                                                            <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                                                                                <span className="font-bold text-slate-800 text-sm flex items-center gap-2"><Youtube className="w-5 h-5 text-red-500"/> Playlist de YouTube</span>
+                                                                                <Button type="button" variant="outline" onClick={() => addVideoPart(mIdx, lIdx)} className="py-1.5 px-4 text-xs bg-white shadow-sm">+ Añadir Fragmento</Button>
+                                                                            </div>
+                                                                            <div className="space-y-3">
+                                                                                {getVideosArray(less.recurso).map((v, vIdx) => (
+                                                                                    <div key={vIdx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm relative">
+                                                                                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-xs shrink-0">{vIdx + 1}</div>
+                                                                                        <div className="flex-1 w-full grid sm:grid-cols-2 gap-3">
+                                                                                            <input value={v.id} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'id', e.target.value)} placeholder="ID de Video (Ej: dQw4w9WgXcQ)" className="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:border-brand-500 outline-none font-mono bg-slate-50" />
+                                                                                            <input value={v.title} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'title', e.target.value)} placeholder="Título (Ej: Introducción)" className="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:border-brand-500 outline-none font-bold text-slate-700" />
+                                                                                        </div>
+                                                                                        <button type="button" onClick={() => removeVideoPart(mIdx, lIdx, vIdx)} className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors absolute top-2 right-2 sm:static"><X className="w-5 h-5"/></button>
+                                                                                    </div>
+                                                                                ))}
+                                                                                {getVideosArray(less.recurso).length === 0 && <p className="text-sm text-slate-500 italic text-center py-2">Lista vacía. Añade un video para comenzar.</p>}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {less.tipo === 'texto' && (
+                                                                        <div>
+                                                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Contenido Teórico</label>
+                                                                            <textarea 
+                                                                                value={less.contenidoText || ''} 
+                                                                                onChange={(e) => updateLesson(mIdx, lIdx, 'contenidoText', e.target.value)}
+                                                                                className="w-full p-4 border border-slate-200 rounded-xl text-base focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white font-serif leading-relaxed"
+                                                                                placeholder="Escribe el artículo o lectura aquí..."
+                                                                                rows="6"
+                                                                            />
+                                                                        </div>
+                                                                    )}
+
+                                                                    {less.tipo === 'quiz_nativo' && (
+                                                                        <div className="space-y-6">
+                                                                            <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                                                                                <span className="font-extrabold text-slate-800 text-sm flex items-center gap-2"><HelpCircle className="w-5 h-5 text-brand-500"/> Motor de Evaluación</span>
+                                                                                <Button type="button" variant="outline" onClick={() => addQuestion(mIdx, lIdx)} className="py-1.5 px-4 text-xs bg-white shadow-sm">+ Añadir Pregunta</Button>
+                                                                            </div>
+                                                                            <div className="space-y-6">
+                                                                                {(less.preguntas || []).map((q, qIdx) => (
+                                                                                    <div key={qIdx} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-md relative">
+                                                                                        <button type="button" onClick={() => removeQuestion(mIdx, lIdx, qIdx)} className="absolute top-4 right-4 p-1.5 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-slate-100"><X className="w-4 h-4"/></button>
+                                                                                        
+                                                                                        <div className="mb-5 pr-10">
+                                                                                            <label className="text-xs font-extrabold text-brand-600 uppercase tracking-widest mb-1.5 block">Enunciado {qIdx + 1}</label>
+                                                                                            <textarea 
+                                                                                                value={q.pregunta || ''} 
+                                                                                                onChange={(e) => updateQuestion(mIdx, lIdx, qIdx, 'pregunta', e.target.value)} 
+                                                                                                placeholder="¿Cuál es la fórmula fundamental de...?" 
+                                                                                                className="w-full text-base font-bold p-3 border border-slate-200 rounded-xl focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-slate-50 resize-y"
+                                                                                                rows="2"
+                                                                                            />
+                                                                                        </div>
+                                                                                        
+                                                                                        <div className="pl-4 sm:pl-6 border-l-4 border-slate-100 space-y-3">
+                                                                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Opciones (Marca el radio para la correcta)</label>
+                                                                                            {(q.opciones || []).map((opt, oIdx) => (
+                                                                                                <div key={oIdx} className={`flex items-center gap-3 p-2.5 rounded-xl border transition-colors ${q.correcta === oIdx ? 'border-green-400 bg-green-50 shadow-sm' : 'border-slate-200 bg-white'}`}>
+                                                                                                    <input 
+                                                                                                        type="radio" 
+                                                                                                        name={`correct-${mIdx}-${lIdx}-${qIdx}`} 
+                                                                                                        checked={q.correcta === oIdx} 
+                                                                                                        onChange={() => updateQuestion(mIdx, lIdx, qIdx, 'correcta', oIdx)} 
+                                                                                                        className="w-5 h-5 text-green-600 focus:ring-green-500 accent-green-600 cursor-pointer" 
+                                                                                                        title="Respuesta Correcta" 
+                                                                                                    />
+                                                                                                    <input 
+                                                                                                        value={opt} 
+                                                                                                        onChange={(e) => updateOption(mIdx, lIdx, qIdx, oIdx, e.target.value)} 
+                                                                                                        placeholder={`Opción ${oIdx+1}`} 
+                                                                                                        className={`flex-grow text-sm p-2 border border-transparent rounded-lg outline-none font-medium ${q.correcta === oIdx ? 'bg-transparent text-green-900 placeholder-green-400' : 'bg-slate-50 focus:bg-white focus:border-brand-300'}`} 
+                                                                                                    />
+                                                                                                    <button type="button" onClick={() => removeOption(mIdx, lIdx, qIdx, oIdx)} className="text-slate-300 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors"><X className="w-4 h-4"/></button>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                            <button type="button" onClick={() => addOption(mIdx, lIdx, qIdx)} className="mt-3 text-xs font-bold text-brand-600 hover:text-white bg-brand-50 hover:bg-brand-500 px-4 py-2 rounded-lg transition-colors block">+ Agregar Ítem</button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ))}
+                                                                                {(!less.preguntas || less.preguntas.length === 0) && <p className="text-sm text-slate-500 italic text-center py-4 bg-white rounded-xl border border-slate-200 border-dashed">El quiz está vacío. Añade preguntas para evaluar a los alumnos.</p>}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        
+                                                        <Button type="button" variant="outline" onClick={() => addLesson(mIdx)} className="py-3 text-sm w-full mt-4 border-dashed border-2 hover:border-solid hover:bg-white text-slate-600 bg-transparent border-slate-300">
+                                                            + Incorporar Lección al Módulo
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {curriculum.length === 0 && (
+                                                <div className="text-center p-16 bg-slate-50 border-2 border-dashed border-slate-300 rounded-3xl text-slate-500 flex flex-col items-center">
+                                                    <BookOpen className="w-12 h-12 text-slate-300 mb-4"/>
+                                                    <p className="font-bold text-lg text-slate-700">El currículo está vacío.</p>
+                                                    <p className="text-sm mt-1">Crea tu primer módulo para comenzar a estructurar el curso.</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
+                                </form>
+                                <div className="p-6 sm:px-10 bg-slate-50 flex justify-end gap-4 border-t border-slate-200 shrink-0">
+                                    <Button type="button" variant="outline" onClick={() => setShowCourseModal(false)} className="px-8 bg-white">Descartar Cambios</Button>
+                                    <Button onClick={(e) => {
+                                        // Trigger form submit
+                                        const form = e.target.closest('.fixed').querySelector('form');
+                                        if(form.reportValidity()) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                                    }} className="px-10 shadow-xl">Guardar en Producción</Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const ChatbotWidget = () => {
+            const [open, setOpen] = useState(false);
+            return (
+                <div className="fixed bottom-6 right-6 z-50">
+                    {open && (
+                        <div className="bg-white w-80 sm:w-96 h-[450px] rounded-3xl shadow-2xl border border-slate-200 flex flex-col mb-4 overflow-hidden transform transition-all animate-in slide-in-from-bottom-5">
+                            <div className="bg-slate-900 p-5 text-white flex justify-between items-center shadow-md relative z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-brand-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(20,184,166,0.5)]">
+                                        <MessageCircle className="w-5 h-5 text-white"/>
+                                    </div>
+                                    <div>
+                                        <span className="font-bold block leading-tight">physics10.AI</span>
+                                        <span className="text-[10px] text-brand-300 uppercase tracking-widest font-bold">Asistente de Ciencia</span>
+                                    </div>
+                                </div>
+                                <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-white transition-colors bg-white/10 rounded-full p-2"><X className="w-4 h-4"/></button>
+                            </div>
+                            <div className="flex-1 p-5 bg-slate-50 overflow-y-auto space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center shrink-0 border border-brand-200">
+                                        <MessageCircle className="w-4 h-4 text-brand-600"/>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl rounded-tl-sm shadow-sm border border-slate-100 text-sm text-slate-700 font-medium leading-relaxed max-w-[85%]">
+                                        Saludos. Soy el modelo IA integrado de <strong className="text-brand-600">physics10.easy</strong>. ¿Sobre qué concepto físico, simulación o módulo necesitas asistencia técnica hoy?
+                                    </div>
+                                </div>
+                                {/* Placeholder for user messages */}
+                            </div>
+                            <div className="p-4 bg-white border-t border-slate-100">
+                                <form className="flex gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200" onSubmit={(e) => e.preventDefault()}>
+                                    <input type="text" placeholder="Formula tu pregunta aquí..." className="flex-1 px-3 py-2 bg-transparent text-sm focus:outline-none text-slate-800 font-medium" />
+                                    <button type="submit" className="bg-slate-900 text-white p-2.5 rounded-lg hover:bg-brand-600 transition-colors shadow-sm"><ChevronRight className="w-5 h-5"/></button>
+                                </form>
+                                <p className="text-[9px] text-center text-slate-400 font-bold uppercase tracking-widest mt-3">Powered by {CHATBOT_API_KEY === 'PEGA_AQUÍ_TU_API_KEY' ? 'Configuración Requerida' : 'Gemini 2.5 Pro'}</p>
+                            </div>
+                        </div>
+                    )}
+                    <button 
+                        onClick={() => setOpen(!open)}
+                        className={`w-16 h-16 rounded-full flex items-center justify-center shadow-premium hover:scale-110 transition-all duration-300 ml-auto relative group ${open ? 'bg-slate-100 text-slate-600 rotate-90 scale-90' : 'bg-brand-600 text-white border-2 border-brand-400'}`}>
+                        {open ? <X className="w-8 h-8"/> : <MessageCircle className="w-8 h-8" />}
+                        {!open && <span className="absolute top-0 right-0 w-4 h-4 bg-amber-400 rounded-full border-2 border-white animate-pulse"></span>}
+                    </button>
+                </div>
+            );
+        };
+
+        // ==========================================
+        // APP PRINCIPAL (Lógica de Estado y Ruteo)
+        // ==========================================
+        const App = () => {
+            const [view, setView] = useState('home'); // Vistas: home, catalog, courseDetail, player, dashboard, admin
+            const [currentUser, setCurrentUser] = useState(null); 
+            const [courses, setCourses] = useState(INITIAL_COURSES);
+            const [reviews, setReviews] = useState([]);
+            const [currentCourse, setCurrentCourse] = useState(null);
+            const [enrollments, setEnrollments] = useState([]);
+            const [menuOpen, setMenuOpen] = useState(false);
+            const [showAuthModal, setShowAuthModal] = useState(false);
+
+            // Mock Login/Auth Flow
+            const handleLogin = (userData) => {
+                setCurrentUser(userData);
+                setView('dashboard');
+                setMenuOpen(false);
+                // Si el Firebase real estuviera activo, aquí inyectaríamos el perfil en Firestore
+                // setDoc(doc(db, 'users', userData.uid, 'profile', 'data'), { name: userData.name, role: userData.role });
+            };
+
+            const logout = () => {
+                setCurrentUser(null);
+                setView('home');
+                setMenuOpen(false);
+            };
+
+            const Navbar = () => (
+                <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-xl z-40 border-b border-slate-200 shadow-[0_4px_30px_rgba(0,0,0,0.03)]">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between h-[72px] items-center">
+                            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView('home')}>
+                                <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center transform group-hover:-rotate-12 transition-transform shadow-md">
+                                    <span className="text-white font-extrabold text-xl font-serif">P</span>
+                                </div>
+                                <span className="font-extrabold text-2xl tracking-tight text-slate-900">physics10<span className="text-brand-500">.easy</span></span>
+                            </div>
+                            
+                            <div className="hidden md:flex items-center space-x-10">
+                                <button onClick={() => setView('catalog')} className="text-sm font-bold text-slate-500 hover:text-brand-600 uppercase tracking-widest transition-colors">Rutas & Catálogo</button>
+                                
+                                {currentUser ? (
+                                    <>
+                                        <button onClick={() => setView('dashboard')} className="text-sm font-bold text-slate-500 hover:text-brand-600 uppercase tracking-widest transition-colors flex items-center gap-2"><User className="w-4 h-4"/> Workspace</button>
+                                        {currentUser.role === 'admin' && (
+                                            <button onClick={() => setView('admin')} className="text-sm font-bold text-white bg-slate-900 hover:bg-brand-600 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
+                                                <Shield className="w-4 h-4"/> Master Admin
+                                            </button>
+                                        )}
+                                        <div className="flex items-center gap-4 border-l-2 border-slate-100 pl-6">
+                                            <div className="flex flex-col text-right">
+                                                <span className="text-sm font-bold text-slate-900">{currentUser.name}</span>
+                                                <span className="text-[10px] font-bold text-brand-500 uppercase tracking-widest">{currentUser.role}</span>
+                                            </div>
+                                            <button onClick={logout} title="Cerrar Sesión" className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-200 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                                                <LogOut className="w-4 h-4"/>
+                                            </button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex gap-4 items-center">
+                                        <button onClick={() => setShowAuthModal(true)} className="text-sm font-bold text-slate-700 hover:text-brand-600 transition-colors">Ingresar</button>
+                                        <Button variant="primary" onClick={() => setShowAuthModal(true)} className="px-6 py-2.5 text-sm shadow-md">Comenzar Ahora</Button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="md:hidden flex items-center">
+                                <button onClick={() => setMenuOpen(!menuOpen)} className="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-600 rounded-xl border border-slate-200">
+                                    {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Menú Móvil */}
+                    {menuOpen && (
+                        <div className="md:hidden bg-white border-b border-slate-200 p-6 space-y-6 shadow-2xl absolute w-full z-50 animate-in slide-in-from-top-2">
+                            <button onClick={() => { setView('catalog'); setMenuOpen(false); }} className="block w-full text-left font-bold text-xl text-slate-900 py-2 border-b border-slate-100">Explorar Catálogo</button>
+                            {currentUser ? (
+                                <div className="space-y-4 pt-2">
+                                    <div className="flex items-center gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center font-bold text-xl">{currentUser.name.charAt(0)}</div>
+                                        <div>
+                                            <p className="font-bold text-slate-900">{currentUser.email}</p>
+                                            <p className="text-xs font-bold text-brand-500 uppercase tracking-widest">{currentUser.role}</p>
+                                        </div>
+                                    </div>
+                                    <Button variant="secondary" onClick={() => { setView('dashboard'); setMenuOpen(false); }} className="w-full py-4 text-lg justify-start"><User className="w-5 h-5 mr-3"/> Mi Workspace</Button>
+                                    {currentUser.role === 'admin' && (
+                                        <Button variant="outline" onClick={() => { setView('admin'); setMenuOpen(false); }} className="w-full py-4 text-lg justify-start border-slate-900 text-slate-900"><Shield className="w-5 h-5 mr-3"/> Panel de Administración</Button>
+                                    )}
+                                    <Button variant="danger" onClick={logout} className="w-full py-4 text-lg justify-start"><LogOut className="w-5 h-5 mr-3"/> Cerrar Sesión Segura</Button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4 pt-4">
+                                    <Button variant="outline" onClick={() => { setShowAuthModal(true); setMenuOpen(false); }} className="w-full py-4 text-lg">Ya tengo cuenta</Button>
+                                    <Button variant="primary" onClick={() => { setShowAuthModal(true); setMenuOpen(false); }} className="w-full py-4 text-lg">Crear Cuenta Nueva</Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </nav>
+            );
+
+            const Footer = () => (
+                <footer className="bg-slate-950 text-slate-400 py-16 md:py-24 border-t border-slate-900 relative overflow-hidden">
+                    <div className="absolute bottom-0 left-0 w-full h-[500px] bg-gradient-to-t from-brand-900/10 to-transparent pointer-events-none"></div>
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-4 gap-12 relative z-10">
+                        <div className="col-span-1 md:col-span-2">
+                            <div className="flex items-center gap-3 mb-6 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                                    <span className="text-slate-900 font-extrabold text-lg font-serif">P</span>
+                                </div>
+                                <span className="font-extrabold text-2xl text-white">physics10.easy</span>
+                            </div>
+                            <p className="mb-8 max-w-sm font-medium leading-relaxed">Elevando los estándares de la educación técnica. Tecnología, simulación y datos para formar profesionales críticos.</p>
+                            
+                            <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer" className="inline-flex items-center px-6 py-3 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold transition-transform hover:-translate-y-1 shadow-lg shadow-green-900/50 group">
+                                <MessageCircle className="w-5 h-5 mr-2" /> Soporte Vía WhatsApp
+                            </a>
+                        </div>
+                        <div>
+                            <h4 className="text-white font-extrabold mb-6 uppercase text-xs tracking-widest">Legal & Privacidad</h4>
+                            <ul className="space-y-4 text-sm font-medium">
+                                <li><a href="#" className="hover:text-brand-400 transition-colors flex items-center gap-2"><ChevronRight className="w-3 h-3"/> Términos de Servicio</a></li>
+                                <li><a href="#" className="hover:text-brand-400 transition-colors flex items-center gap-2"><ChevronRight className="w-3 h-3"/> Política de Datos (Habeas Data)</a></li>
+                                <li><a href="#" className="hover:text-brand-400 transition-colors flex items-center gap-2"><ChevronRight className="w-3 h-3"/> Contratos Estudiantiles</a></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 className="text-white font-extrabold mb-6 uppercase text-xs tracking-widest">Ecosistema</h4>
+                            <div className="flex gap-4">
+                                <a href="https://github.com/dudbilopr" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-brand-500 hover:text-white hover:border-brand-500 transition-all"><Github className="w-5 h-5"/></a>
+                                <a href="https://www.linkedin.com/in/dudbilopr" target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-[#0A66C2] hover:text-white hover:border-[#0A66C2] transition-all"><svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg></a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Espacio futuro: Certificaciones Blockchain */}
+                    {/* <div id="certificaciones-blockchain" className="max-w-7xl mx-auto px-4 mt-16 pt-8 border-t border-slate-900/50 text-center opacity-40">
+                        <Shield className="w-6 h-6 mx-auto mb-2 text-slate-600" />
+                        <h3 className="text-slate-500 font-bold text-sm uppercase tracking-widest mb-2">Módulo Web3 en Desarrollo</h3>
+                        <p className="text-xs">Validación criptográfica de certificados en red Polygon.</p>
+                    </div> 
+                    */}
+                </footer>
+            );
+
+            return (
+                <div className="min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white">
+                    <Navbar />
+                    
+                    <main className="flex-grow">
+                        {view === 'home' && (
+                            <div className="animate-in fade-in duration-700">
+                                <HeroSection setView={setView} />
+                                <CeoSection />
+                                <CourseCatalog courses={courses} setView={setView} setCurrentCourse={setCurrentCourse} />
+                                <PodcastNewsSection />
+                                <ReviewsSection reviews={reviews} />
+                            </div>
+                        )}
+                        {view === 'catalog' && (
+                            <div className="pt-24 pb-16 min-h-screen bg-slate-50 animate-in fade-in">
+                                <CourseCatalog courses={courses} setView={setView} setCurrentCourse={setCurrentCourse} />
+                            </div>
+                        )}
+                        {view === 'courseDetail' && (
+                            <div className="animate-in slide-in-from-bottom-10">
+                                <CourseDetailView course={currentCourse} setView={setView} currentUser={currentUser} setEnrollments={setEnrollments} setShowAuthModal={setShowAuthModal} />
+                            </div>
+                        )}
+                        {view === 'dashboard' && currentUser && (
+                            <div className="animate-in fade-in">
+                                <Dashboard enrollments={enrollments.filter(e => e.userId === currentUser.uid)} setView={setView} currentUser={currentUser} setCurrentCourse={setCurrentCourse} courses={courses} addReview={(r) => setReviews([...reviews, r])} onLogout={logout} />
+                            </div>
+                        )}
+                        {view === 'player' && currentCourse && currentUser && (
+                            <div className="animate-in fade-in">
+                                <CoursePlayer course={currentCourse} setView={setView} currentUser={currentUser} />
+                            </div>
+                        )}
+                        {view === 'admin' && currentUser?.role === 'admin' && (
+                            <div className="animate-in fade-in">
+                                <AdminPanel enrollments={enrollments} setEnrollments={setEnrollments} courses={courses} setCourses={setCourses} />
+                            </div>
+                        )}
+                    </main>
+
+                    {view !== 'player' && <Footer />}
+                    
+                    <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onLogin={handleLogin} />
+                    <ChatbotWidget />
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
