@@ -281,11 +281,18 @@
             const handleGoogleLogin = async () => {
                 if (!auth) {
                     // Mock fallback si aún no has puesto tu API_KEY de Firebase
+                    const defaultEmail = email || 'estudiante.google@gmail.com';
+                    const mockEmail = prompt("⚠️ MODO PRUEBA (Sin Firebase)\n\nIngresa tu correo para simular el login con Google.\n💡 Tip: Escribe dudbilopr@gmail.com para entrar como Administrador.", defaultEmail);
+                    
+                    if (!mockEmail) return;
+
+                    const isSystemAdmin = mockEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
                     onLogin({
-                        uid: `google-user-${Date.now()}`,
-                        email: 'estudiante.google@gmail.com',
-                        role: 'student',
-                        name: 'Estudiante Google'
+                        uid: isSystemAdmin ? 'admin-master-id' : `google-user-${Date.now()}`,
+                        email: mockEmail,
+                        role: isSystemAdmin ? 'admin' : 'student',
+                        name: isSystemAdmin ? 'Dudbil Pabón' : mockEmail.split('@')[0],
+                        photoURL: null
                     });
                     onClose();
                     return;
@@ -1360,10 +1367,17 @@
                         {/* Header Dashboard */}
                         <div className="bg-slate-900 rounded-3xl p-8 sm:p-12 mb-12 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-8">
                             <div className="absolute right-0 top-0 w-64 h-64 bg-brand-500/20 rounded-full mix-blend-screen filter blur-3xl"></div>
-                            <div className="relative z-10 text-center md:text-left">
-                                <span className="inline-block px-3 py-1 bg-white/10 border border-white/20 text-white rounded-full text-xs font-bold tracking-widest uppercase mb-4">Área de Trabajo</span>
-                                <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">Bienvenido, {currentUser.name}</h1>
-                                <p className="text-slate-400 font-medium">Gestiona tu aprendizaje y certificaciones.</p>
+                            <div className="relative z-10 text-center md:text-left flex-grow">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-4">
+                                    <div>
+                                        <span className="inline-block px-3 py-1 bg-white/10 border border-white/20 text-white rounded-full text-xs font-bold tracking-widest uppercase mb-4">Área de Trabajo</span>
+                                        <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">Bienvenido, {currentUser.name}</h1>
+                                        <p className="text-slate-400 font-medium">Gestiona tu aprendizaje y certificaciones.</p>
+                                    </div>
+                                    <Button variant="outline" onClick={() => setView('profile')} className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-slate-900 shadow-none">
+                                        <User className="w-4 h-4 mr-2" /> Mi Perfil
+                                    </Button>
+                                </div>
                             </div>
                             <div className="relative z-10 flex flex-wrap justify-center gap-4 bg-white/5 p-2 rounded-2xl border border-white/10">
                                 <div className="px-6 py-4 text-center">
@@ -2055,6 +2069,25 @@
                 setMenuOpen(false);
             };
 
+            const handleProfileUpdate = (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newRole = formData.get('role');
+                const newEmail = newRole === 'admin' ? ADMIN_EMAIL : (currentUser.email === ADMIN_EMAIL ? 'estudiante@demo.com' : currentUser.email);
+                
+                setCurrentUser({
+                    ...currentUser,
+                    name: formData.get('name'),
+                    bio: formData.get('bio'),
+                    linkedin: formData.get('linkedin'),
+                    github: formData.get('github'),
+                    role: newRole,
+                    email: newEmail
+                });
+                alert('Perfil actualizado. ' + (newRole === 'admin' ? 'Ahora tienes permisos de Administrador.' : 'Rol actualizado a ' + newRole));
+                setView('dashboard');
+            };
+
             const Navbar = () => (
                 <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-xl z-40 border-b border-slate-200 shadow-[0_4px_30px_rgba(0,0,0,0.03)]">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -2117,6 +2150,7 @@
                                         </div>
                                     </div>
                                     <Button variant="secondary" onClick={() => { setView('dashboard'); setMenuOpen(false); }} className="w-full py-4 text-lg justify-start"><User className="w-5 h-5 mr-3"/> Mi Workspace</Button>
+                                    <Button variant="outline" onClick={() => { setView('profile'); setMenuOpen(false); }} className="w-full py-4 text-lg justify-start text-slate-700 border-slate-200"><User className="w-5 h-5 mr-3"/> Editar Perfil</Button>
                                     {currentUser.role === 'admin' && (
                                         <Button variant="outline" onClick={() => { setView('admin'); setMenuOpen(false); }} className="w-full py-4 text-lg justify-start border-slate-900 text-slate-900"><Shield className="w-5 h-5 mr-3"/> Panel de Administración</Button>
                                     )}
@@ -2214,6 +2248,69 @@
                         {view === 'admin' && currentUser?.role === 'admin' && (
                             <div className="animate-in fade-in">
                                 <AdminPanel enrollments={enrollments} setEnrollments={setEnrollments} courses={courses} setCourses={setCourses} />
+                            </div>
+                        )}
+                        {view === 'profile' && currentUser && (
+                            <div className="animate-in fade-in pt-24 pb-16 min-h-screen bg-slate-50">
+                                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                                    <button onClick={() => setView('dashboard')} className="flex items-center text-slate-500 hover:text-brand-600 mb-8 transition-colors font-bold">
+                                        <ChevronLeft className="w-5 h-5 mr-1" /> Volver al Workspace
+                                    </button>
+                                    <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 p-8 md:p-12">
+                                        <div className="flex items-center gap-4 mb-8 border-b border-slate-200 pb-6">
+                                            <div className="w-20 h-20 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center text-3xl font-bold shadow-inner">
+                                                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <User className="w-10 h-10"/>}
+                                            </div>
+                                            <div>
+                                                <h1 className="text-3xl font-extrabold text-slate-900">Mi Perfil</h1>
+                                                <p className="text-slate-500 font-medium">{currentUser.email}</p>
+                                                <span className={`inline-block mt-2 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider ${currentUser.role === 'admin' ? 'bg-red-100 text-red-700' : currentUser.role === 'teacher' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                                    Rol: {currentUser.role}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <form onSubmit={handleProfileUpdate} className="space-y-8">
+                                            <div className="grid sm:grid-cols-2 gap-8">
+                                                <div className="space-y-2">
+                                                    <label className="font-bold text-slate-700">Nombre Completo</label>
+                                                    <input name="name" defaultValue={currentUser.name || ''} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-medium text-slate-900" placeholder="Ej. Dudbil Pabón" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="font-bold text-slate-700">Rol en la Plataforma (Modo Prueba)</label>
+                                                    <select name="role" defaultValue={currentUser.role} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none bg-slate-50 font-bold text-brand-600">
+                                                        <option value="student">Estudiante</option>
+                                                        <option value="teacher">Docente</option>
+                                                        <option value="admin">Administrador Técnico</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="font-bold text-slate-700">Biografía / Título Profesional</label>
+                                                <input name="bio" defaultValue={currentUser.bio || ''} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-slate-700" placeholder="Ej. Físico Teórico" />
+                                            </div>
+
+                                            <div className="border-t border-slate-200 pt-8">
+                                                <h3 className="text-xl font-extrabold text-slate-800 mb-6">Redes Sociales</h3>
+                                                <div className="grid sm:grid-cols-2 gap-6">
+                                                    <div className="space-y-2">
+                                                        <label className="font-bold text-slate-700 text-sm">LinkedIn URL</label>
+                                                        <input name="linkedin" type="url" defaultValue={currentUser.linkedin || ''} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-sm text-slate-600" placeholder="https://linkedin.com/in/..." />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="font-bold text-slate-700 text-sm">GitHub URL</label>
+                                                        <input name="github" type="url" defaultValue={currentUser.github || ''} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-sm text-slate-600" placeholder="https://github.com/..." />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-8 border-t border-slate-200 flex justify-end">
+                                                <Button type="submit" className="px-10 py-4 shadow-xl text-lg">Guardar Perfil</Button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </main>
