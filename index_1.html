@@ -62,7 +62,7 @@
             MessageCircle, BarChart3, ChevronRight, Video, FileText, Activity, 
             Podcast, Newspaper, GraduationCap, ChevronLeft, CreditCard, Clock, 
             Check, HelpCircle, Link as LinkIcon, Folder, AlertCircle, LogOut, Github,
-            Instagram, Facebook, Youtube, Send
+            Instagram, Facebook, Youtube, Send, Ticket, Users, Award, Briefcase, Network
         } from 'lucide-react';
         
         // Importaciones de Firebase
@@ -75,7 +75,7 @@
         // ==========================================
         const ADMIN_EMAIL = "dudbilopr@gmail.com";
         const WHATSAPP_NUMBER = "573000000000";
-        const APP_ID = "laboratorio-de-coulomb"; // ID centralizado para las reglas
+        const APP_ID = "laboratorio-de-coulomb";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
@@ -88,12 +88,10 @@
             measurementId: "G-SZECJNG25E"
         };
 
-        // Inicialización Real
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Referencias estructuradas según reglas
         const getPublicRef = (col) => collection(db, 'artifacts', APP_ID, 'public', 'data', col);
         const getPrivateRef = (uid, col) => collection(db, 'artifacts', APP_ID, 'users', uid, col);
         const getProfileRef = (uid) => doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'data');
@@ -392,9 +390,9 @@
                                 <div className="flex items-start gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
                                     <input 
                                         type="checkbox" id="terms" required checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)}
-                                        className="mt-1 w-4 h-4 text-brand-600 rounded"
+                                        className="mt-1 w-4 h-4 text-brand-600 rounded cursor-pointer"
                                     />
-                                    <label htmlFor="terms" className="text-xs text-slate-600 leading-relaxed">
+                                    <label htmlFor="terms" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
                                         Acepto las Políticas de Privacidad y autorizo el tratamiento de datos.
                                     </label>
                                 </div>
@@ -583,6 +581,24 @@
         const CourseDetailView = ({ course, setView, currentUser, setShowAuthModal }) => {
             const [showCheckout, setShowCheckout] = useState(false);
             const [loading, setLoading] = useState(false);
+            const [coupon, setCoupon] = useState('');
+            const [discount, setDiscount] = useState(0);
+
+            const finalPrice = Math.max(0, course.price * (1 - discount));
+
+            const validateCoupon = async () => {
+                if(!coupon.trim()) return;
+                try {
+                    const snap = await getDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'coupons', coupon.toUpperCase().trim()));
+                    if(snap.exists()) {
+                        setDiscount(snap.data().discount); // ej: 0.5 para 50%
+                        alert(`¡Cupón aplicado! Descuento de ${snap.data().discount * 100}%`);
+                    } else {
+                        alert("Cupón inválido o inactivo.");
+                        setDiscount(0);
+                    }
+                } catch(e) { console.error(e); }
+            };
 
             const handleEnroll = async () => {
                 if (!currentUser) {
@@ -592,13 +608,15 @@
                 }
                 setLoading(true);
                 try {
-                    const status = course.price === 0 ? 'Aprobado' : 'Pendiente';
-                    // Escribimos en colección privada del usuario (permiso otorgado en reglas)
+                    const status = (course.price === 0 || finalPrice === 0) ? 'Aprobado' : 'Pendiente';
+                    
                     await setDoc(doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'enrollments', course.id), {
                         courseId: course.id,
                         status: status,
+                        pricePaid: finalPrice,
                         date: new Date().toISOString()
                     });
+                    
                     alert(status === 'Pendiente' ? "Matrícula en PENDIENTE. El administrador verificará tu pago." : "Matrícula APROBADA. ¡Bienvenido!");
                     setShowCheckout(false);
                     setView('dashboard');
@@ -651,7 +669,29 @@
                             <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative border border-slate-200">
                                 <button onClick={() => setShowCheckout(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-2"><X className="w-5 h-5" /></button>
                                 <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">Checkout Seguro</h2>
-                                <Button onClick={handleEnroll} disabled={loading} className="w-full text-lg py-4">{loading ? 'Procesando...' : 'Confirmar Matrícula'}</Button>
+                                
+                                <div className="bg-slate-50 p-4 rounded-xl mb-6">
+                                    <p className="font-semibold text-slate-800">{course.title}</p>
+                                    <div className="flex justify-between items-center mt-3 border-t border-slate-200 pt-3">
+                                        <span className="text-slate-600 font-bold">Total a Pagar:</span>
+                                        <span className="text-2xl font-extrabold text-brand-600">${finalPrice.toFixed(2)}</span>
+                                    </div>
+                                </div>
+
+                                {course.price > 0 && (
+                                    <div className="mb-6 flex gap-2">
+                                        <input 
+                                            type="text" value={coupon} onChange={e => setCoupon(e.target.value.toUpperCase())}
+                                            placeholder="Código de Descuento" 
+                                            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-brand-500 font-bold text-slate-700 uppercase"
+                                        />
+                                        <Button onClick={validateCoupon} variant="secondary" className="px-4 py-2 text-sm">Aplicar</Button>
+                                    </div>
+                                )}
+
+                                <Button onClick={handleEnroll} disabled={loading} className="w-full text-lg py-4 mt-2">
+                                    {loading ? 'Procesando...' : 'Confirmar Matrícula'}
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -713,7 +753,6 @@
             const [openModules, setOpenModules] = useState({ 0: true });
             const [openGroups, setOpenGroups] = useState({});
 
-            // Cargar progreso de Firestore
             useEffect(() => {
                 if (currentUser && course) {
                     const progRef = doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'progress', course.id);
@@ -745,7 +784,6 @@
                 const newProgress = {...progress, [activeLesson.id]: true};
                 setProgress(newProgress);
                 
-                // Guardar progreso en Firestore privado
                 if(currentUser) {
                     await setDoc(doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'progress', course.id), newProgress, {merge: true});
                 }
@@ -768,13 +806,13 @@
 
                         return (
                             <div className="space-y-6">
-                                <div className="aspect-video bg-black rounded-xl overflow-hidden relative">
+                                <div className="aspect-video bg-black rounded-xl overflow-hidden relative shadow-2xl">
                                     <iframe className="w-full h-full absolute inset-0" src={`https://www.youtube.com/embed/${v.id}?rel=0`} frameBorder="0" allowFullScreen></iframe>
                                 </div>
                                 {videoParts.length > 1 && (
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-slate-200">
                                         {videoParts.map((p, i) => (
-                                            <button key={i} onClick={() => setActivePartIndex(i)} className={`border-2 rounded-lg text-sm font-bold p-2 ${activePartIndex === i ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white'}`}>
+                                            <button key={i} onClick={() => setActivePartIndex(i)} className={`border-2 rounded-lg text-sm font-bold p-2 text-left truncate ${activePartIndex === i ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white hover:border-slate-400'}`}>
                                                 Parte {i+1}: {p.title}
                                             </button>
                                         ))}
@@ -785,7 +823,7 @@
                     case 'multipresentacion':
                         const docs = activeLesson.recurso.split('|').filter(Boolean);
                         return (
-                            <div className="w-full h-[75vh] bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
+                            <div className="w-full h-[75vh] bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shadow-xl">
                                 <iframe src={resolveUrl(docs[activePartIndex])} className="w-full h-full" frameBorder="0" allowFullScreen></iframe>
                             </div>
                         );
@@ -793,7 +831,7 @@
                     case 'quiz':
                     case 'ejercicio':
                         return (
-                            <div className="w-full h-[80vh] bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
+                            <div className="w-full h-[80vh] bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shadow-xl">
                                 <iframe src={resolveUrl(activeLesson.recurso.split('|')[0])} className="w-full h-full bg-white" frameBorder="0" allowFullScreen></iframe>
                             </div>
                         );
@@ -829,6 +867,15 @@
                                 ))}
                             </div>
                         );
+                    case 'texto':
+                        return (
+                            <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-xl max-w-4xl mx-auto">
+                                <h3 className="text-3xl font-extrabold text-slate-900 mb-8 border-b border-slate-100 pb-4">{activeLesson.titulo}</h3>
+                                <div className="prose max-w-none text-slate-700 whitespace-pre-wrap leading-relaxed text-lg font-serif">
+                                    {activeLesson.contenidoText}
+                                </div>
+                            </div>
+                        );
                     default:
                         return <div>Recurso interactivo disponible.</div>;
                 }
@@ -846,7 +893,7 @@
             return (
                 <div className="flex h-screen bg-slate-100 pt-[72px]">
                     <div className="flex-1 flex flex-col min-w-0">
-                        <header className="h-16 border-b border-slate-200 flex items-center justify-between px-6 bg-white">
+                        <header className="h-16 border-b border-slate-200 flex items-center justify-between px-6 bg-white shadow-sm z-10">
                             <div className="flex items-center gap-4">
                                 <button onClick={() => setView('dashboard')} className="text-slate-500 hover:text-brand-600"><ChevronLeft className="w-6 h-6" /></button>
                                 <div>
@@ -949,38 +996,65 @@
             return (
                 <div className="pt-24 pb-16 min-h-screen bg-slate-50">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="bg-slate-900 rounded-3xl p-8 mb-12 flex justify-between items-center text-white">
-                            <div>
+                        <div className="bg-slate-900 rounded-3xl p-8 mb-12 flex flex-col sm:flex-row justify-between items-start sm:items-center text-white shadow-xl relative overflow-hidden">
+                            <div className="absolute right-0 top-0 w-64 h-64 bg-brand-500/20 rounded-full mix-blend-screen filter blur-3xl"></div>
+                            <div className="relative z-10 mb-6 sm:mb-0">
                                 <h1 className="text-3xl font-extrabold mb-2">Bienvenido, {currentUser.name || currentUser.email}</h1>
                                 <p className="text-slate-400">Área de trabajo personal.</p>
                             </div>
-                            <Button variant="outline" onClick={() => setView('profile')} className="border-white/20 text-white hover:bg-white hover:text-slate-900">
-                                Mi Perfil
-                            </Button>
+                            <div className="relative z-10 flex gap-3">
+                                {currentUser.role === 'admin' && (
+                                    <Button variant="danger" onClick={() => setView('admin')} className="shadow-none border border-red-500 hover:bg-red-700 bg-red-600">Admin Panel</Button>
+                                )}
+                                <Button variant="outline" onClick={() => setView('profile')} className="border-white/20 text-white hover:bg-white hover:text-slate-900 shadow-none">
+                                    <User className="w-4 h-4 mr-2" /> Mi Perfil
+                                </Button>
+                            </div>
                         </div>
 
+                        {/* Redes y Links del Perfil (Si existen) */}
+                        {(currentUser.scholar || currentUser.researchgate || currentUser.orcid || currentUser.linkedin || currentUser.github) && (
+                            <div className="mb-12 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-center">
+                                <span className="font-bold text-slate-500 text-sm uppercase tracking-wider mr-4">Redes Profesionales:</span>
+                                {currentUser.orcid && <a href={currentUser.orcid} target="_blank" className="px-3 py-1.5 bg-green-50 text-green-700 text-sm font-bold rounded-lg hover:bg-green-100 transition-colors">ORCID</a>}
+                                {currentUser.scholar && <a href={currentUser.scholar} target="_blank" className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm font-bold rounded-lg hover:bg-blue-100 transition-colors">Google Scholar</a>}
+                                {currentUser.researchgate && <a href={currentUser.researchgate} target="_blank" className="px-3 py-1.5 bg-teal-50 text-teal-700 text-sm font-bold rounded-lg hover:bg-teal-100 transition-colors">ResearchGate</a>}
+                                {currentUser.github && <a href={currentUser.github} target="_blank" className="px-3 py-1.5 bg-slate-100 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-200 transition-colors">GitHub</a>}
+                                {currentUser.linkedin && <a href={currentUser.linkedin} target="_blank" className="px-3 py-1.5 bg-blue-50 text-[#0A66C2] text-sm font-bold rounded-lg hover:bg-blue-100 transition-colors">LinkedIn</a>}
+                            </div>
+                        )}
+
                         <h2 className="text-2xl font-extrabold text-slate-900 mb-8"><BookOpen className="inline w-6 h-6 text-brand-500"/> Mis Rutas</h2>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {myEnrollments.map((enr, i) => {
-                                const course = courses.find(c => c.id === enr.courseId);
-                                if(!course) return null;
-                                const isApproved = enr.status === 'Aprobado';
-                                return (
-                                    <Card key={i} className={`flex flex-col relative ${!isApproved ? 'opacity-80' : ''}`}>
-                                        <div className="h-48 relative overflow-hidden">
-                                            <img src={course.image} className="w-full h-full object-cover" />
-                                            {!isApproved && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm"><span className="text-amber-400 font-bold bg-white/10 px-4 py-2 rounded-lg">En Verificación</span></div>}
-                                        </div>
-                                        <div className="p-6 flex-grow flex flex-col">
-                                            <h3 className="text-xl font-bold text-slate-900 mb-4">{course.title}</h3>
-                                            <Button disabled={!isApproved} onClick={() => { setCurrentCourse(course); setView('player'); }} className="mt-auto w-full py-3">
-                                                {isApproved ? 'Ingresar al Entorno' : 'Bloqueado'}
-                                            </Button>
-                                        </div>
-                                    </Card>
-                                );
-                            })}
-                        </div>
+                        {myEnrollments.length === 0 ? (
+                            <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 shadow-sm">
+                                <BookOpen className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+                                <h3 className="text-2xl font-bold text-slate-800 mb-2">No tienes matrículas activas</h3>
+                                <p className="text-slate-500 mb-6">Explora el catálogo y potencia tu carrera.</p>
+                                <Button onClick={() => setView('catalog')} className="px-8">Ir al Catálogo</Button>
+                            </div>
+                        ) : (
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                {myEnrollments.map((enr, i) => {
+                                    const course = courses.find(c => c.id === enr.courseId);
+                                    if(!course) return null;
+                                    const isApproved = enr.status === 'Aprobado';
+                                    return (
+                                        <Card key={i} className={`flex flex-col relative ${!isApproved ? 'opacity-80' : ''}`}>
+                                            <div className="h-48 relative overflow-hidden">
+                                                <img src={course.image} className="w-full h-full object-cover" />
+                                                {!isApproved && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm"><span className="text-amber-400 font-bold bg-white/10 px-4 py-2 rounded-lg border border-amber-400/30">En Verificación</span></div>}
+                                            </div>
+                                            <div className="p-6 flex-grow flex flex-col">
+                                                <h3 className="text-xl font-bold text-slate-900 mb-4">{course.title}</h3>
+                                                <Button disabled={!isApproved} onClick={() => { setCurrentCourse(course); setView('player'); }} className="mt-auto w-full py-3">
+                                                    {isApproved ? 'Ingresar al Entorno' : 'Bloqueado'}
+                                                </Button>
+                                            </div>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        )}
 
                         {approvedCount > 0 && (
                             <div className="mt-16 bg-white p-8 rounded-3xl shadow-xl border border-slate-200">
@@ -1073,66 +1147,238 @@
                     )}
                     <button onClick={() => setOpen(!open)} className="w-auto h-16 px-6 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-premium hover:scale-105 transition-all ml-auto border-2 border-brand-400 gap-3">
                         {open ? <X className="w-6 h-6"/> : <MessageCircle className="w-6 h-6" />}
-                        <span className="font-bold">{open ? 'Cerrar Foro' : 'Foro Global'}</span>
+                        <span className="font-bold hidden sm:inline">{open ? 'Cerrar Foro' : 'Foro Global'}</span>
                     </button>
                 </div>
             );
         };
 
-        const AdminPanel = ({ allEnrollments, courses, setCourses }) => {
-            const [activeTab, setActiveTab] = useState('courses'); 
+        const AdminPanel = ({ courses, setCourses }) => {
+            const [activeTab, setActiveTab] = useState('courses'); // courses, enrollments, users, coupons
+            const [showCourseModal, setShowCourseModal] = useState(false);
+            const [editingCourse, setEditingCourse] = useState(null);
 
-            // Cursos Demos a BD real
-            const handleInitDatabase = async () => {
-                if(confirm("¿Inyectar cursos por defecto en Firebase?")) {
-                    for(const c of INITIAL_COURSES) {
-                        await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'courses', c.id), c);
-                    }
-                    alert("Cursos inyectados correctamente.");
+            // Estados Administrativos
+            const [allEnrollments, setAllEnrollments] = useState([]);
+            const [directory, setDirectory] = useState([]);
+            const [coupons, setCoupons] = useState([]);
+
+            // Estado Manual Enrollment
+            const [enrollForm, setEnrollForm] = useState({ uid: '', courseId: '' });
+            
+            // Estado Cupones
+            const [couponForm, setCouponForm] = useState({ code: '', discount: '' });
+
+            // Estado Builder
+            const [curriculum, setCurriculum] = useState([]);
+
+            // Cargar datos pesados (Matrículas y Directorio)
+            useEffect(() => {
+                if (activeTab === 'enrollments' || activeTab === 'users') {
+                    const loadDirAndEnrolls = async () => {
+                        const dirSnap = await getDocs(getPublicRef('directory'));
+                        const dirData = dirSnap.docs.map(d => ({id: d.id, ...d.data()}));
+                        setDirectory(dirData);
+
+                        if(activeTab === 'enrollments') {
+                            let all = [];
+                            for(const userDoc of dirData) {
+                                const enrSnap = await getDocs(getPrivateRef(userDoc.id, 'enrollments'));
+                                enrSnap.forEach(e => all.push({ uid: userDoc.id, userName: userDoc.name, id: e.id, ...e.data() }));
+                            }
+                            setAllEnrollments(all);
+                        }
+                    };
+                    loadDirAndEnrolls();
                 }
-            };
+                
+                if (activeTab === 'coupons') {
+                    const unsubCoup = onSnapshot(getPublicRef('coupons'), snap => {
+                        setCoupons(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                    });
+                    return () => unsubCoup();
+                }
+            }, [activeTab]);
 
-            const handleApprove = async (uid, enrId) => {
+            // --- CURSOS Y BUILDER ---
+            useEffect(() => {
+                if (editingCourse && editingCourse.data && editingCourse.data.modulos) {
+                    setCurriculum(editingCourse.data.modulos);
+                } else {
+                    setCurriculum([]);
+                }
+            }, [editingCourse]);
+
+            const handleSaveCourse = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                
+                const newCourse = {
+                    id: editingCourse ? editingCourse.id : `c${Date.now()}`,
+                    title: formData.get('title'),
+                    type: formData.get('type'),
+                    price: parseFloat(formData.get('price')),
+                    image: formData.get('image'),
+                    description: formData.get('description'),
+                    data: { modulos: curriculum }
+                };
+
                 try {
-                    await updateDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'enrollments', enrId), { status: 'Aprobado' });
-                } catch(e) { alert("Error: " + e.message); }
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'courses', newCourse.id), newCourse);
+                    alert("Curso guardado exitosamente en la base de datos.");
+                    setShowCourseModal(false);
+                    setEditingCourse(null);
+                } catch(err) {
+                    alert("Error guardando curso: " + err.message);
+                }
             };
 
             const handleDeleteCourse = async (id) => {
-                if(confirm('¿Eliminar de Firebase permanentemente?')) {
+                if(confirm('¿Eliminar de Firebase permanentemente? Esta acción es irreversible.')) {
                     await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'courses', id));
                 }
+            };
+
+            // Lógica Builder (Compacta)
+            const addModule = () => setCurriculum([...curriculum, { titulo: 'Nuevo Módulo', lecciones: [] }]);
+            const updateModuleTitle = (index, value) => { const newCurr = [...curriculum]; newCurr[index].titulo = value; setCurriculum(newCurr); };
+            const deleteModule = (index) => setCurriculum(curriculum.filter((_, i) => i !== index));
+            const addLesson = (modIndex) => { const newCurr = [...curriculum]; newCurr[modIndex].lecciones.push({ id: `l-${Date.now()}`, titulo: 'Nueva Lección', tipo: 'multivideo', recurso: '', descripcion: '' }); setCurriculum(newCurr); };
+            const updateLesson = (modIndex, lessIndex, field, value) => { const newCurr = [...curriculum]; newCurr[modIndex].lecciones[lessIndex][field] = value; setCurriculum(newCurr); };
+            const deleteLesson = (modIndex, lessIndex) => { const newCurr = [...curriculum]; newCurr[modIndex].lecciones = newCurr[modIndex].lecciones.filter((_, i) => i !== lessIndex); setCurriculum(newCurr); };
+            
+            const getVideosArray = (recursoStr) => {
+                if (!recursoStr) return [];
+                return recursoStr.split('|').filter(Boolean).map(v => {
+                    const [id, title] = v.split('::'); return { id: id || '', title: title || '' };
+                });
+            };
+            const updateVideoPart = (mIdx, lIdx, vIdx, field, value) => {
+                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
+                if(!videos[vIdx]) videos[vIdx] = {id: '', title: ''};
+                videos[vIdx][field] = value;
+                updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|'));
+            };
+            const addVideoPart = (mIdx, lIdx) => {
+                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
+                videos.push({id: '', title: ''});
+                updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|'));
+            };
+            const removeVideoPart = (mIdx, lIdx, vIdx) => {
+                const videos = getVideosArray(curriculum[mIdx].lecciones[lIdx].recurso);
+                videos.splice(vIdx, 1);
+                updateLesson(mIdx, lIdx, 'recurso', videos.map(v => `${v.id}::${v.title}`).join('|'));
+            };
+            
+            const addQuestion = (mIdx, lIdx) => { const newCurr = [...curriculum]; if (!newCurr[mIdx].lecciones[lIdx].preguntas) newCurr[mIdx].lecciones[lIdx].preguntas = []; newCurr[mIdx].lecciones[lIdx].preguntas.push({ pregunta: '', opciones: [''], correcta: 0 }); setCurriculum(newCurr); };
+            const updateQuestion = (mIdx, lIdx, qIdx, field, value) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx][field] = value; setCurriculum(newCurr); };
+            const removeQuestion = (mIdx, lIdx, qIdx) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas = newCurr[mIdx].lecciones[lIdx].preguntas.filter((_, i) => i !== qIdx); setCurriculum(newCurr); };
+            const addOption = (mIdx, lIdx, qIdx) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones.push(''); setCurriculum(newCurr); };
+            const updateOption = (mIdx, lIdx, qIdx, oIdx, value) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones[oIdx] = value; setCurriculum(newCurr); };
+            const removeOption = (mIdx, lIdx, qIdx, oIdx) => { const newCurr = [...curriculum]; newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones = newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].opciones.filter((_, i) => i !== oIdx); if (newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta >= oIdx && newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta > 0) newCurr[mIdx].lecciones[lIdx].preguntas[qIdx].correcta -= 1; setCurriculum(newCurr); };
+
+            // --- ACCIONES ADMINISTRATIVAS ---
+            const handleApproveEnrollment = async (uid, enrId) => {
+                try {
+                    await updateDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'enrollments', enrId), { status: 'Aprobado' });
+                    setAllEnrollments(allEnrollments.map(e => e.id === enrId && e.uid === uid ? {...e, status: 'Aprobado'} : e));
+                } catch(e) { alert("Error: " + e.message); }
+            };
+
+            const handleManualEnroll = async (e) => {
+                e.preventDefault();
+                if(!enrollForm.uid || !enrollForm.courseId) return;
+                try {
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'users', enrollForm.uid, 'enrollments', enrollForm.courseId), {
+                        courseId: enrollForm.courseId,
+                        status: 'Aprobado',
+                        date: new Date().toISOString(),
+                        manual: true
+                    });
+                    alert("Matrícula forzada exitosamente.");
+                    setEnrollForm({uid:'', courseId:''});
+                } catch(err) { alert(err.message); }
+            };
+
+            const handleUpdateRole = async (uid, newRole) => {
+                if(!confirm(`¿Seguro de cambiar el rol a ${newRole}?`)) return;
+                try {
+                    // Update en el perfil y en el directorio
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'data'), { role: newRole }, { merge: true });
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'directory', uid), { role: newRole }, { merge: true });
+                    setDirectory(directory.map(d => d.id === uid ? {...d, role: newRole} : d));
+                } catch(err) { alert(err.message); }
+            };
+
+            const handleCreateCoupon = async (e) => {
+                e.preventDefault();
+                const code = couponForm.code.toUpperCase().trim();
+                const disc = parseFloat(couponForm.discount);
+                if(!code || disc <= 0 || disc > 1) return alert("Código inválido o descuento fuera de rango (0.1 a 1.0)");
+                
+                await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'coupons', code), { discount: disc, active: true });
+                setCouponForm({code:'', discount:''});
+                alert("Cupón Creado.");
+            };
+
+            const handleDeleteCoupon = async (id) => {
+                await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'coupons', id));
             };
 
             return (
                 <div className="pt-24 pb-16 min-h-screen bg-slate-100">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                        <div className="flex justify-between items-center mb-8">
-                            <h1 className="text-3xl font-extrabold text-slate-900 flex items-center gap-3"><Shield className="text-brand-600 w-10 h-10"/> Centro de Comando Admin</h1>
-                            <div className="bg-white rounded-lg p-1 shadow-sm border border-slate-200 flex">
-                                <button onClick={() => setActiveTab('courses')} className={`px-4 py-2 font-bold text-sm rounded-md ${activeTab==='courses' ? 'bg-slate-100 text-slate-900' : 'text-slate-500'}`}>Cursos</button>
-                                <button onClick={() => setActiveTab('enrollments')} className={`px-4 py-2 font-bold text-sm rounded-md ${activeTab==='enrollments' ? 'bg-slate-100 text-slate-900' : 'text-slate-500'}`}>Matrículas (Auditoría)</button>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 bg-brand-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><Shield className="w-8 h-8" /></div>
+                                <div>
+                                    <h1 className="text-3xl font-extrabold text-slate-900">Centro de Comando</h1>
+                                    <p className="text-slate-500 font-bold text-sm">Privilegios: Root Admin</p>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap bg-slate-100 rounded-xl p-1.5 shadow-inner border border-slate-200 w-full sm:w-auto">
+                                {[
+                                    { id: 'courses', label: 'Cursos', icon: BookOpen },
+                                    { id: 'enrollments', label: 'Matrículas', icon: Award },
+                                    { id: 'users', label: 'Usuarios', icon: Users },
+                                    { id: 'coupons', label: 'Cupones', icon: Ticket }
+                                ].map(tab => (
+                                    <button 
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)} 
+                                        className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === tab.id ? 'bg-white text-brand-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                                        <tab.icon className="w-4 h-4 hidden md:block" /> {tab.label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
+                        {/* --- TAB CURSOS --- */}
                         {activeTab === 'courses' && (
                             <div className="space-y-6">
-                                {courses.length === 0 && (
-                                    <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
-                                        <h3 className="text-xl font-bold text-amber-800 mb-4">La base de datos de cursos está vacía</h3>
-                                        <Button onClick={handleInitDatabase} className="shadow-lg">Inicializar Cursos Demo con Datos Completos</Button>
-                                    </div>
-                                )}
+                                <div className="flex justify-end">
+                                    <Button onClick={() => { setEditingCourse(null); setShowCourseModal(true); }} className="shadow-brand-500/30">
+                                        + Diseñar Nuevo Curso
+                                    </Button>
+                                </div>
                                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {courses.map(course => (
-                                        <Card key={course.id}>
-                                            <div className="relative h-40">
+                                        <Card key={course.id} className="border-2 border-transparent hover:border-brand-500 transition-colors">
+                                            <div className="relative h-48">
                                                 <img src={course.image} className="w-full h-full object-cover" alt="" />
-                                                <button onClick={() => handleDeleteCourse(course.id)} className="absolute top-2 right-2 bg-red-500 p-2 rounded-lg text-white"><X className="w-4 h-4" /></button>
+                                                <div className="absolute top-3 right-3 flex gap-2">
+                                                    <button onClick={() => { setEditingCourse(course); setShowCourseModal(true); }} className="bg-white/95 p-2 rounded-lg shadow-md hover:bg-white text-brand-600 transition-transform hover:scale-105">
+                                                        Editar LMS
+                                                    </button>
+                                                    <button onClick={() => handleDeleteCourse(course.id)} className="bg-red-500/90 p-2 rounded-lg shadow-md hover:bg-red-600 text-white transition-transform hover:scale-105">
+                                                        <X className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                                <span className="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">{course.type}</span>
                                             </div>
-                                            <div className="p-5">
-                                                <h3 className="font-bold text-slate-900 mb-2 truncate">{course.title}</h3>
-                                                <p className="font-bold text-brand-600">${course.price}</p>
+                                            <div className="p-6">
+                                                <h3 className="font-extrabold text-lg text-slate-900 mb-1 truncate">{course.title}</h3>
+                                                <p className="text-sm font-bold text-brand-600">${course.price}</p>
                                             </div>
                                         </Card>
                                     ))}
@@ -1140,79 +1386,374 @@
                             </div>
                         )}
 
+                        {/* --- TAB MATRÍCULAS --- */}
                         {activeTab === 'enrollments' && (
-                            <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-slate-50 text-slate-500 text-sm font-bold border-b border-slate-200">
-                                            <th className="p-4">Estudiante (UID)</th>
-                                            <th className="p-4">ID Curso</th>
-                                            <th className="p-4">Estado</th>
-                                            <th className="p-4 text-right">Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {allEnrollments.map((enr, i) => (
-                                            <tr key={i} className="hover:bg-slate-50">
-                                                <td className="p-4 font-mono text-xs text-slate-600">{enr.uid}</td>
-                                                <td className="p-4 font-bold text-slate-800">{enr.courseId}</td>
-                                                <td className="p-4"><span className={`px-3 py-1 text-xs font-bold rounded-full ${enr.status==='Aprobado'?'bg-green-100 text-green-700':'bg-amber-100 text-amber-700'}`}>{enr.status}</span></td>
-                                                <td className="p-4 text-right">
-                                                    {enr.status === 'Pendiente' && <Button onClick={() => handleApprove(enr.uid, enr.id)} className="px-3 py-1 text-xs">Aprobar Pago</Button>}
-                                                </td>
+                            <div className="grid lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-2 bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                                    <div className="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                                        <h2 className="text-xl font-bold text-slate-800">Auditoría Global de Matrículas</h2>
+                                        <span className="text-xs font-bold bg-slate-900 text-white px-3 py-1.5 rounded-full">{allEnrollments.length} Registros</span>
+                                    </div>
+                                    <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead className="sticky top-0 bg-slate-50 shadow-sm z-10">
+                                                <tr className="text-slate-500 text-xs uppercase tracking-wider font-bold">
+                                                    <th className="p-4">Estudiante</th>
+                                                    <th className="p-4">Curso ID</th>
+                                                    <th className="p-4">Estado</th>
+                                                    <th className="p-4 text-right">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {allEnrollments.map((enr, i) => (
+                                                    <tr key={i} className="hover:bg-slate-50">
+                                                        <td className="p-4">
+                                                            <p className="font-bold text-slate-900 text-sm">{enr.userName}</p>
+                                                            <p className="text-xs text-slate-400 font-mono mt-0.5">{enr.uid}</p>
+                                                        </td>
+                                                        <td className="p-4 font-bold text-slate-700 text-sm">{enr.courseId}</td>
+                                                        <td className="p-4">
+                                                            <span className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider ${enr.status==='Aprobado'?'bg-green-100 text-green-700':'bg-amber-100 text-amber-700'}`}>{enr.status}</span>
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            {enr.status === 'Pendiente' && <Button onClick={() => handleApproveEnrollment(enr.uid, enr.id)} className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-500 shadow-none">Aprobar Pago</Button>}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <div className="lg:col-span-1">
+                                    <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-200 sticky top-24">
+                                        <h3 className="font-extrabold text-lg text-slate-900 mb-4 border-b border-slate-100 pb-2">Forzar Matrícula Manual</h3>
+                                        <form onSubmit={handleManualEnroll} className="space-y-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Seleccionar Estudiante</label>
+                                                <select required value={enrollForm.uid} onChange={e=>setEnrollForm({...enrollForm, uid: e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl outline-none focus:border-brand-500 font-medium text-sm">
+                                                    <option value="">Seleccione UID...</option>
+                                                    {directory.map(d => <option key={d.id} value={d.id}>{d.name} ({d.email})</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Seleccionar Curso</label>
+                                                <select required value={enrollForm.courseId} onChange={e=>setEnrollForm({...enrollForm, courseId: e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl outline-none focus:border-brand-500 font-bold text-sm text-slate-700">
+                                                    <option value="">Seleccione Curso...</option>
+                                                    {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                                                </select>
+                                            </div>
+                                            <Button type="submit" className="w-full mt-2">Crear Matrícula Directa</Button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- TAB USUARIOS Y ROLES --- */}
+                        {activeTab === 'users' && (
+                            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                                <div className="p-6 border-b border-slate-200 bg-slate-50">
+                                    <h2 className="text-xl font-bold text-slate-800">Control de Accesos y Roles</h2>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-slate-50">
+                                            <tr className="text-slate-500 text-xs uppercase tracking-wider font-bold border-b border-slate-200">
+                                                <th className="p-4">Estudiante (Nombre / Email)</th>
+                                                <th className="p-4">UID Único</th>
+                                                <th className="p-4">Rol Actual</th>
+                                                <th className="p-4">Cambiar Rol</th>
                                             </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {directory.map(user => (
+                                                <tr key={user.id} className="hover:bg-slate-50">
+                                                    <td className="p-4">
+                                                        <p className="font-bold text-slate-900 text-sm">{user.name}</p>
+                                                        <p className="text-xs text-slate-500">{user.email}</p>
+                                                    </td>
+                                                    <td className="p-4 font-mono text-xs text-slate-400">{user.id}</td>
+                                                    <td className="p-4">
+                                                        <span className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-widest ${user.role === 'admin' ? 'bg-red-100 text-red-700' : user.role === 'teacher' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                                            {user.role || 'student'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <select 
+                                                            value={user.role || 'student'} 
+                                                            onChange={(e) => handleUpdateRole(user.id, e.target.value)}
+                                                            className="p-1.5 border border-slate-300 rounded-md text-xs font-bold text-slate-700 outline-none focus:ring-1 focus:ring-brand-500 bg-white shadow-sm"
+                                                        >
+                                                            <option value="student">Estudiante</option>
+                                                            <option value="teacher">Docente</option>
+                                                            <option value="admin">Administrador</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- TAB CUPONES --- */}
+                        {activeTab === 'coupons' && (
+                            <div className="grid lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-1 bg-white rounded-3xl p-6 shadow-xl border border-slate-200 h-fit">
+                                    <h3 className="font-extrabold text-lg text-slate-900 mb-4 border-b border-slate-100 pb-2">Generar Cupón</h3>
+                                    <form onSubmit={handleCreateCoupon} className="space-y-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Código (Ej. PROMO50)</label>
+                                            <input required value={couponForm.code} onChange={e=>setCouponForm({...couponForm, code: e.target.value.toUpperCase()})} className="w-full p-2.5 border border-slate-300 rounded-xl outline-none focus:border-brand-500 font-mono text-sm uppercase text-brand-700 font-bold" />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Descuento (0.1 a 1.0)</label>
+                                            <input required type="number" step="0.01" min="0.01" max="1" value={couponForm.discount} onChange={e=>setCouponForm({...couponForm, discount: e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl outline-none focus:border-brand-500 font-mono text-sm" placeholder="Ej. 0.5 para 50%" />
+                                        </div>
+                                        <Button type="submit" className="w-full mt-2 bg-slate-900 hover:bg-slate-800">Crear Código</Button>
+                                    </form>
+                                </div>
+                                <div className="lg:col-span-2">
+                                    <div className="grid sm:grid-cols-2 gap-4">
+                                        {coupons.map(c => (
+                                            <div key={c.id} className="bg-white p-5 rounded-2xl border-2 border-dashed border-brand-200 flex items-center justify-between group hover:border-solid hover:border-brand-500 transition-colors shadow-sm">
+                                                <div>
+                                                    <span className="font-mono text-xl font-extrabold text-brand-600 block">{c.id}</span>
+                                                    <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded uppercase">{c.discount * 100}% Dcto</span>
+                                                </div>
+                                                <button onClick={() => handleDeleteCoupon(c.id)} className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors">
+                                                    <X className="w-5 h-5"/>
+                                                </button>
+                                            </div>
                                         ))}
-                                    </tbody>
-                                </table>
+                                        {coupons.length === 0 && <p className="text-slate-400 italic font-medium p-8">No hay cupones activos. Crea uno nuevo.</p>}
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
+
+                    {/* Modal Constructor Visual */}
+                    {showCourseModal && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-0 sm:p-4">
+                            <div className="bg-white w-full h-full sm:h-auto sm:max-h-[95vh] sm:rounded-[2rem] max-w-6xl flex flex-col shadow-2xl relative overflow-hidden border border-slate-200">
+                                <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
+                                    <div>
+                                        <h2 className="text-2xl font-extrabold text-slate-900">{editingCourse ? 'Arquitectura del Curso' : 'Nuevo Proyecto Educativo'}</h2>
+                                        <p className="text-sm text-slate-500 font-medium">Motor LMS integrado directamente a Firestore.</p>
+                                    </div>
+                                    <button onClick={() => setShowCourseModal(false)} className="bg-white border border-slate-200 rounded-full p-2 text-slate-400 hover:text-slate-900 transition-colors shadow-sm"><X className="w-6 h-6" /></button>
+                                </div>
+                                
+                                <form onSubmit={handleSaveCourse} className="p-6 sm:p-8 overflow-y-auto flex-grow space-y-10 bg-white">
+                                    {/* Metadatos Generales */}
+                                    <section className="space-y-6">
+                                        <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2"><Briefcase className="w-5 h-5 text-brand-500"/> Ficha Técnica</h3>
+                                        <div className="grid sm:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Título Público</label>
+                                                <input name="title" defaultValue={editingCourse?.title} required className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-bold text-slate-900" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Etiqueta de Clasificación</label>
+                                                <select name="type" defaultValue={editingCourse?.type || 'Pago'} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none bg-slate-50 font-medium">
+                                                    <option value="Gratis">Módulo Gratuito</option>
+                                                    <option value="Premium">Certificación Premium</option>
+                                                    <option value="Pago">Curso Individual</option>
+                                                    <option value="Plantillas">Recursos/Plantillas</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid sm:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Precio Base (USD) <span className="text-xs text-brand-600 ml-2 font-normal">0 = Libre</span></label>
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-3.5 text-slate-400 font-bold">$</span>
+                                                    <input name="price" type="number" step="0.01" defaultValue={editingCourse?.price || 0} required className="w-full pl-8 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-bold font-mono text-slate-900" />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700">Banner Principal (URL)</label>
+                                                <input name="image" type="url" defaultValue={editingCourse?.image} required className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-mono text-sm" />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-bold text-slate-700">Promesa de Valor (Descripción)</label>
+                                            <textarea name="description" defaultValue={editingCourse?.description} required rows="2" className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-medium text-slate-700"></textarea>
+                                        </div>
+                                    </section>
+
+                                    {/* Moodle Builder */}
+                                    <section className="space-y-6 pt-4 border-t border-slate-200">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                                            <div>
+                                                <h3 className="text-xl font-extrabold text-slate-900 flex items-center gap-2"><BookOpen className="w-6 h-6 text-brand-500"/> Constructor del Currículo</h3>
+                                            </div>
+                                            <Button type="button" variant="secondary" onClick={addModule} className="py-2.5 px-6 shadow-sm">+ Añadir Módulo</Button>
+                                        </div>
+                                        
+                                        <div className="space-y-8">
+                                            {curriculum.map((mod, mIdx) => (
+                                                <div key={mIdx} className="bg-slate-50 border border-slate-200 rounded-3xl p-6 relative">
+                                                    <div className="absolute top-6 -left-4 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md">{mIdx+1}</div>
+                                                    
+                                                    <div className="flex gap-3 mb-6">
+                                                        <input value={mod.titulo} onChange={(e) => updateModuleTitle(mIdx, e.target.value)} className="flex-grow p-3 border border-slate-300 rounded-xl font-extrabold text-lg text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none" placeholder="Nombre del Módulo Principal" />
+                                                        <button type="button" onClick={() => deleteModule(mIdx)} className="px-4 border border-red-200 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-colors font-bold text-sm shadow-sm flex items-center gap-2">
+                                                            <X className="w-4 h-4"/>
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-4 pl-4 border-l-2 border-slate-200 ml-2">
+                                                        {mod.lecciones.map((less, lIdx) => (
+                                                            <div key={lIdx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4 relative group">
+                                                                <button type="button" onClick={() => deleteLesson(mIdx, lIdx)} className="absolute top-4 right-4 p-2 text-slate-300 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"><X className="w-5 h-5"/></button>
+                                                                
+                                                                <div className="pr-12 grid sm:grid-cols-3 gap-3">
+                                                                    <div className="sm:col-span-2">
+                                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Título de Lección</label>
+                                                                        <input value={less.titulo} onChange={(e) => updateLesson(mIdx, lIdx, 'titulo', e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg font-bold text-slate-800 focus:border-brand-500 outline-none bg-slate-50" />
+                                                                    </div>
+                                                                    <div className="sm:col-span-1">
+                                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Tipo Recurso</label>
+                                                                        <select value={less.tipo} onChange={(e) => updateLesson(mIdx, lIdx, 'tipo', e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg font-bold text-slate-700 bg-slate-50 outline-none">
+                                                                            <option value="multivideo">Video/YouTube</option>
+                                                                            <option value="multipresentacion">Documentos / PDFs</option>
+                                                                            <option value="simulador">Simulador / Embed</option>
+                                                                            <option value="texto">Texto Enriquecido</option>
+                                                                            <option value="quiz_nativo">Quiz Nativo Interactivo</option>
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-4">
+                                                                    {['multipresentacion', 'simulador'].includes(less.tipo) && (
+                                                                        <div>
+                                                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1"><LinkIcon className="w-3 h-3"/> Enlace al Recurso (URL o Github)</label>
+                                                                            <input value={less.recurso || ''} onChange={(e) => updateLesson(mIdx, lIdx, 'recurso', e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg font-mono text-sm text-brand-700 outline-none bg-white shadow-inner" />
+                                                                        </div>
+                                                                    )}
+
+                                                                    {less.tipo === 'multivideo' && (
+                                                                        <div className="space-y-3">
+                                                                            <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                                                                                <span className="font-bold text-slate-800 text-xs uppercase flex items-center gap-1"><Youtube className="w-4 h-4 text-red-500"/> Lista Reproducción</span>
+                                                                                <Button type="button" variant="outline" onClick={() => addVideoPart(mIdx, lIdx)} className="py-1 px-3 text-xs bg-white">+ Añadir Fragmento</Button>
+                                                                            </div>
+                                                                            {getVideosArray(less.recurso).map((v, vIdx) => (
+                                                                                <div key={vIdx} className="flex flex-col sm:flex-row gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm relative">
+                                                                                    <div className="w-6 text-center text-xs font-bold text-slate-400 hidden sm:block mt-2">{vIdx + 1}</div>
+                                                                                    <input value={v.id} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'id', e.target.value)} placeholder="ID Video (Ej: dQw4w9WgXcQ)" className="flex-1 text-xs p-2 border border-slate-200 rounded outline-none font-mono" />
+                                                                                    <input value={v.title} onChange={e => updateVideoPart(mIdx, lIdx, vIdx, 'title', e.target.value)} placeholder="Título fragmento" className="flex-1 text-xs p-2 border border-slate-200 rounded outline-none font-semibold text-slate-700" />
+                                                                                    <button type="button" onClick={() => removeVideoPart(mIdx, lIdx, vIdx)} className="p-2 text-slate-400 hover:text-red-500 rounded"><X className="w-4 h-4"/></button>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {less.tipo === 'texto' && (
+                                                                        <textarea value={less.contenidoText || ''} onChange={(e) => updateLesson(mIdx, lIdx, 'contenidoText', e.target.value)} className="w-full p-4 border border-slate-200 rounded-xl text-sm outline-none bg-white font-serif leading-relaxed" placeholder="Contenido de lectura..." rows="5" />
+                                                                    )}
+
+                                                                    {less.tipo === 'quiz_nativo' && (
+                                                                        <div className="space-y-4">
+                                                                            <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                                                                                <span className="font-extrabold text-slate-800 text-xs uppercase flex items-center gap-1"><HelpCircle className="w-4 h-4 text-brand-500"/> Preguntas</span>
+                                                                                <Button type="button" variant="outline" onClick={() => addQuestion(mIdx, lIdx)} className="py-1 px-3 text-xs bg-white">+ Añadir Pregunta</Button>
+                                                                            </div>
+                                                                            {(less.preguntas || []).map((q, qIdx) => (
+                                                                                <div key={qIdx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative space-y-3">
+                                                                                    <button type="button" onClick={() => removeQuestion(mIdx, lIdx, qIdx)} className="absolute top-2 right-2 text-slate-400 hover:text-red-500"><X className="w-4 h-4"/></button>
+                                                                                    <input value={q.pregunta || ''} onChange={(e) => updateQuestion(mIdx, lIdx, qIdx, 'pregunta', e.target.value)} placeholder="Enunciado" className="w-11/12 text-sm font-bold p-2 border border-slate-200 rounded-lg outline-none bg-slate-50" />
+                                                                                    
+                                                                                    <div className="pl-3 border-l-2 border-brand-100 space-y-2">
+                                                                                        {(q.opciones || []).map((opt, oIdx) => (
+                                                                                            <div key={oIdx} className={`flex items-center gap-2 p-1.5 rounded-lg border ${q.correcta === oIdx ? 'border-green-400 bg-green-50' : 'border-slate-100'}`}>
+                                                                                                <input type="radio" name={`r-${mIdx}-${lIdx}-${qIdx}`} checked={q.correcta === oIdx} onChange={() => updateQuestion(mIdx, lIdx, qIdx, 'correcta', oIdx)} className="w-4 h-4 text-green-600" />
+                                                                                                <input value={opt} onChange={(e) => updateOption(mIdx, lIdx, qIdx, oIdx, e.target.value)} className="flex-grow text-sm p-1 border border-transparent rounded bg-transparent outline-none font-medium" />
+                                                                                                <button type="button" onClick={() => removeOption(mIdx, lIdx, qIdx, oIdx)} className="text-red-300 hover:text-red-500 p-1"><X className="w-4 h-4"/></button>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                        <button type="button" onClick={() => addOption(mIdx, lIdx, qIdx)} className="text-xs text-brand-600 font-bold bg-brand-50 px-3 py-1.5 rounded mt-1">+ Opción</button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        
+                                                        <Button type="button" variant="outline" onClick={() => addLesson(mIdx)} className="py-2 text-sm w-full mt-2 border-dashed bg-transparent border-slate-300 text-slate-500 hover:border-solid hover:text-brand-600">
+                                                            + Incorporar Lección al Módulo
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {curriculum.length === 0 && (
+                                                <div className="text-center p-12 border-2 border-dashed border-slate-300 rounded-2xl text-slate-500 font-bold">
+                                                    El currículo está vacío. Comienza añadiendo un módulo.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
+
+                                    {/* Action Footer Fixed */}
+                                    <div className="sticky bottom-0 bg-white py-4 border-t border-slate-200 mt-8 flex justify-end gap-4 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
+                                        <Button type="button" variant="outline" onClick={() => setShowCourseModal(false)} className="px-8 bg-white">Cancelar</Button>
+                                        <Button type="submit" className="px-10 shadow-brand-500/30 text-lg">Guardar en Firebase</Button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
 
         // ==========================================
-        // APP PRINCIPAL
+        // APP PRINCIPAL Y RUTEO
         // ==========================================
         const App = () => {
             const [view, setView] = useState('home'); 
             const [currentUser, setCurrentUser] = useState(null); 
             
-            // Estado Global Sincronizado con Firestore
+            // Estado Global Sincronizado
             const [courses, setCourses] = useState([]);
             const [reviews, setReviews] = useState([]);
             const [chatMessages, setChatMessages] = useState([]);
             
             // Estado Privado
             const [myEnrollments, setMyEnrollments] = useState([]);
-            const [adminAllEnrollments, setAdminAllEnrollments] = useState([]);
             
             const [currentCourse, setCurrentCourse] = useState(null);
             const [menuOpen, setMenuOpen] = useState(false);
             const [showAuthModal, setShowAuthModal] = useState(false);
 
-            // 1. Escuchar Estado de Autenticación
+            // Escuchar Estado de Autenticación
             useEffect(() => {
                 const unsubscribe = onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         const isSystemAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
                         
-                        // Actualiza directorio público para que Admin lo vea
+                        // Actualiza directorio público para listar a todos en el panel admin
                         await setDoc(getDirectoryRef(user.uid), { email: user.email, name: user.displayName || user.email.split('@')[0], uid: user.uid }, { merge: true });
                         
-                        // Perfil de Firestore
+                        // Cargar perfil
                         const profSnap = await getDoc(getProfileRef(user.uid));
                         let profData = { name: user.displayName || user.email.split('@')[0], role: isSystemAdmin ? 'admin' : 'student' };
                         
-                        if(profSnap.exists()) {
-                            profData = { ...profData, ...profSnap.data() };
-                        }
+                        if(profSnap.exists()) profData = { ...profData, ...profSnap.data() };
                         
-                        // ¡SOLUCIÓN CRÍTICA PARA EL ADMINISTRADOR!
-                        // Forzamos el rol a Admin si el email coincide, pase lo que pase en la BD local.
+                        // Forzado de Rol Administrador Maestro
                         if (isSystemAdmin && profData.role !== 'admin') {
                             profData.role = 'admin';
-                            await setDoc(getProfileRef(user.uid), profData, { merge: true });
+                            await setDoc(getProfileRef(user.uid), {role: 'admin'}, { merge: true });
+                            await setDoc(getDirectoryRef(user.uid), {role: 'admin'}, { merge: true });
                         }
 
                         setCurrentUser({ uid: user.uid, email: user.email, ...profData });
@@ -1230,7 +1771,7 @@
                 return () => unsubscribe();
             }, []);
 
-            // 2. Escuchar Datos Públicos Globales
+            // Escuchar Datos Públicos
             useEffect(() => {
                 const unsubCourses = onSnapshot(getPublicRef('courses'), snap => {
                     setCourses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -1240,28 +1781,11 @@
                 });
                 const unsubChat = onSnapshot(getPublicRef('chat_general'), snap => {
                     const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    msgs.sort((a, b) => a.timestamp - b.timestamp); // Orden local para evitar error de índice
+                    msgs.sort((a, b) => a.timestamp - b.timestamp);
                     setChatMessages(msgs);
                 });
                 return () => { unsubCourses(); unsubReviews(); unsubChat(); };
             }, []);
-
-            // 3. Admin: Cargar todas las matrículas para auditar (Escaneo de directorio)
-            useEffect(() => {
-                if(currentUser?.role === 'admin' && view === 'admin') {
-                    const loadAll = async () => {
-                        const dirSnap = await getDocs(getPublicRef('directory'));
-                        let all = [];
-                        for(const doc of dirSnap.docs) {
-                            const uid = doc.id;
-                            const enrSnap = await getDocs(getPrivateRef(uid, 'enrollments'));
-                            enrSnap.forEach(e => all.push({ uid, id: e.id, ...e.data() }));
-                        }
-                        setAdminAllEnrollments(all);
-                    };
-                    loadAll();
-                }
-            }, [currentUser, view]);
 
             const logout = async () => {
                 await signOut(auth);
@@ -1271,45 +1795,51 @@
 
             const handleProfileUpdate = async (e) => {
                 e.preventDefault();
-                const formData = new FormData(e.target);
+                const fd = new FormData(e.target);
                 try {
-                    await updateDoc(getProfileRef(currentUser.uid), {
-                        name: formData.get('name'),
-                        bio: formData.get('bio'),
-                        linkedin: formData.get('linkedin')
-                    });
-                    // También actualiza directorio
-                    await updateDoc(getDirectoryRef(currentUser.uid), { name: formData.get('name') });
-                    alert("Perfil guardado permanentemente en Firestore.");
+                    const updates = {
+                        name: fd.get('name'), bio: fd.get('bio'), linkedin: fd.get('linkedin'),
+                        orcid: fd.get('orcid'), scholar: fd.get('scholar'), researchgate: fd.get('researchgate'),
+                        github: fd.get('github'), twitter: fd.get('twitter'), instagram: fd.get('instagram'), 
+                        youtube: fd.get('youtube'), tiktok: fd.get('tiktok')
+                    };
+                    await setDoc(getProfileRef(currentUser.uid), updates, { merge: true });
+                    await updateDoc(getDirectoryRef(currentUser.uid), { name: fd.get('name') });
+                    setCurrentUser({...currentUser, ...updates});
+                    alert("Redes y perfil guardados permanentemente en Firestore.");
+                    setView('dashboard');
                 } catch(err) { alert("Error: " + err.message); }
             };
 
             const Navbar = () => (
                 <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-md z-40 border-b border-slate-200 shadow-sm">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
-                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('home')}>
-                            <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-lg">P</span></div>
-                            <span className="font-bold text-xl text-slate-900">physics10<span className="text-brand-600">.easy</span></span>
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-[70px] items-center">
+                        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setView('home')}>
+                            <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center transform group-hover:-rotate-6 transition-transform shadow-md"><span className="text-white font-extrabold text-xl font-serif">P</span></div>
+                            <span className="font-extrabold text-2xl tracking-tight text-slate-900 hidden sm:block">physics10<span className="text-brand-600">.easy</span></span>
                         </div>
                         <div className="hidden md:flex items-center space-x-8">
-                            <button onClick={() => setView('catalog')} className="text-slate-600 font-bold hover:text-brand-600">Catálogo</button>
+                            <button onClick={() => setView('catalog')} className="text-slate-600 font-bold hover:text-brand-600 transition-colors uppercase tracking-wider text-sm">Catálogo</button>
                             {currentUser ? (
                                 <>
-                                    <button onClick={() => setView('dashboard')} className="text-slate-600 font-bold hover:text-brand-600 flex items-center gap-1"><User className="w-4 h-4"/> Workspace</button>
+                                    <button onClick={() => setView('dashboard')} className="text-slate-600 font-bold hover:text-brand-600 flex items-center gap-2 transition-colors uppercase tracking-wider text-sm"><User className="w-4 h-4"/> Workspace</button>
                                     {currentUser.role === 'admin' && (
-                                        <button onClick={() => setView('admin')} className="text-red-600 font-bold hover:text-red-700 flex items-center gap-1"><Shield className="w-4 h-4"/> Admin Panel</button>
+                                        <button onClick={() => setView('admin')} className="text-white bg-slate-900 font-bold hover:bg-brand-600 flex items-center gap-2 px-4 py-2 rounded-lg shadow-sm transition-colors uppercase tracking-wider text-xs"><Shield className="w-4 h-4"/> Admin</button>
                                     )}
-                                    <div className="flex items-center gap-4 border-l border-slate-200 pl-4">
+                                    <div className="flex items-center gap-4 border-l-2 border-slate-100 pl-6">
                                         <div className="flex flex-col text-right">
-                                            <span className="text-sm font-bold text-slate-800">{currentUser.name}</span>
-                                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-500">{currentUser.role}</span>
+                                            <span className="text-sm font-bold text-slate-900">{currentUser.name}</span>
+                                            <span className={`text-[10px] font-extrabold uppercase tracking-widest ${currentUser.role==='admin'?'text-red-500':'text-brand-500'}`}>{currentUser.role}</span>
                                         </div>
-                                        <button onClick={logout} title="Cerrar Sesión" className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-full bg-white text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"><LogOut className="w-4 h-4"/></button>
+                                        <button onClick={logout} title="Cerrar Sesión" className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-full bg-slate-50 text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"><LogOut className="w-4 h-4"/></button>
                                     </div>
                                 </>
                             ) : (
-                                <Button variant="primary" onClick={() => setShowAuthModal(true)} className="px-6 py-2 shadow-md">Ingresar al Portal</Button>
+                                <Button variant="primary" onClick={() => setShowAuthModal(true)} className="px-8 py-2.5 shadow-md">Ingresar al Portal</Button>
                             )}
+                        </div>
+                        <div className="md:hidden flex items-center">
+                            <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 text-slate-600 bg-slate-100 rounded-lg">{menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}</button>
                         </div>
                     </div>
                 </nav>
@@ -1328,7 +1858,7 @@
                             </>
                         )}
                         {view === 'catalog' && (
-                            <div className="pt-24 pb-16 min-h-screen bg-slate-50">
+                            <div className="pt-20 pb-16 min-h-screen bg-slate-50">
                                 <CourseCatalog courses={courses} setView={setView} setCurrentCourse={setCurrentCourse} />
                             </div>
                         )}
@@ -1342,29 +1872,95 @@
                             <CoursePlayer course={currentCourse} setView={setView} currentUser={currentUser} />
                         )}
                         {view === 'admin' && currentUser?.role === 'admin' && (
-                            <AdminPanel allEnrollments={adminAllEnrollments} courses={courses} />
+                            <AdminPanel courses={courses} />
                         )}
                         {view === 'profile' && currentUser && (
                             <div className="pt-24 pb-16 min-h-screen bg-slate-50">
-                                <div className="max-w-3xl mx-auto px-4 sm:px-6">
-                                    <button onClick={() => setView('dashboard')} className="flex items-center text-slate-500 hover:text-brand-600 mb-8 font-bold"><ChevronLeft className="w-5 h-5 mr-1" /> Volver</button>
-                                    <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-slate-100">
-                                        <h1 className="text-3xl font-extrabold text-slate-900 mb-2">Mi Perfil</h1>
-                                        <p className="text-slate-500 font-bold mb-8">Base de Datos Firestore: Activa</p>
-                                        <form onSubmit={handleProfileUpdate} className="space-y-6">
-                                            <div>
-                                                <label className="font-bold text-slate-700">Nombre Público</label>
-                                                <input name="name" defaultValue={currentUser.name} className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-bold" />
+                                <div className="max-w-4xl mx-auto px-4 sm:px-6">
+                                    <button onClick={() => setView('dashboard')} className="flex items-center text-slate-500 hover:text-brand-600 mb-8 font-bold transition-colors"><ChevronLeft className="w-5 h-5 mr-1" /> Volver al Workspace</button>
+                                    
+                                    <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 border border-slate-200 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 transform translate-x-1/2 -translate-y-1/2"></div>
+                                        
+                                        <div className="flex items-center gap-6 mb-10 border-b border-slate-100 pb-8 relative z-10">
+                                            <div className="w-24 h-24 bg-slate-900 text-white rounded-3xl flex items-center justify-center text-4xl font-bold shadow-xl transform rotate-3">
+                                                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
                                             </div>
                                             <div>
-                                                <label className="font-bold text-slate-700">Cargo / Biografía</label>
-                                                <input name="bio" defaultValue={currentUser.bio} className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none" />
+                                                <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Mi Perfil</h1>
+                                                <p className="text-slate-500 font-bold mt-1 text-sm bg-slate-100 px-3 py-1 inline-block rounded-full">{currentUser.email}</p>
                                             </div>
-                                            <div>
-                                                <label className="font-bold text-slate-700">LinkedIn URL</label>
-                                                <input name="linkedin" defaultValue={currentUser.linkedin} className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-mono text-sm" />
+                                        </div>
+
+                                        <form onSubmit={handleProfileUpdate} className="space-y-12 relative z-10">
+                                            {/* Datos Personales */}
+                                            <section>
+                                                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><User className="w-5 h-5 text-brand-500"/> Información Básica</h3>
+                                                <div className="grid sm:grid-cols-2 gap-6">
+                                                    <div>
+                                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Nombre Público</label>
+                                                        <input name="name" defaultValue={currentUser.name} className="w-full p-3.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-bold text-slate-900 shadow-sm" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Cargo / Biografía Corta</label>
+                                                        <input name="bio" defaultValue={currentUser.bio} className="w-full p-3.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-medium text-slate-700 shadow-sm" placeholder="Ej. Investigador en Física Aplicada" />
+                                                    </div>
+                                                </div>
+                                            </section>
+
+                                            {/* Identidad Científica */}
+                                            <section>
+                                                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><BookOpen className="w-5 h-5 text-brand-500"/> Identidad Científica / Académica</h3>
+                                                <div className="grid sm:grid-cols-3 gap-6">
+                                                    <div>
+                                                        <label className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2 block">ORCID (URL)</label>
+                                                        <input name="orcid" type="url" defaultValue={currentUser.orcid} placeholder="https://orcid.org/..." className="w-full p-3 border border-slate-200 bg-slate-50 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-mono text-xs" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2 block">Google Scholar</label>
+                                                        <input name="scholar" type="url" defaultValue={currentUser.scholar} placeholder="https://scholar.google.com/..." className="w-full p-3 border border-slate-200 bg-slate-50 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono text-xs" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-teal-600 uppercase tracking-wider mb-2 block">ResearchGate</label>
+                                                        <input name="researchgate" type="url" defaultValue={currentUser.researchgate} placeholder="https://researchgate.net/..." className="w-full p-3 border border-slate-200 bg-slate-50 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none font-mono text-xs" />
+                                                    </div>
+                                                </div>
+                                            </section>
+
+                                            {/* Redes Profesionales y Sociales */}
+                                            <section>
+                                                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Network className="w-5 h-5 text-brand-500"/> Presencia Digital</h3>
+                                                <div className="grid sm:grid-cols-2 gap-6">
+                                                    <div>
+                                                        <label className="text-xs font-bold text-[#0A66C2] uppercase tracking-wider mb-2 block">LinkedIn</label>
+                                                        <input name="linkedin" type="url" defaultValue={currentUser.linkedin} placeholder="https://linkedin.com/in/..." className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0A66C2] outline-none font-mono text-xs" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 block">GitHub</label>
+                                                        <input name="github" type="url" defaultValue={currentUser.github} placeholder="https://github.com/..." className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-700 outline-none font-mono text-xs" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-[#1DA1F2] uppercase tracking-wider mb-2 block">Twitter / X</label>
+                                                        <input name="twitter" type="url" defaultValue={currentUser.twitter} placeholder="https://twitter.com/..." className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1DA1F2] outline-none font-mono text-xs" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-[#FF0000] uppercase tracking-wider mb-2 block">YouTube</label>
+                                                        <input name="youtube" type="url" defaultValue={currentUser.youtube} placeholder="https://youtube.com/..." className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF0000] outline-none font-mono text-xs" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-[#E1306C] uppercase tracking-wider mb-2 block">Instagram</label>
+                                                        <input name="instagram" type="url" defaultValue={currentUser.instagram} placeholder="https://instagram.com/..." className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#E1306C] outline-none font-mono text-xs" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 block">TikTok</label>
+                                                        <input name="tiktok" type="url" defaultValue={currentUser.tiktok} placeholder="https://tiktok.com/@..." className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none font-mono text-xs" />
+                                                    </div>
+                                                </div>
+                                            </section>
+
+                                            <div className="pt-8 border-t border-slate-200 flex justify-end">
+                                                <Button type="submit" className="px-10 py-4 shadow-brand-500/40 text-lg w-full sm:w-auto">Actualizar e Indexar Perfil</Button>
                                             </div>
-                                            <Button type="submit" className="w-full py-4 text-lg">Actualizar Perfil Real</Button>
                                         </form>
                                     </div>
                                 </div>
@@ -1373,9 +1969,11 @@
                     </main>
 
                     {view !== 'player' && (
-                        <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800 text-center">
-                            <span className="font-bold text-2xl text-white mb-2 block">physics10<span className="text-brand-500">.easy</span></span>
-                            <p>Plataforma EdTech conectada 100% a Firebase Realtime.</p>
+                        <footer className="bg-slate-950 text-slate-400 py-16 border-t border-slate-900">
+                            <div className="max-w-7xl mx-auto px-4 text-center">
+                                <span className="font-bold text-3xl text-white mb-4 block">physics10<span className="text-brand-500">.easy</span></span>
+                                <p className="font-medium max-w-md mx-auto">Tecnología LMS modular integrada al ecosistema Firebase de Google. Ciencia y código puro.</p>
+                            </div>
                         </footer>
                     )}
                     
