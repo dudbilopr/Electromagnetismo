@@ -84,12 +84,15 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
-        controls.autoRotate = true; 
-        controls.autoRotateSpeed = 0.8; 
+        controls.autoRotate = false; 
         controls.maxPolarAngle = Math.PI / 2 - 0.05; 
         controls.minDistance = 120;
         controls.maxDistance = 450;
         controls.target.set(0, -5, 0); 
+
+        // Agrupador Maestro para rotación automática garantizada
+        const masterGroup = new THREE.Group();
+        scene.add(masterGroup);
 
         // --- 3. ATLAS DE TEXTURAS ---
         const atlasSize = 2048;
@@ -134,7 +137,7 @@
         texture.magFilter = THREE.LinearFilter;
         texture.generateMipmaps = true;
 
-        // --- 4. MOTOR DE ESQUELETO 3D ---
+        // --- 4. MOTOR DE ESQUELETO 3D (ARTICULADO Y SEGMENTADO) ---
         function sdCapsule(p, a, b, r) {
             let pa = [p[0]-a[0], p[1]-a[1], p[2]-a[2]];
             let ba = [b[0]-a[0], b[1]-a[1], b[2]-a[2]];
@@ -148,6 +151,7 @@
             return Math.min(a, b) - h * h * h * k * (1.0 / 6.0);
         }
 
+        // Definiciones anatómicas desglosadas para permitir flexión de articulaciones
         const partsSDF = {
             torso: (p) => {
                 let d = sdCapsule(p, [0,12,0], [0,58,0], 12.5); 
@@ -155,36 +159,36 @@
                 return d;
             },
             head: (p) => {
-                let d = sdCapsule(p, [0,0,0], [0,8,0], 3.2); 
-                d = smin(d, sdCapsule(p, [0,11,0], [0,22,2], 8.0), 4); 
+                let d = sdCapsule(p, [0,0,0], [0,8,0], 3.2); // Cuello
+                d = smin(d, sdCapsule(p, [0,11,0], [0,22,1], 7.5), 4); // Cráneo
+                d = smin(d, sdCapsule(p, [0,16,4], [0,14,9], 2.8), 2); // Nariz/Barbilla
                 return d;
             },
-            armL: (p) => {
-                let d = sdCapsule(p, [0,0,0], [-4,-25,0], 4.2); 
-                d = smin(d, sdCapsule(p, [-4,-25,0], [-6,-48,2], 3.2), 3); 
-                return d;
-            },
-            armR: (p) => {
-                let d = sdCapsule(p, [0,0,0], [4,-25,0], 4.2); 
-                d = smin(d, sdCapsule(p, [4,-25,0], [6,-48,2], 3.2), 3); 
-                return d;
-            },
-            legL: (p) => {
-                let d = sdCapsule(p, [0,0,0], [-2,-45,0], 7.0); 
-                d = smin(d, sdCapsule(p, [-2,-45,0], [-2,-85,0], 5.2), 5); 
-                return d;
-            },
-            legR: (p) => {
-                let d = sdCapsule(p, [0,0,0], [2,-45,0], 7.0); 
-                d = smin(d, sdCapsule(p, [2,-45,0], [2,-85,0], 5.2), 5); 
-                return d;
-            },
-            shoeL: (p) => {
-                return sdCapsule(p, [-2,-85,-2], [-2,-89,10], 4.0);
-            },
-            shoeR: (p) => {
-                return sdCapsule(p, [2,-85,-2], [2,-89,10], 4.0);
-            }
+            hair: (p) => sdCapsule(p, [0,18,-1], [0,24,-2], 8.0),
+            
+            // BRAZOS (Hombro a codo)
+            upperArmL: (p) => sdCapsule(p, [0,0,0], [-4,-25,0], 4.2),
+            upperArmR: (p) => sdCapsule(p, [0,0,0], [4,-25,0], 4.2),
+            
+            // ANTEBRAZOS (Codo a muñeca)
+            lowerArmL: (p) => sdCapsule(p, [0,0,0], [-2,-23,2], 3.2),
+            lowerArmR: (p) => sdCapsule(p, [0,0,0], [2,-23,2], 3.2),
+            
+            // MANOS
+            handL: (p) => sdCapsule(p, [0,0,0], [0,-7,1], 2.8),
+            handR: (p) => sdCapsule(p, [0,0,0], [0,-7,1], 2.8),
+            
+            // MUSLOS (Cadera a rodilla)
+            upperLegL: (p) => sdCapsule(p, [0,0,0], [-2,-45,0], 7.0),
+            upperLegR: (p) => sdCapsule(p, [0,0,0], [2,-45,0], 7.0),
+            
+            // PANTORRILLAS (Rodilla a tobillo)
+            lowerLegL: (p) => sdCapsule(p, [0,0,0], [0,-40,0], 5.2),
+            lowerLegR: (p) => sdCapsule(p, [0,0,0], [0,-40,0], 5.2),
+            
+            // ZAPATOS
+            shoeL: (p) => sdCapsule(p, [0,0,-2], [0,-4,10], 4.0),
+            shoeR: (p) => sdCapsule(p, [0,0,-2], [0,-4,10], 4.0)
         };
 
         function generatePartGeometry(sdfFunc, count, bounds, colorRGB) {
@@ -223,72 +227,147 @@
             return geo;
         }
 
-        // --- 5. SHADER ---
+        // --- 5. SHADER (GLOBALIZADO PARA JERARQUÍA) ---
         const material = new THREE.ShaderMaterial({
             uniforms: { atlasTexture: { value: texture }, cols: { value: cols }, rows: { value: rows }, time: { value: 0.0 } },
             vertexShader: `
                 attribute vec2 uvOffset; attribute float sizeBase; attribute float opacityBase; attribute vec3 partColor;
-                varying vec2 vUvOffset; varying float vAlpha; varying vec3 vColor; varying vec3 vPos;
+                varying vec2 vUvOffset; varying float vAlpha; varying vec3 vColor; varying vec3 vWorldPos;
                 uniform float time;
                 void main() {
-                    vUvOffset = uvOffset; vColor = partColor; vPos = position;
+                    vUvOffset = uvOffset; vColor = partColor;
+                    
+                    // Convertir posición local a mundial para que el escáner aplique uniformemente
+                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                    vWorldPos = worldPosition.xyz;
+                    
+                    // Pequeña vibración
                     vec3 pos = position;
-                    pos.x += sin(time * 10.0 + position.y) * 0.15;
-                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                    pos.x += sin(time * 10.0 + worldPosition.y) * 0.15;
+                    
+                    vec4 mvPosition = viewMatrix * modelMatrix * vec4(pos, 1.0);
+                    
+                    // Efecto Fresnel
                     float edge = abs(dot(normalize(pos.xy), vec2(0.0, 1.0)));
                     vAlpha = opacityBase * (0.8 + edge * 0.4);
+                    
                     gl_PointSize = sizeBase * (350.0 / -mvPosition.z);
                     gl_Position = projectionMatrix * mvPosition;
                 }
             `,
             fragmentShader: `
                 uniform sampler2D atlasTexture; uniform float cols; uniform float rows; uniform float time;
-                varying vec2 vUvOffset; varying float vAlpha; varying vec3 vColor; varying vec3 vPos;
+                varying vec2 vUvOffset; varying float vAlpha; varying vec3 vColor; varying vec3 vWorldPos;
                 void main() {
                     vec2 uv = vec2((vUvOffset.x + gl_PointCoord.x) / cols, (vUvOffset.y + (1.0 - gl_PointCoord.y)) / rows);
                     vec4 texColor = texture2D(atlasTexture, uv);
                     if (texColor.r < 0.15) discard;
-                    float scan = smoothstep(0.9, 1.0, 1.0 - abs(sin(vPos.y * 0.05 - time * 1.5)));
+                    
+                    // Escáner láser sincronizado con el mundo real, no con la extremidad local
+                    float scan = smoothstep(0.9, 1.0, 1.0 - abs(sin(vWorldPos.y * 0.05 - time * 1.5)));
+                    
                     vec3 finalColor = vColor + vec3(0.5) * texColor.r;
                     finalColor += vec3(0.0, 1.0, 1.0) * scan * 0.8;
+                    
                     gl_FragColor = vec4(finalColor, texColor.r * vAlpha * (0.9 + scan * 0.5));
                 }
             `,
             transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
         });
 
-        // --- 6. ENSAMBLAJE ---
+        // --- 6. ENSAMBLAJE DEL ESQUELETO JERÁRQUICO ---
         const humanGroup = new THREE.Group();
-        humanGroup.position.y = 15;
-        const colorSkin = [0.3, 0.9, 1.0]; 
-        const colorShirt = [1.0, 0.5, 0.0]; 
-        const colorPants = [0.1, 0.4, 1.0]; 
-        const colorShoes = [0.85, 0.85, 0.95]; // Plata / Blanco metálico
+        masterGroup.add(humanGroup);
+        
+        const colorSkin = [0.95, 0.8, 0.7];   
+        const colorHair = [0.1, 0.6, 1.0];    
+        const colorShirt = [1.0, 0.5, 0.0];   
+        const colorPants = [0.1, 0.4, 1.0];   
+        const colorShoes = [0.85, 0.85, 0.95]; 
 
-        humanGroup.add(new THREE.Points(generatePartGeometry(partsSDF.torso, 11000, {minX:-20, maxX:20, minY:-5, maxY:65, minZ:-15, maxZ:15}, colorShirt), material));
-        const head = new THREE.Points(generatePartGeometry(partsSDF.head, 3500, {minX:-12, maxX:12, minY:-2, maxY:35, minZ:-12, maxZ:15}, colorSkin), material);
-        head.position.set(0, 58, 0); humanGroup.add(head);
-        const armL = new THREE.Points(generatePartGeometry(partsSDF.armL, 3000, {minX:-15, maxX:5, minY:-60, maxY:5, minZ:-10, maxZ:10}, colorShirt), material);
-        armL.position.set(-16, 52, 0); humanGroup.add(armL);
-        const armR = new THREE.Points(generatePartGeometry(partsSDF.armR, 3000, {minX:-5, maxX:15, minY:-60, maxY:5, minZ:-10, maxZ:10}, colorShirt), material);
-        armR.position.set(16, 52, 0); humanGroup.add(armR);
-        const legL = new THREE.Points(generatePartGeometry(partsSDF.legL, 5000, {minX:-15, maxX:10, minY:-100, maxY:5, minZ:-15, maxZ:15}, colorPants), material);
-        legL.position.set(-10, 0, 0); humanGroup.add(legL);
-        const legR = new THREE.Points(generatePartGeometry(partsSDF.legR, 5000, {minX:-10, maxX:15, minY:-100, maxY:5, minZ:-15, maxZ:15}, colorPants), material);
-        legR.position.set(10, 0, 0); humanGroup.add(legR);
+        // TORSO (Nodo Padre Central)
+        const torso = new THREE.Points(generatePartGeometry(partsSDF.torso, 11000, {minX:-20, maxX:20, minY:-5, maxY:65, minZ:-15, maxZ:15}, colorShirt), material);
+        humanGroup.add(torso);
+        
+        // CABEZA Y CABELLO
+        const head = new THREE.Points(generatePartGeometry(partsSDF.head, 2500, {minX:-12, maxX:12, minY:-2, maxY:35, minZ:-12, maxZ:15}, colorSkin), material);
+        const hair = new THREE.Points(generatePartGeometry(partsSDF.hair, 1500, {minX:-14, maxX:14, minY:15, maxY:38, minZ:-14, maxZ:10}, colorHair), material);
+        head.add(hair);
+        head.position.set(0, 58, 0); 
+        torso.add(head); // Conectado al torso
+        
+        // BRAZO IZQUIERDO (Hombro -> Codo -> Muñeca)
+        const armL = new THREE.Points(generatePartGeometry(partsSDF.upperArmL, 1600, {minX:-10, maxX:5, minY:-30, maxY:5, minZ:-10, maxZ:10}, colorShirt), material);
+        const forearmL = new THREE.Points(generatePartGeometry(partsSDF.lowerArmL, 1200, {minX:-8, maxX:5, minY:-30, maxY:5, minZ:-5, maxZ:10}, colorShirt), material);
+        const handL = new THREE.Points(generatePartGeometry(partsSDF.handL, 600, {minX:-5, maxX:5, minY:-12, maxY:5, minZ:-5, maxZ:5}, colorSkin), material);
+        forearmL.add(handL);
+        handL.position.set(-2, -23, 2); // Articulación de la muñeca
+        armL.add(forearmL);
+        forearmL.position.set(-4, -25, 0); // Articulación del codo
+        armL.position.set(-16, 52, 0); // Articulación del hombro
+        torso.add(armL);
 
-        // Añadir Zapatos
-        const shoeL = new THREE.Points(generatePartGeometry(partsSDF.shoeL, 1200, {minX:-10, maxX:5, minY:-95, maxY:-80, minZ:-10, maxZ:15}, colorShoes), material);
-        shoeL.position.set(-10, 0, 0); humanGroup.add(shoeL);
-        const shoeR = new THREE.Points(generatePartGeometry(partsSDF.shoeR, 1200, {minX:-5, maxX:10, minY:-95, maxY:-80, minZ:-10, maxZ:15}, colorShoes), material);
-        shoeR.position.set(10, 0, 0); humanGroup.add(shoeR);
+        // BRAZO DERECHO (Hombro -> Codo -> Muñeca)
+        const armR = new THREE.Points(generatePartGeometry(partsSDF.upperArmR, 1600, {minX:-5, maxX:10, minY:-30, maxY:5, minZ:-10, maxZ:10}, colorShirt), material);
+        const forearmR = new THREE.Points(generatePartGeometry(partsSDF.lowerArmR, 1200, {minX:-5, maxX:8, minY:-30, maxY:5, minZ:-5, maxZ:10}, colorShirt), material);
+        const handR = new THREE.Points(generatePartGeometry(partsSDF.handR, 600, {minX:-5, maxX:5, minY:-12, maxY:5, minZ:-5, maxZ:5}, colorSkin), material);
+        forearmR.add(handR);
+        handR.position.set(2, -23, 2); 
+        armR.add(forearmR);
+        forearmR.position.set(4, -25, 0); 
+        armR.position.set(16, 52, 0); 
+        torso.add(armR);
+        
+        // PIERNA IZQUIERDA (Cadera -> Rodilla -> Tobillo)
+        const legL = new THREE.Points(generatePartGeometry(partsSDF.upperLegL, 3000, {minX:-12, maxX:5, minY:-50, maxY:5, minZ:-10, maxZ:10}, colorPants), material);
+        const calfL = new THREE.Points(generatePartGeometry(partsSDF.lowerLegL, 2500, {minX:-8, maxX:8, minY:-45, maxY:5, minZ:-10, maxZ:10}, colorPants), material);
+        const shoeL = new THREE.Points(generatePartGeometry(partsSDF.shoeL, 1200, {minX:-8, maxX:8, minY:-10, maxY:5, minZ:-5, maxZ:15}, colorShoes), material);
+        calfL.add(shoeL);
+        shoeL.position.set(0, -40, 0); // Articulación del tobillo
+        legL.add(calfL);
+        calfL.position.set(-2, -45, 0); // Articulación de la rodilla
+        legL.position.set(-10, 0, 0); // Articulación de la cadera
+        humanGroup.add(legL); // Conectado a la raíz humana para pivotar independiente del torso
 
-        scene.add(humanGroup);
+        // PIERNA DERECHA (Cadera -> Rodilla -> Tobillo)
+        const legR = new THREE.Points(generatePartGeometry(partsSDF.upperLegR, 3000, {minX:-5, maxX:12, minY:-50, maxY:5, minZ:-10, maxZ:10}, colorPants), material);
+        const calfR = new THREE.Points(generatePartGeometry(partsSDF.lowerLegR, 2500, {minX:-8, maxX:8, minY:-45, maxY:5, minZ:-10, maxZ:10}, colorPants), material);
+        const shoeR = new THREE.Points(generatePartGeometry(partsSDF.shoeR, 1200, {minX:-8, maxX:8, minY:-10, maxY:5, minZ:-5, maxZ:15}, colorShoes), material);
+        calfR.add(shoeR);
+        shoeR.position.set(0, -40, 0); 
+        legR.add(calfR);
+        calfR.position.set(2, -45, 0); 
+        legR.position.set(10, 0, 0); 
+        humanGroup.add(legR);
 
-        // --- 7. BASE Y PARTÍCULAS ---
+        // LOGO UNAB
+        const logoCanvas = document.createElement('canvas');
+        logoCanvas.width = 512; logoCanvas.height = 512;
+        const lCtx = logoCanvas.getContext('2d');
+        
+        // Agregar resplandor y borde para contrastar perfectamente con el pecho naranja
+        lCtx.shadowColor = '#ffffff';
+        lCtx.shadowBlur = 20;
+        lCtx.fillStyle = '#0033a0'; lCtx.beginPath(); lCtx.roundRect(80, 50, 352, 352, 40); lCtx.fill();
+        lCtx.lineWidth = 15; lCtx.strokeStyle = '#ffffff'; lCtx.stroke();
+        
+        lCtx.shadowBlur = 0; // Quitar sombra para los detalles internos
+        lCtx.fillStyle = '#ffffff'; lCtx.beginPath(); lCtx.moveTo(256, 120); lCtx.lineTo(130, 220); lCtx.lineTo(382, 220); lCtx.fill();
+        lCtx.fillRect(160, 220, 192, 140);
+        lCtx.fillStyle = '#0033a0'; lCtx.fillRect(190, 250, 40, 60); lCtx.fillRect(280, 250, 40, 60);
+        lCtx.fillStyle = '#ffffff'; lCtx.font = 'bold 110px "Inter", sans-serif'; lCtx.textAlign = 'center'; lCtx.fillText('unab', 256, 490);
+
+        const logoTex = new THREE.CanvasTexture(logoCanvas);
+        // Quitamos "blending: THREE.AdditiveBlending" para que el azul se vea sólido y contraste
+        const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, opacity: 1.0 });
+        const logoMesh = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), logoMat);
+        logoMesh.position.set(0, 42, 15.5); // Ligeramente más afuera para no mezclarse con las partículas
+        torso.add(logoMesh); // Se adhiere al torso y lo sigue en su respiración/giro
+
+        // --- 7. BASE Y FÓRMULAS ASCENDENTES ---
         const baseGroup = new THREE.Group();
         baseGroup.position.y = -95;
-        scene.add(baseGroup);
+        masterGroup.add(baseGroup);
 
         const baseMesh = new THREE.Mesh(new THREE.CylinderGeometry(60, 75, 8, 64), new THREE.MeshBasicMaterial({ color: 0x010814, transparent: true, opacity: 0.98 }));
         baseGroup.add(baseMesh);
@@ -304,57 +383,112 @@
         ringMesh.material.map.wrapS = THREE.RepeatWrapping;
         baseGroup.add(ringMesh);
 
-        // Bolitas en color BLANCO PLATEADO
-        const risingGeo = new THREE.BufferGeometry();
-        const risingCount = 200;
-        const risingPos = new Float32Array(risingCount * 3);
+        // FÓRMULAS GIGANTES FLOTANTES EN FORMA DE CONO
+        const risingCount = 120;
+        const rPos = new Float32Array(risingCount * 3);
+        const rUvs = new Float32Array(risingCount * 2);
+        const rSizes = new Float32Array(risingCount);
+        const rOpacs = new Float32Array(risingCount);
+        const rColors = new Float32Array(risingCount * 3);
+        
+        // Atributos personalizados para el movimiento en cono
+        const rAngles = new Float32Array(risingCount);
+        const rSpeeds = new Float32Array(risingCount);
+
         for(let i=0; i<risingCount; i++) {
-            risingPos[i*3] = (Math.random()-0.5)*130;
-            risingPos[i*3+1] = Math.random()*240 - 120;
-            risingPos[i*3+2] = (Math.random()-0.5)*130;
+            // Se inicializan en el centro (X y Z cambian dinámicamente en animate)
+            rPos[i*3] = 0; 
+            rPos[i*3+1] = Math.random()*240 - 120;
+            rPos[i*3+2] = 0; 
+            
+            rUvs[i*2] = Math.floor(Math.random() * cols); rUvs[i*2+1] = Math.floor(Math.random() * rows);
+            rSizes[i] = Math.random() * 25.0 + 15.0; 
+            rOpacs[i] = Math.random() * 0.7 + 0.3;
+            rColors[i*3] = 1.0; rColors[i*3+1] = 1.0; rColors[i*3+2] = 1.0; 
+            
+            rAngles[i] = Math.random() * Math.PI * 2; // Ángulo aleatorio de los 360°
+            rSpeeds[i] = Math.random() * 0.6 + 0.4;   // Amplitud de expansión del cono
         }
-        risingGeo.setAttribute('position', new THREE.BufferAttribute(risingPos, 3));
-        const risingPoints = new THREE.Points(risingGeo, new THREE.PointsMaterial({ 
-            color: 0xffffff, // BLANCO PURO
-            size: 2.0, 
-            transparent: true, 
-            opacity: 0.6, 
-            blending: THREE.AdditiveBlending 
-        }));
-        scene.add(risingPoints);
+        
+        const risingGeo = new THREE.BufferGeometry();
+        risingGeo.setAttribute('position', new THREE.BufferAttribute(rPos, 3));
+        risingGeo.setAttribute('uvOffset', new THREE.BufferAttribute(rUvs, 2));
+        risingGeo.setAttribute('sizeBase', new THREE.BufferAttribute(rSizes, 1));
+        risingGeo.setAttribute('opacityBase', new THREE.BufferAttribute(rOpacs, 1));
+        risingGeo.setAttribute('partColor', new THREE.BufferAttribute(rColors, 3));
+
+        const risingPoints = new THREE.Points(risingGeo, material);
+        risingPoints.userData = { angles: rAngles, speeds: rSpeeds }; // Guardar datos para animar el cono
+        masterGroup.add(risingPoints);
 
         const clock = new THREE.Clock();
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
+        // --- 8. CICLO DE CAMINATA BIOMECÁNICO ---
         function animate() {
             requestAnimationFrame(animate);
             const elapsedTime = clock.getElapsedTime();
             material.uniforms.time.value = elapsedTime;
             controls.update();
 
-            const walkSpeed = elapsedTime * 2.4; 
-            const walkAmplitude = 0.35;
+            const t = elapsedTime * 3.5; 
+            const walkAmplitude = 0.45;
             
-            // Animación sincrónica incluyendo los zapatos
-            const swingX = Math.sin(walkSpeed);
-            const swingXOpp = Math.sin(walkSpeed + Math.PI);
+            // Fases opuestas para izquierda y derecha
+            const phaseL = t;
+            const phaseR = t + Math.PI;
 
-            legL.rotation.x = swingX * walkAmplitude;
-            shoeL.rotation.x = swingX * walkAmplitude;
-            
-            legR.rotation.x = swingXOpp * walkAmplitude;
-            shoeR.rotation.x = swingXOpp * walkAmplitude;
+            // 1. Caderas (Muslos oscilando)
+            legL.rotation.x = Math.sin(phaseL) * walkAmplitude;
+            legR.rotation.x = Math.sin(phaseR) * walkAmplitude;
 
-            armL.rotation.x = swingXOpp * 0.25;
-            armR.rotation.x = swingX * 0.25;
+            // 2. Rodillas (Se flexionan matemáticamente al mover la pierna hacia adelante)
+            calfL.rotation.x = Math.max(0, Math.sin(phaseL - Math.PI/2)) * 1.0;
+            calfR.rotation.x = Math.max(0, Math.sin(phaseR - Math.PI/2)) * 1.0;
 
-            humanGroup.position.y = 15 + Math.abs(Math.sin(walkSpeed * 2)) * 2.5;
-            baseGroup.rotation.y -= 0.005;
+            // 3. Tobillos (El pie compensa sutilmente para pisar plano)
+            shoeL.rotation.x = -calfL.rotation.x * 0.3;
+            shoeR.rotation.x = -calfR.rotation.x * 0.3;
 
+            // 4. Hombros (Oscilan opuestos a las piernas, contrapeso natural)
+            armL.rotation.x = Math.sin(phaseR) * (walkAmplitude * 0.9);
+            armR.rotation.x = Math.sin(phaseL) * (walkAmplitude * 0.9);
+
+            // 5. Codos (Pequeña flexión extra hacia adelante)
+            forearmL.rotation.x = -0.1 - Math.max(0, Math.sin(phaseR - Math.PI/2)) * 0.6;
+            forearmR.rotation.x = -0.1 - Math.max(0, Math.sin(phaseL - Math.PI/2)) * 0.6;
+
+            // 6. Dinámica del Torso (Rebote, inclinación y giro de cintura)
+            humanGroup.position.y = 15 + Math.abs(Math.sin(t)) * 2.5; // Doble rebote por paso
+            torso.rotation.y = Math.sin(phaseL) * 0.15; // Giro de caderas
+            torso.rotation.x = 0.05 + Math.sin(t * 2) * 0.03; // Respiración / Inclinación frontal
+
+            // 7. Cabeza (Contrarresta el giro del torso para mirar al frente)
+            head.rotation.y = -torso.rotation.y * 0.7;
+            head.rotation.x = Math.sin(t * 2) * 0.05;
+
+            // Rotación del mundo entero para exhibición 360
+            masterGroup.rotation.y += 0.008;
+
+            // Elevación de fórmulas matemáticas EN FORMA DE CONO
             const posArray = risingPoints.geometry.attributes.position.array;
+            const angles = risingPoints.userData.angles;
+            const speeds = risingPoints.userData.speeds;
+            
             for(let i=0; i<risingCount; i++) {
-                posArray[i*3+1] += 0.6;
-                if(posArray[i*3+1] > 120) posArray[i*3+1] = -120;
+                posArray[i*3+1] += 1.0; // Velocidad de subida
+                let currentY = posArray[i*3+1];
+                
+                if(currentY > 120) {
+                    currentY = -120; // Reiniciar desde abajo de la base
+                    posArray[i*3+1] = currentY; 
+                }
+                
+                // Lógica del Cono: El radio se expande hacia afuera a medida que Y sube
+                let radius = ((currentY + 120) * 0.8) * speeds[i];
+                
+                posArray[i*3] = Math.cos(angles[i]) * radius;     // Posición X expansiva
+                posArray[i*3+2] = Math.sin(angles[i]) * radius;   // Posición Z expansiva
             }
             risingPoints.geometry.attributes.position.needsUpdate = true;
 
