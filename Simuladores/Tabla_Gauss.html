@@ -3,1061 +3,1602 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matriz de Gauss - Paso a Paso y Visualización 3D</title>
-
-    <!-- Librerías Externas -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <title>Nexus LMS - Electromagnetismo</title>
     
-    <!-- NUEVO: Librería de Iconos Profesionales (Lucide) -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <script>
-        window.MathJax = {
-            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
-            startup: { pageReady: () => { return MathJax.startup.defaultPageReady(); } }
-        };
-    </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fuentes de Google -->
     <style>
-        /* Variables Modernizadas (Look Profesional) */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-
-        :root { 
-            --primary: #0f172a;       /* Slate 900 */
-            --primary-light: #1e293b; /* Slate 800 */
-            --secondary: #3b82f6;     /* Blue 500 */
-            --accent: #8b5cf6;        /* Violet 500 */
-            --bg: #f1f5f9;            /* Slate 100 */
-            --surface: #ffffff;
-            --iso: #ef4444;           /* Red 500 */
-            --cond: #10b981;          /* Emerald 500 */
-            --gauss-color: #22c55e;   /* Green 500 */
-            --grid-border: #e2e8f0;   /* Slate 200 */
-            --field: #f59e0b;         /* Amber 500 */
-            --text-main: #334155;     /* Slate 700 */
-            --text-light: #64748b;    /* Slate 500 */
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-        }
-        
-        * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
-        body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-        /* Cabecera Principal */
-        header { background: var(--surface); padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm); z-index: 50; flex-shrink: 0; border-bottom: 1px solid var(--grid-border); }
-        header h1 { color: var(--primary); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; display: flex; align-items: center; gap: 10px;}
-        
-        .controls-group { display: flex; gap: 20px; align-items: center; flex-wrap: wrap;}
-
-        /* Interruptores Modernos */
-        .toggle-container { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; background: var(--bg); padding: 8px 16px; border-radius: 9999px; border: 1px solid var(--grid-border); box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.02); transition: all 0.2s;}
-        .toggle-container:hover { border-color: #cbd5e1; }
-        .toggle-container i { width: 18px; height: 18px; }
-        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 30px; }
-        .slider.mat-slider { background-color: var(--iso); }
-        .slider.cut-slider { background-color: #cbd5e1; }
-        .slider.field-slider { background-color: #cbd5e1; }
-        .slider.anim-slider { background-color: #cbd5e1; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        
-        input:checked + .slider.mat-slider { background-color: var(--cond); }
-        input:checked + .slider.cut-slider { background-color: var(--secondary); }
-        input:checked + .slider.field-slider { background-color: var(--field); }
-        input:checked + .slider.anim-slider { background-color: var(--accent); }
-        input:checked + .slider:before { transform: translateX(18px); }
-
-        /* Contenedor Principal */
-        .main-container { flex-grow: 1; overflow-y: auto; overflow-x: auto; padding: 24px 32px; display: flex; flex-direction: column; }
-
-        /* Panel de Filtros */
-        .filters-panel { background: var(--surface); border: 1px solid var(--grid-border); border-radius: 12px; margin-bottom: 24px; padding: 20px 28px; box-shadow: var(--shadow-sm); transition: box-shadow 0.2s; }
-        .filters-panel:hover { box-shadow: var(--shadow-md); }
-        .filters-panel summary, .user-manual summary { 
-            font-weight: 700; font-size: 1.1rem; cursor: pointer; outline: none; list-style: none; display: flex; align-items: center; gap: 10px;
-        }
-        .filters-panel summary { color: var(--primary); }
-        .filters-panel summary::-webkit-details-marker, .user-manual summary::-webkit-details-marker { display: none; }
-        .filters-panel summary:hover { color: var(--secondary); }
-        
-        .filters-content { display: flex; gap: 48px; margin-top: 20px; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid var(--grid-border); }
-        .filter-group { display: flex; flex-direction: column; gap: 10px; }
-        .filter-group h4 { color: var(--text-light); margin-bottom: 4px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-        .filter-group label { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; cursor: pointer; color: var(--text-main); font-weight: 500; }
-        .filter-group input[type="checkbox"] { accent-color: var(--secondary); width: 18px; height: 18px; cursor: pointer; border-radius: 4px; }
-
-        /* Manual de Usuario */
-        .user-manual { background: #eff6ff; padding: 20px 28px; border-left: 6px solid var(--secondary); margin-bottom: 28px; border-radius: 12px; box-shadow: var(--shadow-sm); font-size: 0.95rem; }
-        .user-manual summary { color: var(--secondary); font-size: 1.1rem; }
-        .user-manual ul { margin-top: 16px; padding-left: 28px; line-height: 1.7; color: var(--text-main); }
-        .user-manual li { margin-bottom: 10px; }
-        .user-manual strong { color: var(--primary); }
-
-        /* Matriz Grid CSS */
-        .gauss-matrix { display: grid; grid-template-columns: 240px repeat(5, minmax(360px, 1fr)); gap: 16px; min-width: 2050px; margin-bottom: 48px; }
-        
-        /* Cabeceras y Filas Fijas (STICKY) */
-        .col-header { height: 60px; background: var(--primary); color: white; padding: 12px; font-weight: 600; font-size: 1.05rem; text-align: center; border-radius: 12px 12px 0 0; position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        .col-header.desc-header { background: var(--primary-light); z-index: 31; }
-
-        .row-header { background: #f8fafc; font-weight: 600; color: var(--primary); padding: 16px; border-right: 4px solid var(--secondary); display: flex; flex-direction: column; justify-content: center; align-items: flex-start; border-radius: 8px; border: 1px solid var(--grid-border); }
-        .row-header small { color: var(--text-light); font-weight: 400; margin-top: 4px; line-height: 1.4; }
-        
-        .cell { background: var(--surface); padding: 20px; border: 1px solid var(--grid-border); border-radius: 12px; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s ease; box-shadow: var(--shadow-sm); }
-        .cell.canvas-cell { padding: 8px; align-items: center; justify-content: center; background: #f8fafc; position: relative; }
-        
-        /* Fila 3D Fija (Sticky) */
-        .row-header[data-row="3d"], .cell[data-row="3d"] { position: sticky; top: 60px; z-index: 25; box-shadow: var(--shadow-md); border-bottom: 2px solid var(--grid-border); background: var(--surface); border-radius: 0 0 12px 12px;}
-        .cell[data-row="3d"] { padding: 12px; }
-
-        /* Celdas de Variables */
-        .vars-cell { background: #f0fdfa; border-left: 4px solid #14b8a6; font-size: 0.95rem; line-height: 1.6; }
-        .vars-cell ul { padding-left: 20px; margin-bottom: 12px; }
-        .vars-cell li { margin-bottom: 6px; }
-        .vars-cell .data-hint { font-size: 0.85rem; color: #0f766e; background: #ccfbf1; padding: 10px 12px; border-radius: 8px; margin-top: auto; font-weight: 500; display: flex; gap: 8px; align-items: flex-start;}
-
-        /* Efecto Hover para Celdas Interactivas */
-        .interactive-cell { cursor: pointer; border-left: 4px solid transparent; }
-        .interactive-cell:hover { border-color: var(--gauss-color); box-shadow: var(--shadow-lg); background-color: #f0fdf4; transform: translateY(-2px); }
-        .hover-hint { font-size: 0.8rem; color: var(--gauss-color); font-weight: 600; margin-top: auto; padding-top: 10px; border-top: 1px dashed #bbf7d0; text-align: center; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
-        .interactive-cell:hover .hover-hint { opacity: 1; }
-
-        .canvas-3d { width: 100%; height: 240px; border-radius: 8px; overflow: hidden; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); cursor: grab; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
-        .canvas-3d:active { cursor: grabbing; }
-        .canvas-2d { width: 100%; max-width: 340px; height: 190px; background: white; border: 1px solid var(--grid-border); border-radius: 8px; }
-
-        /* Lógica Visual de Celdas */
-        .mat-aislante .only-conductor { display: none !important; }
-        .mat-conductor .only-aislante { display: none !important; }
-
-        /* Fórmulas y Paso a Paso */
-        .formula-box { background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; border-left: 4px solid var(--secondary); border-radius: 6px; font-size: 1rem; margin-top: 8px; overflow-x: auto;}
-        .step-title { color: var(--secondary); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; }
-        
-        /* Desarrollo General Universal */
-        .universal-derivation { grid-column: 2 / -1; background: #f8fafc; border: 1px solid var(--grid-border); border-left: 6px solid var(--primary); display: flex; justify-content: space-around; align-items: stretch; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm); }
-        .ud-step { flex: 1; padding: 0 20px; border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; justify-content: center; }
-        .ud-step:last-child { border-right: none; }
-        .ud-step h4 { color: var(--primary); font-size: 0.95rem; margin-bottom: 8px; font-weight: 700; display: flex; align-items: center; gap: 6px;}
-        .ud-step p { font-size: 0.9rem; color: var(--text-light); }
-
-        /* Lógica de Ocultamiento Dinámico (Filtros) */
-        body.hide-col-1 .col-header[data-col="1"], body.hide-col-1 .cell[data-col="1"] { display: none !important; }
-        body.hide-col-2 .col-header[data-col="2"], body.hide-col-2 .cell[data-col="2"] { display: none !important; }
-        body.hide-col-3 .col-header[data-col="3"], body.hide-col-3 .cell[data-col="3"] { display: none !important; }
-        body.hide-col-4 .col-header[data-col="4"], body.hide-col-4 .cell[data-col="4"] { display: none !important; }
-        body.hide-col-5 .col-header[data-col="5"], body.hide-col-5 .cell[data-col="5"] { display: none !important; }
-
-        body.hide-row-vars .row-header[data-row="vars"], body.hide-row-vars .cell[data-row="vars"] { display: none !important; }
-        body.hide-row-pasos .row-header[data-row="pasos"], body.hide-row-pasos .universal-derivation { display: none !important; }
-        body.hide-row-graficas .row-header[data-row="graficas"], body.hide-row-graficas .cell[data-row="graficas"] { display: none !important; }
-        body.hide-row-interior .row-header[data-row="interior"], body.hide-row-interior .cell[data-row="interior"] { display: none !important; }
-        body.hide-row-material .row-header[data-row="material"], body.hide-row-material .cell[data-row="material"] { display: none !important; }
-        body.hide-row-exterior .row-header[data-row="exterior"], body.hide-row-exterior .cell[data-row="exterior"] { display: none !important; }
-        body.hide-row-potencial .row-header[data-row="potencial"], body.hide-row-potencial .cell[data-row="potencial"] { display: none !important; }
-
-        /* Sección de Ejemplos */
-        .examples-section { background: var(--surface); padding: 32px; border-radius: 12px; border: 1px solid var(--grid-border); margin-bottom: 48px; box-shadow: var(--shadow-md); }
-        .examples-section h2 { color: var(--primary); margin-bottom: 24px; border-bottom: 2px solid var(--grid-border); padding-bottom: 12px; font-weight: 700; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
-        .examples-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; }
-        .example-card { background: #fefce8; border: 1px solid #fde047; padding: 24px; border-radius: 12px; font-size: 0.95rem; line-height: 1.6; box-shadow: var(--shadow-sm); }
-        .example-card h4 { color: #b45309; margin-bottom: 12px; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 8px;}
-
-        /* NUEVO: Pie de página (Footer) */
-        footer {
-            margin-top: auto;
-            text-align: center;
-            padding: 24px;
-            color: var(--text-light);
-            font-size: 0.9rem;
-            border-top: 1px solid var(--grid-border);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
     </style>
+
+    <!-- Babel para compilar JSX en tiempo real en el navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="mat-aislante">
+<body>
+    <div id="root"></div>
 
-    <header>
-        <h1><i data-lucide="layers"></i> Matriz Interactiva de Gauss</h1>
-        <div class="controls-group">
-            
-            <!-- NUEVO: Botón de Animación / Giro 3D -->
-            <div class="toggle-container">
-                <i data-lucide="refresh-cw" style="color: var(--accent);"></i>
-                <span>Giro Automático</span>
-                <label class="switch">
-                    <input type="checkbox" id="anim-toggle" checked>
-                    <span class="slider anim-slider"></span>
-                </label>
-            </div>
-
-            <div class="toggle-container">
-                <i data-lucide="zap" style="color: var(--field);"></i>
-                <span style="color: var(--field);">Vectores Campo E</span>
-                <label class="switch">
-                    <input type="checkbox" id="field-toggle">
-                    <span class="slider field-slider"></span>
-                </label>
-            </div>
-            
-            <div class="toggle-container">
-                <i data-lucide="scissors" style="color: var(--secondary);"></i>
-                <span>Corte 3D</span>
-                <label class="switch">
-                    <input type="checkbox" id="cut-toggle">
-                    <span class="slider cut-slider"></span>
-                </label>
-            </div>
-            <div class="toggle-container">
-                <span style="color: var(--iso); display: flex; align-items: center; gap: 4px;"><i data-lucide="box" style="width: 14px; height:14px;"></i> Aislante</span>
-                <label class="switch">
-                    <input type="checkbox" id="mat-toggle">
-                    <span class="slider mat-slider"></span>
-                </label>
-                <span style="color: var(--cond); display: flex; align-items: center; gap: 4px;"><i data-lucide="circle-dashed" style="width: 14px; height:14px;"></i> Conductor</span>
-            </div>
-        </div>
-    </header>
-
-    <div class="main-container">
+    <!-- Script principal de React usando ES Modules -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef, useMemo } from 'https://esm.sh/react@18.2.0';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        import { 
+          BookOpen, ShieldAlert, GraduationCap, Play, 
+          Activity, Save, Eraser, Lightbulb, Target, LayoutDashboard, RefreshCw,
+          Eye, Clock, BarChart2, BrainCircuit, Timer, TrendingUp, AlertTriangle, Award,
+          ArrowUp, ArrowDown, ArrowLeft, ArrowRight as ArrowRightIcon,
+          ArrowUpRight, ArrowUpLeft, ArrowDownRight, ArrowDownLeft, MousePointer2,
+          CheckCircle2, XCircle, Info, Hand, PenTool, User, ChevronDown
+        } from 'https://esm.sh/lucide-react@0.292.0';
         
-        <details class="user-manual">
-            <!-- Icono profesional en lugar de emoji -->
-            <summary><i data-lucide="book-open"></i> Manual de Usuario y Constante k</summary>
-            <ul>
-                <li><strong>La Constante Dieléctrica ($\epsilon_0$):</strong> En lugar de usar la constante de Coulomb ($k \approx 9 \times 10^9$), utilizamos su forma fundamental rigurosa para la Ley de Gauss: $k = \frac{1}{4\pi\epsilon_0}$. Donde $\epsilon_0$ es la permitividad del vacío ($8.85 \times 10^{-12} \frac{C^2}{N \cdot m^2}$).</li>
-                <li><strong>Rotación y Zoom:</strong> Haz <b>clic y arrastra</b> sobre el modelo 3D para rotarlo. Usa la <b>rueda del ratón</b> para zoom. Puedes pausar la rotación con el botón superior.</li>
-                <li><strong>Superficie Gaussiana interactiva:</strong> Pasa el ratón (hover) sobre las casillas de las zonas (Interior, Material, Exterior) y verás aparecer la Superficie Gaussiana (verde) con su radio interactivo $r$ etiquetado en 3D.</li>
-                <li><strong>Distribución de Cargas:</strong> Activa el <b>Corte 3D</b> y cambia entre <b>Aislante y Conductor</b>. Verás esferitas rojas (+) o azules (-) que representan cómo se distribuye la carga: los aislantes la retienen en su volumen, mientras que en los conductores migra hacia la superficie externa o interna.</li>
-            </ul>
-        </details>
+        // Importaciones oficiales de Firebase (Gstatic)
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getAnalytics } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js';
 
-        <!-- PANEL DE FILTROS -->
-        <details class="filters-panel">
-            <!-- Icono profesional en lugar de emoji -->
-            <summary><i data-lucide="settings"></i> Personalizar Vista (Filtros y Ocultamiento)</summary>
-            <div class="filters-content">
-                <div class="filter-group">
-                    <h4>Columnas (Modelos)</h4>
-                    <label><input type="checkbox" checked class="col-filter" value="1"> 1. Esfera Sólida</label>
-                    <label><input type="checkbox" checked class="col-filter" value="2"> 2. Esfera Hueca</label>
-                    <label><input type="checkbox" checked class="col-filter" value="3"> 3. Cascarón Esférico</label>
-                    <label><input type="checkbox" checked class="col-filter" value="4"> 4. Cap. (Esfera Int.)</label>
-                    <label><input type="checkbox" checked class="col-filter" value="5"> 5. Cap. (Carga Punt.)</label>
-                </div>
-                <div class="filter-group">
-                    <h4>Filas (Secciones de Análisis)</h4>
-                    <label><input type="checkbox" checked class="row-filter" value="vars"> Variables y Datos</label>
-                    <label><input type="checkbox" checked class="row-filter" value="pasos"> Paso a Paso Universal</label>
-                    <label><input type="checkbox" checked class="row-filter" value="graficas"> Gráficas E vs r</label>
-                    <label><input type="checkbox" checked class="row-filter" value="interior"> Zona Interior</label>
-                    <label><input type="checkbox" checked class="row-filter" value="material"> Zona del Material</label>
-                    <label><input type="checkbox" checked class="row-filter" value="exterior"> Zona Exterior</label>
-                    <label><input type="checkbox" checked class="row-filter" value="potencial"> Potencial Eléctrico</label>
-                </div>
-            </div>
-        </details>
-
-        <div class="gauss-matrix" id="main-matrix">
-            <!-- Fila 1: Cabeceras -->
-            <div class="col-header desc-header">Descripción / Zonas</div>
-            <div class="col-header" data-col="1">1. Esfera Sólida</div>
-            <div class="col-header" data-col="2">2. Esfera Hueca</div>
-            <div class="col-header" data-col="3">3. Cascarón Esférico</div>
-            <div class="col-header" data-col="4">4. Capacitor (Esfera Int.)</div>
-            <div class="col-header" data-col="5">5. Capacitor (Carga Punt.)</div>
-
-            <!-- Fila 2: Modelos 3D (FIJA/STICKY) -->
-            <div class="row-header" data-row="3d">
-                Visualización 3D<br>
-                <small>Radios ($R$), Vectores y Cargas</small>
-            </div>
-            <div class="cell canvas-cell" data-row="3d" data-col="1"><div id="3d-solida" class="canvas-3d"></div></div>
-            <div class="cell canvas-cell" data-row="3d" data-col="2"><div id="3d-hueca" class="canvas-3d"></div></div>
-            <div class="cell canvas-cell" data-row="3d" data-col="3"><div id="3d-cascaron" class="canvas-3d"></div></div>
-            <div class="cell canvas-cell" data-row="3d" data-col="4"><div id="3d-cap-esfera" class="canvas-3d"></div></div>
-            <div class="cell canvas-cell" data-row="3d" data-col="5"><div id="3d-cap-puntual" class="canvas-3d"></div></div>
-
-            <!-- FILA 3: Variables y Datos -->
-            <div class="row-header" data-row="vars">
-                Variables y Datos<br>
-                <small>Magnitudes, unidades (S.I.) y planteamiento del problema</small>
-            </div>
-            
-            <div class="cell vars-cell" data-row="vars" data-col="1">
-                <ul>
-                    <li><strong>$Q$:</strong> Carga total (Coulombs, $C$)</li>
-                    <li><strong>$R$:</strong> Radio exterior (metros, $m$)</li>
-                    <li><strong>$r$:</strong> Radio de la gaussiana (variable, $m$)</li>
-                    <li><strong>$\rho$:</strong> Densidad volumétrica ($\frac{C}{m^3}$)</li>
-                </ul>
-                <div class="data-hint"><i data-lucide="info" style="min-width:18px;"></i> <span><strong>Problema Típico:</strong> "Una esfera aislante de radio $R$ tiene una densidad de carga uniforme $\rho$ (o carga total $Q$)...". Te pedirán hallar $E$ adentro y afuera evaluando $r$.</span></div>
-            </div>
-
-            <div class="cell vars-cell" data-row="vars" data-col="2">
-                <ul>
-                    <li><strong>$Q$:</strong> Carga neta en el material ($C$)</li>
-                    <li><strong>$R_1$:</strong> Radio interior/cavidad ($m$)</li>
-                    <li><strong>$R_2$:</strong> Radio exterior ($m$)</li>
-                    <li><strong>$\rho$:</strong> Densidad volumétrica ($\frac{C}{m^3}$)</li>
-                </ul>
-                <div class="data-hint"><i data-lucide="info" style="min-width:18px;"></i> <span><strong>Problema Típico:</strong> "Una esfera hueca conductora tiene radios $R_1$ y $R_2$ con carga total $Q$...". La trampa suele ser preguntar el campo en la cavidad vacía ($r < R_1$).</span></div>
-            </div>
-
-            <div class="cell vars-cell" data-row="vars" data-col="3">
-                <ul>
-                    <li><strong>$Q$:</strong> Carga distribuida ($C$)</li>
-                    <li><strong>$R$:</strong> Radio de la corteza ($m$)</li>
-                    <li><strong>$\sigma$:</strong> Densidad superficial ($\frac{C}{m^2}$)</li>
-                    <li><strong>$r$:</strong> Distancia desde el centro ($m$)</li>
-                </ul>
-                <div class="data-hint"><i data-lucide="info" style="min-width:18px;"></i> <span><strong>Problema Típico:</strong> "Un cascarón esférico muy delgado de radio $R$ posee una densidad superficial $\sigma$...". Aquí se asume que el grosor del cascarón es matemáticamente cero.</span></div>
-            </div>
-
-            <div class="cell vars-cell" data-row="vars" data-col="4">
-                <ul>
-                    <li><strong>$+Q, -Q$:</strong> Carga interior y exterior ($C$)</li>
-                    <li><strong>$a$:</strong> Radio esfera interior ($m$)</li>
-                    <li><strong>$b, c$:</strong> Radios int/ext del cascarón ($m$)</li>
-                </ul>
-                <div class="data-hint"><i data-lucide="info" style="min-width:18px;"></i> <span><strong>Problema Típico:</strong> "Se tiene una esfera sólida de radio $a$ y carga $+Q$ concéntrica a un cascarón esférico de radios $b$ y $c$ con carga neta $-Q$..." (Cable coaxial esférico).</span></div>
-            </div>
-
-            <div class="cell vars-cell" data-row="vars" data-col="5">
-                <ul>
-                    <li><strong>$q$:</strong> Carga puntual central ($C$)</li>
-                    <li><strong>$Q_{casc}$:</strong> Carga neta del cascarón ($C$)</li>
-                    <li><strong>$a, b$:</strong> Radios del cascarón exterior ($m$)</li>
-                </ul>
-                <div class="data-hint"><i data-lucide="info" style="min-width:18px;"></i> <span><strong>Problema Típico:</strong> "Una carga puntual $q$ se sitúa en el centro de un cascarón esférico conductor grueso de radios $a$ y $b$ con carga neta neutra ($Q_{casc}=0$)...".</span></div>
-            </div>
-
-            <!-- Fila 4: Paso a Paso General -->
-            <div class="row-header" data-row="pasos" style="border-right-color: #64748b;">
-                Paso a Paso Universal<br>
-                <small>Lado Izquierdo de la Ley</small>
-            </div>
-            <div class="universal-derivation" data-row="pasos">
-                <div class="ud-step">
-                    <h4><i data-lucide="function-square" style="width: 16px; height: 16px;"></i> Paso 1: Planteamiento</h4>
-                    <p>Partimos de la Ley de Gauss general:</p>
-                    $$\oint \vec{E} \cdot d\vec{A} = \frac{Q_{enc}}{\epsilon_0}$$
-                </div>
-                <div class="ud-step">
-                    <h4><i data-lucide="move-diagonal" style="width: 16px; height: 16px;"></i> Paso 2: Producto Punto</h4>
-                    <p>Por simetría radial, el campo $\vec{E}$ y el vector área $d\vec{A}$ son paralelos ($\theta = 0^\circ$).</p>
-                    $$\vec{E} \cdot d\vec{A} = E \, dA \cos(0^\circ) = E \, dA$$
-                </div>
-                <div class="ud-step">
-                    <h4><i data-lucide="arrow-right-circle" style="width: 16px; height: 16px;"></i> Paso 3: Extraer E</h4>
-                    <p>A una distancia $r$ constante, la magnitud de $E$ sale de la integral.</p>
-                    $$E \oint dA = \frac{Q_{enc}}{\epsilon_0}$$
-                </div>
-                <div class="ud-step">
-                    <h4><i data-lucide="scaling" style="width: 16px; height: 16px;"></i> Paso 4: Área Gaussiana</h4>
-                    <p>La integral $\oint dA$ es el área de la Superficie Gaussiana esférica.</p>
-                    $$A = 4\pi r^2$$
-                </div>
-                <div class="ud-step">
-                    <h4><i data-lucide="star" style="width: 16px; height: 16px;"></i> Ecuación Maestra</h4>
-                    <p>Todo problema se reduce a hallar la Carga Encerrada ($Q_{enc}$).</p>
-                    $$E = \frac{Q_{enc}}{4\pi\epsilon_0 r^2}$$
-                </div>
-            </div>
-
-            <!-- Fila 5: Gráficas E vs r -->
-            <div class="row-header" data-row="graficas">Comportamiento<br>$E$ vs $r$</div>
-            <div class="cell canvas-cell" data-row="graficas" data-col="1"><canvas id="graph-solida" class="canvas-2d" width="340" height="190"></canvas></div>
-            <div class="cell canvas-cell" data-row="graficas" data-col="2"><canvas id="graph-hueca" class="canvas-2d" width="340" height="190"></canvas></div>
-            <div class="cell canvas-cell" data-row="graficas" data-col="3"><canvas id="graph-cascaron" class="canvas-2d" width="340" height="190"></canvas></div>
-            <div class="cell canvas-cell" data-row="graficas" data-col="4"><canvas id="graph-cap-esfera" class="canvas-2d" width="340" height="190"></canvas></div>
-            <div class="cell canvas-cell" data-row="graficas" data-col="5"><canvas id="graph-cap-puntual" class="canvas-2d" width="340" height="190"></canvas></div>
-
-            <!-- Fila 6: Zona Interior (r < a) -->
-            <div class="row-header" data-row="interior">Zona Interior (Centro)<br>$r < R_1$</div>
-            <div class="cell interactive-cell" data-row="interior" data-col="1" data-geo="solida" data-zone="interior">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span class="only-aislante">$Q_{enc} = \rho \cdot V_{gauss} = \rho (\frac{4}{3}\pi r^3) = Q\frac{r^3}{R^3}$</span>
-                <span class="only-conductor">En un conductor el interior no aloja carga neta. $Q_{enc} = 0$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box only-aislante">$$E = \frac{Q r}{4\pi\epsilon_0 R^3}$$</div>
-                <div class="formula-box only-conductor">$$E = 0$$</div>
-                <!-- Emojis reemplazados por iconos de Lucide -->
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-            <div class="cell interactive-cell" data-row="interior" data-col="2" data-geo="hueca" data-zone="interior">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span>Cavidad vacía. La Gaussiana no atrapa carga. $Q_{enc} = 0$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box">$$E = 0$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-            <div class="cell interactive-cell" data-row="interior" data-col="3" data-geo="cascaron" data-zone="interior">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span>Espacio vacío dentro de la capa delgada. $Q_{enc} = 0$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box">$$E = 0$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-            <div class="cell interactive-cell" data-row="interior" data-col="4" data-geo="cap-esfera" data-zone="interior">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span class="only-aislante">Esfera central sólida. $Q_{enc} = Q\frac{r^3}{a^3}$.</span>
-                <span class="only-conductor">Esfera central conductora. $Q_{enc} = 0$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box only-aislante">$$E = \frac{Q r}{4\pi\epsilon_0 a^3}$$</div>
-                <div class="formula-box only-conductor">$$E = 0$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-            <div class="cell interactive-cell" data-row="interior" data-col="5" data-geo="cap-puntual" data-zone="interior">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span>La superficie solo encierra a la carga puntual central. $Q_{enc} = q$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box">$$E = \frac{q}{4\pi\epsilon_0 r^2}$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-
-            <!-- Fila 7: Zona Intermedia/Material -->
-            <div class="row-header" data-row="material">Zona del Material<br>$R_1 \le r \le R_2$</div>
-            <div class="cell" data-row="material" data-col="1" style="background: var(--bg); align-items:center; justify-content:center; color:var(--text-light);">
-                <em>No aplica para esfera sólida (Continua).</em>
-            </div>
-            <div class="cell interactive-cell" data-row="material" data-col="2" data-geo="hueca" data-zone="material">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span class="only-aislante">Atrapa carga fraccionada restando el hueco: $Q_{enc} = Q \frac{r^3 - R_1^3}{R_2^3 - R_1^3}$</span>
-                <span class="only-conductor">Material conductor en equilibrio obliga a que $Q_{enc} = 0$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box only-aislante">$$E = \frac{Q}{4\pi\epsilon_0 r^2} \left( \frac{r^3 - R_1^3}{R_2^3 - R_1^3} \right)$$</div>
-                <div class="formula-box only-conductor">$$E = 0$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-            <div class="cell" data-row="material" data-col="3" style="background: var(--bg); align-items:center; justify-content:center; color:var(--text-light);">
-                <em>No aplica (Grosor $dR \to 0$).</em>
-            </div>
-            <div class="cell interactive-cell" data-row="material" data-col="4" data-geo="cap-esfera" data-zone="vacio">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span>Espacio vacío entre las placas. La Gaussiana encierra toda la esfera interna: $Q_{enc} = +Q$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box">$$E = \frac{Q}{4\pi\epsilon_0 r^2}$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-            <div class="cell interactive-cell" data-row="material" data-col="5" data-geo="cap-puntual" data-zone="material">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span class="only-aislante">Encierra la puntual más volumen parcial. $Q_{enc} = q + \rho \frac{4\pi}{3} (r^3 - a^3)$</span>
-                <span class="only-conductor">Conductor induce carga $-q$ en pared interior para $Q_{enc\_total} = 0$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box only-aislante">$$E = \frac{1}{4\pi\epsilon_0 r^2} \left[ q + \rho \frac{4\pi}{3} (r^3 - a^3) \right]$$</div>
-                <div class="formula-box only-conductor">$$E = 0$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-
-            <!-- Fila 8: Zona Exterior -->
-            <div class="row-header" data-row="exterior">Zona Exterior<br>$r > R_{max}$</div>
-            <div class="cell interactive-cell" data-row="exterior" data-col="1" data-geo="solida" data-zone="exterior">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span>Encierra la totalidad de la carga de la esfera. $Q_{enc} = Q$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box">$$E = \frac{Q}{4\pi\epsilon_0 r^2}$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-            <div class="cell interactive-cell" data-row="exterior" data-col="2" data-geo="hueca" data-zone="exterior">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span>Encierra la totalidad de la carga de la esfera hueca. $Q_{enc} = Q$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box">$$E = \frac{Q}{4\pi\epsilon_0 r^2}$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-            <div class="cell interactive-cell" data-row="exterior" data-col="3" data-geo="cascaron" data-zone="exterior">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span>Encierra todo el cascarón. $Q_{enc} = Q$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box">$$E = \frac{Q}{4\pi\epsilon_0 r^2}$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-            <div class="cell interactive-cell" data-row="exterior" data-col="4" data-geo="cap-esfera" data-zone="exterior">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span>Encierra la esfera ($+Q$) y el cascarón ($-Q$). $Q_{enc} = +Q - Q = 0$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box">$$E = 0$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-            <div class="cell interactive-cell" data-row="exterior" data-col="5" data-geo="cap-puntual" data-zone="exterior">
-                <div class="step-title">Paso 5: Hallar $Q_{enc}$</div>
-                <span>Encierra la puntual ($q$) y el cascarón exterior ($Q_{casc}$). $Q_{enc} = q + Q_{casc}$.</span>
-                <div class="step-title">Paso 6: Reemplazar</div>
-                <div class="formula-box">$$E = \frac{q+Q_{casc}}{4\pi\epsilon_0 r^2}$$</div>
-                <div class="hover-hint"><i data-lucide="eye" style="width: 14px; height: 14px;"></i> Visualizar Superficie Gaussiana</div>
-            </div>
-
-            <!-- Fila 9: Potencial Eléctrico -->
-            <div class="row-header" data-row="potencial" style="border-right-color: #8b5cf6;">Potencial Eléctrico<br>$V(r)$</div>
-            <div class="cell vars-cell" data-row="potencial" data-col="1" style="border-left-color: #a78bfa; background: #faf5ff;">
-                <div class="step-title" style="color:#7c3aed;">Cálculo Detallado</div>
-                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">
-                    $$V_{ext} = -\int_{\infty}^r \frac{Q dr'}{4\pi\epsilon_0 r'^2} = \frac{Q}{4\pi\epsilon_0 r}$$
-                </div>
-                <p style="font-size:0.85rem; margin-top:5px;" class="only-aislante">Aislante: Adentro integras desde la superficie: $$V(r) = \frac{Q}{8\pi\epsilon_0 R} \left(3 - \frac{r^2}{R^2}\right)$$</p>
-                <p style="font-size:0.85rem; margin-top:5px;" class="only-conductor">Conductor: Todo el volumen interior es equipotencial: $$V_{int} = \frac{Q}{4\pi\epsilon_0 R}$$</p>
-            </div>
-            <div class="cell vars-cell" data-row="potencial" data-col="2" style="border-left-color: #a78bfa; background: #faf5ff;">
-                <div class="step-title" style="color:#7c3aed;">Cálculo Detallado</div>
-                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">
-                    $$V(r) = -\int \vec{E} \cdot d\vec{r}$$
-                </div>
-                <p style="font-size:0.85rem; margin-top:5px;">Para $r > R_2$: Decae como carga puntual ($V = kQ/r$).</p>
-                <p style="font-size:0.85rem; margin-top:5px;">En la cavidad ($r < R_1$), el campo es cero, por lo que no se requiere trabajo. $V$ se mantiene constante e igual al potencial de la superficie interna.</p>
-            </div>
-            <div class="cell vars-cell" data-row="potencial" data-col="3" style="border-left-color: #a78bfa; background: #faf5ff;">
-                <div class="step-title" style="color:#7c3aed;">Cálculo Detallado</div>
-                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">
-                    $$V(r) = \frac{Q}{4\pi\epsilon_0 r} \quad (r \ge R)$$
-                </div>
-                <p style="font-size:0.85rem; margin-top:5px;">Dentro del cascarón ($r < R$), $\vec{E}=0$, entonces el potencial no cambia respecto al borde.</p>
-                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">$$V_{int} = \frac{Q}{4\pi\epsilon_0 R}$$</div>
-            </div>
-            <div class="cell vars-cell" data-row="potencial" data-col="4" style="border-left-color: #a78bfa; background: #faf5ff;">
-                <div class="step-title" style="color:#7c3aed;">Diferencia de Potencial ($\Delta V$)</div>
-                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">
-                    $$\Delta V = -\int_b^a \frac{Q}{4\pi\epsilon_0 r^2} dr$$
-                </div>
-                <p style="font-size:0.85rem; margin-top:5px;">El trabajo para mover una carga desde el cascarón $b$ a la esfera $a$:</p>
-                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">$$\Delta V = \frac{Q}{4\pi\epsilon_0} \left( \frac{1}{a} - \frac{1}{b} \right)$$</div>
-            </div>
-            <div class="cell vars-cell" data-row="potencial" data-col="5" style="border-left-color: #a78bfa; background: #faf5ff;">
-                <div class="step-title" style="color:#7c3aed;">Diferencia de Potencial ($\Delta V$)</div>
-                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">
-                    $$\Delta V = -\int_a^r \frac{q}{4\pi\epsilon_0 r'^2} dr'$$
-                </div>
-                <p style="font-size:0.85rem; margin-top:5px;">El trabajo por unidad de carga entre la cara interna del cascarón ($a$) y una distancia $r$:</p>
-                <div class="formula-box" style="font-size:0.8rem; border-color:#ddd6fe; border-left-color:#7c3aed;">$$\Delta V = \frac{q}{4\pi\epsilon_0} \left( \frac{1}{r} - \frac{1}{a} \right)$$</div>
-            </div>
-
-        </div> <!-- Fin de la Matriz -->
-
-        <!-- SECCIÓN DE EJEMPLOS EXPANDIDA -->
-        <div class="examples-section">
-            <h2><i data-lucide="lightbulb" style="color: var(--field);"></i> Ejemplos Clave y Análisis Físico Descriptivo</h2>
-            <div class="examples-grid">
-                
-                <div class="example-card">
-                    <h4><i data-lucide="zap"></i> 1. El Dipolo Eléctrico: Lucha por la Cancelación</h4>
-                    <p><strong>Contexto Físico:</strong> Un dipolo consiste en dos cargas de igual magnitud pero signos opuestos ($+q$ y $-q$) separadas por una pequeña distancia $d$.</p>
-                    <p style="margin-top: 10px;"><strong>Análisis:</strong> Desde lejos, casi parecen ocupar el mismo punto ($\sum q = 0$). Sin embargo, la separación espacial crea un desequilibrio. Físicamente, los campos intentan anularse de forma destructiva, pero sobrevive un "campo residual" débil. En lugar de decaer como $1/r^2$, el campo del dipolo decae mucho más rápido, proporcional a **$1/r^3$**. Es la base para entender moléculas dieléctricas como el agua.</p>
-                </div>
-
-                <div class="example-card">
-                    <h4><i data-lucide="shield"></i> 2. Esfera Sólida: Conductora vs Aislante</h4>
-                    <p class="only-conductor"><strong>El Blindaje (Conductor):</strong> Los electrones son libres. La repulsión coulómbica los obliga a huir hasta la superficie. No se detendrán hasta que el campo interno sea **cero**. Esto convierte el volumen interior en una **región equipotencial**; mover una carga adentro no requiere trabajo.</p>
-                    <p class="only-aislante"><strong>El Resorte Tridimensional (Aislante):</strong> Las cargas están "congeladas" en el volumen. A medida que penetramos hacia el centro, dejamos menos carga encerrada empujando hacia afuera. El campo decrece linealmente ($\vec{E} \propto r$), actuando físicamente como la fuerza restauradora de un resorte. El potencial llega a su pico en el centro.</p>
-                </div>
-
-                <div class="example-card">
-                    <h4><i data-lucide="circle-dashed"></i> 3. Esfera Hueca: Cavidad Segura</h4>
-                    <p><strong>El Vacío Ignora la Corteza:</strong> Independientemente de si el material exterior es aislante o un conductor grueso, si trazas una superficie Gaussiana dentro del hueco interior ($r < R_1$), la carga encerrada es **estrictamente cero**. Esto garantiza que el campo en la cavidad sea cero por simetría, protegiendo cualquier objeto en su interior de las cargas de la propia esfera.</p>
-                </div>
-
-                <div class="example-card">
-                    <h4><i data-lucide="maximize"></i> 4. Cascarón Esférico: Jaula de Faraday</h4>
-                    <p><strong>Discontinuidad Abrupta:</strong> Un cascarón conductor delgado aísla electromagnéticamente su interior de campos externos. Al graficar el campo eléctrico, notarás una discontinuidad matemáticamente violenta exactamente en $r=R$ (salta de $0$ a un valor máximo). En electromagnetismo, un salto abrupto en el campo eléctrico es la firma inequívoca de cruzar una lámina bidimensional de carga ($\sigma$).</p>
-                </div>
-
-                <div class="example-card">
-                    <h4><i data-lucide="battery"></i> 5. Capacitor Esférico: Trampa de Energía</h4>
-                    <p><strong>Almacenamiento Confinado:</strong> Al colocar un cascarón exterior con carga exactamente opuesta ($-Q$) a la esfera interior ($+Q$), ocurre algo mágico: al aplicar Gauss en el exterior ($r>c$), la carga neta encerrada es cero ($+Q - Q = 0$). Todo el campo eléctrico exterior desaparece. Toda la energía del sistema queda "atrapada" en el vacío entre los dos radios.</p>
-                </div>
-
-                <div class="example-card">
-                    <h4><i data-lucide="target"></i> 6. Carga Puntual en Cascarón Neutro</h4>
-                    <p class="only-conductor"><strong>Inducción Perfecta (Conductor):</strong> Si colocas una carga $+q$ en el centro, ésta "arrancará" electrones de la estructura atómica del conductor, atrayendo una carga $-q$ a la pared interior. Como el cascarón es neutro, ese déficit de electrones deja a la pared exterior con una carga neta inducida de $+q$.</p>
-                    <p class="only-aislante"><strong>Superposición Rígida (Aislante):</strong> Si el cascarón es aislante, las cargas no pueden migrar para proteger nada. El campo eléctrico resultante en cualquier punto del espacio será simplemente la suma vectorial directa del campo de la carga puntual central y del volumen del cascarón.</p>
-                </div>
-
-            </div>
-        </div>
+        // --- 1. FIREBASE INITIALIZATION DUAL (Canvas + Producción) ---
+        let firebaseConfig;
         
-        <!-- NUEVO: Pie de página Profesional -->
-        <footer>
-            <i data-lucide="code-2" style="width: 16px; height: 16px;"></i>
-            <span>&copy; 2026 Todos los derechos reservados. | Desarrollo de Software Educativo y Simulación Física Interactiva</span>
-        </footer>
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+          // Si estamos en el Canvas, usamos la config de prueba para evitar el error 403 de Referrer
+          firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+          // Si lo subes a GitHub/Vercel, usará automáticamente TU configuración real
+          firebaseConfig = {
+            apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+            authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+            databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+            projectId: "laboratorio-de-coulomb",
+            storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+            messagingSenderId: "525944850850",
+            appId: "1:525944850850:web:eca9c0b79809358e8d8afb",
+            measurementId: "G-SZECJNG25E"
+          };
+        }
 
-    </div> <!-- Fin Main Container -->
+        const app = initializeApp(firebaseConfig);
+        
+        // Solo inicializamos Analytics si estamos en producción con MeasurementId
+        let analytics = null;
+        if (firebaseConfig.measurementId) {
+            try { analytics = getAnalytics(app); } catch(e) { console.warn("Analytics error:", e); }
+        }
+        
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // Usamos el ID del Canvas si existe, sino usamos el tuyo de producción
+        const appId = typeof __app_id !== 'undefined' && __app_id ? __app_id : "electro-lms-v1";
 
-    <script>
-        // Inicializar los iconos de Lucide
-        lucide.createIcons();
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const body = document.body;
-            const matToggle = document.getElementById('mat-toggle');
-            const cutToggle = document.getElementById('cut-toggle');
-            const fieldToggle = document.getElementById('field-toggle');
-            const animToggle = document.getElementById('anim-toggle'); // NUEVO TOGGLE
-            
-            let isConductor = false;
-            let isAnimatingSpin = true; // Control de giro
-
-            // Almacenaje Global para acceso cruzado de funciones
-            const globalMaterials = [];
-            const electricFieldGroups = [];
-            window.threeScenes = {}; 
-            window.chargeGroups = {}; 
-            
-            const globalClipPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-
-            // Objeto 3D global: Superficie Gaussiana a inyectar en hover
-            const gaussMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, wireframe: true, transparent: true, opacity: 0.9 });
-            const gaussianSphere = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), gaussMat);
-
-            // Materiales Globales para las esferitas de carga (con soporte a corte 3D)
-            const globalChargeMatPos = new THREE.MeshBasicMaterial({ color: 0xff4444, side: THREE.DoubleSide });
-            const globalChargeMatNeg = new THREE.MeshBasicMaterial({ color: 0x3b82f6, side: THREE.DoubleSide });
-            globalMaterials.push(globalChargeMatPos, globalChargeMatNeg);
-
-            // --- LÓGICA DE LOS FILTROS DINÁMICOS ---
-            const colFilters = document.querySelectorAll('.col-filter');
-            const rowFilters = document.querySelectorAll('.row-filter');
-            const mainMatrix = document.getElementById('main-matrix');
-
-            function applyFilters() {
-                let visibleCols = 0;
-                colFilters.forEach(cb => {
-                    if (cb.checked) {
-                        body.classList.remove('hide-col-' + cb.value);
-                        visibleCols++;
-                    } else {
-                        body.classList.add('hide-col-' + cb.value);
-                    }
-                });
-                rowFilters.forEach(cb => {
-                    if (cb.checked) body.classList.remove('hide-row-' + cb.value);
-                    else body.classList.add('hide-row-' + cb.value);
-                });
-                mainMatrix.style.gridTemplateColumns = `240px repeat(${visibleCols > 0 ? visibleCols : 1}, minmax(360px, 1fr))`;
+        // --- 2. KATEX & THREE.JS HOOKS ---
+        const useKaTeX = () => {
+          useEffect(() => {
+            if (!document.getElementById('katex-css')) {
+              const link = document.createElement('link');
+              link.id = 'katex-css'; link.rel = 'stylesheet';
+              link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
+              document.head.appendChild(link);
+              
+              const script = document.createElement('script');
+              script.id = 'katex-js'; script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js';
+              document.head.appendChild(script);
             }
+          }, []);
+        };
 
-            colFilters.forEach(cb => cb.addEventListener('change', applyFilters));
-            rowFilters.forEach(cb => cb.addEventListener('change', applyFilters));
-            // ----------------------------------------
+        const useThreeJS = () => {
+          const [loaded, setLoaded] = useState(false);
+          useEffect(() => {
+            if (window.THREE && window.THREE.OrbitControls) { setLoaded(true); return; }
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+            script.onload = () => {
+              const controls = document.createElement('script');
+              controls.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js';
+              controls.onload = () => setLoaded(true);
+              document.head.appendChild(controls);
+            };
+            document.head.appendChild(script);
+          }, []);
+          return loaded;
+        };
 
-            // --- FUNCIONES DE GRÁFICAS 2D ---
-            function drawAllGraphs() {
-                drawGraph('graph-solida', 'solida');
-                drawGraph('graph-hueca', 'hueca');
-                drawGraph('graph-cascaron', 'cascaron');
-                drawGraph('graph-cap-esfera', 'cap-esfera');
-                drawGraph('graph-cap-puntual', 'cap-puntual');
-            }
-
-            function drawGraph(canvasId, type) {
-                const canvas = document.getElementById(canvasId);
-                const ctx = canvas.getContext('2d');
-                const w = canvas.width; const h = canvas.height;
-                
-                ctx.clearRect(0, 0, w, h);
-                
-                // Dibujar Ejes
-                ctx.beginPath();
-                ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5;
-                ctx.moveTo(30, 10); ctx.lineTo(30, h - 30);
-                ctx.lineTo(w - 10, h - 30);
-                ctx.stroke();
-                ctx.fillStyle = '#475569'; ctx.font = 'bold 12px Inter, sans-serif';
-                ctx.fillText('E', 15, 20); ctx.fillText('r', w - 20, h - 15);
-
-                const drawCurve = (startX, endX, func, color, isDashed=false) => {
-                    ctx.beginPath();
-                    ctx.strokeStyle = color; ctx.lineWidth = 3;
-                    if(isDashed) ctx.setLineDash([5, 5]); else ctx.setLineDash([]);
-                    for(let x = startX; x <= endX; x++) {
-                        let y = func(x);
-                        if(y > h - 40) y = h - 40; 
-                        
-                        if(x === startX) ctx.moveTo(30 + x, h - 30 - y);
-                        else ctx.lineTo(30 + x, h - 30 - y);
-                    }
-                    ctx.stroke(); ctx.setLineDash([]);
-                };
-
-                const curveColor = isConductor ? '#10b981' : '#ef4444'; 
-                const r1 = 60, r2 = 120, r3 = 200;
-                
-                if (type === 'solida') {
-                    if (isConductor) {
-                        drawCurve(0, r1, (x) => 0, curveColor); 
-                        drawCurve(r1, r3, (x) => 800000 / (x*x), curveColor);
-                        drawCurve(r1, r1, (x) => { ctx.moveTo(30+r1, h-30); ctx.lineTo(30+r1, h-30-800000/(r1*r1)); }, curveColor, true);
-                    } else {
-                        drawCurve(0, r1, (x) => (x/r1)*100, curveColor); 
-                        drawCurve(r1, r3, (x) => 100 * (r1*r1)/(x*x), curveColor); 
-                    }
-                    ctx.fillText('R', 30+r1-5, h-15);
-                } 
-                else if (type === 'hueca') {
-                    drawCurve(0, r1, (x) => 0, curveColor); 
-                    if (isConductor) {
-                        drawCurve(r1, r2, (x) => 0, curveColor); 
-                        drawCurve(r2, r3, (x) => 1500000 / (x*x), curveColor); 
-                        drawCurve(r2, r2, (x) => { ctx.moveTo(30+r2, h-30); ctx.lineTo(30+r2, h-30-1500000/(r2*r2)); }, curveColor, true);
-                    } else {
-                        drawCurve(r1, r2, (x) => 100 * (Math.pow(x,3) - Math.pow(r1,3))/(Math.pow(r2,3) - Math.pow(r1,3)) * (r2*r2)/(x*x), curveColor); 
-                        drawCurve(r2, r3, (x) => 100 * (r2*r2)/(x*x), curveColor);
-                    }
-                    ctx.fillText('R₁', 30+r1-5, h-15); ctx.fillText('R₂', 30+r2-5, h-15);
-                }
-                else if (type === 'cascaron') {
-                    drawCurve(0, r1, (x) => 0, curveColor); 
-                    drawCurve(r1, r3, (x) => 1000000 / (x*x), curveColor); 
-                    drawCurve(r1, r1, (x) => { ctx.moveTo(30+r1, h-30); ctx.lineTo(30+r1, h-30-1000000/(r1*r1)); }, curveColor, true);
-                    ctx.fillText('R', 30+r1-5, h-15);
-                }
-                else if (type === 'cap-esfera') {
-                    if (isConductor) drawCurve(0, r1, (x)=>0, '#3b82f6');
-                    else drawCurve(0, r1, (x) => (x/r1)*100, '#3b82f6');
-                    
-                    let maxE = isConductor ? 800000/(r1*r1) : 100;
-                    if(isConductor) drawCurve(r1, r1, (x)=>{ctx.moveTo(30+r1, h-30); ctx.lineTo(30+r1, h-30-maxE);}, '#3b82f6', true);
-                    drawCurve(r1, r2, (x) => maxE * (r1*r1)/(x*x), '#3b82f6');
-                    
-                    let eAtR2 = maxE * (r1*r1)/(r2*r2);
-                    if(isConductor) {
-                        drawCurve(r2, r2, (x)=>{ctx.moveTo(30+r2, h-30); ctx.lineTo(30+r2, h-30-eAtR2);}, curveColor, true);
-                        drawCurve(r2, r3, (x)=>0, curveColor); 
-                    } else {
-                        drawCurve(r2, r3, (x) => eAtR2 * (r2*r2)/(x*x), curveColor);
-                    }
-                }
-                else if (type === 'cap-puntual') {
-                    drawCurve(15, r1, (x) => 150000 / (x*x), '#ef4444');
-                    if(isConductor) {
-                        drawCurve(r1, r2, (x) => 0, '#10b981');
-                        drawCurve(r2, r3, (x) => 150000 / (x*x), '#10b981');
-                    } else {
-                        drawCurve(r1, r2, (x) => 50000 / (x*x) + (x)*0.2, '#ef4444');
-                        drawCurve(r2, r3, (x) => 150000 / (x*x), '#ef4444');
-                    }
-                }
-            }
-            
-            // --- FUNCIONES 3D: Vectores, Textos y Cargas ---
-            function createElectricFieldVectors(radius) {
-                const vectorGroup = new THREE.Group();
-                const color = 0xf59e0b; 
-                const arrowLength = 0.5;
-                const headLength = 0.15;
-                const headWidth = 0.1;
-
-                for (let i = 1; i <= 4; i++) {
-                    const phi = (i / 5) * Math.PI; 
-                    for (let j = 0; j < 8; j++) {
-                        const theta = (j / 8) * Math.PI * 2; 
-
-                        const x = radius * Math.sin(phi) * Math.cos(theta);
-                        const y = radius * Math.cos(phi);
-                        const z = radius * Math.sin(phi) * Math.sin(theta);
-
-                        const origin = new THREE.Vector3(x, y, z);
-                        const dir = origin.clone().normalize();
-
-                        const arrow = new THREE.ArrowHelper(dir, origin, arrowLength, color, headLength, headWidth);
-                        vectorGroup.add(arrow);
-                    }
-                }
-                vectorGroup.add(new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,radius,0), arrowLength, color, headLength, headWidth));
-                vectorGroup.add(new THREE.ArrowHelper(new THREE.Vector3(0,-1,0), new THREE.Vector3(0,-radius,0), arrowLength, color, headLength, headWidth));
-
-                vectorGroup.visible = false;
-                return vectorGroup;
-            }
-
-            function makeTextSprite(message, fontColor) {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = 256; canvas.height = 128;
-                
-                ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
-                ctx.roundRect(64, 24, 128, 80, 20);
-                ctx.fill();
-
-                ctx.font = 'bold 50px Arial';
-                ctx.fillStyle = fontColor || '#ffffff';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(message, 128, 64);
-                
-                const texture = new THREE.CanvasTexture(canvas);
-                const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false }); 
-                const sprite = new THREE.Sprite(spriteMat);
-                sprite.scale.set(0.6, 0.3, 1);
-                return sprite;
-            }
-
-            function createCharges(count, radiusMin, radiusMax, materialObj, isSurfaceOnly) {
-                const group = new THREE.Group();
-                const geo = new THREE.SphereGeometry(0.05, 8, 8);
-                
-                for(let i=0; i<count; i++) {
-                    const mesh = new THREE.Mesh(geo, materialObj);
-                    
-                    const u = Math.random();
-                    const v = Math.random();
-                    const theta = u * 2.0 * Math.PI;
-                    const phi = Math.acos(2.0 * v - 1.0);
-                    
-                    let r = radiusMax;
-                    if(!isSurfaceOnly) {
-                        const r3Min = Math.pow(radiusMin, 3);
-                        const r3Max = Math.pow(radiusMax, 3);
-                        r = Math.pow(r3Min + Math.random() * (r3Max - r3Min), 1/3);
-                    }
-                    
-                    mesh.position.set(
-                        r * Math.sin(phi) * Math.cos(theta),
-                        r * Math.cos(phi),
-                        r * Math.sin(phi) * Math.sin(theta)
-                    );
-                    group.add(mesh);
-                }
-                return group;
-            }
-
-            function init3D(containerId, geoType) {
-                const container = document.getElementById(containerId);
-                const scene = new THREE.Scene();
-                const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
-                camera.position.z = 4.5; 
-                
-                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-                renderer.localClippingEnabled = true; 
-                renderer.setSize(container.clientWidth, container.clientHeight);
-                container.appendChild(renderer.domElement);
-                
-                const controls = new THREE.OrbitControls(camera, renderer.domElement);
-                controls.enableZoom = true;
-                
-                const light = new THREE.DirectionalLight(0xffffff, 1);
-                light.position.set(5, 5, 5);
-                scene.add(light);
-                scene.add(new THREE.AmbientLight(0x888888));
-                
-                let mesh, mesh2;
-                
-                const matAislante = new THREE.MeshPhongMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.6, side: THREE.DoubleSide, clipIntersection: false });
-                const matHueco = new THREE.MeshPhongMaterial({ color: 0x14b8a6, transparent: true, opacity: 0.5, side: THREE.DoubleSide, clipIntersection: false });
-                const matCarga = new THREE.MeshPhongMaterial({ color: 0xfacc15, side: THREE.DoubleSide, clipIntersection: false });
-                const matWire = new THREE.MeshPhongMaterial({ color: 0xf97316, wireframe: true, side: THREE.DoubleSide, clipIntersection: false });
-                const matCapInt = new THREE.MeshBasicMaterial({color: 0x334155, wireframe: true, side: THREE.DoubleSide, clipIntersection: false});
-                const matCapExt1 = new THREE.MeshPhongMaterial({ color: 0xef4444, transparent: true, opacity: 0.3, side: THREE.DoubleSide, clipIntersection: false });
-                const matCapExt2 = new THREE.MeshPhongMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.4, side: THREE.DoubleSide, clipIntersection: false });
-
-                globalMaterials.push(matAislante, matHueco, matCarga, matWire, matCapInt, matCapExt1, matCapExt2);
-
-                let fieldRadius = 1.6;
-
-                const groupAislante = new THREE.Group();
-                const groupConductor = new THREE.Group();
-                const staticGroup = new THREE.Group(); 
-
-                if (geoType === 'solida') {
-                    mesh = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), matAislante);
-                    fieldRadius = 1.3;
-                    scene.add(mesh);
-                    
-                    const labelR = makeTextSprite("R", "#fff"); labelR.position.set(1.4, 0, 0); staticGroup.add(labelR);
-                    groupAislante.add(createCharges(200, 0, 1.2, globalChargeMatPos, false)); 
-                    groupConductor.add(createCharges(200, 1.2, 1.2, globalChargeMatPos, true)); 
-                } 
-                else if (geoType === 'hueca') {
-                    mesh = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), matHueco);
-                    mesh2 = new THREE.Mesh(new THREE.SphereGeometry(0.8, 32, 32), matCapInt);
-                    fieldRadius = 1.6;
-                    scene.add(mesh); scene.add(mesh2);
-                    
-                    const labelR1 = makeTextSprite("R\u2081", "#fff"); labelR1.position.set(0.8, 0.4, 0); staticGroup.add(labelR1);
-                    const labelR2 = makeTextSprite("R\u2082", "#fff"); labelR2.position.set(1.7, 0, 0); staticGroup.add(labelR2);
-                    
-                    groupAislante.add(createCharges(250, 0.8, 1.5, globalChargeMatPos, false)); 
-                    groupConductor.add(createCharges(200, 1.5, 1.5, globalChargeMatPos, true)); 
-                } 
-                else if (geoType === 'cascaron') {
-                    mesh = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), matWire);
-                    fieldRadius = 1.6;
-                    scene.add(mesh);
-                    
-                    const labelR = makeTextSprite("R", "#fff"); labelR.position.set(1.7, 0, 0); staticGroup.add(labelR);
-                    groupAislante.add(createCharges(200, 1.5, 1.5, globalChargeMatPos, true));
-                    groupConductor.add(createCharges(200, 1.5, 1.5, globalChargeMatPos, true));
-                } 
-                else if (geoType === 'cap-esfera') {
-                    mesh = new THREE.Mesh(new THREE.SphereGeometry(0.7, 32, 32), matAislante);
-                    mesh2 = new THREE.Mesh(new THREE.SphereGeometry(1.6, 32, 32), matCapExt1);
-                    fieldRadius = 1.7;
-                    scene.add(mesh); scene.add(mesh2);
-                    
-                    const labelA = makeTextSprite("a", "#fff"); labelA.position.set(0.9, 0, 0); staticGroup.add(labelA);
-                    const labelB = makeTextSprite("b", "#fff"); labelB.position.set(1.8, 0, 0); staticGroup.add(labelB);
-
-                    staticGroup.add(createCharges(200, 1.6, 1.6, globalChargeMatNeg, true));
-
-                    groupAislante.add(createCharges(80, 0, 0.7, globalChargeMatPos, false));
-                    groupConductor.add(createCharges(80, 0.7, 0.7, globalChargeMatPos, true));
-                } 
-                else if (geoType === 'cap-puntual') {
-                    mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), matCarga);
-                    mesh2 = new THREE.Mesh(new THREE.SphereGeometry(1.6, 32, 32), matCapExt2);
-                    fieldRadius = 1.7;
-                    scene.add(mesh); scene.add(mesh2);
-
-                    const labelQ = makeTextSprite("q", "#fff"); labelQ.position.set(0.4, 0.3, 0); staticGroup.add(labelQ);
-                    const labelA = makeTextSprite("a", "#fff"); labelA.position.set(1.8, 0, 0); staticGroup.add(labelA);
-
-                    groupConductor.add(createCharges(100, 1.6, 1.6, globalChargeMatNeg, true)); 
-                    groupConductor.add(createCharges(100, 1.75, 1.75, globalChargeMatPos, true)); 
-                }
-                
-                groupConductor.visible = isConductor;
-                groupAislante.visible = !isConductor;
-
-                scene.add(staticGroup);
-                scene.add(groupAislante);
-                scene.add(groupConductor);
-                
-                window.chargeGroups[geoType] = { ais: groupAislante, con: groupConductor };
-
-                const eFieldGroup = createElectricFieldVectors(fieldRadius);
-                scene.add(eFieldGroup);
-                electricFieldGroups.push(eFieldGroup);
-
-                window.threeScenes[geoType] = scene;
-
-                function animate() {
-                    requestAnimationFrame(animate);
-                    
-                    // Lógica de Giro Controlado por el Toggle
-                    if (isAnimatingSpin && !cutToggle.checked) {
-                        if(mesh) { mesh.rotation.y += 0.005; mesh.rotation.x += 0.002; }
-                        if(mesh2) { mesh2.rotation.y += 0.005; mesh2.rotation.x += 0.002; }
-                        eFieldGroup.rotation.y += 0.005; eFieldGroup.rotation.x += 0.002;
-                        staticGroup.rotation.y += 0.005; staticGroup.rotation.x += 0.002;
-                        groupAislante.rotation.y += 0.005; groupAislante.rotation.x += 0.002;
-                        groupConductor.rotation.y += 0.005; groupConductor.rotation.x += 0.002;
-                    } else if (cutToggle.checked) {
-                        if(mesh) { mesh.rotation.set(0,0,0); }
-                        if(mesh2) { mesh2.rotation.set(0,0,0); }
-                        eFieldGroup.rotation.set(0,0,0);
-                        staticGroup.rotation.set(0,0,0);
-                        groupAislante.rotation.set(0,0,0);
-                        groupConductor.rotation.set(0,0,0);
-                    }
-                    // Si isAnimatingSpin es falso pero cutToggle no está activo, se quedan en su ángulo actual.
-
-                    controls.update();
-                    renderer.render(scene, camera);
-                }
-                animate();
-
-                window.addEventListener('resize', () => {
-                    if(!container) return;
-                    camera.aspect = container.clientWidth / container.clientHeight;
-                    camera.updateProjectionMatrix();
-                    renderer.setSize(container.clientWidth, container.clientHeight);
-                });
-            }
-
-            // --- Toggles Event Listeners ---
-
-            animToggle.addEventListener('change', (e) => {
-                isAnimatingSpin = e.target.checked;
-            });
-
-            matToggle.addEventListener('change', (e) => {
-                isConductor = e.target.checked;
-                
-                if(isConductor) {
-                    body.classList.remove('mat-aislante');
-                    body.classList.add('mat-conductor');
+        // --- 3. COMPONENTS ---
+        const Latex = ({ text, className = "", displayMode = false }) => {
+          const containerRef = useRef(null);
+          useEffect(() => {
+            if (window.katex && containerRef.current && text) {
+              try {
+                if (displayMode) {
+                   window.katex.render(text.toString(), containerRef.current, { displayMode: true, throwOnError: false });
                 } else {
-                    body.classList.remove('mat-conductor');
-                    body.classList.add('mat-aislante');
+                  const html = text.toString()
+                    .replace(/\$\$(.*?)\$\$/g, (m, eq) => window.katex.renderToString(eq, { displayMode: true, throwOnError: false }))
+                    .replace(/\$(.*?)\$/g, (m, eq) => window.katex.renderToString(eq, { displayMode: false, throwOnError: false }));
+                  containerRef.current.innerHTML = html;
+                }
+              } catch (e) { containerRef.current.innerText = text; }
+            }
+          }, [text, displayMode]);
+          
+          if (displayMode) return <div ref={containerRef} className={`my-3 text-center overflow-x-auto ${className}`} />;
+          return <span ref={containerRef} className={className} dangerouslySetInnerHTML={{__html: text}} />;
+        };
+
+        // 3D Gauss Simulator
+        const ThreeCanvas = ({ q1, q2, q3, q4 }) => {
+          const mountRef = useRef(null);
+          const isLoaded = useThreeJS();
+
+          useEffect(() => {
+            if (!isLoaded || !mountRef.current) return;
+            const THREE = window.THREE;
+            const width = mountRef.current.clientWidth;
+            const height = mountRef.current.clientHeight;
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color('#f8fafc'); 
+
+            const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(0, 5, 12);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            mountRef.current.innerHTML = '';
+            mountRef.current.appendChild(renderer.domElement);
+
+            const controls = new window.THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
+
+            const s1Geo = new THREE.SphereGeometry(2, 32, 32);
+            const s1Mat = new THREE.MeshPhysicalMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.15, side: THREE.DoubleSide, wireframe: true });
+            const s1 = new THREE.Mesh(s1Geo, s1Mat);
+            scene.add(s1);
+
+            const s3Geo = new THREE.SphereGeometry(4.5, 32, 32);
+            const s3Mat = new THREE.MeshPhysicalMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.1, side: THREE.DoubleSide, wireframe: true });
+            const s3 = new THREE.Mesh(s3Geo, s3Mat);
+            scene.add(s3);
+
+            const createCharge = (val, pos) => {
+              const color = val > 0 ? 0xef4444 : 0x0ea5e9;
+              const geo = new THREE.SphereGeometry(0.35, 16, 16);
+              const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4 });
+              const mesh = new THREE.Mesh(geo, mat);
+              mesh.position.set(pos[0], pos[1], pos[2]);
+              return mesh;
+            };
+
+            scene.add(createCharge(q1, [0, 0, 0])); 
+            scene.add(createCharge(q2, [1, 1, -0.5])); 
+            scene.add(createCharge(q3, [-3, -1, 1])); 
+            scene.add(createCharge(q4, [2, -2, 2])); 
+
+            let animationId;
+            const animate = () => {
+              animationId = requestAnimationFrame(animate);
+              controls.update();
+              s1.rotation.y += 0.002;
+              s3.rotation.y -= 0.001;
+              renderer.render(scene, camera);
+            };
+            animate();
+
+            const handleResize = () => {
+              if(!mountRef.current) return;
+              camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
+              camera.updateProjectionMatrix();
+              renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+            };
+            window.addEventListener('resize', handleResize);
+
+            return () => {
+              cancelAnimationFrame(animationId);
+              window.removeEventListener('resize', handleResize);
+              renderer.dispose();
+            };
+          }, [isLoaded, q1, q2, q3, q4]);
+
+          return (
+            <div className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-inner border-2 border-slate-200 cursor-move touch-none">
+              <div ref={mountRef} className="w-full h-full" />
+              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 border border-slate-200 shadow-sm pointer-events-none uppercase tracking-widest">
+                <Activity size={16} className="text-blue-500" />
+                Orbita el sistema 3D
+              </div>
+            </div>
+          );
+        };
+
+        // Interactive Vector Grid
+        const InteractiveVectorField = ({ systemType, id, onChange, isSubmitted }) => {
+          const TOOLS = [
+            { rot: -90, icon: ArrowUp }, { rot: -45, icon: ArrowUpRight }, { rot: 0, icon: ArrowRightIcon }, { rot: 45, icon: ArrowDownRight },
+            { rot: 90, icon: ArrowDown }, { rot: 135, icon: ArrowDownLeft }, { rot: 180, icon: ArrowLeft }, { rot: -135, icon: ArrowUpLeft },
+            { rot: null, icon: Eraser, color: 'text-red-500' }
+          ];
+
+          const [activeTool, setActiveTool] = useState(0); 
+          const [grid, setGrid] = useState({}); 
+          const rows = 5, cols = 5;
+
+          const handleCellClick = (r, c) => {
+            if (isSubmitted) return;
+            const key = `${r}-${c}`;
+            const newGrid = { ...grid };
+            if (activeTool === null) delete newGrid[key];
+            else newGrid[key] = activeTool;
+            setGrid(newGrid);
+            if(onChange) onChange(id, newGrid);
+          };
+
+          return (
+            <div className="flex flex-col h-full bg-slate-50/50 rounded-2xl border-2 border-slate-200 overflow-hidden shadow-inner">
+              {!isSubmitted && (
+                <div className="bg-white border-b-2 border-slate-200 p-3 flex flex-wrap justify-center gap-3">
+                  <div className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center mr-2"><MousePointer2 size={16} className="mr-2"/> Selector:</div>
+                  {TOOLS.map((tool, idx) => {
+                    const Icon = tool.icon;
+                    const isActive = activeTool === tool.rot;
+                    return (
+                      <button key={idx} onClick={() => setActiveTool(tool.rot)}
+                        className={`p-2.5 rounded-xl transition-all border-2 ${isActive ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-110' : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-300'} ${tool.color || ''}`}
+                      >
+                        <Icon size={20} />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              <div className="relative flex-grow min-h-[350px] w-full p-6">
+                {systemType === 'A' ? (
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-blue-50 border-4 border-blue-600 rounded-full flex items-center justify-center font-black text-blue-600 z-10 shadow-lg text-2xl"><Latex text={"$-Q$"}/></div>
+                ) : (
+                  <>
+                    <div className="absolute top-1/2 left-[30%] -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-red-50 border-4 border-red-600 rounded-full flex items-center justify-center font-black text-red-600 z-10 shadow-lg text-2xl"><Latex text={"$+2Q$"}/></div>
+                    <div className="absolute top-1/2 left-[70%] -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-blue-50 border-4 border-blue-600 rounded-full flex items-center justify-center font-black text-blue-600 z-10 shadow-lg text-2xl"><Latex text={"$-Q$"}/></div>
+                  </>
+                )}
+                <div className="absolute inset-6 grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)` }}>
+                  {Array.from({ length: rows * cols }).map((_, i) => {
+                    const r = Math.floor(i / cols), c = i % cols;
+                    const isChargeArea = (systemType === 'A' && r === 2 && c === 2) || (systemType === 'B' && r === 2 && (c === 1 || c === 3));
+
+                    return (
+                      <div key={`${r}-${c}`} onClick={() => !isChargeArea && handleCellClick(r, c)}
+                        className={`border border-slate-300/30 flex items-center justify-center transition-colors ${!isChargeArea && !isSubmitted ? 'hover:bg-blue-100/50 cursor-pointer' : ''}`}
+                      >
+                        {grid[`${r}-${c}`] !== undefined && (
+                          <ArrowRightIcon size={32} className="text-slate-800 drop-shadow-md transition-transform" style={{ transform: `rotate(${grid[`${r}-${c}`]}deg)` }} />
+                        )}
+                        {grid[`${r}-${c}`] === undefined && !isChargeArea && (
+                          <div className="w-2 h-2 bg-slate-200 rounded-full opacity-50"></div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        // --- E-LEARNING INTERACTIVE COMPONENTS ---
+        const ERadioGroup = ({ id, options, answers, handleInputChange, isSubmitted, expected }) => {
+          const isCorrect = answers[id] === expected;
+          return (
+            <div className="space-y-3 mt-4">
+              {options.map((opt) => {
+                const isSelected = answers[id] === opt.val;
+                let ringClass = "border-slate-200 hover:border-blue-400 hover:bg-blue-50";
+                if (isSelected) ringClass = "border-blue-500 bg-blue-50 shadow-sm ring-2 ring-blue-500/20";
+                
+                if (isSubmitted) {
+                  if (opt.val === expected) ringClass = "border-emerald-500 bg-emerald-50 shadow-sm ring-2 ring-emerald-500/20"; 
+                  else if (isSelected && !isCorrect) ringClass = "border-red-500 bg-red-50 shadow-sm"; 
+                  else ringClass = "border-slate-200 bg-slate-50 opacity-50"; 
                 }
 
-                for (const geo in window.chargeGroups) {
-                    window.chargeGroups[geo].con.visible = isConductor;
-                    window.chargeGroups[geo].ais.visible = !isConductor;
-                }
+                return (
+                  <button 
+                    key={opt.val} disabled={isSubmitted}
+                    onClick={() => handleInputChange(id, opt.val)}
+                    className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 ${ringClass}`}
+                  >
+                    <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${isSelected ? 'border-blue-500' : 'border-slate-300'}`}>
+                      {isSelected && <div className={`w-2.5 h-2.5 rounded-full ${isSubmitted ? (opt.val===expected ? 'bg-emerald-500' : 'bg-red-500') : 'bg-blue-500'}`} />}
+                    </div>
+                    <div className="text-sm font-medium text-slate-700 leading-snug"><Latex text={opt.label}/></div>
+                    {isSubmitted && opt.val === expected && <CheckCircle2 className="text-emerald-500 ml-auto flex-shrink-0" size={20}/>}
+                    {isSubmitted && isSelected && !isCorrect && <XCircle className="text-red-500 ml-auto flex-shrink-0" size={20}/>}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        };
 
-                drawAllGraphs();
-            });
+        const InlineSelect = ({ id, value, onChange, options, points, width="w-auto", isSubmitted, expected }) => {
+          const [isOpen, setIsOpen] = useState(false);
+          const dropdownRef = useRef(null);
 
-            cutToggle.addEventListener('change', (e) => {
-                const isCut = e.target.checked;
-                globalMaterials.forEach(mat => {
-                    mat.clippingPlanes = isCut ? [globalClipPlane] : [];
-                });
-            });
+          useEffect(() => {
+            const handleClickOutside = (event) => {
+              if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
+            };
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => document.removeEventListener("mousedown", handleClickOutside);
+          }, []);
 
-            fieldToggle.addEventListener('change', (e) => {
-                const isVisible = e.target.checked;
-                electricFieldGroups.forEach(group => { group.visible = isVisible; });
-            });
+          const isCorrect = value === expected;
+          let bgClass = "bg-white hover:bg-blue-50 border-slate-300";
+          let textClass = "text-slate-800";
+          
+          if (isSubmitted) {
+            bgClass = isCorrect ? "bg-emerald-50 border-emerald-500" : "bg-red-50 border-red-500";
+            textClass = isCorrect ? "text-emerald-800" : "text-red-800";
+          }
+
+          const selectedOption = options.find(o => o.val === value);
+
+          return (
+            <span ref={dropdownRef} className={`inline-flex items-center gap-1 mx-1 relative group ${width}`}>
+              <div className="relative w-full">
+                <button 
+                  type="button" disabled={isSubmitted} onClick={() => setIsOpen(!isOpen)}
+                  className={`w-full px-4 py-2 min-h-[46px] text-base font-bold border-2 ${bgClass} ${textClass} rounded-xl outline-none transition-all shadow-sm flex items-center justify-between cursor-pointer disabled:cursor-default`}
+                >
+                  <span className="flex-grow text-center flex items-center justify-center">
+                    {selectedOption ? <Latex text={selectedOption.label} /> : <span className="text-slate-400 font-normal text-sm">-- seleccione --</span>}
+                  </span>
+                  {!isSubmitted && <ChevronDown size={18} className={`text-slate-400 flex-shrink-0 transition-transform ml-2 ${isOpen ? 'rotate-180' : ''}`} />}
+                </button>
+
+                {isOpen && !isSubmitted && (
+                  <div className="absolute z-[100] w-max min-w-full top-full mt-2 left-1/2 -translate-x-1/2 bg-white border-2 border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto">
+                    {options.map((o) => (
+                      <div
+                        key={o.val} onClick={() => { onChange(id, o.val); setIsOpen(false); }}
+                        className="px-6 py-4 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors text-center text-slate-800 font-bold flex items-center justify-center"
+                      >
+                        <Latex text={o.label} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {!isSubmitted && <span className="text-[10px] font-black text-red-600 absolute -top-3 right-0 opacity-100 bg-red-50 px-1.5 py-0.5 rounded shadow-sm border border-red-100 z-10 pointer-events-none">[{points}]</span>}
+            </span>
+          );
+        };
+
+        const TipButton = ({ text, id, usedTips, setUsedTips }) => {
+          const [isOpen, setIsOpen] = useState(false);
+          const isUsed = usedTips.includes(id);
+
+          const toggleTip = () => {
+            if (!isUsed) setUsedTips(prev => [...prev, id]);
+            setIsOpen(!isOpen);
+          };
+
+          return (
+            <div className="mt-4">
+              <button onClick={toggleTip} className={`flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl transition-colors ${isOpen ? 'bg-amber-100 text-amber-800' : 'bg-white border-2 border-slate-200 text-slate-500 hover:border-amber-300 hover:text-amber-600'}`}>
+                <Lightbulb size={16} className={isOpen ? 'text-amber-500' : ''}/> {isOpen ? 'Ocultar Pista' : '💡 Revelar Pista Pedagógica'}
+              </button>
+              {isOpen && (
+                <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-sm leading-relaxed animate-in slide-in-from-top-2">
+                  <Latex text={text} />
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        const SelectZone = ({ id, expected, answers, isSubmitted, activeDraggable, handleDropClick }) => {
+          const isCorrect = answers[id] === expected;
+          return (
+            <div 
+              onClick={() => handleDropClick(id)}
+              className={`min-h-[48px] min-w-[100px] border-2 ${isSubmitted ? (isCorrect ? 'border-emerald-500 bg-emerald-50' : 'border-red-500 bg-red-50') : (activeDraggable ? 'border-blue-400 border-dashed bg-blue-50 cursor-pointer hover:bg-blue-100' : 'border-slate-200 border-dashed bg-slate-50 cursor-pointer hover:bg-slate-100')} rounded-xl flex items-center justify-center p-2 transition-all relative`}
+            >
+              {answers[id] ? (
+                 <Latex text={`$${answers[id]}$`} className={`font-black text-lg ${isSubmitted ? (isCorrect ? 'text-emerald-700' : 'text-red-700') : 'text-blue-800'}`} />
+              ) : (
+                <span className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1"><Hand size={12}/> Toca aquí</span>
+              )}
+              {isSubmitted && !isCorrect && expected && (
+                <div className="absolute -top-4 -right-4 bg-white border border-slate-200 px-2 py-0.5 rounded-lg shadow-md text-xs text-slate-500 font-bold z-10 whitespace-nowrap">
+                  Era: <Latex text={`$${expected}$`}/>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        const DraggableItem = ({ val, isSubmitted, activeDraggable, setActiveDraggable }) => (
+          <button 
+            disabled={isSubmitted}
+            onClick={() => setActiveDraggable(val === activeDraggable ? null : val)}
+            className={`px-4 py-2 rounded-xl border-2 font-black text-lg transition-all shadow-sm ${activeDraggable === val ? 'bg-blue-600 text-white border-blue-600 scale-110 shadow-blue-500/30' : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'}`}
+          >
+            <Latex text={`$${val}$`} />
+          </button>
+        );
+
+        const StyledInput = ({ id, placeholder, width="w-full", answers, handleInputChange, isSubmitted }) => (
+          <input 
+            type="text" value={answers[id] || ''} onChange={(e) => handleInputChange(id, e.target.value)} 
+            placeholder={placeholder} disabled={isSubmitted}
+            className={`${width} px-4 py-3 text-base border-2 ${isSubmitted ? 'border-slate-200 bg-slate-100 text-slate-500' : 'border-slate-300 focus:border-blue-600 bg-white focus:bg-blue-50'} rounded-xl outline-none transition-colors font-medium shadow-sm`}
+          />
+        );
+
+        const MisionBox = ({ title, points, children }) => (
+          <div className="mb-10 rounded-[2rem] border border-slate-300 bg-white shadow-lg relative">
+            <div className="bg-slate-900 text-white px-8 py-5 flex flex-wrap justify-between items-center border-b-4 border-blue-600 gap-4 rounded-t-[calc(2rem-1px)]">
+              <h3 className="font-black text-2xl tracking-tight">{title}</h3>
+              <span className="text-sm font-black bg-white/10 px-4 py-1.5 rounded-lg text-amber-400 border border-amber-400/30">Valor: {points} pts</span>
+            </div>
+            <div className="p-8 md:p-10">
+              {children}
+            </div>
+          </div>
+        );
+
+        // --- 5. SVG STATIC DIAGRAMS ---
+        const SvgFriction = () => (
+          <svg viewBox="0 0 100 100" className="w-full h-full max-h-[140px] drop-shadow-md">
+            <rect x="10" y="10" width="40" height="80" rx="5" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
+            <text x="30" y="30" fontSize="10" textAnchor="middle" fill="#1e293b" fontWeight="bold">Paño</text>
+            <text x="30" y="60" fontSize="16" textAnchor="middle" fill="#ef4444" fontWeight="black">++</text>
+            <rect x="50" y="20" width="15" height="80" rx="3" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5" transform="rotate(20 50 20)"/>
+            <text x="80" y="50" fontSize="9" textAnchor="middle" fill="#1e293b" fontWeight="bold" transform="rotate(20 80 50)">Varilla</text>
+            <text x="65" y="80" fontSize="16" textAnchor="middle" fill="#3b82f6" fontWeight="black" transform="rotate(20 65 80)">--</text>
+            <path d="M 35 50 Q 50 35 65 50" fill="none" stroke="#1e293b" strokeWidth="2" markerEnd="url(#arrow-sm)"/>
+            <text x="50" y="35" fontSize="12" textAnchor="middle" fill="#1e293b" fontWeight="bold">e⁻</text>
+            <defs><marker id="arrow-sm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e293b"/></marker></defs>
+          </svg>
+        );
+
+        const SvgContact = () => (
+          <svg viewBox="0 0 100 100" className="w-full h-full max-h-[140px] drop-shadow-md">
+            <circle cx="30" cy="50" r="20" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
+            <circle cx="70" cy="50" r="20" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
+            <text x="30" y="55" fontSize="16" textAnchor="middle" fill="#3b82f6" fontWeight="black">- -</text>
+            <path d="M 45 40 Q 50 25 55 40" fill="none" stroke="#1e293b" strokeWidth="2" markerEnd="url(#arrow-sm)"/>
+            <text x="50" y="22" fontSize="12" textAnchor="middle" fill="#1e293b" fontWeight="bold">e⁻</text>
+            <defs><marker id="arrow-sm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e293b"/></marker></defs>
+          </svg>
+        );
+
+        const SvgInduction = () => (
+          <svg viewBox="0 0 120 100" className="w-full h-full max-h-[140px] drop-shadow-md">
+            <rect x="5" y="40" width="30" height="12" rx="3" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
+            <text x="20" y="49" fontSize="14" textAnchor="middle" fill="#ef4444" fontWeight="black">++</text>
+            <circle cx="65" cy="45" r="20" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
+            <text x="52" y="49" fontSize="14" textAnchor="middle" fill="#3b82f6" fontWeight="black">-</text>
+            <text x="78" y="49" fontSize="14" textAnchor="middle" fill="#ef4444" fontWeight="black">+</text>
+            <line x1="65" y1="65" x2="65" y2="85" stroke="#1e293b" strokeWidth="2.5"/>
+            <line x1="50" y1="85" x2="80" y2="85" stroke="#1e293b" strokeWidth="2.5"/>
+            <path d="M 85 45 L 105 45 L 105 75" fill="none" stroke="#1e293b" strokeWidth="2"/>
+            <line x1="95" y1="75" x2="115" y2="75" stroke="#1e293b" strokeWidth="2"/>
+            <line x1="100" y1="80" x2="110" y2="80" stroke="#1e293b" strokeWidth="2"/>
+            <line x1="103" y1="85" x2="107" y2="85" stroke="#1e293b" strokeWidth="2"/>
+            <path d="M 95 30 L 100 40" fill="none" stroke="#1e293b" strokeWidth="2" markerEnd="url(#arrow-sm)"/>
+            <text x="90" y="25" fontSize="12" textAnchor="middle" fill="#1e293b" fontWeight="bold">e⁻</text>
+            <defs><marker id="arrow-sm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e293b"/></marker></defs>
+          </svg>
+        );
+
+        const SvgRing = () => (
+          <svg viewBox="-50 -30 100 140" className="w-full h-full max-h-[160px] drop-shadow-md overflow-visible">
+            <line x1="0" y1="80" x2="0" y2="-10" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
+            <text x="8" y="-5" fontSize="12" fill="#334155" fontWeight="bold">z</text>
+            <line x1="0" y1="80" x2="45" y2="80" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
+            <text x="40" y="95" fontSize="12" fill="#334155" fontWeight="bold">y</text>
+            <line x1="0" y1="80" x2="-35" y2="115" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
+            <text x="-45" y="115" fontSize="12" fill="#334155" fontWeight="bold">x</text>
+            <ellipse cx="0" cy="80" rx="35" ry="12" fill="none" stroke="#d97706" strokeWidth="5"/>
+            <line x1="0" y1="80" x2="35" y2="80" stroke="#334155" strokeWidth="1.5" strokeDasharray="4"/>
+            <text x="15" y="75" fontSize="10" fill="#334155" fontWeight="bold">R</text>
+            <circle cx="0" cy="15" r="4" fill="#0f172a"/>
+            <text x="10" y="20" fontSize="12" fill="#0f172a" fontWeight="bold">P(0,0,z)</text>
+            <defs><marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker></defs>
+          </svg>
+        );
+
+        const SvgDisk = () => (
+          <svg viewBox="-50 -30 100 140" className="w-full h-full max-h-[160px] drop-shadow-md overflow-visible">
+            <line x1="0" y1="80" x2="0" y2="-10" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
+            <text x="8" y="-5" fontSize="12" fill="#334155" fontWeight="bold">z</text>
+            <line x1="0" y1="80" x2="45" y2="80" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
+            <text x="40" y="95" fontSize="12" fill="#334155" fontWeight="bold">y</text>
+            <line x1="0" y1="80" x2="-35" y2="115" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
+            <text x="-45" y="115" fontSize="12" fill="#334155" fontWeight="bold">x</text>
+            <ellipse cx="0" cy="80" rx="40" ry="14" fill="#dbeafe" stroke="#3b82f6" strokeWidth="2"/>
+            <ellipse cx="0" cy="80" rx="20" ry="7" fill="none" stroke="#1d4ed8" strokeWidth="3"/>
+            <line x1="0" y1="80" x2="40" y2="80" stroke="#334155" strokeWidth="1.5" strokeDasharray="3"/>
+            <text x="25" y="92" fontSize="9" fill="#334155" fontWeight="bold">R</text>
+            <line x1="0" y1="80" x2="-18" y2="74" stroke="#334155" strokeWidth="1.5" strokeDasharray="2"/>
+            <text x="-15" y="70" fontSize="9" fill="#334155" fontWeight="bold">r'</text>
+            <circle cx="0" cy="15" r="4" fill="#0f172a"/>
+            <text x="10" y="20" fontSize="12" fill="#0f172a" fontWeight="bold">P(0,0,z)</text>
+          </svg>
+        );
+
+        const SvgRod = () => (
+          <svg viewBox="-20 -20 120 120" className="w-full h-full max-h-[160px] drop-shadow-md overflow-visible">
+            <line x1="10" y1="90" x2="10" y2="0" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
+            <text x="15" y="5" fontSize="12" fill="#334155" fontWeight="bold">y</text>
+            <line x1="0" y1="80" x2="100" y2="80" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
+            <text x="95" y="95" fontSize="12" fill="#334155" fontWeight="bold">x</text>
+            <line x1="10" y1="80" x2="10" y2="20" stroke="#ea580c" strokeWidth="6" strokeLinecap="round"/>
+            <text x="-5" y="25" fontSize="12" fill="#334155" fontWeight="bold">a</text>
+            <text x="-5" y="85" fontSize="12" fill="#334155" fontWeight="bold">0</text>
+            <text x="-5" y="55" fontSize="12" fill="#ea580c" fontWeight="bold">Q</text>
+            <circle cx="70" cy="80" r="4" fill="#0f172a"/>
+            <text x="60" y="70" fontSize="12" fill="#0f172a" fontWeight="bold">P(x,0)</text>
+          </svg>
+        );
+
+        // --- 6. MAIN APP COMPONENT ---
+        function App() {
+          useKaTeX();
+          const [user, setUser] = useState(null);
+          const [role, setRole] = useState(null); 
+          const [view, setView] = useState('login'); 
+          const [loading, setLoading] = useState(true);
+          
+          // Student State
+          const [examVars, setExamVars] = useState({ q1: 3, q2: -2, q3: 1, q4: -4 });
+          const [answers, setAnswers] = useState({});
+          const [isSubmitted, setIsSubmitted] = useState(false);
+          const [score, setScore] = useState(null);
+          const [startTime, setStartTime] = useState(null);
+          const [timeElapsed, setTimeElapsed] = useState(0);
+          const [finalTime, setFinalTime] = useState(0);
+          const [usedTips, setUsedTips] = useState([]);
+          const [activeDraggable, setActiveDraggable] = useState(null);
+
+          // Dynamic Options Generated from Vars
+          const gaussOptionsS1 = useMemo(() => {
+            const correct = examVars.q1 + examVars.q2;
+            const dist1 = examVars.q1;
+            const dist2 = examVars.q1 + examVars.q2 + examVars.q3;
             
-            drawAllGraphs();
+            const opts = [
+              {val: `${correct}q`, label: `\\frac{${correct}q}{\\epsilon_0}`},
+              {val: `${dist1}q_alt1`, label: `\\frac{${dist1}q}{\\epsilon_0}`},
+              {val: `${dist2}q_alt2`, label: `\\frac{${dist2}q}{\\epsilon_0}`},
+              {val: `0q`, label: `0`}
+            ];
+            
+            const uniqueOpts = [];
+            const map = new Map();
+            for (const item of opts) {
+                if(!map.has(item.label)){ map.set(item.label, true); uniqueOpts.push(item); }
+            }
+            return uniqueOpts.sort(() => Math.random() - 0.5);
+          }, [examVars]);
 
-            setTimeout(() => {
-                init3D('3d-solida', 'solida');
-                init3D('3d-hueca', 'hueca');
-                init3D('3d-cascaron', 'cascaron');
-                init3D('3d-cap-esfera', 'cap-esfera');
-                init3D('3d-cap-puntual', 'cap-puntual');
+          const gaussOptionsS3 = useMemo(() => {
+            const correct = examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4;
+            const dist1 = examVars.q3 + examVars.q4;
+            
+            const opts = [
+              {val: `${correct}q`, label: `\\frac{${correct}q}{\\epsilon_0}`},
+              {val: `${dist1}q_alt1`, label: `\\frac{${dist1}q}{\\epsilon_0}`},
+              {val: `0q`, label: `0`}
+            ];
+            
+            const uniqueOpts = [];
+            const map = new Map();
+            for (const item of opts) {
+                if(!map.has(item.label)){ map.set(item.label, true); uniqueOpts.push(item); }
+            }
+            return uniqueOpts.sort(() => Math.random() - 0.5);
+          }, [examVars]);
 
-                const rSprite = makeTextSprite("r", "#22c55e");
-                
-                const cellsInteract = document.querySelectorAll('.interactive-cell');
-                cellsInteract.forEach(cell => {
-                    cell.addEventListener('mouseenter', () => {
-                        const geo = cell.dataset.geo;
-                        const zone = cell.dataset.zone;
-                        const sceneToEdit = window.threeScenes[geo];
-                        if(!sceneToEdit) return;
+          // Shared Options for Dropdowns
+          const coulombDensityOpts = [{val: '\\lambda', label: '\\lambda'}, {val: '\\sigma', label: '\\sigma'}, {val: '\\rho', label: '\\rho'}];
+          const coulombDqOpts = [{val: '\\lambda R d\\theta', label: '\\lambda R d\\theta'}, {val: '\\sigma 2\\pi r\' dr\'', label: '\\sigma 2\\pi r\' dr\''}, {val: '\\lambda dy', label: '\\lambda dy'}];
+          const coulombR2Opts = [{val: 'R^2 + z^2', label: 'R^2 + z^2'}, {val: '(r\')^2 + z^2', label: '(r\')^2 + z^2'}, {val: 'x^2 + y^2', label: 'x^2 + y^2'}];
+          const coulombSymOpts = [{val: 'x,y', label: 'dE_x , dE_y'}, {val: 'y,z', label: 'dE_y , dE_z'}, {val: 'ninguna', label: '\\text{Ninguna}'}];
+          const coulombIntOpts = [{val: '0..2pi', label: '\\int_0^{2\\pi}'}, {val: '0..R', label: '\\int_0^R'}, {val: '0..a', label: '\\int_0^a'}];
 
-                        const radiiMap = {
-                            'solida': { 'interior': 0.8, 'exterior': 1.8 },
-                            'hueca': { 'interior': 0.5, 'material': 1.15, 'exterior': 1.9 },
-                            'cascaron': { 'interior': 1.0, 'exterior': 1.9 },
-                            'cap-esfera': { 'interior': 0.5, 'vacio': 1.15, 'exterior': 2.0 },
-                            'cap-puntual': { 'interior': 0.8, 'material': 1.6, 'exterior': 2.0 }
-                        };
+          const gaussDistOpts = [ {val: 'vol', label: '\\text{Todo el volumen}'}, {val: 'sup_ext', label: '\\text{Superficie exterior}'}, {val: 'vol_casc', label: '\\text{Volumen } a < r < b'} ];
+          const gaussAreaOpts = [ {val: 'E(4pir^2)', label: 'E(4\\pi r^2)'}, {val: 'E(2pirL)', label: 'E(2\\pi r L)'} ];
+          const gaussQencOpts = [ {val: '0', label: '0'}, {val: 'Q', label: 'Q'}, {val: 'rho_v_esf', label: '\\rho \\frac{4}{3}\\pi r^3'}, {val: 'rho_v_casc', label: '\\rho \\frac{4}{3}\\pi (r^3 - a^3)'} ];
+          const gaussEOpts = [ {val: '0', label: '0'}, {val: 'E_ext', label: '\\frac{Q}{4\\pi\\epsilon_0 r^2}'}, {val: 'E_ins', label: '\\frac{\\rho r}{3\\epsilon_0}'}, {val: 'E_casc', label: '\\frac{\\rho(r^3-a^3)}{3\\epsilon_0 r^2}'} ];
 
-                        const selectedRadius = (radiiMap[geo] && radiiMap[geo][zone]) ? radiiMap[geo][zone] : 1;
-                        
-                        gaussianSphere.geometry.dispose();
-                        gaussianSphere.geometry = new THREE.SphereGeometry(selectedRadius, 32, 16);
-                        
-                        rSprite.position.set(selectedRadius * 1.1, 0, selectedRadius * 0.5);
-                        gaussianSphere.add(rSprite);
 
-                        sceneToEdit.add(gaussianSphere);
-                    });
+          // Teacher State (Mock data)
+          const [metrics, setMetrics] = useState({
+            views: 142, avgScore: 3.2, avgTime: 420,
+            attempts: [
+              { id: 'INT-991', agent: 'K001 (Google Auth)', score: 3.8, time: 310, date: 'Hace 2h' },
+              { id: 'INT-992', agent: 'L044 (Email Auth)', score: 2.1, time: 405, date: 'Hace 5h' }
+            ],
+            questionMetrics: [
+              { id: 'Q1', title: 'Electrización', avgScore: 0.85, avgTime: 45, status: 'optimal' },
+              { id: 'Q2', title: 'Campo y Fuerza', avgScore: 0.62, avgTime: 120, status: 'review' },
+              { id: 'Q3', title: 'Bóveda de Gauss', avgScore: 0.35, avgTime: 255, status: 'critical' },
+              { id: 'Q4', title: 'Ley de Coulomb', avgScore: 0.40, avgTime: 180, status: 'critical' },
+              { id: 'Q5', title: 'Matriz Universal Gauss', avgScore: 0.50, avgTime: 300, status: 'critical' }
+            ]
+          });
 
-                    cell.addEventListener('mouseleave', () => {
-                        const geo = cell.dataset.geo;
-                        const sceneToEdit = window.threeScenes[geo];
-                        if(sceneToEdit) {
-                            gaussianSphere.remove(rSprite);
-                            sceneToEdit.remove(gaussianSphere);
-                        }
-                    });
-                });
-                
-            }, 300);
-        });
+          useEffect(() => {
+            const initAuth = async () => {
+              try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                else await signInAnonymously(auth);
+              } catch (err) { console.error("Auth Error", err); }
+            };
+            initAuth();
+            const unsubscribe = onAuthStateChanged(auth, (currentUser) => { setUser(currentUser); setLoading(false); });
+            return () => unsubscribe();
+          }, []);
+
+          useEffect(() => {
+            let timer;
+            if (view === 'exam' && !isSubmitted) {
+              if (!startTime) setStartTime(Date.now());
+              timer = setInterval(() => setTimeElapsed(Math.floor((Date.now() - (startTime || Date.now())) / 1000)), 1000);
+            }
+            return () => clearInterval(timer);
+          }, [view, isSubmitted, startTime]);
+
+          const startExam = () => {
+            const getQ = () => { let q = 0; while(q===0) q = Math.floor(Math.random() * 10) - 5; return q; };
+            setExamVars({ q1: getQ(), q2: getQ(), q3: getQ(), q4: getQ() });
+            setStartTime(Date.now());
+            setTimeElapsed(0);
+            setIsSubmitted(false);
+            setAnswers({});
+            setUsedTips([]);
+            setView('exam');
+          };
+
+          const handleInputChange = (id, val) => setAnswers(prev => ({ ...prev, [id]: val }));
+
+          const handleDropClick = (targetId) => {
+            if (isSubmitted) return;
+            if (activeDraggable) {
+              handleInputChange(targetId, activeDraggable);
+              setActiveDraggable(null); 
+            } else if (answers[targetId]) handleInputChange(targetId, null);
+          };
+
+          const calculateScore = () => {
+            let total = 0;
+            
+            // Level 1 (0.30)
+            if(answers.t1 === 'Frotamiento') total += 0.02; if(answers.t2 === 'Contacto') total += 0.02; if(answers.t3 === 'Inducción') total += 0.02;
+            if(answers.o1 === 'transfer') total += 0.03; if(answers.o2 === 'equil') total += 0.03; if(answers.o3 === 'ground') total += 0.03;
+            if(answers.sym1 === '\\lambda') total += 0.01; if(answers.f1 === '\\lambda dl') total += 0.02; if(answers.u1 === 'C/m') total += 0.02;
+            if(answers.sym2 === '\\sigma') total += 0.01; if(answers.f2 === '\\sigma dA') total += 0.02; if(answers.u2 === 'C/m^2') total += 0.02;
+            if(answers.sym3 === '\\rho') total += 0.01; if(answers.f3 === '\\rho dV') total += 0.02; if(answers.u3 === 'C/m^3') total += 0.02;
+
+            // Level 2 (0.30)
+            if(answers.b1 === 'dos') total += 0.025; if(answers.b2 === 'una') total += 0.025; if(answers.b3 === 'q_0 \\vec{E}') total += 0.05;
+            const vCountA = Object.keys(answers.canvasA || {}).length; const vCountB = Object.keys(answers.canvasB || {}).length;
+            if(vCountA > 3) total += 0.10; if(vCountB > 4) total += 0.10;
+
+            // Level 3 (0.40)
+            const e1 = examVars.q1 + examVars.q2; const e3 = examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4;
+            if(answers.p1 === `${e1}q`) total += 0.15; if(answers.p3 === `${e3}q`) total += 0.15; if(answers.pt === 'no') total += 0.10;
+
+            // Level 4 (1.50)
+            if(answers.c1_den === '\\lambda') total += 0.05; if(answers.c1_dq === '\\lambda R d\\theta') total += 0.05; if(answers.c1_r2 === 'R^2 + z^2') total += 0.10; if(answers.c1_sym === 'x,y') total += 0.10; if(answers.c1_int === '0..2pi') total += 0.10; if(answers.c1_num?.includes('115')) total += 0.10; 
+            if(answers.c2_den === '\\sigma') total += 0.05; if(answers.c2_dq === '\\sigma 2\\pi r\' dr\'') total += 0.05; if(answers.c2_r2 === '(r\')^2 + z^2') total += 0.10; if(answers.c2_sym === 'x,y') total += 0.10; if(answers.c2_int === '0..R') total += 0.10; if(answers.c2_num?.includes('151')) total += 0.10;
+            if(answers.c3_den === '\\lambda') total += 0.05; if(answers.c3_dq === '\\lambda dy') total += 0.05; if(answers.c3_r2 === 'x^2 + y^2') total += 0.10; if(answers.c3_sym === 'ninguna') total += 0.10; if(answers.c3_int === '0..a') total += 0.10; if(answers.c3_num?.length > 1) total += 0.10; 
+
+            // Level 5 (1.50)
+            const checkG = (id, exp, pts) => { if(answers[id] === exp) total += pts; }
+            checkG('g1_dist', 'vol', 0.025); checkG('g2_dist', 'sup_ext', 0.025); checkG('g3_dist', 'vol_casc', 0.025); checkG('g4_dist', 'sup_ext', 0.025);
+            checkG('g1_area', 'E(4pir^2)', 0.025); checkG('g2_area', 'E(4pir^2)', 0.025); checkG('g3_area', 'E(4pir^2)', 0.025); checkG('g4_area', 'E(4pir^2)', 0.025);
+            checkG('g1_qi', 'rho_v_esf', 0.0125); checkG('g2_qi', '0', 0.0125); checkG('g3_qi', '0', 0.0125); checkG('g4_qi', '0', 0.0125);
+            checkG('g1_ei', 'E_ins', 0.0125); checkG('g2_ei', '0', 0.0125); checkG('g3_ei', '0', 0.0125); checkG('g4_ei', '0', 0.0125);
+            checkG('g1_qm', 'rho_v_esf', 0.0125); checkG('g2_qm', '0', 0.0125); checkG('g3_qm', 'rho_v_casc', 0.0125); checkG('g4_qm', '0', 0.0125);
+            checkG('g1_em', 'E_ins', 0.0125); checkG('g2_em', '0', 0.0125); checkG('g3_em', 'E_casc', 0.0125); checkG('g4_em', '0', 0.0125);
+            checkG('g1_qe', 'Q', 0.0125); checkG('g2_qe', 'Q', 0.0125); checkG('g3_qe', 'Q', 0.0125); checkG('g4_qe', 'Q', 0.0125);
+            checkG('g1_ee', 'E_ext', 0.0125); checkG('g2_ee', 'E_ext', 0.0125); checkG('g3_ee', 'E_ext', 0.0125); checkG('g4_ee', 'E_ext', 0.0125);
+            if(answers.g1_pot?.length > 2) total += 0.05; if(answers.g2_pot?.length > 2) total += 0.05; if(answers.g3_pot?.length > 2) total += 0.05; if(answers.g4_pot?.length > 2) total += 0.05;
+
+            total -= (usedTips.length * 0.02);
+            return Math.max(Math.min(total, 4.0), 0).toFixed(2);
+          };
+
+          const handleSubmit = async () => {
+            if(!window.confirm("¿Seguro que deseas procesar la evaluación definitiva?")) return;
+            const finalScore = calculateScore();
+            setScore(finalScore);
+            setFinalTime(timeElapsed);
+            setIsSubmitted(true);
+            setView('results');
+            window.scrollTo(0,0);
+
+            if (user) {
+              try {
+                const attemptRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
+                await addDoc(attemptRef, { score: finalScore, maxScore: 4.0, time: timeElapsed, timestamp: serverTimestamp() });
+              } catch (e) { console.error(e); }
+            }
+          };
+
+          const formatTime = (sec) => sec != null ? `${Math.floor(sec / 60)}m ${(sec % 60).toString().padStart(2, '0')}s` : '0m 00s';
+
+          if (loading) return <div className="flex h-screen items-center justify-center bg-slate-50"><Activity className="animate-pulse text-blue-600" size={48} /></div>;
+
+          return (
+            <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-blue-200 pb-24">
+              {/* HEADER */}
+              <header className="bg-white border-b border-slate-300 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="bg-slate-900 p-2.5 rounded-xl shadow-inner border border-slate-700">
+                    <Activity className="text-blue-400" size={24} />
+                  </div>
+                  <h1 className="font-black text-2xl tracking-tight text-slate-900">
+                    Nexus<span className="text-blue-600">LMS</span>
+                  </h1>
+                </div>
+                <div className="flex items-center gap-4">
+                  {user && (
+                     <div className="hidden md:flex items-center gap-2 text-sm font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                       <User size={16}/> {user.isAnonymous ? 'Agente Anónimo' : user.uid.substring(0,6)}
+                     </div>
+                  )}
+                  {role && (
+                    <div className="flex items-center gap-3 bg-slate-100 px-5 py-2 rounded-full border border-slate-200 shadow-inner">
+                      <span className={`flex items-center gap-2 text-sm font-black uppercase tracking-wider ${role==='student'?'text-emerald-700': 'text-blue-700'}`}>
+                        {role === 'student' ? <GraduationCap size={18}/> : <BookOpen size={18}/>}
+                        {role}
+                      </span>
+                      <div className="w-px h-5 bg-slate-300"></div>
+                      <button onClick={() => { setRole(null); setView('login'); }} className="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">SALIR</button>
+                    </div>
+                  )}
+                </div>
+              </header>
+
+              {/* VIEW: LOGIN */}
+              {view === 'login' && (
+                <div className="flex flex-col items-center justify-center mt-24 px-4 animate-in fade-in duration-700">
+                  <div className="text-center max-w-3xl mb-16">
+                    <h2 className="text-5xl font-black text-slate-900 mb-6 tracking-tight leading-tight">Plataforma de <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600">Evaluación Adaptativa</span></h2>
+                    <p className="text-xl text-slate-500 font-medium">Módulos paramétricos interactivos. Genera variables únicas para evaluar competencias reales en electromagnetismo, eliminando el fraude.</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-4xl">
+                    <button onClick={() => { setRole('student'); setView('exam_intro'); }} className="flex flex-col items-center p-12 bg-white rounded-[2.5rem] border-2 border-slate-200 shadow-lg hover:shadow-2xl hover:border-emerald-500 hover:-translate-y-2 transition-all group">
+                      <div className="p-6 bg-emerald-50 text-emerald-600 rounded-3xl mb-6 group-hover:scale-110 transition-transform shadow-inner"><GraduationCap size={56}/></div>
+                      <h3 className="text-2xl font-black text-slate-800 uppercase tracking-wide mb-3">Modo Agente</h3>
+                      <p className="text-base text-slate-500 text-center leading-relaxed font-medium">Ingresar a la simulación y rendir la prueba con variables dinámicas.</p>
+                    </button>
+                    
+                    <button onClick={() => { setRole('teacher'); setView('dashboard'); }} className="flex flex-col items-center p-12 bg-white rounded-[2.5rem] border-2 border-slate-200 shadow-lg hover:shadow-2xl hover:border-blue-500 hover:-translate-y-2 transition-all group">
+                      <div className="p-6 bg-blue-50 text-blue-600 rounded-3xl mb-6 group-hover:scale-110 transition-transform shadow-inner"><BookOpen size={56}/></div>
+                      <h3 className="text-2xl font-black text-slate-800 uppercase tracking-wide mb-3">Modo Docente</h3>
+                      <p className="text-base text-slate-500 text-center leading-relaxed font-medium">Panel de analíticas avanzadas y ajuste del motor pedagógico.</p>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW: STUDENT EXAM INTRO */}
+              {view === 'exam_intro' && (
+                <div className="max-w-3xl mx-auto mt-24 p-12 bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 text-center animate-in slide-in-from-bottom-8">
+                  <div className="w-28 h-28 bg-blue-50 text-blue-600 border-4 border-blue-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                    <BrainCircuit size={56} />
+                  </div>
+                  <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tight">Misión: Fundamentos de Electrostática</h2>
+                  <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">Estás a punto de iniciar una evaluación estructurada. Las variables topológicas y vectoriales han sido generadas exclusivamente para ti vinculadas a tu sesión autenticada. El sistema medirá tu tiempo y precisión.</p>
+                  <div className="flex flex-wrap items-center justify-center gap-6 mb-12 text-base font-bold text-slate-600">
+                    <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Target size={20} className="text-emerald-500"/> 4.0 Puntos Totales</span>
+                    <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Clock size={20} className="text-blue-500"/> Tiempo Libre</span>
+                    <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Eye size={20} className="text-violet-500"/> 1 Intento</span>
+                  </div>
+                  <button onClick={startExam} className="bg-slate-900 hover:bg-blue-700 text-white px-12 py-5 rounded-2xl font-black text-xl tracking-widest shadow-xl hover:shadow-2xl transition-all flex items-center justify-center gap-4 w-full border-b-8 border-slate-950 active:border-b-0 active:translate-y-2">
+                    <Play size={24} className="fill-current"/> INICIAR SIMULACIÓN
+                  </button>
+                </div>
+              )}
+
+              {/* VIEW: STUDENT EXAM (THE EVALUATION PAPER) */}
+              {view === 'exam' && (
+                <div className="max-w-[1200px] mx-auto mt-10 relative pb-32 px-4">
+                  
+                  {/* Floating Timer */}
+                  <div className="fixed bottom-8 right-8 bg-slate-900 text-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-slate-700 flex items-center gap-4 font-mono font-black z-50 transition-all hover:scale-105">
+                    <Timer size={24} className="text-blue-400" />
+                    <span className="text-2xl tracking-wider">{formatTime(timeElapsed)}</span>
+                  </div>
+
+                  <div className="bg-white shadow-2xl rounded-3xl border border-slate-200 text-base leading-relaxed p-8 md:p-16">
+                    
+                    <div className="text-center mb-14 border-b-4 border-slate-900 pb-10">
+                      <h1 className="text-5xl font-black text-slate-900 tracking-tighter uppercase mb-4">Evaluación de Rango</h1>
+                      <p className="text-slate-500 font-bold text-xl tracking-wide uppercase">Carga, Campo Vectorial y Flujo Gaussiano</p>
+                    </div>
+
+                    {/* Student Info */}
+                    <div className="flex flex-col md:flex-row gap-8 bg-slate-50 p-6 rounded-2xl border-2 border-slate-200 mb-12 font-bold text-slate-700 shadow-inner">
+                      <div className="flex-grow flex items-center gap-4">
+                        <div className="bg-white p-2 rounded-lg border border-slate-200"><User size={20} className="text-blue-500"/></div>
+                        <span className="uppercase tracking-widest text-sm text-slate-500">Agente Auth:</span>
+                        <span className="flex-grow text-lg text-blue-700">{user?.uid || 'Desconocido'}</span>
+                      </div>
+                      <div className="w-full md:w-80 flex items-center gap-4 border-l-0 md:border-l-2 border-slate-200 md:pl-6">
+                        <span className="uppercase tracking-widest text-sm text-slate-500">Status:</span>
+                        <span className="flex items-center gap-2 text-emerald-600"><CheckCircle2 size={18}/> Verificado</span>
+                      </div>
+                    </div>
+
+                    {/* LEVEL 1 */}
+                    <MisionBox title="I. Naturaleza y Geometría de la Carga" points="0.30">
+                      <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-2xl mb-10">
+                        <p className="font-black text-blue-900 text-xl mb-2 flex items-center gap-2"><Activity size={24}/> 1.1 Mecanismos de Electrización <span className="text-sm text-red-600 ml-auto bg-red-100 px-3 py-1 rounded-lg">[0.15 pts]</span></p>
+                        <p className="text-blue-800 font-medium text-base">Identifique el mecanismo mediante las opciones y describa la física del flujo electrónico.</p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 mb-14">
+                        <div className="border-2 border-slate-200 rounded-3xl p-8 bg-white shadow-sm hover:border-blue-400 transition-colors group flex flex-col">
+                          <div className="h-32 mb-8 flex justify-center group-hover:scale-105 transition-transform"><SvgFriction /></div>
+                          <div className="space-y-6 flex-grow flex flex-col">
+                            <div>
+                              <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.02]</span></label>
+                              <InlineSelect id="t1" value={answers.t1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Frotamiento" width="w-full" options={[
+                                {val:'Frotamiento', label:'Frotamiento'}, {val:'Contacto', label:'Contacto'}, {val:'Inducción', label:'Inducción'}
+                              ]} />
+                            </div>
+                            <div className="flex-grow flex flex-col">
+                              <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.03]</span></label>
+                              <ERadioGroup id="o1" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="transfer" options={[
+                                {val:'align', label:'Alineación de dipolos sin transferencia.'},
+                                {val:'protons', label:'Intercambio de protones superficiales.'},
+                                {val:'transfer', label:'Transferencia de <Latex text={"$e^-$"}/> por fricción mecánica.'}
+                              ]} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="border-2 border-slate-200 rounded-3xl p-8 bg-white shadow-sm hover:border-blue-400 transition-colors group flex flex-col">
+                          <div className="h-32 mb-8 flex justify-center group-hover:scale-105 transition-transform"><SvgContact /></div>
+                          <div className="space-y-6 flex-grow flex flex-col">
+                            <div>
+                              <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.02]</span></label>
+                              <InlineSelect id="t2" value={answers.t2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Contacto" width="w-full" options={[
+                                {val:'Frotamiento', label:'Frotamiento'}, {val:'Contacto', label:'Contacto'}, {val:'Inducción', label:'Inducción'}
+                              ]} />
+                            </div>
+                            <div className="flex-grow flex flex-col">
+                              <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.03]</span></label>
+                              <ERadioGroup id="o2" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="equil" options={[
+                                 {val:'create', label:'Creación espontánea de cargas.'},
+                                 {val:'equil', label:'Flujo de <Latex text={"$e^-$"}/> libres hasta el equilibrio.'},
+                                 {val:'polar', label:'Polarización sin salto de electrones.'}
+                              ]} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="border-2 border-slate-200 rounded-3xl p-8 bg-white shadow-sm hover:border-blue-400 transition-colors group flex flex-col">
+                          <div className="h-32 mb-8 flex justify-center group-hover:scale-105 transition-transform"><SvgInduction /></div>
+                          <div className="space-y-6 flex-grow flex flex-col">
+                            <div>
+                              <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.02]</span></label>
+                              <InlineSelect id="t3" value={answers.t3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Inducción" width="w-full" options={[
+                                {val:'Frotamiento', label:'Frotamiento'}, {val:'Contacto', label:'Contacto'}, {val:'Inducción', label:'Inducción'}
+                              ]} />
+                            </div>
+                            <div className="flex-grow flex flex-col">
+                              <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.03]</span></label>
+                              <ERadioGroup id="o3" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="ground" options={[
+                                 {val:'friction', label:'Fricción inducida magnéticamente.'},
+                                 {val:'ground', label:'Polarización y drenaje a tierra.'},
+                                 {val:'spark', label:'Arco eléctrico por alta tensión.' }
+                              ]} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* DND DENSITIES */}
+                      <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-2xl mb-8">
+                        <p className="font-black text-blue-900 text-xl mb-2 flex items-center gap-2"><LayoutDashboard size={24}/> 1.2 Matriz de Densidades (Interactivo) <span className="text-sm text-red-600 ml-auto bg-red-100 px-3 py-1 rounded-lg">[0.15 pts]</span></p>
+                        <p className="text-blue-800 font-medium text-base">Toque un elemento del banco y luego toque una celda vacía de la tabla para organizar las variables. <strong className="text-blue-900">¡Selecciona y coloca!</strong></p>
+                      </div>
+
+                      {!isSubmitted && (
+                        <div className="bg-slate-100 p-6 rounded-2xl border-2 border-slate-300 mb-8 shadow-inner">
+                          <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2"><Hand size={16}/> Banco de Respuestas (Toca para seleccionar)</p>
+                          <div className="flex flex-wrap gap-4">
+                            {['\\lambda', '\\sigma', '\\rho', '\\lambda dl', '\\sigma dA', '\\rho dV', 'C/m', 'C/m^2', 'C/m^3'].map(item => (
+                              <DraggableItem key={item} val={item} isSubmitted={isSubmitted} activeDraggable={activeDraggable} setActiveDraggable={setActiveDraggable} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="overflow-x-auto rounded-3xl border-2 border-slate-200 shadow-sm">
+                        <table className="w-full text-left border-collapse text-lg">
+                          <thead className="bg-slate-800 text-white">
+                            <tr>
+                              <th className="p-6 font-bold tracking-wider uppercase text-sm">Geometría</th>
+                              <th className="p-6 text-center font-bold tracking-wider uppercase text-sm">Símbolo <span className="text-amber-400">[0.01]</span></th>
+                              <th className="p-6 font-bold tracking-wider uppercase text-sm">Fórmula <Latex text={"$dq=$"} /> <span className="text-amber-400">[0.02]</span></th>
+                              <th className="p-6 font-bold tracking-wider uppercase text-sm">Unidades <span className="text-amber-400">[0.02]</span></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y-2 divide-slate-100 bg-white">
+                            <tr className="hover:bg-slate-50 transition-colors">
+                              <td className="p-6 font-black text-slate-700">Línea / Hilo (1D)</td>
+                              <td className="p-6"><SelectZone id="sym1" expected="\lambda" answers={answers} isSubmitted={isSubmitted} activeDraggable={activeDraggable} handleDropClick={handleDropClick} /></td>
+                              <td className="p-6"><SelectZone id="f1" expected="\lambda dl" answers={answers} isSubmitted={isSubmitted} activeDraggable={activeDraggable} handleDropClick={handleDropClick} /></td>
+                              <td className="p-6"><SelectZone id="u1" expected="C/m" answers={answers} isSubmitted={isSubmitted} activeDraggable={activeDraggable} handleDropClick={handleDropClick} /></td>
+                            </tr>
+                            <tr className="bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                              <td className="p-6 font-black text-slate-700">Superficie / Placa (2D)</td>
+                              <td className="p-6"><SelectZone id="sym2" expected="\sigma" answers={answers} isSubmitted={isSubmitted} activeDraggable={activeDraggable} handleDropClick={handleDropClick} /></td>
+                              <td className="p-6"><SelectZone id="f2" expected="\sigma dA" answers={answers} isSubmitted={isSubmitted} activeDraggable={activeDraggable} handleDropClick={handleDropClick} /></td>
+                              <td className="p-6"><SelectZone id="u2" expected="C/m^2" answers={answers} isSubmitted={isSubmitted} activeDraggable={activeDraggable} handleDropClick={handleDropClick} /></td>
+                            </tr>
+                            <tr className="hover:bg-slate-50 transition-colors">
+                              <td className="p-6 font-black text-slate-700">Volumen / Esfera (3D)</td>
+                              <td className="p-6"><SelectZone id="sym3" expected="\rho" answers={answers} isSubmitted={isSubmitted} activeDraggable={activeDraggable} handleDropClick={handleDropClick} /></td>
+                              <td className="p-6"><SelectZone id="f3" expected="\rho dV" answers={answers} isSubmitted={isSubmitted} activeDraggable={activeDraggable} handleDropClick={handleDropClick} /></td>
+                              <td className="p-6"><SelectZone id="u3" expected="C/m^3" answers={answers} isSubmitted={isSubmitted} activeDraggable={activeDraggable} handleDropClick={handleDropClick} /></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </MisionBox>
+
+                    {/* LEVEL 2 */}
+                    <MisionBox title="II. Interacción a Distancia" points="0.30">
+                      <div className="bg-violet-50 border-l-4 border-violet-500 p-6 rounded-r-2xl mb-8 flex items-center justify-between">
+                        <div>
+                          <p className="font-black text-violet-900 text-xl mb-1 flex items-center gap-2"><BrainCircuit size={24}/> 2.1 El Duelo Conceptual</p>
+                          <p className="text-violet-800 font-medium text-base">Despliegue las listas y seleccione la opción rigurosamente correcta.</p>
+                        </div>
+                        <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.10 pts]</span>
+                      </div>
+
+                      <div className="mb-10 leading-loose bg-white p-10 rounded-[2rem] border-2 border-slate-200 shadow-sm text-xl text-slate-700 text-center">
+                        La <strong className="text-slate-900 font-black">Fuerza Eléctrica</strong> es una interacción que requiere estrictamente de <InlineSelect id="b1" value={answers.b1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dos" options={[{val:'una', label:'una'}, {val:'dos', label:'dos'}, {val:'infinitas', label:'infinitas'}]}/> cargas para existir. Por otro lado, el <strong className="text-slate-900 font-black">Campo Eléctrico</strong> es una perturbación del espacio generada por <InlineSelect id="b2" value={answers.b2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="una" options={[{val:'una', label:'una'}, {val:'dos', label:'dos'}, {val:'cero', label:'ninguna'}]}/> carga fuente. Si colocamos una carga de prueba (<Latex text={"$q_0$"}/>) en un punto donde existe un campo vectorial <Latex text={'$\\vec{E}$'}/>, experimentará una fuerza según la ecuación matemática <Latex text={'$\\vec{F} = $'}/> <InlineSelect id="b3" value={answers.b3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="q_0 \vec{E}" width="w-48" options={[{val:'\\vec{E}/q_0', label:'\\frac{\\vec{E}}{q_0}'}, {val:'q_0 \\vec{E}', label:'q_0 \\vec{E}'}, {val:'k q_0 / r^2', label:'\\frac{k q_0}{r^2}'}]}/>.
+                      </div>
+
+                      <div className="bg-violet-50 border-l-4 border-violet-500 p-6 rounded-r-2xl mb-10 flex items-center justify-between">
+                        <div>
+                          <p className="font-black text-violet-900 text-xl mb-1 flex items-center gap-2"><MousePointer2 size={24}/> 2.2 Cartografía Vectorial Interactiva</p>
+                          <p className="text-violet-800 font-medium text-base">Seleccione una dirección en la barra y haga <strong>clic en la cuadrícula</strong> para trazar el campo. Evalúe la simetría.</p>
+                        </div>
+                        <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.20 pts]</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                        <div className="bg-white p-4 rounded-[2rem] border-2 border-slate-200 shadow-md">
+                          <div className="font-black text-lg bg-slate-900 text-white p-5 rounded-t-[1.5rem] flex justify-between items-center tracking-wide mb-4">
+                            <span>A: Carga Aislada (<Latex text={"$-Q$"}/>)</span>
+                            <span className="text-amber-400 bg-white/10 px-3 py-1 rounded-lg border border-amber-400/20">[0.05 pts]</span>
+                          </div>
+                          <InteractiveVectorField systemType="A" id="canvasA" onChange={handleInputChange} isSubmitted={isSubmitted} />
+                        </div>
+                        <div className="bg-white p-4 rounded-[2rem] border-2 border-slate-200 shadow-md">
+                          <div className="font-black text-lg bg-slate-900 text-white p-5 rounded-t-[1.5rem] flex justify-between items-center tracking-wide mb-4">
+                            <span>B: Dipolo Asimétrico (<Latex text={"$+2Q, -Q$"}/>)</span>
+                            <span className="text-amber-400 bg-white/10 px-3 py-1 rounded-lg border border-amber-400/20">[0.15 pts]</span>
+                          </div>
+                          <InteractiveVectorField systemType="B" id="canvasB" onChange={handleInputChange} isSubmitted={isSubmitted} />
+                        </div>
+                      </div>
+                    </MisionBox>
+
+                    {/* LEVEL 3 */}
+                    <MisionBox title="III. La Bóveda de Gauss (Simulación 3D)" points="0.40">
+                      <div className="bg-emerald-50 border-l-4 border-emerald-500 p-6 rounded-r-2xl mb-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                        <div>
+                          <p className="font-black text-emerald-900 text-xl mb-2 flex items-center gap-2"><Target size={24}/> 3.1 Análisis de Fronteras Vivas</p>
+                          <p className="text-emerald-800 font-medium text-base leading-relaxed">
+                            El simulador 3D contiene 4 cargas <strong className="text-emerald-950 bg-emerald-200 px-2 py-1 rounded-md shadow-sm border border-emerald-300">generadas aleatoriamente</strong>. Determine el Flujo Eléctrico Neto matemático a través de las superficies.
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-14">
+                        <div className="lg:col-span-5 flex flex-col">
+                          <ThreeCanvas q1={examVars.q1} q2={examVars.q2} q3={examVars.q3} q4={examVars.q4} />
+                          <div className="mt-8 flex flex-wrap gap-4 text-lg font-black text-slate-800 justify-center bg-slate-100 p-6 rounded-3xl border-2 border-slate-200 shadow-inner">
+                            <span className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200"><div className={`w-5 h-5 rounded-full shadow-inner ${examVars.q1>0?'bg-red-500':'bg-blue-500'}`}></div> q1: {examVars.q1}q</span>
+                            <span className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200"><div className={`w-5 h-5 rounded-full shadow-inner ${examVars.q2>0?'bg-red-500':'bg-blue-500'}`}></div> q2: {examVars.q2}q</span>
+                            <span className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200"><div className={`w-5 h-5 rounded-full shadow-inner ${examVars.q3>0?'bg-red-500':'bg-blue-500'}`}></div> q3: {examVars.q3}q</span>
+                            <span className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200"><div className={`w-5 h-5 rounded-full shadow-inner ${examVars.q4>0?'bg-red-500':'bg-blue-500'}`}></div> q4: {examVars.q4}q</span>
+                          </div>
+                          <TipButton id="tip_3" usedTips={usedTips} setUsedTips={setUsedTips} text={"El flujo eléctrico neto $\\Phi_E$ que atraviesa una superficie cerrada depende únicamente de la suma algebraica de las cargas que están en su interior. Ignora cualquier carga exterior."} />
+                        </div>
+
+                        <div className="lg:col-span-7 flex flex-col justify-center space-y-12">
+                          <div className="bg-white border-2 border-slate-200 rounded-3xl shadow-md overflow-hidden">
+                            <div className="bg-slate-100 p-8 border-b-2 border-slate-200 flex justify-between items-center rounded-t-[calc(1.5rem-2px)]">
+                              <div>
+                                <h4 className="font-black text-slate-900 text-2xl mb-2">Evaluación Matemática de Flujo (<Latex text={'$\\Phi_E$'} />)</h4>
+                                <p className="text-base text-slate-600 font-medium">Seleccione la suma correcta según la imagen 3D.</p>
+                              </div>
+                              <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.30 pts]</span>
+                            </div>
+                            <div className="p-10 space-y-8">
+                              <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 border-slate-100 pb-6 gap-4">
+                                <span className="font-bold text-slate-800 text-xl flex items-center gap-4"><div className="w-6 h-6 bg-blue-500/20 border-4 border-blue-500 rounded-full"></div> Flujo en <Latex text={"$S_1$"}/>:</span>
+                                <span className="text-2xl font-bold flex items-center">
+                                  <Latex text={'$\\Phi_{E1} = $'} className="mr-3"/> 
+                                  <InlineSelect id="p1" value={answers.p1} onChange={handleInputChange} isSubmitted={isSubmitted} expected={`${examVars.q1 + examVars.q2}q`} width="w-48" options={gaussOptionsS1}/> 
+                                </span>
+                              </div>
+                              <div className="flex flex-col md:flex-row md:items-center justify-between pb-2 gap-4">
+                                <span className="font-bold text-slate-800 text-xl flex items-center gap-4"><div className="w-6 h-6 bg-violet-500/20 border-4 border-violet-500 rounded-full"></div> Flujo en <Latex text={"$S_3$"}/>:</span>
+                                <span className="text-2xl font-bold flex items-center">
+                                  <Latex text={'$\\Phi_{E3} = $'} className="mr-3"/> 
+                                  <InlineSelect id="p3" value={answers.p3} onChange={handleInputChange} isSubmitted={isSubmitted} expected={`${examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4}q`} width="w-48" options={gaussOptionsS3}/> 
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-900 border-2 border-slate-800 p-10 rounded-3xl text-white shadow-2xl relative overflow-hidden group">
+                            <div className="absolute -right-10 -bottom-10 opacity-5 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-700"><Lightbulb size={250}/></div>
+                            <div className="relative z-10">
+                              <p className="font-black text-2xl mb-6 flex justify-between items-center text-blue-400">
+                                <span>Análisis Teórico Profundo</span>
+                                <span className="text-red-400 bg-red-400/10 border border-red-400/30 px-4 py-1.5 rounded-xl text-base tracking-widest uppercase shadow-inner">[0.10 pts]</span>
+                              </p>
+                              <p className="text-lg text-slate-300 mb-6 leading-relaxed font-medium">¿El campo <Latex text={'$\\vec{E}$'} className="text-white font-bold"/> evaluado en un punto específico sobre la superficie fronteriza <Latex text={'$S_1$'} className="text-white font-bold"/> depende SOLO de las cargas internas?</p>
+                              <ERadioGroup id="pt" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="no" options={[
+                                {val: 'yes1', label: 'Sí. La ley de Gauss establece inequívocamente que solo la carga encerrada genera el campo en la frontera.'},
+                                {val: 'yes2', label: 'Sí. Las cargas externas al sistema son completamente apantalladas por la superficie gaussiana imaginaria.'},
+                                {val: 'no', label: 'No. El flujo neto depende solo de las internas, pero el vector campo E sufre superposición de TODAS las cargas.'}
+                              ]} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </MisionBox>
+
+                    {/* --- NEW LEVEL 4: COULOMB --- */}
+                    <MisionBox title="IV. Ley de Coulomb (Distribuciones Continuas)" points="1.50">
+                      <div className="bg-amber-50 border-l-4 border-amber-500 p-8 rounded-r-2xl mb-10 shadow-sm">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                          <p className="font-black text-amber-900 text-xl flex items-center gap-2"><LayoutDashboard size={24}/> Matriz Analítica Universal</p>
+                          <div className="flex gap-4">
+                            <span className="text-sm font-black bg-white px-3 py-1.5 rounded-xl text-amber-700 border border-amber-200"><Latex text={"Carga: $Q=5\\text{nC}$"} /></span>
+                            <span className="text-sm font-black bg-white px-3 py-1.5 rounded-xl text-amber-700 border border-amber-200"><Latex text={"Dist: $15\\text{cm}$"} /></span>
+                          </div>
+                        </div>
+                        <p className="text-amber-800 font-medium text-base">
+                          Complete la matriz estructurada para evaluar el campo eléctrico en un punto <Latex text={"$P$"} /> generado por tres distribuciones continuas diferentes. Use los selectores para definir los parámetros físicos y geométricos.
+                        </p>
+                      </div>
+
+                      <div className="overflow-x-auto pb-4">
+                        <table className="w-full min-w-[1000px] border-separate border-spacing-x-4 border-spacing-y-0 text-left">
+                          <thead>
+                            <tr>
+                              <th className="w-[19%]"></th>
+                              <th className="w-[27%] bg-slate-800 text-white p-5 rounded-t-2xl font-black text-center text-lg shadow-sm border-b-4 border-amber-500">1. Anillo</th>
+                              <th className="w-[27%] bg-slate-800 text-white p-5 rounded-t-2xl font-black text-center text-lg shadow-sm border-b-4 border-amber-500">2. Disco</th>
+                              <th className="w-[27%] bg-slate-800 text-white p-5 rounded-t-2xl font-black text-center text-lg shadow-sm border-b-4 border-amber-500">3. Varilla</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {/* Row 1: Skecthes */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso I [0.05 c/u]</span>
+                                Esbozo Físico
+                              </td>
+                              <td className="p-6 bg-white border-2 border-slate-200 rounded-2xl shadow-sm"><div className="h-32 flex justify-center"><SvgRing /></div></td>
+                              <td className="p-6 bg-white border-2 border-slate-200 rounded-2xl shadow-sm"><div className="h-32 flex justify-center"><SvgDisk /></div></td>
+                              <td className="p-6 bg-white border-2 border-slate-200 rounded-2xl shadow-sm"><div className="h-32 flex justify-center"><SvgRod /></div></td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 2: Density & dq */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso II [0.10 c/u]</span>
+                                Densidad y <Latex text={"$dq$"} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-4">
+                                <InlineSelect id="c1_den" value={answers.c1_den} onChange={handleInputChange} isSubmitted={isSubmitted} expected="\lambda" width="w-full" options={coulombDensityOpts} />
+                                <InlineSelect id="c1_dq" value={answers.c1_dq} onChange={handleInputChange} isSubmitted={isSubmitted} expected="\lambda R d\theta" width="w-full" options={coulombDqOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-4">
+                                <InlineSelect id="c2_den" value={answers.c2_den} onChange={handleInputChange} isSubmitted={isSubmitted} expected="\sigma" width="w-full" options={coulombDensityOpts} />
+                                <InlineSelect id="c2_dq" value={answers.c2_dq} onChange={handleInputChange} isSubmitted={isSubmitted} expected="\sigma 2\pi r' dr'" width="w-full" options={coulombDqOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-4">
+                                <InlineSelect id="c3_den" value={answers.c3_den} onChange={handleInputChange} isSubmitted={isSubmitted} expected="\lambda" width="w-full" options={coulombDensityOpts} />
+                                <InlineSelect id="c3_dq" value={answers.c3_dq} onChange={handleInputChange} isSubmitted={isSubmitted} expected="\lambda dy" width="w-full" options={coulombDqOpts} />
+                              </td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 3: Geometry */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso III [0.10 c/u]</span>
+                                Geometría (<Latex text={"$r^2$"} />)
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="c1_r2" value={answers.c1_r2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="R^2 + z^2" width="w-full" options={coulombR2Opts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="c2_r2" value={answers.c2_r2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="(r')^2 + z^2" width="w-full" options={coulombR2Opts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="c3_r2" value={answers.c3_r2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="x^2 + y^2" width="w-full" options={coulombR2Opts} />
+                              </td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 4: Symmetry */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso IV [0.10 c/u]</span>
+                                Comp. Nulas
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="c1_sym" value={answers.c1_sym} onChange={handleInputChange} isSubmitted={isSubmitted} expected="x,y" width="w-full" options={coulombSymOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="c2_sym" value={answers.c2_sym} onChange={handleInputChange} isSubmitted={isSubmitted} expected="x,y" width="w-full" options={coulombSymOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="c3_sym" value={answers.c3_sym} onChange={handleInputChange} isSubmitted={isSubmitted} expected="ninguna" width="w-full" options={coulombSymOpts} />
+                              </td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 5: Integral Setup */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso V [0.10 c/u]</span>
+                                Límites de <Latex text={"$\\int$"} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="c1_int" value={answers.c1_int} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0..2pi" width="w-full" options={coulombIntOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="c2_int" value={answers.c2_int} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0..R" width="w-full" options={coulombIntOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="c3_int" value={answers.c3_int} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0..a" width="w-full" options={coulombIntOpts} />
+                              </td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 6: Numeric */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso VI [0.10 c/u]</span>
+                                Eval Numérica
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <StyledInput id="c1_num" placeholder="Ej. 1152" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} width="w-full text-center font-bold text-xl" />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <StyledInput id="c2_num" placeholder="Ej. 1511" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} width="w-full text-center font-bold text-xl" />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <StyledInput id="c3_num" placeholder="Ej. 1664 (Expr)" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} width="w-full text-center font-bold text-base" />
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </MisionBox>
+
+                    {/* --- NEW LEVEL 5: GAUSS MATRIX --- */}
+                    <MisionBox title="V. Ley de Gauss, Potencial y Materiales (Matriz Universal)" points="1.50">
+                      
+                      <div className="bg-sky-50 border-l-4 border-sky-500 p-8 rounded-r-2xl mb-10 shadow-sm flex flex-col md:flex-row justify-between gap-6">
+                        <div>
+                          <p className="font-black text-sky-900 text-xl flex items-center gap-2 mb-2"><Activity size={24}/> Matriz de Topologías Gaussianas</p>
+                          <p className="text-sky-800 font-medium text-base">
+                            Evalúe el comportamiento del campo <Latex text={"$\\vec{E}$"} /> y potencial <Latex text={"$V$"} /> para 4 distribuciones bajo las mismas dimensiones (<Latex text={"$b=20\\text{cm}, a=10\\text{cm}$"} />).
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-2 min-w-[200px]">
+                          <span className="text-sm font-black bg-white px-3 py-1.5 rounded-xl text-sky-700 border border-sky-200 text-center"><Latex text={"$\\rho = 1.84 \\text{ nC/m}^3$"} /></span>
+                          <span className="text-sm font-black bg-white px-3 py-1.5 rounded-xl text-sky-700 border border-sky-200 text-center"><Latex text={"$Q$ total Constante"} /></span>
+                        </div>
+                      </div>
+
+                      <div className="overflow-x-auto pb-4">
+                        <table className="w-full min-w-[1200px] border-separate border-spacing-x-4 border-spacing-y-0 text-left">
+                          <thead>
+                            <tr>
+                              <th className="w-[16%]"></th>
+                              <th className="w-[21%] bg-slate-800 text-white p-5 rounded-t-2xl font-black text-center text-lg shadow-sm border-b-4 border-sky-500">1. Maciza Aisl.</th>
+                              <th className="w-[21%] bg-slate-800 text-white p-5 rounded-t-2xl font-black text-center text-lg shadow-sm border-b-4 border-sky-500">2. Maciza Cond.</th>
+                              <th className="w-[21%] bg-slate-800 text-white p-5 rounded-t-2xl font-black text-center text-lg shadow-sm border-b-4 border-sky-500">3. Cáscara Aisl.</th>
+                              <th className="w-[21%] bg-slate-800 text-white p-5 rounded-t-2xl font-black text-center text-lg shadow-sm border-b-4 border-sky-500">4. Cáscara Cond.</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {/* Row 1: Distribution */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso I [0.10 pts]</span>
+                                Distribución de Carga Físicamente
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="g1_dist" value={answers.g1_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="vol" width="w-full" options={gaussDistOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="g2_dist" value={answers.g2_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="sup_ext" width="w-full" options={gaussDistOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="g3_dist" value={answers.g3_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="vol_casc" width="w-full" options={gaussDistOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="g4_dist" value={answers.g4_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="sup_ext" width="w-full" options={gaussDistOpts} />
+                              </td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 2: Area */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso II [0.10 pts]</span>
+                                Área <Latex text={"$\\oint \\vec{E}\\cdot d\\vec{A}$"} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="g1_area" value={answers.g1_area} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E(4pir^2)" width="w-full" options={gaussAreaOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="g2_area" value={answers.g2_area} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E(4pir^2)" width="w-full" options={gaussAreaOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="g3_area" value={answers.g3_area} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E(4pir^2)" width="w-full" options={gaussAreaOpts} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <InlineSelect id="g4_area" value={answers.g4_area} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E(4pir^2)" width="w-full" options={gaussAreaOpts} />
+                              </td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 3: Interior */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso III [0.20 pts]</span>
+                                Interior (r=5cm)
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g1_qi" value={answers.g1_qi} onChange={handleInputChange} isSubmitted={isSubmitted} expected="rho_v_esf" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g1_ei" value={answers.g1_ei} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_ins" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g2_qi" value={answers.g2_qi} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g2_ei" value={answers.g2_ei} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g3_qi" value={answers.g3_qi} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g3_ei" value={answers.g3_ei} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g4_qi" value={answers.g4_qi} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g4_ei" value={answers.g4_ei} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 4: Intermedia */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso IV [0.20 pts]</span>
+                                Intermedia (r=15cm)
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g1_qm" value={answers.g1_qm} onChange={handleInputChange} isSubmitted={isSubmitted} expected="rho_v_esf" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g1_em" value={answers.g1_em} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_ins" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g2_qm" value={answers.g2_qm} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g2_em" value={answers.g2_em} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g3_qm" value={answers.g3_qm} onChange={handleInputChange} isSubmitted={isSubmitted} expected="rho_v_casc" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g3_em" value={answers.g3_em} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_casc" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g4_qm" value={answers.g4_qm} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g4_em" value={answers.g4_em} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 5: Exterior */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso V [0.20 pts]</span>
+                                Exterior (r=60cm)
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g1_qe" value={answers.g1_qe} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Q" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g1_ee" value={answers.g1_ee} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_ext" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g2_qe" value={answers.g2_qe} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Q" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g2_ee" value={answers.g2_ee} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_ext" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g3_qe" value={answers.g3_qe} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Q" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g3_ee" value={answers.g3_ee} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_ext" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm space-y-3">
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">Q_enc</span><InlineSelect id="g4_qe" value={answers.g4_qe} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Q" width="w-full" options={gaussQencOpts} /></div>
+                                <div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-400 uppercase">E(r)</span><InlineSelect id="g4_ee" value={answers.g4_ee} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_ext" width="w-full" options={gaussEOpts} /></div>
+                              </td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 6: Potencial V(0) */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso VI [0.20 pts]</span>
+                                Potencial <Latex text={"$V(0)$"} />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <StyledInput id="g1_pot" placeholder="Límites integral" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} width="w-full text-center text-sm" />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <StyledInput id="g2_pot" placeholder="Límites integral" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} width="w-full text-center text-sm" />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <StyledInput id="g3_pot" placeholder="Límites integral" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} width="w-full text-center text-sm" />
+                              </td>
+                              <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <StyledInput id="g4_pot" placeholder="Límites integral" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} width="w-full text-center text-sm" />
+                              </td>
+                            </tr>
+                            <tr className="h-4"></tr>
+
+                            {/* Row 7: Graficas */}
+                            <tr>
+                              <td className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 shadow-inner">
+                                <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso VII [0.50 pts]</span>
+                                Gráfica <Latex text={"$E$"} /> vs <Latex text={"$r$"} />
+                              </td>
+                              <td className="p-2 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <GraphSelector id="g1_graph" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="linear_decay" />
+                              </td>
+                              <td className="p-2 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <GraphSelector id="g2_graph" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="zero_decay" />
+                              </td>
+                              <td className="p-2 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <GraphSelector id="g3_graph" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="zero_curve_decay" />
+                              </td>
+                              <td className="p-2 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                <GraphSelector id="g4_graph" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="zero_zero_decay" />
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </MisionBox>
+
+            <div className="text-center mt-24 pt-16 border-t-4 border-slate-200">
+              {!isSubmitted ? (
+                <button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white px-16 py-6 rounded-3xl font-black text-2xl tracking-widest shadow-[0_10px_30px_rgba(37,99,235,0.4)] hover:shadow-[0_20px_40px_rgba(37,99,235,0.5)] transition-all hover:-translate-y-2 inline-flex items-center gap-4 border-b-8 border-blue-900 active:border-b-0 active:translate-y-2">
+                  <Save size={32}/> PROCESAR EVALUACIÓN AL SERVIDOR
+                </button>
+              ) : (
+                <div className="bg-emerald-50 text-emerald-800 border-2 border-emerald-200 p-8 rounded-3xl inline-flex items-center justify-center gap-6 shadow-sm w-full md:w-auto">
+                  <CheckCircle2 size={48} className="text-emerald-500" />
+                  <div className="text-left">
+                    <p className="font-black text-3xl uppercase">Evaluación Procesada</p>
+                    <p className="text-emerald-600 font-bold text-lg">Desplácese hacia arriba para ver el reporte de misión.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: RESULTS */}
+      {view === 'results' && (
+        <div className="max-w-4xl mx-auto mt-16 p-6 animate-in zoom-in-95 duration-500">
+          <div className="bg-slate-900 rounded-[3rem] shadow-2xl overflow-hidden text-white relative border border-slate-800">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-[300px] bg-blue-600/20 blur-[120px] pointer-events-none rounded-full"></div>
+            
+            <div className="p-12 text-center relative z-10">
+              <Award size={80} className={`mx-auto mb-8 drop-shadow-lg ${score >= 3.2 ? 'text-amber-400' : 'text-red-400'}`} />
+              <h2 className="text-5xl font-black mb-4 uppercase tracking-tighter">Reporte de Misión</h2>
+              <p className="text-slate-400 font-medium text-xl">Calificación procesada por el motor adaptativo neuronal.</p>
+
+              <div className="my-16 flex justify-center">
+                <div className="relative w-56 h-56 flex items-center justify-center bg-slate-800 rounded-full shadow-[0_0_80px_rgba(59,130,246,0.3)] border-8 border-slate-700">
+                  <div className="text-center">
+                    <span className="text-7xl font-black bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-400 drop-shadow-sm">{score}</span>
+                    <span className="block text-base text-blue-400 mt-2 font-black tracking-widest">/ 4.0 PTS</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pedagogical Feedback */}
+              <div className={`max-w-3xl mx-auto p-8 rounded-3xl border-2 ${score >= 3.2 ? 'bg-emerald-900/40 border-emerald-500/50 text-emerald-100' : score >= 2.0 ? 'bg-blue-900/40 border-blue-500/50 text-blue-100' : 'bg-red-900/40 border-red-500/50 text-red-100'}`}>
+                <h3 className="font-black text-2xl mb-4 flex items-center justify-center gap-3">
+                  <BrainCircuit size={28}/> Mensaje de Calificación Pedagógica
+                </h3>
+                <p className="leading-relaxed text-lg font-medium">
+                  {score >= 3.2 ? "¡Nivel Dios alcanzado! Tu dominio sobre los flujos vectoriales y la ley de Gauss es absoluto. Estás listo para topologías complejas y distribuciones asimétricas." : 
+                   score >= 2.0 ? "Buen trabajo operativo. Sin embargo, hay vacíos conceptuales en las fronteras de Gauss. Analiza la diferencia entre Flujo Neto y el Principio de Superposición en el Campo Local." : 
+                   "Anomalía detectada. El sistema adaptativo sugiere repasar urgentemente los mecanismos de polarización y el concepto de carga encerrada. ¡Vuelve a intentarlo, la física requiere iteración!"}
+                </p>
+                {usedTips.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-current/20 text-sm font-bold opacity-80">
+                    Penalización por {usedTips.length} pista(s) táctica(s) solicitada(s) aplicada.
+                  </div>
+                )}
+              </div>
+
+              {/* Metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-14">
+                <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm shadow-lg hover:-translate-y-1 transition-transform">
+                  <Clock className="text-blue-400 mx-auto mb-3" size={32}/>
+                  <p className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-1">Tiempo Total</p>
+                  <p className="text-2xl font-mono font-bold text-white">{formatTime(finalTime)}</p>
+                </div>
+                <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm shadow-lg hover:-translate-y-1 transition-transform">
+                  <Timer className="text-violet-400 mx-auto mb-3" size={32}/>
+                  <p className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-1">Tiempo / Misión</p>
+                  <p className="text-2xl font-mono font-bold text-white">{Math.floor(finalTime / 5)}s</p>
+                </div>
+                <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm shadow-lg hover:-translate-y-1 transition-transform">
+                  <Target className="text-emerald-400 mx-auto mb-3" size={32}/>
+                  <p className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-1">Precisión</p>
+                  <p className="text-2xl font-mono font-bold text-white">{Math.round((score/4.0) * 100)}%</p>
+                </div>
+                <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm shadow-lg hover:-translate-y-1 transition-transform">
+                  <RefreshCw className="text-amber-400 mx-auto mb-3" size={32}/>
+                  <p className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-1">Estado en Nube</p>
+                  <p className="text-lg font-black mt-1 text-amber-400 uppercase">Guardado</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-6 justify-center mt-14">
+                 <button onClick={() => { setView('exam'); window.scrollTo(0,0); }} className="bg-slate-800 hover:bg-slate-700 text-white font-black tracking-widest uppercase px-8 py-4 rounded-xl transition-all border border-slate-600 shadow-md hover:shadow-lg">
+                  REVISAR CORRECCIONES EN LA HOJA
+                </button>
+                <button onClick={() => { setView('login'); setRole(null); }} className="bg-white hover:bg-slate-100 text-slate-900 font-black tracking-widest uppercase px-8 py-4 rounded-xl transition-all shadow-md hover:shadow-lg">
+                  FINALIZAR Y SALIR
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: TEACHER DASHBOARD */}
+      {view === 'dashboard' && role === 'teacher' && (
+        <div className="max-w-[1200px] mx-auto mt-12 px-6 animate-in fade-in duration-500 pb-20">
+          <div className="mb-10">
+            <h2 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Centro de Mando Docente</h2>
+            <p className="text-slate-500 font-bold text-lg">Analíticas avanzadas para el ajuste pedagógico adaptativo.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:shadow-lg transition-shadow">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl"><Eye size={28}/></div>
+                <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg">+12% hoy</span>
+              </div>
+              <h3 className="text-4xl font-black text-slate-800">{metrics.views}</h3>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">Visitas al Módulo</p>
+            </div>
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:shadow-lg transition-shadow">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-4 bg-violet-50 text-violet-600 rounded-2xl"><BarChart2 size={28}/></div>
+              </div>
+              <h3 className="text-4xl font-black text-slate-800">{metrics.avgScore} / 4.0</h3>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">Nota Promedio</p>
+            </div>
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:shadow-lg transition-shadow">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl"><Clock size={28}/></div>
+              </div>
+              <h3 className="text-4xl font-black text-slate-800">{formatTime(metrics.avgTime)}</h3>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">T. Medio Examen</p>
+            </div>
+            <div className="bg-slate-900 p-6 rounded-3xl shadow-xl border border-slate-800 text-white relative overflow-hidden group">
+              <TrendingUp className="absolute -right-6 -bottom-6 text-slate-800 group-hover:scale-110 transition-transform duration-500" size={120} />
+              <div className="relative z-10">
+                <h3 className="text-xl font-black mb-2 text-blue-400">IA de Ajuste Pedagógico</h3>
+                <p className="text-base text-slate-300 mb-6 font-medium leading-snug">El sistema detecta una anomalía de aprendizaje.</p>
+                <span className="bg-red-500 text-white text-sm font-black px-4 py-2 rounded-xl flex items-center gap-2 w-max shadow-md">
+                  <AlertTriangle size={16}/> Fallo General: Ley de Gauss
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="px-8 py-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                <h3 className="font-black text-slate-800 text-xl">Métricas por Nivel</h3>
+                <span className="text-xs text-slate-500 font-black uppercase tracking-widest bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">Cuellos de botella</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-xs uppercase tracking-widest text-slate-500 border-b-2 border-slate-100 bg-white">
+                      <th className="px-8 py-5 font-black">Misión Evaluada</th>
+                      <th className="px-8 py-5 font-black">Nota Media</th>
+                      <th className="px-8 py-5 font-black">T. Medio</th>
+                      <th className="px-8 py-5 font-black">Estado del Grupo</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-base font-bold bg-white">
+                    {metrics.questionMetrics.map(q => (
+                      <tr key={q.id} className="hover:bg-slate-50 transition-colors group">
+                        <td className="px-8 py-6 text-slate-800 flex items-center gap-4">
+                          <div className={`w-3 h-3 rounded-full shadow-inner ${q.status === 'optimal' ? 'bg-emerald-500' : q.status === 'review' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
+                          {q.title}
+                        </td>
+                        <td className="px-8 py-6 font-mono text-slate-600 text-lg">{q.avgScore}</td>
+                        <td className="px-8 py-6 font-mono text-slate-500 flex items-center gap-2"><Timer size={16} className="text-slate-400"/> {q.avgTime}s</td>
+                        <td className="px-8 py-6">
+                          {q.status === 'optimal' ? <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-sm">Óptimo</span> :
+                           q.status === 'review' ? <span className="bg-amber-50 text-amber-700 border border-amber-200 px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-sm">Revisar</span> :
+                           <span className="bg-red-50 text-red-700 border border-red-200 px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-sm">Crítico</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+              <div className="px-8 py-6 border-b border-slate-200 bg-slate-50">
+                <h3 className="font-black text-slate-800 text-xl">Últimos Agentes</h3>
+              </div>
+              <div className="p-0 flex-grow bg-white">
+                {metrics.attempts.map((a, idx) => (
+                  <div key={idx} className="p-8 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-black text-slate-800 text-lg">{a.agent}</span>
+                      <span className={`font-mono font-black text-base px-3 py-1.5 rounded-lg border ${a.score > 2.0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' : 'bg-red-50 text-red-700 border-red-200 shadow-sm'}`}>{a.score} pts</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm text-slate-500 font-bold uppercase tracking-wider mt-2">
+                      <span>{a.date}</span>
+                      <span className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200"><Timer size={14}/> {formatTime(a.time)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
