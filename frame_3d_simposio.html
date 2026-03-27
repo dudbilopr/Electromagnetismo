@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Three.js Motor 3D -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- OrbitControls para interacción con el mouse -->
+    <!-- OrbitControls -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -16,16 +16,16 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: transparent; /* Fundo transparente para incorporar */
+            background-color: transparent; 
             color: #ffffff;
             margin: 0;
             overflow: hidden;
             user-select: none;
-            transition: background-color 0.5s ease;
+            transition: background-color 0.6s cubic-bezier(0.23, 1, 0.32, 1);
         }
 
         body.bg-solid {
-            background-color: #020617; /* Fundo escuro sólido */
+            background-color: #020617; 
         }
 
         #canvas-container {
@@ -36,13 +36,23 @@
             left: 0;
             z-index: 10;
         }
+
+        #toggle-bg-btn {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        
+        #toggle-bg-btn:hover {
+            box-shadow: 0 0 35px rgba(6, 182, 212, 0.5);
+            transform: translateX(-50%) scale(1.05);
+        }
     </style>
 </head>
 <body class="relative min-h-screen bg-transparent" id="main-body">
 
-    <!-- Botón para alternar el fondo (Curvo y posicionado abajo para frames verticales) -->
-    <button id="toggle-bg-btn" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-50 px-8 py-3 bg-cyan-950/80 hover:bg-cyan-800/90 border border-cyan-500/50 rounded-full text-cyan-50 font-semibold tracking-wide backdrop-blur-md transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] whitespace-nowrap">
-        Fondo Sólido
+    <!-- Botón Curvo Inferior Estilizado -->
+    <button id="toggle-bg-btn" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-50 px-10 py-3 bg-cyan-950/80 hover:bg-cyan-800/95 border border-cyan-400/40 rounded-full text-cyan-50 text-[10px] font-black tracking-[0.2em] backdrop-blur-xl transition-all duration-300 uppercase">
+        Modo de Fondo
     </button>
 
     <!-- Motor 3D -->
@@ -50,52 +60,38 @@
 
     <script>
         const container = document.getElementById('canvas-container');
-
-        // Lógica do botão de fundo
         const bodyEl = document.getElementById('main-body');
         const toggleBtn = document.getElementById('toggle-bg-btn');
         let isSolid = false;
 
         toggleBtn.addEventListener('click', () => {
             isSolid = !isSolid;
-            if (isSolid) {
-                bodyEl.classList.add('bg-solid');
-                bodyEl.classList.remove('bg-transparent');
-                toggleBtn.innerText = "Fondo Transparente";
-            } else {
-                bodyEl.classList.remove('bg-solid');
-                bodyEl.classList.add('bg-transparent');
-                toggleBtn.innerText = "Fondo Sólido";
-            }
+            bodyEl.classList.toggle('bg-solid', isSolid);
+            toggleBtn.innerText = isSolid ? "Fondo Transparente" : "Fondo Sólido";
         });
 
-        // --- 1. CONFIGURACIÓN DE ESCENA Y CÁMARA ---
+        // --- 1. ESCENA Y CÁMARA (FOV Ajustado para Verticalidad) ---
         const scene = new THREE.Scene();
-        // Fondo transparente, sin niebla para embeber perfectamente
-
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
-        camera.position.set(0, 15, 420); // Cámara más alejada y elevada para encajar en frame vertical
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 1000);
+        camera.position.set(0, 15, 240); 
 
         const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         container.appendChild(renderer.domElement);
 
-        // --- 2. CONTROLES DEL MOUSE (OrbitControls) ---
+        // --- 2. CONTROLES ---
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.autoRotate = true; 
-        controls.autoRotateSpeed = 1.0; 
-        // Límite modificado: impide bajar la cámara hasta quedar a ras de suelo, asegurando que el texto siempre se vea
-        controls.maxPolarAngle = Math.PI / 2 - 0.15; 
-        controls.minDistance = 150;
-        controls.maxDistance = 600;
-        controls.target.set(0, -10, 0); 
+        controls.autoRotateSpeed = 0.8; 
+        controls.maxPolarAngle = Math.PI / 2 - 0.05; 
+        controls.minDistance = 120;
+        controls.maxDistance = 450;
+        controls.target.set(0, -5, 0); 
 
-        controls.addEventListener('start', () => { controls.autoRotate = false; });
-
-        // --- 3. ATLAS DE TEXTURAS (Alta Legibilidad con Anti-Aliasing) ---
+        // --- 3. ATLAS DE TEXTURAS (Máxima Nitidez) ---
         const atlasSize = 2048;
         const cols = 4;
         const rows = 8; 
@@ -106,16 +102,12 @@
         canvas2d.height = atlasSize;
         const ctx = canvas2d.getContext('2d');
 
-        // Fondo negro puro
         ctx.fillStyle = '#000000'; 
         ctx.fillRect(0, 0, atlasSize, atlasSize);
-        
-        // Configuración de texto
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
-        // Mezclamos el texto del simposio con fórmulas clave
         const formulas = [
             "I SIMPOSIO", "CIENCIA", "DE DATOS", "UNAB", 
             "I SIMPOSIO", "DATA", "SCIENCE", "UNAB",
@@ -124,30 +116,25 @@
             "ReLU(x)", "CNN", "LSTM", "GANs", 
             "μ, σ²", "R²", "W^T X", "01001", 
             "∫e^x", "dy/dx", "O(n²)", "Tensor",
-            "K-Means", "Entropy", "Matrix", "Vector"
+            "A*", "Entropy", "Gini", "Vector"
         ];
 
         let fIndex = 0;
         for (let i = 0; i < rows; i++) {
             for (let j = 0; j < cols; j++) {
-                // Usar fuente más gruesa y sans-serif para las palabras del simposio, monospace para fórmulas
-                if (formulas[fIndex].includes("SIMPOSIO") || formulas[fIndex].includes("UNAB") || formulas[fIndex].includes("CIENCIA") || formulas[fIndex].includes("DATOS")) {
-                    ctx.font = 'bold 75px "Inter", sans-serif';
-                } else {
-                    ctx.font = 'bold 70px "Fira Code", monospace';
-                }
+                const isText = formulas[fIndex].match(/[A-Z]/);
+                ctx.font = isText ? 'bold 85px "Inter", sans-serif' : 'bold 75px "Fira Code", monospace';
                 ctx.fillText(formulas[fIndex], j * cellW + cellW / 2, i * cellH + cellH / 2);
                 fIndex++;
             }
         }
 
         const texture = new THREE.CanvasTexture(canvas2d);
-        // Filtros lineales para suavizar los bordes del texto (Anti-aliasing)
         texture.minFilter = THREE.LinearMipmapLinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.generateMipmaps = true;
 
-        // --- 4. MOTOR DE ESQUELETO 3D (Proporciones Mejoradas) ---
+        // --- 4. MOTOR DE ESQUELETO 3D (ANATOMÍA NIVEL DIOS) ---
         function sdCapsule(p, a, b, r) {
             let pa = [p[0]-a[0], p[1]-a[1], p[2]-a[2]];
             let ba = [b[0]-a[0], b[1]-a[1], b[2]-a[2]];
@@ -161,40 +148,35 @@
             return Math.min(a, b) - h * h * h * k * (1.0 / 6.0);
         }
 
-        // Proporciones anatómicas ajustadas (más estéticas)
         const partsSDF = {
             torso: (p) => {
-                let d = sdCapsule(p, [0,12,0], [0,50,0], 13.5); // Peito ajustado para perfeição
-                d = smin(d, sdCapsule(p, [0,-2,0], [0,12,0], 12.0), 8); // Cintura
+                let d = sdCapsule(p, [0,12,0], [0,58,0], 12.5); 
+                d = smin(d, sdCapsule(p, [0,-5,0], [0,12,0], 11.0), 10); 
                 return d;
             },
             head: (p) => {
-                let d = sdCapsule(p, [0,0,0], [0,6,0], 3.2); // Pescoço mais natural
-                d = smin(d, sdCapsule(p, [0,9,0], [0,18,2], 7.8), 3); // Cabeça mais arredondada
+                let d = sdCapsule(p, [0,0,0], [0,8,0], 3.2); 
+                d = smin(d, sdCapsule(p, [0,11,0], [0,22,2], 8.0), 4); 
                 return d;
             },
             armL: (p) => {
-                let d = sdCapsule(p, [0,0,0], [-3,-22,0], 4.0); 
-                d = smin(d, sdCapsule(p, [-3,-22,0], [-5,-43,2], 3.0), 2); 
-                d = Math.min(d, sdCapsule(p, [-5,-43,2], [-6,-50,3], 2.2)); 
+                let d = sdCapsule(p, [0,0,0], [-4,-25,0], 4.2); 
+                d = smin(d, sdCapsule(p, [-4,-25,0], [-6,-48,2], 3.2), 3); 
                 return d;
             },
             armR: (p) => {
-                let d = sdCapsule(p, [0,0,0], [3,-22,0], 4.0); 
-                d = smin(d, sdCapsule(p, [3,-22,0], [5,-43,2], 3.0), 2); 
-                d = Math.min(d, sdCapsule(p, [5,-43,2], [6,-50,3], 2.2)); 
+                let d = sdCapsule(p, [0,0,0], [4,-25,0], 4.2); 
+                d = smin(d, sdCapsule(p, [4,-25,0], [6,-48,2], 3.2), 3); 
                 return d;
             },
             legL: (p) => {
-                let d = sdCapsule(p, [0,0,0], [-1,-38,0], 7.0); 
-                d = smin(d, sdCapsule(p, [-1,-38,0], [-1,-75,0], 5.0), 3); 
-                d = smin(d, sdCapsule(p, [-1,-75,-2], [-1,-80,8], 3.0), 2); 
+                let d = sdCapsule(p, [0,0,0], [-2,-45,0], 7.0); 
+                d = smin(d, sdCapsule(p, [-2,-45,0], [-2,-90,0], 5.2), 5); 
                 return d;
             },
             legR: (p) => {
-                let d = sdCapsule(p, [0,0,0], [1,-38,0], 7.0); 
-                d = smin(d, sdCapsule(p, [1,-38,0], [1,-75,0], 5.0), 3); 
-                d = smin(d, sdCapsule(p, [1,-75,-2], [1,-80,8], 3.0), 2); 
+                let d = sdCapsule(p, [0,0,0], [2,-45,0], 7.0); 
+                d = smin(d, sdCapsule(p, [2,-45,0], [2,-90,0], 5.2), 5); 
                 return d;
             }
         };
@@ -211,29 +193,21 @@
                 let px = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
                 let py = bounds.minY + Math.random() * (bounds.maxY - bounds.minY);
                 let pz = bounds.minZ + Math.random() * (bounds.maxZ - bounds.minZ);
-
                 let dist = sdfFunc([px, py, pz]);
-
-                // Mantener puntos en la superficie y algunos adentro para volumen
-                if (dist < 0 && (dist > -2.5 || Math.random() < 0.2)) {
+                if (dist < 0 && (dist > -2.8 || Math.random() < 0.25)) {
                     positions[pIndex * 3] = px;
                     positions[pIndex * 3 + 1] = py;
                     positions[pIndex * 3 + 2] = pz;
-                    
                     uvs[pIndex * 2] = Math.floor(Math.random() * cols);
                     uvs[pIndex * 2 + 1] = Math.floor(Math.random() * rows);
-                    
-                    sizes[pIndex] = Math.random() * 8.0 + 6.0; // Textos ligeiramente mais nítidos
-                    opacities[pIndex] = Math.random() * 0.9 + 0.1;
-                    
+                    sizes[pIndex] = Math.random() * 10.0 + 6.0; 
+                    opacities[pIndex] = Math.random() * 0.8 + 0.2;
                     colors[pIndex * 3] = colorRGB[0];
                     colors[pIndex * 3 + 1] = colorRGB[1];
                     colors[pIndex * 3 + 2] = colorRGB[2];
-
                     pIndex++;
                 }
             }
-
             const geo = new THREE.BufferGeometry();
             geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             geo.setAttribute('uvOffset', new THREE.BufferAttribute(uvs, 2));
@@ -243,220 +217,133 @@
             return geo;
         }
 
-        // --- 5. SHADER HOLOGRÁFICO PREMIUM ---
+        // --- 5. SHADER HOLOGRÁFICO AVANZADO (FRENSNEL + SCANLINES) ---
         const material = new THREE.ShaderMaterial({
-            uniforms: {
-                atlasTexture: { value: texture },
-                cols: { value: cols },
-                rows: { value: rows },
-                time: { value: 0.0 }
-            },
+            uniforms: { atlasTexture: { value: texture }, cols: { value: cols }, rows: { value: rows }, time: { value: 0.0 } },
             vertexShader: `
-                attribute vec2 uvOffset;
-                attribute float sizeBase;
-                attribute float opacityBase;
-                attribute vec3 partColor;
-                varying vec2 vUvOffset;
-                varying float vAlpha;
-                varying vec3 vColor;
-                varying vec3 vWorldPos;
+                attribute vec2 uvOffset; attribute float sizeBase; attribute float opacityBase; attribute vec3 partColor;
+                varying vec2 vUvOffset; varying float vAlpha; varying vec3 vColor; varying vec3 vPos;
                 uniform float time;
-
                 void main() {
-                    vUvOffset = uvOffset;
-                    vColor = partColor;
+                    vUvOffset = uvOffset; vColor = partColor; vPos = position;
                     
-                    // Pulso suave
-                    float pulse = sin(time * 2.0 + position.y * 0.05) * 0.3 + 0.7;
-                    vAlpha = opacityBase * pulse;
-
-                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-                    vWorldPos = worldPosition.xyz;
-
-                    vec4 mvPosition = viewMatrix * worldPosition;
+                    // Vibración sutil
+                    vec3 pos = position;
+                    pos.x += sin(time * 10.0 + position.y) * 0.15;
                     
-                    // Atenuación de tamaño por perspectiva
+                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                    
+                    // Efecto Fresnel simple: puntos más brillantes en los bordes del volumen
+                    float edge = abs(dot(normalize(pos.xy), vec2(0.0, 1.0)));
+                    vAlpha = opacityBase * (0.8 + edge * 0.4);
+
                     gl_PointSize = sizeBase * (350.0 / -mvPosition.z);
                     gl_Position = projectionMatrix * mvPosition;
                 }
             `,
             fragmentShader: `
-                uniform sampler2D atlasTexture;
-                uniform float cols;
-                uniform float rows;
-                varying vec2 vUvOffset;
-                varying float vAlpha;
-                varying vec3 vColor;
-                varying vec3 vWorldPos;
-
+                uniform sampler2D atlasTexture; uniform float cols; uniform float rows; uniform float time;
+                varying vec2 vUvOffset; varying float vAlpha; varying vec3 vColor; varying vec3 vPos;
                 void main() {
-                    vec2 uv = vec2(
-                        (vUvOffset.x + gl_PointCoord.x) / cols,
-                        (vUvOffset.y + (1.0 - gl_PointCoord.y)) / rows
-                    );
+                    vec2 uv = vec2((vUvOffset.x + gl_PointCoord.x) / cols, (vUvOffset.y + (1.0 - gl_PointCoord.y)) / rows);
                     vec4 texColor = texture2D(atlasTexture, uv);
+                    if (texColor.r < 0.15) discard;
+
+                    // Línea de escaneo dinámica
+                    float scan = smoothstep(0.9, 1.0, 1.0 - abs(sin(vPos.y * 0.05 - time * 1.5)));
                     
-                    // En lugar de "discard", usamos el canal rojo como alpha real para suavizado (Anti-aliasing)
-                    float finalAlpha = texColor.r * vAlpha;
-                    if (finalAlpha < 0.02) discard; // Descarte mínimo por rendimiento
+                    vec3 finalColor = vColor + vec3(0.5) * texColor.r;
+                    finalColor += vec3(0.0, 1.0, 1.0) * scan * 0.8; // Resplandor de escaneo cyan
 
-                    // Color de la ropa/piel específico asignado en la geometría
-                    vec3 finalColor = vColor;
-
-                    // Añadir un núcleo brillante al texto
-                    finalColor += vec3(0.4) * texColor.r;
-
-                    gl_FragColor = vec4(finalColor, finalAlpha);
+                    gl_FragColor = vec4(finalColor, texColor.r * vAlpha * (0.9 + scan * 0.5));
                 }
             `,
-            transparent: true,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending
+            transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
         });
 
-        // --- 6. ENSAMBLAJE DEL ESQUELETO 3D ---
+        // --- 6. ENSAMBLAJE ---
         const humanGroup = new THREE.Group();
         humanGroup.position.y = 15;
+        const colorSkin = [0.3, 0.9, 1.0]; 
+        const colorShirt = [1.0, 0.5, 0.0]; 
+        const colorPants = [0.1, 0.4, 1.0]; 
 
-        // Colores de la silueta holográfica
-        const colorSkin = [0.2, 0.9, 1.0]; // Cyan brillante para la piel (cabeza)
-        const colorShirt = [1.0, 0.4, 0.0]; // Naranja tecnológico para la camisa (torso y brazos)
-        const colorPants = [0.1, 0.3, 1.0]; // Azul profundo para los pantalones (piernas)
-
-        // Reduje un poco la cantidad de partículas para que se entienda mejor la forma y el texto
-        const geoTorso = generatePartGeometry(partsSDF.torso, 9000, {minX:-20, maxX:20, minY:-5, maxY:60, minZ:-15, maxZ:15}, colorShirt);
-        const torso = new THREE.Points(geoTorso, material);
-        humanGroup.add(torso);
-
-        const geoHead = generatePartGeometry(partsSDF.head, 3000, {minX:-10, maxX:10, minY:-2, maxY:30, minZ:-10, maxZ:15}, colorSkin);
-        const head = new THREE.Points(geoHead, material);
-        head.position.set(0, 50, 0); 
-        torso.add(head);
-
-        const geoArmL = generatePartGeometry(partsSDF.armL, 2500, {minX:-12, maxX:5, minY:-55, maxY:5, minZ:-10, maxZ:10}, colorShirt);
-        const armL = new THREE.Points(geoArmL, material);
-        armL.position.set(-15, 46, 0); 
-        torso.add(armL);
-
-        const geoArmR = generatePartGeometry(partsSDF.armR, 2500, {minX:-5, maxX:12, minY:-55, maxY:5, minZ:-10, maxZ:10}, colorShirt);
-        const armR = new THREE.Points(geoArmR, material);
-        armR.position.set(15, 46, 0); 
-        torso.add(armR);
-
-        const geoLegL = generatePartGeometry(partsSDF.legL, 3500, {minX:-12, maxX:8, minY:-85, maxY:5, minZ:-12, maxZ:12}, colorPants);
-        const legL = new THREE.Points(geoLegL, material);
-        legL.position.set(-8, 0, 0); 
-        torso.add(legL);
-
-        const geoLegR = generatePartGeometry(partsSDF.legR, 3500, {minX:-8, maxX:12, minY:-85, maxY:5, minZ:-12, maxZ:12}, colorPants);
-        const legR = new THREE.Points(geoLegR, material);
-        legR.position.set(8, 0, 0); 
-        torso.add(legR);
-
+        humanGroup.add(new THREE.Points(generatePartGeometry(partsSDF.torso, 11000, {minX:-20, maxX:20, minY:-5, maxY:65, minZ:-15, maxZ:15}, colorShirt), material));
+        const head = new THREE.Points(generatePartGeometry(partsSDF.head, 3500, {minX:-12, maxX:12, minY:-2, maxY:35, minZ:-12, maxZ:15}, colorSkin), material);
+        head.position.set(0, 58, 0); humanGroup.add(head);
+        const armL = new THREE.Points(generatePartGeometry(partsSDF.armL, 3000, {minX:-15, maxX:5, minY:-60, maxY:5, minZ:-10, maxZ:10}, colorShirt), material);
+        armL.position.set(-16, 52, 0); humanGroup.add(armL);
+        const armR = new THREE.Points(generatePartGeometry(partsSDF.armR, 3000, {minX:-5, maxX:15, minY:-60, maxY:5, minZ:-10, maxZ:10}, colorShirt), material);
+        armR.position.set(16, 52, 0); humanGroup.add(armR);
+        const legL = new THREE.Points(generatePartGeometry(partsSDF.legL, 5000, {minX:-15, maxX:10, minY:-100, maxY:5, minZ:-15, maxZ:15}, colorPants), material);
+        legL.position.set(-10, 0, 0); humanGroup.add(legL);
+        const legR = new THREE.Points(generatePartGeometry(partsSDF.legR, 5000, {minX:-10, maxX:15, minY:-100, maxY:5, minZ:-15, maxZ:15}, colorPants), material);
+        legR.position.set(10, 0, 0); humanGroup.add(legR);
         scene.add(humanGroup);
 
-        // --- 7. BASE: "I SIMPOSIO DE CIENCIA DE DATOS UNAB" ---
+        // --- 7. BASE MEJORADA ---
         const baseGroup = new THREE.Group();
-        baseGroup.position.y = -80;
+        baseGroup.position.y = -95;
         scene.add(baseGroup);
 
-        // Pedestal sólido oscuro (Diseño cónico hacia afuera para que sea legible desde arriba)
-        const baseGeo = new THREE.CylinderGeometry(55, 68, 6, 64);
-        const baseMat = new THREE.MeshBasicMaterial({ 
-            color: 0x010814, // Azul quase preto
-            transparent: true, 
-            opacity: 0.95, // Maior opacidade para renderização sólida
-        });
-        const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+        const baseMesh = new THREE.Mesh(new THREE.CylinderGeometry(60, 75, 8, 64), new THREE.MeshBasicMaterial({ color: 0x010814, transparent: true, opacity: 0.98 }));
         baseGroup.add(baseMesh);
 
-        // Línea brillante interior
-        const innerGlowGeo = new THREE.CylinderGeometry(48, 48, 6.2, 64, 1, true);
-        const innerGlowMat = new THREE.MeshBasicMaterial({
-            color: 0x00ffff, // Cyan mais brilhante
-            transparent: true,
-            opacity: 0.25, // Aumentado para melhor visualização
-            blending: THREE.AdditiveBlending,
-            side: THREE.DoubleSide
-        });
-        const innerGlowMesh = new THREE.Mesh(innerGlowGeo, innerGlowMat);
-        baseGroup.add(innerGlowMesh);
-
-        // Anillo de texto de Alta Resolución y Mayor Altura
-        const rCanvas = document.createElement('canvas');
-        rCanvas.width = 4096; // Doble resolución para nitidez perfecta
-        rCanvas.height = 256; // Mayor altura en el lienzo para fuente más grande
-        const rCtx = rCanvas.getContext('2d');
-        rCtx.fillStyle = '#000000';
-        rCtx.fillRect(0, 0, rCanvas.width, rCanvas.height);
-        
-        // Estilo del texto del simposio (Color resaltante dorado/amarillo brillante)
-        rCtx.fillStyle = '#ffcc00'; // Dorado intenso que resalta contra el azul oscuro
-        rCtx.font = 'bold 80px "Inter", sans-serif'; // Fuente ampliada casi al doble
-        rCtx.textAlign = 'center';
-        rCtx.textBaseline = 'middle';
-        
-        // Sombra paralela para efecto glow en 2D
-        rCtx.shadowColor = '#ff8800'; // Resplandor naranja/dorado
-        rCtx.shadowBlur = 25;
-
+        // Anillo de texto
+        const rCanvas = document.createElement('canvas'); rCanvas.width = 4096; rCanvas.height = 256;
+        const rCtx = rCanvas.getContext('2d'); rCtx.fillStyle = '#000000'; rCtx.fillRect(0, 0, rCanvas.width, rCanvas.height);
+        rCtx.fillStyle = '#ffcc00'; rCtx.font = 'bold 95px "Inter", sans-serif'; rCtx.textAlign = 'center'; rCtx.textBaseline = 'middle';
+        rCtx.shadowColor = '#ff6600'; rCtx.shadowBlur = 30;
         const fullText = "I SIMPOSIO DE CIENCIA DE DATOS UNAB     ✦     I SIMPOSIO DE CIENCIA DE DATOS UNAB     ✦     ";
-        rCtx.fillText(fullText, rCanvas.width / 2, rCanvas.height / 2);
-        // Doble impresión para reforzar el núcleo brillante
-        rCtx.fillText(fullText, rCanvas.width / 2, rCanvas.height / 2);
+        rCtx.fillText(fullText, rCanvas.width / 2, rCanvas.height / 2); rCtx.fillText(fullText, rCanvas.width / 2, rCanvas.height / 2);
 
-        const rTex = new THREE.CanvasTexture(rCanvas);
-        rTex.wrapS = THREE.RepeatWrapping;
-        rTex.anisotropy = renderer.capabilities.getMaxAnisotropy(); // Máxima nitidez en ángulos
-        
-        // Geometría cónica (radio superior menor que el inferior) para que el texto mire en diagonal hacia la cámara
-        const ringGeo = new THREE.CylinderGeometry(56, 69, 12, 64, 1, true);
-        const ringMat = new THREE.MeshBasicMaterial({
-            map: rTex,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            side: THREE.DoubleSide
-        });
-        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        const ringMesh = new THREE.Mesh(new THREE.CylinderGeometry(61, 76, 16, 64, 1, true), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(rCanvas), transparent: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+        ringMesh.material.map.wrapS = THREE.RepeatWrapping;
         baseGroup.add(ringMesh);
 
-        // --- 8. ANIMACIÓN GLOBAL ---
-        const clock = new THREE.Clock();
+        // Partículas ascendentes de la base
+        const risingGeo = new THREE.BufferGeometry();
+        const risingCount = 150;
+        const risingPos = new Float32Array(risingCount * 3);
+        for(let i=0; i<risingCount; i++) {
+            risingPos[i*3] = (Math.random()-0.5)*120;
+            risingPos[i*3+1] = Math.random()*200 - 100;
+            risingPos[i*3+2] = (Math.random()-0.5)*120;
+        }
+        risingGeo.setAttribute('position', new THREE.BufferAttribute(risingPos, 3));
+        const risingPoints = new THREE.Points(risingGeo, new THREE.PointsMaterial({ color: 0x00ffff, size: 1.5, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending }));
+        scene.add(risingPoints);
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        const clock = new THREE.Clock();
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
         function animate() {
             requestAnimationFrame(animate);
-
             const elapsedTime = clock.getElapsedTime();
             material.uniforms.time.value = elapsedTime;
-
             controls.update();
 
-            // Animación de caminata más suave y natural
-            const walkSpeed = elapsedTime * 2.0; 
-            const walkAmplitude = 0.35; 
-
+            // Animación de caminata estilizada
+            const walkSpeed = elapsedTime * 2.4; 
+            const walkAmplitude = 0.35;
             legL.rotation.x = Math.sin(walkSpeed) * walkAmplitude;
             legR.rotation.x = Math.sin(walkSpeed + Math.PI) * walkAmplitude;
-            
-            armL.rotation.x = Math.sin(walkSpeed + Math.PI) * (walkAmplitude * 0.7);
-            armR.rotation.x = Math.sin(walkSpeed) * (walkAmplitude * 0.7);
+            armL.rotation.x = Math.sin(walkSpeed + Math.PI) * 0.25;
+            armR.rotation.x = Math.sin(walkSpeed) * 0.25;
 
-            humanGroup.position.y = 15 + Math.abs(Math.sin(walkSpeed * 2)) * 2.0; 
-            torso.rotation.y = Math.sin(walkSpeed) * 0.08; 
-            head.rotation.y = Math.sin(walkSpeed + Math.PI) * 0.04; 
+            humanGroup.position.y = 15 + Math.abs(Math.sin(walkSpeed * 2)) * 2.5;
+            baseGroup.rotation.y -= 0.005;
 
-            // Rotación de la base completa
-            baseGroup.rotation.y -= 0.003;
+            // Animar partículas ascendentes
+            const posArray = risingPoints.geometry.attributes.position.array;
+            for(let i=0; i<risingCount; i++) {
+                posArray[i*3+1] += 0.5;
+                if(posArray[i*3+1] > 100) posArray[i*3+1] = -100;
+            }
+            risingPoints.geometry.attributes.position.needsUpdate = true;
 
             renderer.render(scene, camera);
         }
-
         animate();
     </script>
 </body>
