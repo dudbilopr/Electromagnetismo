@@ -552,6 +552,71 @@
           </svg>
         );
 
+        const SvgGraphSolIns = () => (
+          <svg viewBox="0 0 100 60" className="w-full h-12">
+            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
+            <path d="M10,55 L40,15 Q60,45 90,52" fill="none" stroke="currentColor" strokeWidth="3"/>
+            <line x1="40" y1="55" x2="40" y2="15" stroke="#94a3b8" strokeDasharray="2,2"/>
+          </svg>
+        );
+        const SvgGraphSolCond = () => (
+          <svg viewBox="0 0 100 60" className="w-full h-12">
+            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
+            <path d="M10,53 L40,53" fill="none" stroke="currentColor" strokeWidth="3"/>
+            <path d="M40,15 Q60,45 90,52" fill="none" stroke="currentColor" strokeWidth="3"/>
+            <line x1="40" y1="55" x2="40" y2="15" stroke="#94a3b8" strokeDasharray="2,2"/>
+          </svg>
+        );
+        const SvgGraphHollowIns = () => (
+          <svg viewBox="0 0 100 60" className="w-full h-12">
+            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
+            <path d="M10,53 L30,53" fill="none" stroke="currentColor" strokeWidth="3"/>
+            <path d="M30,53 Q45,15 60,15" fill="none" stroke="currentColor" strokeWidth="3"/>
+            <path d="M60,15 Q75,45 95,52" fill="none" stroke="currentColor" strokeWidth="3"/>
+            <line x1="30" y1="55" x2="30" y2="53" stroke="#94a3b8" strokeDasharray="2,2"/>
+            <line x1="60" y1="55" x2="60" y2="15" stroke="#94a3b8" strokeDasharray="2,2"/>
+          </svg>
+        );
+        const SvgGraphHollowCond = () => (
+          <svg viewBox="0 0 100 60" className="w-full h-12">
+            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
+            <path d="M10,53 L60,53" fill="none" stroke="currentColor" strokeWidth="3"/>
+            <path d="M60,15 Q75,45 95,52" fill="none" stroke="currentColor" strokeWidth="3"/>
+            <line x1="60" y1="55" x2="60" y2="15" stroke="#94a3b8" strokeDasharray="2,2"/>
+          </svg>
+        );
+
+        const GraphSelector = ({ id, answers, handleInputChange, isSubmitted, expected }) => {
+          const options = [
+            { val: 'linear_decay', svg: <SvgGraphSolIns/> },
+            { val: 'zero_decay', svg: <SvgGraphSolCond/> },
+            { val: 'zero_curve_decay', svg: <SvgGraphHollowIns/> },
+            { val: 'zero_zero_decay', svg: <SvgGraphHollowCond/> }
+          ];
+          const isCorrect = answers[id] === expected;
+          return (
+            <div className="grid grid-cols-2 gap-2 mt-2 min-w-[120px]">
+              {options.map(opt => {
+                const isSelected = answers[id] === opt.val;
+                let ringClass = "border-slate-200 hover:border-blue-400 bg-white";
+                if (isSelected) ringClass = "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20";
+                if (isSubmitted) {
+                  if (opt.val === expected) ringClass = "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/20";
+                  else if (isSelected && !isCorrect) ringClass = "border-red-500 bg-red-50";
+                  else ringClass = "border-slate-200 opacity-40 bg-white";
+                }
+                return (
+                  <button type="button" key={opt.val} disabled={isSubmitted} onClick={() => handleInputChange(id, opt.val)}
+                    className={`p-2 rounded-xl border-2 transition-all ${ringClass} text-slate-600 shadow-sm`}
+                  >
+                    {opt.svg}
+                  </button>
+                )
+              })}
+            </div>
+          );
+        }
+
         // --- 6. MAIN APP COMPONENT ---
         function App() {
           useKaTeX();
@@ -716,6 +781,7 @@
             checkG('g1_qe', 'Q', 0.0125); checkG('g2_qe', 'Q', 0.0125); checkG('g3_qe', 'Q', 0.0125); checkG('g4_qe', 'Q', 0.0125);
             checkG('g1_ee', 'E_ext', 0.0125); checkG('g2_ee', 'E_ext', 0.0125); checkG('g3_ee', 'E_ext', 0.0125); checkG('g4_ee', 'E_ext', 0.0125);
             if(answers.g1_pot?.length > 2) total += 0.05; if(answers.g2_pot?.length > 2) total += 0.05; if(answers.g3_pot?.length > 2) total += 0.05; if(answers.g4_pot?.length > 2) total += 0.05;
+            checkG('g1_graph', 'linear_decay', 0.125); checkG('g2_graph', 'zero_decay', 0.125); checkG('g3_graph', 'zero_curve_decay', 0.125); checkG('g4_graph', 'zero_zero_decay', 0.125);
 
             total -= (usedTips.length * 0.02);
             return Math.max(Math.min(total, 4.0), 0).toFixed(2);
@@ -730,7 +796,7 @@
             setView('results');
             window.scrollTo(0,0);
 
-            if (user) {
+            if (user && !user.isAnonymous) {
               try {
                 const attemptRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
                 await addDoc(attemptRef, { score: finalScore, maxScore: 4.0, time: timeElapsed, timestamp: serverTimestamp() });
