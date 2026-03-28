@@ -687,14 +687,15 @@
 
           // Real-time Views Listener
           useEffect(() => {
-              const viewsRef = doc(db, 'artifacts', appId, 'public', 'stats');
+              if(!user) return; // Esperar a tener auth
+              const viewsRef = doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'global');
               setDoc(viewsRef, { views: increment(1) }, { merge: true }).catch(e=>console.log(e));
               
               const unsub = onSnapshot(viewsRef, (doc) => {
                   if(doc.exists()) setRealViews(doc.data().views);
-              });
+              }, (error) => console.error("Error en vistas:", error));
               return () => unsub();
-          }, []);
+          }, [user]);
 
           // Auth Handlers (NO anonymous auth. Forced Identity)
           const handleGoogleLogin = async () => {
@@ -753,7 +754,7 @@
                   
                   // Load Config
                   try {
-                      const confDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'config'));
+                      const confDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'));
                       if(confDoc.exists()) setExamConfig(JSON.stringify(confDoc.data(), null, 2));
                   } catch(e){}
 
@@ -829,7 +830,7 @@
           const saveConfig = async () => {
               try {
                   const parsed = JSON.parse(examConfig);
-                  await setDoc(doc(db, 'artifacts', appId, 'public', 'config'), parsed);
+                  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'), parsed);
                   setConfigSaved(true);
                   setTimeout(() => setConfigSaved(false), 3000);
               } catch (e) {
@@ -960,8 +961,13 @@
 
             if (user && !user.isAnonymous) {
               try {
-                const attemptRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
-                await addDoc(attemptRef, { score: result.total, maxScore: 4.0, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
+                // Guarda en la subcolección del usuario
+                const userRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
+                await addDoc(userRef, { score: result.total, maxScore: 4.0, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
+                
+                // Guarda copia pública para que el Teacher lea todas (simulando CollectionGroup que requiere índices)
+                const globalRef = collection(db, 'artifacts', appId, 'public', 'data', 'global_attempts');
+                await addDoc(globalRef, { email: user.email, score: result.total, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
               } catch (e) { console.error("Error guardando intento:", e); }
             }
           };
@@ -1270,7 +1276,7 @@
                               </div>
 
                               <div className="mb-10 leading-loose bg-white p-10 rounded-[2rem] border-2 border-slate-200 shadow-sm text-xl text-slate-700 text-center">
-                                La <strong className="text-slate-900 font-black">Fuerza Eléctrica</strong> es una interacción que requiere estrictamente de <InlineSelect id="b1" value={answers.b1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dos" options={[{val:'una', label:'\\text{una}'}, {val:'dos', label:'\\text{dos}'}, {val:'infinitas', label:'\\text{infinitas}'}]}/> cargas para existir. Por otro lado, el <strong className="text-slate-900 font-black">Campo Eléctrico</strong> es una perturbación del espacio generada por <InlineSelect id="b2" value={answers.b2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="una" options={[{val:'una', label:'\\text{una}'}, {val:'dos', label:'\\text{dos}'}, {val:'cero', label:'\\text{ninguna}'}]}/> carga fuente. Si colocamos una carga de prueba (<Latex text={"$q_0$"}/>) en un punto donde existe un campo vectorial <Latex text={'$\\vec{E}$'}/>, experimentará una fuerza según la ecuación matemática <Latex text={'$\\vec{F} = $'}/> <InlineSelect id="b3" value={answers.b3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="q_0 \\vec{E}" width="w-48" options={[{val:'\\vec{E}/q_0', label:'\\frac{\\vec{E}}{q_0}'}, {val:'q_0 \\vec{E}', label:'q_0 \\vec{E}'}, {val:'k q_0 / r^2', label:'\\frac{k q_0}{r^2}'}]}/>.
+                                La <strong className="text-slate-900 font-black">Fuerza Eléctrica</strong> es una interacción que requiere estrictamente de <InlineSelect id="b1" value={answers.b1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dos" options={[{val:'una', label:'\\text{una}'}, {val:'dos', label:'\\text{dos}'}, {val:'infinitas', label:'\\text{infinitas}'}]}/> cargas para existir. Por otro lado, el <strong className="text-slate-900 font-black">Campo Eléctrico</strong> es una perturbación del espacio generada por <InlineSelect id="b2" value={answers.b2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="una" options={[{val:'una', label:'\\text{una}'}, {val:'dos', label:'\\text{dos}'}, {val:'cero', label:'\\text{ninguna}'}]}/> carga fuente. Si colocamos una carga de prueba (<Latex text={"$q_0$"}/>) en un punto donde existe un campo vectorial <Latex text={'$\\vec{E}$'}/>, experimentará una fuerza según la ecuación matemática <Latex text={'$\\vec{F} = $'}/> <InlineSelect id="b3" value={answers.b3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="q_0 \vec{E}" width="w-48" options={[{val:'\\vec{E}/q_0', label:'\\frac{\\vec{E}}{q_0}'}, {val:'q_0 \\vec{E}', label:'q_0 \\vec{E}'}, {val:'k q_0 / r^2', label:'\\frac{k q_0}{r^2}'}]}/>.
                               </div>
 
                               <div className="bg-violet-50 border-l-4 border-violet-500 p-6 rounded-r-2xl mb-10 flex items-center justify-between">
