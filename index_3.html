@@ -24,6 +24,9 @@
         .lomo-cuaderno { border-left: 12px solid #1e3a8a; border-radius: 4px 24px 24px 4px; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Barras de progreso animadas */
+        .progress-bar-fill { transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 
     <!-- KaTeX cargado estáticamente para garantizar el renderizado -->
@@ -47,22 +50,20 @@
           ArrowUp, ArrowDown, ArrowLeft, ArrowRight as ArrowRightIcon,
           ArrowUpRight, ArrowUpLeft, ArrowDownRight, ArrowDownLeft, MousePointer2,
           CheckCircle as CheckCircle2, XCircle, Info, Hand, PenTool, User, ChevronDown, LogIn, Mail, ChevronRight, ChevronLeft,
-          Brain, BarChart3, Settings, Star, Scissors
+          Brain, BarChart3, Settings, Star, Scissors, MessageSquare, BookOpenCheck
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         // Importaciones oficiales de Firebase (Gstatic)
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, setDoc, doc, getDocs, getDoc, serverTimestamp, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, setDoc, doc, getDocs, getDoc, serverTimestamp, query, orderBy, onSnapshot, increment } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         import { getAnalytics } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js';
 
         // --- 1. FIREBASE INITIALIZATION ---
         let firebaseConfig;
-        
         if (typeof __firebase_config !== 'undefined' && __firebase_config) {
           firebaseConfig = JSON.parse(__firebase_config);
         } else {
-          // CREDENCIALES DE PRODUCCIÓN REALES
           firebaseConfig = {
             apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
             authDomain: "laboratorio-de-coulomb.firebaseapp.com",
@@ -78,7 +79,7 @@
         const app = initializeApp(firebaseConfig);
         let analytics = null;
         if (firebaseConfig.measurementId) {
-            try { analytics = getAnalytics(app); } catch(e) { console.warn("Analytics error:", e); }
+            try { analytics = getAnalytics(app); } catch(e) {}
         }
         
         const auth = getAuth(app);
@@ -259,9 +260,7 @@
             scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
             const group = new THREE.Group();
-            
             const color = isConductor ? 0x10b981 : 0x3b82f6; 
-            
             const clipPlanes = isCut3D ? [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)] : [];
             const chargeMat = new THREE.MeshBasicMaterial({color: 0xef4444, clippingPlanes: clipPlanes});
 
@@ -315,7 +314,6 @@
             }
 
             scene.add(group);
-
             if (isCut3D) group.rotation.y = Math.PI / 4;
 
             let animId;
@@ -472,7 +470,7 @@
                   className={`w-full px-4 py-2 min-h-[46px] text-base font-bold border-2 ${bgClass} ${textClass} rounded-xl outline-none transition-all shadow-sm flex items-center justify-between cursor-pointer disabled:cursor-default`}
                 >
                   <span className="flex-grow text-center flex items-center justify-center overflow-hidden">
-                    {selectedOption ? <Latex text={selectedOption.label} /> : <span className="text-slate-400 font-normal text-sm whitespace-nowrap">-- selec --</span>}
+                    {selectedOption ? <Latex text={selectedOption.label} /> : <span className="text-slate-400 font-normal text-sm whitespace-nowrap">-- seleccione --</span>}
                   </span>
                   {!isSubmitted && <ChevronDown size={18} className={`text-slate-400 flex-shrink-0 transition-transform ml-2 ${isOpen ? 'rotate-180' : ''}`} />}
                 </button>
@@ -779,13 +777,13 @@
           );
         }
 
-        // Histograma de Frecuencias (Data Science)
+        // Histograma de Frecuencias (Data Science) ajustado a escala 5.0
         const ScoreHistogram = ({ attempts }) => {
-            const bins = [0, 0, 0, 0]; // [0-1], [1-2], [2-3], [3-4]
+            const bins = [0, 0, 0, 0]; // [0-1.5], [1.6-3.0], [3.1-4.0], [4.1-5.0]
             attempts.forEach(a => {
-                if (a.score <= 1.0) bins[0]++;
-                else if (a.score <= 2.0) bins[1]++;
-                else if (a.score <= 3.0) bins[2]++;
+                if (a.score <= 1.5) bins[0]++;
+                else if (a.score <= 3.0) bins[1]++;
+                else if (a.score <= 4.0) bins[2]++;
                 else bins[3]++;
             });
             const maxBin = Math.max(...bins, 1);
@@ -794,7 +792,7 @@
                 <div className="flex items-end h-40 gap-4 mt-4">
                     {bins.map((val, idx) => {
                         const height = (val / maxBin) * 100;
-                        const labels = ["0.0 - 1.0", "1.1 - 2.0", "2.1 - 3.0", "3.1 - 4.0"];
+                        const labels = ["0.0 - 1.5", "1.6 - 3.0", "3.1 - 4.0", "4.1 - 5.0"];
                         return (
                             <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full group relative">
                                 <div className="absolute -top-8 bg-slate-800 text-white px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">{val} entregas</div>
@@ -824,17 +822,18 @@
           const [examVars, setExamVars] = useState({ q1: 3, q2: -2, q3: 1, q4: -4 });
           const [answers, setAnswers] = useState({});
           const [isSubmitted, setIsSubmitted] = useState(false);
-          const [score, setScore] = useState(null);
+          const [scoreData, setScoreData] = useState({ total: 0, details: {} });
           const [startTime, setStartTime] = useState(null);
           const [timeElapsed, setTimeElapsed] = useState(0);
           const [finalTime, setFinalTime] = useState(0);
           const [usedTips, setUsedTips] = useState([]);
           const [activeDraggable, setActiveDraggable] = useState(null);
           const [isCut3D, setIsCut3D] = useState(false);
+          
           const [examConfig, setExamConfig] = useState(JSON.stringify({ 
-              titulo: "Evaluación de Rango", 
-              descripcion: "Carga, Campo Vectorial y Flujo Gaussiano",
-              puntajeMaximo: 4.0,
+              titulo: "Misión de Rango: Fundamentos", 
+              descripcion: "Desbloquea los conceptos de carga, campo y flujo para superar esta prueba.",
+              puntajeMaximo: 5.0,
               tiempoEsperado: 1200 
           }, null, 2));
           const [configSaved, setConfigSaved] = useState(false);
@@ -845,7 +844,7 @@
           
           // Reviews
           const [ratingStats, setRatingStats] = useState({ average: 0, count: 0 });
-          const [userRating, setUserRating] = useState(0);
+          const [survey, setSurvey] = useState({ platform: 0, graphics: 0, challenge: 0, comment: '' });
           const [hasRated, setHasRated] = useState(false);
 
           // Real-time Views & Reviews Listener
@@ -864,7 +863,13 @@
                       const reviewsRef = collection(db, 'artifacts', appId, 'public', 'data', 'reviews'); 
                       onSnapshot(reviewsRef, (snap) => {
                           let sum = 0; let count = 0;
-                          snap.forEach(doc => { sum += doc.data().stars; count++; });
+                          snap.forEach(doc => { 
+                             const data = doc.data();
+                             // Promediamos las 3 estrellas de cada review
+                             const avgReview = (data.platform + data.graphics + data.challenge) / 3;
+                             sum += avgReview; 
+                             count++; 
+                          });
                           if (count > 0) setRatingStats({ average: (sum/count).toFixed(1), count });
                       }, (error) => console.log("Reviews:", error.message));
                   } catch(e) { console.log(e); }
@@ -909,7 +914,6 @@
             const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
               setUser(currentUser);
               if (currentUser) {
-                  // Register directory to allow reading all
                   if (!currentUser.isAnonymous) {
                       try {
                           await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'directory', currentUser.uid), {
@@ -951,9 +955,8 @@
                   let totalScore = 0;
                   let totalTime = 0;
                   let totalHints = 0;
-                  let s1 = 0, s2 = 0, s3 = 0;
+                  let s1 = 0, s2 = 0, s3 = 0, s4 = 0, s5 = 0;
 
-                  // Admin reads ALL attempts iterating the directory
                   for (const userDoc of dirSnap.docs) {
                       const uid = userDoc.id;
                       const email = userDoc.data().email;
@@ -974,9 +977,11 @@
                           totalTime += data.time;
                           totalHints += (data.hints || 0);
                           
-                          s1 += data.details?.s1 || (data.score * 0.25);
-                          s2 += data.details?.s2 || (data.score * 0.375);
-                          s3 += data.details?.s3 || (data.score * 0.375);
+                          s1 += data.details?.s1 || (data.score * 0.1);
+                          s2 += data.details?.s2 || (data.score * 0.1);
+                          s3 += data.details?.s3 || (data.score * 0.2);
+                          s4 += data.details?.s4 || (data.score * 0.3);
+                          s5 += data.details?.s5 || (data.score * 0.3);
                       });
                   }
 
@@ -995,9 +1000,10 @@
                       frustrationIndex: frustration,
                       attempts: allAttempts.slice(0, 50), 
                       questionMetrics: [
-                          { id: 'Q1', title: 'Hoja 1: Naturaleza', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.2), status: (s1/count)>0.7 ? 'optimal' : 'review' },
-                          { id: 'Q2', title: 'Hoja 2: Ley de Coulomb', avgScore: (s2/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s2/count)>1.0 ? 'optimal' : 'critical' },
-                          { id: 'Q3', title: 'Hoja 3: Matriz Universal Gauss', avgScore: (s3/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s3/count)>1.0 ? 'optimal' : 'critical' }
+                          { id: 'Q1', title: 'Hoja 1: Naturaleza', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.1), status: (s1/count)>0.3 ? 'optimal' : 'review' },
+                          { id: 'Q2', title: 'Hoja 1: Interacción', avgScore: (s2/count).toFixed(2), avgTime: Math.floor(aTime * 0.1), status: (s2/count)>0.3 ? 'optimal' : 'review' },
+                          { id: 'Q3', title: 'Hoja 2: Ley Coulomb', avgScore: (s4/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s4/count)>1.0 ? 'optimal' : 'critical' },
+                          { id: 'Q4', title: 'Hoja 3: Matriz Gauss', avgScore: (s5/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s5/count)>1.0 ? 'optimal' : 'critical' }
                       ]
                   });
               } catch(e) { console.error("Error al cargar dashboard:", e); }
@@ -1014,14 +1020,19 @@
               }
           };
 
-          const submitRating = async (stars) => {
-              if (hasRated || !user) return;
-              setUserRating(stars);
+          const submitRating = async () => {
+              if (hasRated || !user || survey.platform===0 || survey.graphics===0 || survey.challenge===0) {
+                  alert("Por favor califica todas las áreas con estrellas.");
+                  return;
+              }
               setHasRated(true);
               try {
                   const reviewsRef = collection(db, 'artifacts', appId, 'public', 'data', 'reviews');
                   await addDoc(reviewsRef, {
-                      stars: stars,
+                      platform: survey.platform,
+                      graphics: survey.graphics,
+                      challenge: survey.challenge,
+                      comment: survey.comment,
                       userId: user.uid,
                       timestamp: serverTimestamp()
                   });
@@ -1049,7 +1060,7 @@
             setAnswers({});
             setUsedTips([]);
             setHasRated(false);
-            setUserRating(0);
+            setSurvey({ platform: 0, graphics: 0, challenge: 0, comment: '' });
             setView('exam');
           };
 
@@ -1079,6 +1090,19 @@
             return uniqueOpts.sort(() => Math.random() - 0.5);
           }, [examVars]);
 
+          const gaussOptionsS2 = useMemo(() => {
+            const correct = examVars.q3; // S2 encierra a q3 según el diagrama de Venn
+            const dist1 = examVars.q3 + examVars.q1;
+            const opts = [
+              {val: `${correct}q`, label: `$\\frac{${correct}q}{\\epsilon_0}$`},
+              {val: `${dist1}q_alt1`, label: `$\\frac{${dist1}q}{\\epsilon_0}$`},
+              {val: `0q`, label: `$0$`}
+            ];
+            const uniqueOpts = []; const map = new Map();
+            for (const item of opts) { if(!map.has(item.label)){ map.set(item.label, true); uniqueOpts.push(item); } }
+            return uniqueOpts.sort(() => Math.random() - 0.5);
+          }, [examVars]);
+
           const gaussOptionsS3 = useMemo(() => {
             const correct = examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4;
             const dist1 = examVars.q3 + examVars.q4;
@@ -1092,7 +1116,7 @@
             return uniqueOpts.sort(() => Math.random() - 0.5);
           }, [examVars]);
 
-          // Shared Options for Dropdowns
+          // Shared Options for Dropdowns - TODAS RENDERIZADAS CON LATEX $...$
           const coulombDensityOpts = [{val: '\\lambda', label: '$\\lambda$'}, {val: '\\sigma', label: '$\\sigma$'}, {val: '\\rho', label: '$\\rho$'}];
           const coulombDqOpts = [{val: '\\lambda R d\\theta', label: '$\\lambda R d\\theta$'}, {val: '\\sigma 2\\pi r\' dr\'', label: '$\\sigma 2\\pi r\' dr\'$'}, {val: '\\lambda dy', label: '$\\lambda dy$'}];
           const coulombR2Opts = [{val: 'R^2 + z^2', label: '$R^2 + z^2$'}, {val: '(r\')^2 + z^2', label: '$(r\')^2 + z^2$'}, {val: 'x^2 + y^2', label: '$x^2 + y^2$'}];
@@ -1107,29 +1131,31 @@
 
           const calculateScore = () => {
             let total = 0;
-            let s1=0, s2=0, s3=0;
+            let s1=0, s2=0, s3=0, s4=0, s5=0;
             
-            // Level 1 & 2 (Hoja 1) - Max 1.0
-            if(answers.t1 === 'Frotamiento') s1 += 0.02; if(answers.t2 === 'Contacto') s1 += 0.02; if(answers.t3 === 'Inducción') s1 += 0.02;
-            if(answers.o1 === 'transfer') s1 += 0.03; if(answers.o2 === 'equil') s1 += 0.03; if(answers.o3 === 'ground') s1 += 0.03;
-            if(answers.sym1 === '\\lambda') s1 += 0.01; if(answers.f1 === '\\lambda dl') s1 += 0.02; if(answers.u1 === '\\text{C/m}') s1 += 0.02;
-            if(answers.sym2 === '\\sigma') s1 += 0.01; if(answers.f2 === '\\sigma dA') s1 += 0.02; if(answers.u2 === '\\text{C/m}^2') s1 += 0.02;
-            if(answers.sym3 === '\\rho') s1 += 0.01; if(answers.f3 === '\\rho dV') s1 += 0.02; if(answers.u3 === '\\text{C/m}^3') s1 += 0.02;
+            // Level 1 (Naturaleza) - Max 0.50
+            if(answers.t1 === 'Frotamiento') s1 += 0.05; if(answers.t2 === 'Contacto') s1 += 0.05; if(answers.t3 === 'Inducción') s1 += 0.05;
+            if(answers.o1 === 'transfer') s1 += 0.05; if(answers.o2 === 'equil') s1 += 0.05; if(answers.o3 === 'ground') s1 += 0.05;
+            if(answers.sym1 === '\\lambda') s1 += 0.02; if(answers.f1 === '\\lambda dl') s1 += 0.022; if(answers.u1 === '\\text{C/m}') s1 += 0.022;
+            if(answers.sym2 === '\\sigma') s1 += 0.02; if(answers.f2 === '\\sigma dA') s1 += 0.022; if(answers.u2 === '\\text{C/m}^2') s1 += 0.022;
+            if(answers.sym3 === '\\rho') s1 += 0.02; if(answers.f3 === '\\rho dV') s1 += 0.022; if(answers.u3 === '\\text{C/m}^3') s1 += 0.03;
 
-            if(answers.b1 === 'dos') s1 += 0.025; if(answers.b2 === 'una') s1 += 0.025; if(answers.b3 === 'q_0 \\vec{E}') s1 += 0.05;
+            // Level 2 (Interacción) - Max 0.50
+            if(answers.b1 === 'dos') s2 += 0.05; if(answers.b2 === 'una') s2 += 0.05; if(answers.b3 === 'q_0 \\vec{E}') s2 += 0.10;
             const vCountA = Object.keys(answers.canvasA || {}).length; const vCountB = Object.keys(answers.canvasB || {}).length;
-            if(vCountA > 3) s1 += 0.10; if(vCountB > 4) s1 += 0.10;
+            if(vCountA > 3) s2 += 0.15; if(vCountB > 4) s2 += 0.15;
 
-            const e1 = examVars.q1 + examVars.q2; const e3 = examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4;
-            if(answers.p1 === `${e1}q`) s1 += 0.15; if(answers.p3 === `${e3}q`) s1 += 0.15; if(answers.pt === 'no') s1 += 0.10;
+            // Level 3 (Bóveda S1, S2, S3) - Max 1.00
+            const e1 = examVars.q1 + examVars.q2; const e2 = examVars.q3; const e3 = examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4;
+            if(answers.p1 === `${e1}q`) s3 += 0.20; if(answers.p2 === `${e2}q`) s3 += 0.20; if(answers.p3 === `${e3}q`) s3 += 0.20; if(answers.pt === 'no') s3 += 0.40;
 
-            // Level 4 (Hoja 2 Coulomb) - Max 1.50
-            if(answers.c1_den === '\\lambda') s2 += 0.05; if(answers.c1_dq === '\\lambda R d\\theta') s2 += 0.05; if(answers.c1_r2 === 'R^2 + z^2') s2 += 0.10; if(answers.c1_sym === 'x,y') s2 += 0.10; if(answers.c1_int === '0..2pi') s2 += 0.10; if(answers.c1_num?.includes('115')) s2 += 0.10; 
-            if(answers.c2_den === '\\sigma') s2 += 0.05; if(answers.c2_dq === '\\sigma 2\\pi r\' dr\'') s2 += 0.05; if(answers.c2_r2 === '(r\')^2 + z^2') s2 += 0.10; if(answers.c2_sym === 'x,y') s2 += 0.10; if(answers.c2_int === '0..R') s2 += 0.10; if(answers.c2_num?.includes('151')) s2 += 0.10;
-            if(answers.c3_den === '\\lambda') s2 += 0.05; if(answers.c3_dq === '\\lambda dy') s2 += 0.05; if(answers.c3_r2 === 'x^2 + y^2') s2 += 0.10; if(answers.c3_sym === 'ninguna') s2 += 0.10; if(answers.c3_int === '0..a') s2 += 0.10; if(answers.c3_num?.length > 1) s2 += 0.10; 
+            // Level 4 (Coulomb) - Max 1.50
+            if(answers.c1_den === '\\lambda') s4 += 0.08; if(answers.c1_dq === '\\lambda R d\\theta') s4 += 0.08; if(answers.c1_r2 === 'R^2 + z^2') s4 += 0.08; if(answers.c1_sym === 'x,y') s4 += 0.08; if(answers.c1_int === '0..2pi') s4 += 0.08; if(answers.c1_num?.includes('115')) s4 += 0.10; 
+            if(answers.c2_den === '\\sigma') s4 += 0.08; if(answers.c2_dq === '\\sigma 2\\pi r\' dr\'') s4 += 0.08; if(answers.c2_r2 === '(r\')^2 + z^2') s4 += 0.08; if(answers.c2_sym === 'x,y') s4 += 0.08; if(answers.c2_int === '0..R') s4 += 0.08; if(answers.c2_num?.includes('151')) s4 += 0.10;
+            if(answers.c3_den === '\\lambda') s4 += 0.08; if(answers.c3_dq === '\\lambda dy') s4 += 0.08; if(answers.c3_r2 === 'x^2 + y^2') s4 += 0.08; if(answers.c3_sym === 'ninguna') s4 += 0.08; if(answers.c3_int === '0..a') s4 += 0.08; if(answers.c3_num?.length > 1) s4 += 0.10; 
 
-            // Level 5 (Hoja 3 Gauss Matrix) - Max 1.50
-            const checkG = (id, exp, pts) => { if(answers[id] === exp) s3 += pts; }
+            // Level 5 (Gauss Matrix) - Max 1.50
+            const checkG = (id, exp, pts) => { if(answers[id] === exp) s5 += pts; }
             checkG('g1_dist', 'vol', 0.025); checkG('g2_dist', 'sup_ext', 0.025); checkG('g3_dist', 'vol_casc', 0.025); checkG('g4_dist', 'sup_ext', 0.025);
             checkG('g1_area', 'E(4pir^2)', 0.025); checkG('g2_area', 'E(4pir^2)', 0.025); checkG('g3_area', 'E(4pir^2)', 0.025); checkG('g4_area', 'E(4pir^2)', 0.025);
             checkG('g1_qi', 'rho_v_esf', 0.0125); checkG('g2_qi', '0', 0.0125); checkG('g3_qi', '0', 0.0125); checkG('g4_qi', '0', 0.0125);
@@ -1138,17 +1164,17 @@
             checkG('g1_em', 'E_ins', 0.0125); checkG('g2_em', '0', 0.0125); checkG('g3_em', 'E_casc', 0.0125); checkG('g4_em', '0', 0.0125);
             checkG('g1_qe', 'Q', 0.0125); checkG('g2_qe', 'Q', 0.0125); checkG('g3_qe', 'Q', 0.0125); checkG('g4_qe', 'Q', 0.0125);
             checkG('g1_ee', 'E_ext', 0.0125); checkG('g2_ee', 'E_ext', 0.0125); checkG('g3_ee', 'E_ext', 0.0125); checkG('g4_ee', 'E_ext', 0.0125);
-            if(answers.g1_pot?.length > 2) s3 += 0.05; if(answers.g2_pot?.length > 2) s3 += 0.05; if(answers.g3_pot?.length > 2) s3 += 0.05; if(answers.g4_pot?.length > 2) s3 += 0.05;
+            if(answers.g1_pot?.length > 2) s5 += 0.05; if(answers.g2_pot?.length > 2) s5 += 0.05; if(answers.g3_pot?.length > 2) s5 += 0.05; if(answers.g4_pot?.length > 2) s5 += 0.05;
             checkG('g1_graph', 'linear_decay', 0.125); checkG('g2_graph', 'zero_decay', 0.125); checkG('g3_graph', 'zero_curve_decay', 0.125); checkG('g4_graph', 'zero_zero_decay', 0.125);
 
-            total = s1 + s2 + s3 - (usedTips.length * 0.02);
-            return { total: Math.max(Math.min(total, 4.0), 0).toFixed(2), details: { s1, s2, s3 } };
+            total = s1 + s2 + s3 + s4 + s5 - (usedTips.length * 0.02);
+            return { total: Math.max(Math.min(total, 5.0), 0).toFixed(2), details: { s1, s2, s3, s4, s5 } };
           };
 
           const handleSubmit = async () => {
             if(!window.confirm("¿Seguro que deseas procesar la evaluación definitiva?")) return;
             const result = calculateScore();
-            setScore(result.total);
+            setScoreData(result);
             setFinalTime(timeElapsed);
             setIsSubmitted(true);
             setView('results');
@@ -1157,12 +1183,28 @@
             if (user && !user.isAnonymous) {
               try {
                 const userRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
-                await addDoc(userRef, { score: result.total, maxScore: 4.0, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
+                await addDoc(userRef, { score: result.total, maxScore: 5.0, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
               } catch (e) { console.error("Error guardando intento:", e); }
             }
           };
 
           const formatTime = (sec) => sec != null ? `${Math.floor(sec / 60)}m ${(sec % 60).toString().padStart(2, '0')}s` : '0m 00s';
+
+          // Mensaje Psicológico de Tiempo
+          let timeMsg = "";
+          if (finalTime > 0) {
+              if (finalTime < 300) timeMsg = "Has respondido en un tiempo récord (< 5 min). Si tu nota es baja, es un indicador de que contestaste al azar o con excesiva prisa. La física requiere pausa y análisis estructurado.";
+              else if (finalTime > 1800) timeMsg = "Has tomado un tiempo considerable (> 30 min). Esto refleja esfuerzo y dedicación, pero también indica que podrías estar dudando en conceptos base. ¡Sigue practicando para ganar fluidez!";
+              else timeMsg = "Tu tiempo de resolución está dentro del rango esperado para un procesamiento cognitivo adecuado. ¡Bien hecho!";
+          }
+
+          // Insignia Dinámica
+          let insignia = { title: "", icon: Brain, color: "" };
+          const s = parseFloat(scoreData.total);
+          if (s >= 4.5) insignia = { title: "Maestro del Electromagnetismo", icon: Award, color: "text-amber-400" };
+          else if (s >= 3.5) insignia = { title: "Analista de Campos", icon: Activity, color: "text-blue-400" };
+          else if (s >= 2.5) insignia = { title: "Aprendiz de Faraday", icon: Lightbulb, color: "text-emerald-400" };
+          else insignia = { title: "Iniciado en Electroestática", icon: Target, color: "text-slate-400" };
 
           if (loading) return <div className="flex h-screen items-center justify-center bg-slate-50"><Activity className="animate-pulse text-blue-600" size={48} /></div>;
 
@@ -1189,7 +1231,7 @@
                   )}
                   {role && (
                     <div className="flex items-center gap-3 bg-slate-100 px-5 py-2 rounded-full border border-slate-200 shadow-inner">
-                      <span className={`flex items-center gap-2 text-sm font-black uppercase tracking-wider ${role==='student'?'text-emerald-700': 'text-blue-700'}`}>
+                      <span className={`flex items-center gap-2 text-sm font-black uppercase tracking-wider ${role==='student'?'text-emerald-700': role==='teacher'?'text-blue-700':'text-violet-700'}`}>
                         {role === 'student' ? <GraduationCap size={18}/> : role === 'teacher' ? <BookOpen size={18}/> : <Settings size={18}/>}
                         <span className="hidden sm:inline">{role === 'student' ? 'Estudiante' : role === 'teacher' ? 'Docente' : 'Admin'}</span>
                       </span>
@@ -1297,9 +1339,10 @@
                     <BrainCircuit size={56} />
                   </div>
                   <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tight">{JSON.parse(examConfig).titulo || "Misión: Fundamentos"}</h2>
-                  <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">Estás a punto de iniciar una evaluación estructurada. Las variables topológicas y vectoriales han sido generadas exclusivamente para ti. El sistema medirá tu tiempo y precisión.</p>
+                  <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">¡Hola! Bienvenido a tu prueba de Electromagnetismo. Esta evaluación interactiva está diseñada para poner a prueba tu verdadera comprensión física. La calificación es sobre 5.0 (hemos integrado el valor de tus apuntes aquí). Recuerda: la mejor herramienta de un ingeniero o científico es el papel y el lápiz. ¡Tómate tu tiempo, analiza los modelos 3D y mucho éxito!</p>
+                  
                   <div className="flex flex-wrap items-center justify-center gap-6 mb-12 text-base font-bold text-slate-600">
-                    <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Target size={20} className="text-emerald-500"/> {JSON.parse(examConfig).puntajeMaximo || 4.0} Pts Totales</span>
+                    <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Target size={20} className="text-emerald-500"/> {JSON.parse(examConfig).puntajeMaximo || 5.0} Pts Totales</span>
                     <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Clock size={20} className="text-blue-500"/> Tiempo Libre</span>
                     <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Eye size={20} className="text-violet-500"/> 1 Intento</span>
                   </div>
@@ -1349,9 +1392,9 @@
                     {currentPage === 1 && (
                         <div key="page1" className="animate-in slide-in-from-right-8 fade-in duration-500">
                             {/* LEVEL 1 */}
-                            <MisionBox title="I. Naturaleza y Geometría de la Carga" points="0.30">
+                            <MisionBox title="I. Naturaleza y Geometría de la Carga" points="0.50">
                               <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-2xl mb-10">
-                                <p className="font-black text-blue-900 text-xl mb-2 flex items-center gap-2"><Activity size={24}/> 1.1 Mecanismos de Electrización <span className="text-sm text-red-600 ml-auto bg-red-100 px-3 py-1 rounded-lg">[0.15 pts]</span></p>
+                                <p className="font-black text-blue-900 text-xl mb-2 flex items-center gap-2"><Activity size={24}/> 1.1 Mecanismos de Electrización <span className="text-sm text-red-600 ml-auto bg-red-100 px-3 py-1 rounded-lg">[0.25 pts]</span></p>
                                 <p className="text-blue-800 font-medium text-base">Identifique el mecanismo mediante las opciones y describa la física del flujo electrónico.</p>
                               </div>
                               
@@ -1360,17 +1403,17 @@
                                   <div className="h-32 mb-8 flex justify-center group-hover:scale-105 transition-transform"><SvgFriction /></div>
                                   <div className="space-y-6 flex-grow flex flex-col">
                                     <div>
-                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.02]</span></label>
+                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.05]</span></label>
                                       <InlineSelect id="t1" value={answers.t1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Frotamiento" width="w-full" options={[
-                                        {val:'Frotamiento', label:'\\text{Frotamiento}'}, {val:'Contacto', label:'\\text{Contacto}'}, {val:'Inducción', label:'\\text{Inducción}'}
+                                        {val:'Frotamiento', label:'$\\text{Frotamiento}$'}, {val:'Contacto', label:'$\\text{Contacto}$'}, {val:'Inducción', label:'$\\text{Inducción}$'}
                                       ]} />
                                     </div>
                                     <div className="flex-grow flex flex-col">
-                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.03]</span></label>
+                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.05]</span></label>
                                       <ERadioGroup id="o1" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="transfer" options={[
-                                        {val:'align', label:'\\text{Alineación de dipolos.}'},
-                                        {val:'protons', label:'\\text{Intercambio de protones.}'},
-                                        {val:'transfer', label:'\\text{Transferencia de } e^- \\text{ por fricción.}'}
+                                        {val:'align', label:'$\\text{Alineación de dipolos.}$'},
+                                        {val:'protons', label:'$\\text{Intercambio de protones.}$'},
+                                        {val:'transfer', label:'$\\text{Transferencia de } e^- \\text{ por fricción.}$'}
                                       ]} />
                                     </div>
                                   </div>
@@ -1380,17 +1423,17 @@
                                   <div className="h-32 mb-8 flex justify-center group-hover:scale-105 transition-transform"><SvgContact /></div>
                                   <div className="space-y-6 flex-grow flex flex-col">
                                     <div>
-                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.02]</span></label>
+                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.05]</span></label>
                                       <InlineSelect id="t2" value={answers.t2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Contacto" width="w-full" options={[
-                                        {val:'Frotamiento', label:'\\text{Frotamiento}'}, {val:'Contacto', label:'\\text{Contacto}'}, {val:'Inducción', label:'\\text{Inducción}'}
+                                        {val:'Frotamiento', label:'$\\text{Frotamiento}$'}, {val:'Contacto', label:'$\\text{Contacto}$'}, {val:'Inducción', label:'$\\text{Inducción}$'}
                                       ]} />
                                     </div>
                                     <div className="flex-grow flex flex-col">
-                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.03]</span></label>
+                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.05]</span></label>
                                       <ERadioGroup id="o2" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="equil" options={[
-                                         {val:'create', label:'\\text{Creación espontánea de cargas.}'},
-                                         {val:'equil', label:'\\text{Flujo de } e^- \\text{ libres hasta el equilibrio.}'},
-                                         {val:'polar', label:'\\text{Polarización sin salto electrónico.}'}
+                                         {val:'create', label:'$\\text{Creación espontánea de cargas.}$'},
+                                         {val:'equil', label:'$\\text{Flujo de } e^- \\text{ libres hasta el equilibrio.}$'},
+                                         {val:'polar', label:'$\\text{Polarización sin salto electrónico.}$'}
                                       ]} />
                                     </div>
                                   </div>
@@ -1400,17 +1443,17 @@
                                   <div className="h-32 mb-8 flex justify-center group-hover:scale-105 transition-transform"><SvgInduction /></div>
                                   <div className="space-y-6 flex-grow flex flex-col">
                                     <div>
-                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.02]</span></label>
+                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.05]</span></label>
                                       <InlineSelect id="t3" value={answers.t3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Inducción" width="w-full" options={[
-                                        {val:'Frotamiento', label:'\\text{Frotamiento}'}, {val:'Contacto', label:'\\text{Contacto}'}, {val:'Inducción', label:'\\text{Inducción}'}
+                                        {val:'Frotamiento', label:'$\\text{Frotamiento}$'}, {val:'Contacto', label:'$\\text{Contacto}$'}, {val:'Inducción', label:'$\\text{Inducción}$'}
                                       ]} />
                                     </div>
                                     <div className="flex-grow flex flex-col">
-                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.03]</span></label>
+                                      <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.05]</span></label>
                                       <ERadioGroup id="o3" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="ground" options={[
-                                         {val:'friction', label:'\\text{Fricción inducida magnéticamente.}'},
-                                         {val:'ground', label:'\\text{Polarización y drenaje a tierra.}'},
-                                         {val:'spark', label:'\\text{Arco eléctrico por alta tensión.}' }
+                                         {val:'friction', label:'$\\text{Fricción inducida magnéticamente.}$'},
+                                         {val:'ground', label:'$\\text{Polarización y drenaje a tierra.}$'},
+                                         {val:'spark', label:'$\\text{Arco eléctrico por alta tensión.}$' }
                                       ]} />
                                     </div>
                                   </div>
@@ -1419,7 +1462,7 @@
 
                               {/* DND DENSITIES */}
                               <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-2xl mb-8">
-                                <p className="font-black text-blue-900 text-xl mb-2 flex items-center gap-2"><LayoutDashboard size={24}/> 1.2 Matriz de Densidades (Interactivo) <span className="text-sm text-red-600 ml-auto bg-red-100 px-3 py-1 rounded-lg">[0.15 pts]</span></p>
+                                <p className="font-black text-blue-900 text-xl mb-2 flex items-center gap-2"><LayoutDashboard size={24}/> 1.2 Matriz de Densidades (Interactivo) <span className="text-sm text-red-600 ml-auto bg-red-100 px-3 py-1 rounded-lg">[0.25 pts]</span></p>
                                 <p className="text-blue-800 font-medium text-base">Toque un elemento del banco y luego toque una celda vacía de la tabla para organizar las variables.</p>
                               </div>
 
@@ -1439,7 +1482,7 @@
                                   <thead className="bg-slate-800 text-white">
                                     <tr>
                                       <th className="p-6 font-bold tracking-wider uppercase text-sm">Geometría</th>
-                                      <th className="p-6 text-center font-bold tracking-wider uppercase text-sm">Símbolo <span className="text-amber-400">[0.01]</span></th>
+                                      <th className="p-6 text-center font-bold tracking-wider uppercase text-sm">Símbolo <span className="text-amber-400">[0.02]</span></th>
                                       <th className="p-6 font-bold tracking-wider uppercase text-sm">Fórmula <Latex text={"$dq=$"} /> <span className="text-amber-400">[0.02]</span></th>
                                       <th className="p-6 font-bold tracking-wider uppercase text-sm">Unidades <span className="text-amber-400">[0.02]</span></th>
                                     </tr>
@@ -1469,17 +1512,17 @@
                             </MisionBox>
 
                             {/* LEVEL 2 */}
-                            <MisionBox title="II. Interacción a Distancia" points="0.30">
+                            <MisionBox title="II. Interacción a Distancia" points="0.50">
                               <div className="bg-violet-50 border-l-4 border-violet-500 p-6 rounded-r-2xl mb-8 flex items-center justify-between">
                                 <div>
                                   <p className="font-black text-violet-900 text-xl mb-1 flex items-center gap-2"><BrainCircuit size={24}/> 2.1 El Duelo Conceptual</p>
                                   <p className="text-violet-800 font-medium text-base">Despliegue las listas y seleccione la opción rigurosamente correcta.</p>
                                 </div>
-                                <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.10 pts]</span>
+                                <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.20 pts]</span>
                               </div>
 
                               <div className="mb-10 leading-loose bg-white p-10 rounded-[2rem] border-2 border-slate-200 shadow-sm text-xl text-slate-700 text-center">
-                                La <strong className="text-slate-900 font-black">Fuerza Eléctrica</strong> es una interacción que requiere estrictamente de <InlineSelect id="b1" value={answers.b1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dos" options={[{val:'una', label:'\\text{una}'}, {val:'dos', label:'\\text{dos}'}, {val:'infinitas', label:'\\text{infinitas}'}]}/> cargas para existir. Por otro lado, el <strong className="text-slate-900 font-black">Campo Eléctrico</strong> es una perturbación del espacio generada por <InlineSelect id="b2" value={answers.b2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="una" options={[{val:'una', label:'\\text{una}'}, {val:'dos', label:'\\text{dos}'}, {val:'cero', label:'\\text{ninguna}'}]}/> carga fuente. Si colocamos una carga de prueba (<Latex text={"$q_0$"}/>) en un punto donde existe un campo vectorial <Latex text={'$\\vec{E}$'}/>, experimentará una fuerza según la ecuación matemática <Latex text={'$\\vec{F} = $'}/> <InlineSelect id="b3" value={answers.b3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="q_0 \vec{E}" width="w-48" options={[{val:'\\vec{E}/q_0', label:'\\frac{\\vec{E}}{q_0}'}, {val:'q_0 \\vec{E}', label:'q_0 \\vec{E}'}, {val:'k q_0 / r^2', label:'\\frac{k q_0}{r^2}'}]}/>.
+                                La <strong className="text-slate-900 font-black">Fuerza Eléctrica</strong> es una interacción que requiere estrictamente de <InlineSelect id="b1" value={answers.b1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dos" options={[{val:'una', label:'$\\text{una}$'}, {val:'dos', label:'$\\text{dos}$'}, {val:'infinitas', label:'$\\text{infinitas}$'}]}/> cargas para existir. Por otro lado, el <strong className="text-slate-900 font-black">Campo Eléctrico</strong> es una perturbación del espacio generada por <InlineSelect id="b2" value={answers.b2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="una" options={[{val:'una', label:'$\\text{una}$'}, {val:'dos', label:'$\\text{dos}$'}, {val:'cero', label:'$\\text{ninguna}$'}]}/> carga fuente. Si colocamos una carga de prueba (<Latex text={"$q_0$"}/>) en un punto donde existe un campo vectorial <Latex text={'$\\vec{E}$'}/>, experimentará una fuerza según la ecuación matemática <Latex text={'$\\vec{F} = $'}/> <InlineSelect id="b3" value={answers.b3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="q_0 \vec{E}" width="w-48" options={[{val:'\\vec{E}/q_0', label:'$\\frac{\\vec{E}}{q_0}$'}, {val:'q_0 \\vec{E}', label:'$q_0 \\vec{E}$'}, {val:'k q_0 / r^2', label:'$\\frac{k q_0}{r^2}$'}]}/>.
                               </div>
 
                               <div className="bg-violet-50 border-l-4 border-violet-500 p-6 rounded-r-2xl mb-10 flex items-center justify-between">
@@ -1487,14 +1530,14 @@
                                   <p className="font-black text-violet-900 text-xl mb-1 flex items-center gap-2"><MousePointer2 size={24}/> 2.2 Cartografía Vectorial Interactiva</p>
                                   <p className="text-violet-800 font-medium text-base">Seleccione una dirección en la barra y haga <strong>clic en la cuadrícula</strong> para trazar el campo. Evalúe la simetría.</p>
                                 </div>
-                                <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.20 pts]</span>
+                                <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.30 pts]</span>
                               </div>
                               
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                                 <div className="bg-white p-4 rounded-[2rem] border-2 border-slate-200 shadow-md">
                                   <div className="font-black text-lg bg-slate-900 text-white p-5 rounded-t-[1.5rem] flex justify-between items-center tracking-wide mb-4">
                                     <span>A: Carga Aislada (<Latex text={"$-Q$"}/>)</span>
-                                    <span className="text-amber-400 bg-white/10 px-3 py-1 rounded-lg border border-amber-400/20">[0.05 pts]</span>
+                                    <span className="text-amber-400 bg-white/10 px-3 py-1 rounded-lg border border-amber-400/20">[0.15 pts]</span>
                                   </div>
                                   <InteractiveVectorField systemType="A" id="canvasA" onChange={handleInputChange} isSubmitted={isSubmitted} />
                                 </div>
@@ -1509,7 +1552,7 @@
                             </MisionBox>
                             
                             {/* DIAGRAMA DE VENN ADICIONADO PARA HOJA 1 */}
-                            <MisionBox title="III. La Bóveda de Gauss (Análisis Espacial)" points="0.40">
+                            <MisionBox title="III. La Bóveda de Gauss (Análisis Espacial)" points="1.00">
                               <div className="bg-emerald-50 border-l-4 border-emerald-500 p-6 rounded-r-2xl mb-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
                                 <div>
                                   <p className="font-black text-emerald-900 text-xl mb-2 flex items-center gap-2"><Target size={24}/> 3.1 Análisis de Fronteras Vivas</p>
@@ -1536,7 +1579,7 @@
                                         <h4 className="font-black text-slate-900 text-2xl mb-2">Evaluación Matemática de Flujo (<Latex text={'$\\Phi_E$'} />)</h4>
                                         <p className="text-base text-slate-600 font-medium">Seleccione la suma correcta según los gráficos.</p>
                                       </div>
-                                      <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.30 pts]</span>
+                                      <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.60 pts]</span>
                                     </div>
                                     <div className="p-10 space-y-8">
                                       <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 border-slate-100 pb-6 gap-4">
@@ -1544,6 +1587,13 @@
                                         <span className="text-2xl font-bold flex items-center">
                                           <Latex text={'$\\Phi_{E1} = $'} className="mr-3"/> 
                                           <InlineSelect id="p1" value={answers.p1} onChange={handleInputChange} isSubmitted={isSubmitted} expected={`${examVars.q1 + examVars.q2}q`} width="w-48" options={gaussOptionsS1}/> 
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 border-slate-100 pb-6 gap-4">
+                                        <span className="font-bold text-slate-800 text-xl flex items-center gap-4"><div className="w-6 h-6 bg-orange-500/20 border-4 border-orange-500 rounded-full"></div> Flujo en <Latex text={"$S_2$"}/>:</span>
+                                        <span className="text-2xl font-bold flex items-center">
+                                          <Latex text={'$\\Phi_{E2} = $'} className="mr-3"/> 
+                                          <InlineSelect id="p2" value={answers.p2} onChange={handleInputChange} isSubmitted={isSubmitted} expected={`${examVars.q3}q`} width="w-48" options={gaussOptionsS2}/> 
                                         </span>
                                       </div>
                                       <div className="flex flex-col md:flex-row md:items-center justify-between pb-2 gap-4">
@@ -1561,13 +1611,13 @@
                                     <div className="relative z-10">
                                       <p className="font-black text-2xl mb-6 flex justify-between items-center text-blue-400">
                                         <span>Análisis Teórico Profundo</span>
-                                        <span className="text-red-400 bg-red-400/10 border border-red-400/30 px-4 py-1.5 rounded-xl text-base tracking-widest uppercase shadow-inner">[0.10 pts]</span>
+                                        <span className="text-red-400 bg-red-400/10 border border-red-400/30 px-4 py-1.5 rounded-xl text-base tracking-widest uppercase shadow-inner">[0.40 pts]</span>
                                       </p>
                                       <p className="text-lg text-slate-300 mb-6 leading-relaxed font-medium">¿El campo <Latex text={'$\\vec{E}$'} className="text-white font-bold"/> evaluado en un punto específico sobre la superficie fronteriza <Latex text={'$S_1$'} className="text-white font-bold"/> depende SOLO de las cargas internas?</p>
                                       <ERadioGroup id="pt" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="no" options={[
-                                        {val: 'yes1', label: '\\text{Sí. La ley de Gauss establece que solo la carga encerrada genera el campo en la frontera.}'},
-                                        {val: 'yes2', label: '\\text{Sí. Las cargas externas al sistema son completamente apantalladas.}'},
-                                        {val: 'no', label: '\\text{No. El flujo neto depende solo de las internas, pero el vector campo E sufre superposición de TODAS las cargas.}'}
+                                        {val: 'yes1', label: '$\\text{Sí. La ley de Gauss establece que solo la carga encerrada genera el campo en la frontera.}$'},
+                                        {val: 'yes2', label: '$\\text{Sí. Las cargas externas al sistema son completamente apantalladas.}$'},
+                                        {val: 'no', label: '$\\text{No. El flujo neto depende solo de las internas, pero el vector campo E sufre superposición de TODAS las cargas.}$'}
                                       ]} />
                                     </div>
                                   </div>
@@ -1963,76 +2013,134 @@
 
       {/* VIEW: RESULTS */}
       {view === 'results' && (
-        <div className="max-w-4xl mx-auto mt-16 p-6 animate-in zoom-in-95 duration-500 flex-grow">
-          <div className="bg-slate-900 rounded-[3rem] shadow-2xl overflow-hidden text-white relative border border-slate-800">
+        <div className="max-w-5xl mx-auto mt-16 p-6 animate-in zoom-in-95 duration-500 flex-grow">
+          <div className="bg-slate-900 rounded-[3rem] shadow-2xl overflow-hidden text-white relative border border-slate-800 pb-16">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-[300px] bg-blue-600/20 blur-[120px] pointer-events-none rounded-full"></div>
             
-            <div className="p-12 text-center relative z-10">
-              <Award size={80} className={`mx-auto mb-8 drop-shadow-lg ${score >= 3.2 ? 'text-amber-400' : 'text-red-400'}`} />
-              <h2 className="text-5xl font-black mb-4 uppercase tracking-tighter">Reporte de Misión</h2>
-              <p className="text-slate-400 font-medium text-xl">Calificación procesada por el motor adaptativo neuronal.</p>
+            <div className="p-8 md:p-12 text-center relative z-10">
+              <insignia.icon size={80} className={`mx-auto mb-8 drop-shadow-lg ${insignia.color}`} />
+              <h2 className="text-4xl md:text-5xl font-black mb-4 uppercase tracking-tighter">Reporte de Misión</h2>
+              <p className="text-slate-400 font-medium text-lg md:text-xl">Calificación procesada por el motor adaptativo neuronal.</p>
 
-              <div className="my-16 flex justify-center">
-                <div className="relative w-56 h-56 flex items-center justify-center bg-slate-800 rounded-full shadow-[0_0_80px_rgba(59,130,246,0.3)] border-8 border-slate-700">
+              <div className="my-16 flex flex-col md:flex-row items-center justify-center gap-12">
+                <div className="relative w-64 h-64 flex items-center justify-center bg-slate-800 rounded-full shadow-[0_0_80px_rgba(59,130,246,0.3)] border-8 border-slate-700 shrink-0">
                   <div className="text-center">
                     <span className="text-7xl font-black bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-400 drop-shadow-sm">{score}</span>
-                    <span className="block text-base text-blue-400 mt-2 font-black tracking-widest">/ 4.0 PTS</span>
+                    <span className="block text-base text-blue-400 mt-2 font-black tracking-widest">/ 5.0 PTS</span>
                   </div>
+                </div>
+                
+                <div className="text-left bg-slate-800/50 p-8 rounded-3xl border border-slate-700 flex-grow w-full max-w-md">
+                    <h3 className="font-black text-2xl mb-2 flex items-center gap-2 text-white"><Award size={24} className={insignia.color}/> Rango Obtenido:</h3>
+                    <p className={`text-xl font-bold mb-6 ${insignia.color}`}>{insignia.title}</p>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase mb-1"><span>Hoja 1: Naturaleza</span> <span>{Math.round((scoreData.details.s1 / 0.5)*100)}%</span></div>
+                            <div className="w-full bg-slate-700 rounded-full h-2"><div className={`bg-emerald-500 h-2 rounded-full progress-bar-fill`} style={{width: `${(scoreData.details.s1 / 0.5)*100}%`}}></div></div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase mb-1"><span>Hoja 1: Interacción Vectorial</span> <span>{Math.round((scoreData.details.s2 / 0.5)*100)}%</span></div>
+                            <div className="w-full bg-slate-700 rounded-full h-2"><div className={`bg-blue-500 h-2 rounded-full progress-bar-fill`} style={{width: `${(scoreData.details.s2 / 0.5)*100}%`}}></div></div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase mb-1"><span>Hoja 1: Flujo Gaussiano</span> <span>{Math.round((scoreData.details.s3 / 1.0)*100)}%</span></div>
+                            <div className="w-full bg-slate-700 rounded-full h-2"><div className={`bg-violet-500 h-2 rounded-full progress-bar-fill`} style={{width: `${(scoreData.details.s3 / 1.0)*100}%`}}></div></div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase mb-1"><span>Hoja 2: Ley Coulomb</span> <span>{Math.round((scoreData.details.s4 / 1.5)*100)}%</span></div>
+                            <div className="w-full bg-slate-700 rounded-full h-2"><div className={`bg-amber-500 h-2 rounded-full progress-bar-fill`} style={{width: `${(scoreData.details.s4 / 1.5)*100}%`}}></div></div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-xs font-bold text-slate-400 uppercase mb-1"><span>Hoja 3: Matriz Universal Gauss</span> <span>{Math.round((scoreData.details.s5 / 1.5)*100)}%</span></div>
+                            <div className="w-full bg-slate-700 rounded-full h-2"><div className={`bg-pink-500 h-2 rounded-full progress-bar-fill`} style={{width: `${(scoreData.details.s5 / 1.5)*100}%`}}></div></div>
+                        </div>
+                    </div>
                 </div>
               </div>
 
-              {/* Pedagogical Feedback */}
-              <div className={`max-w-3xl mx-auto p-8 rounded-3xl border-2 ${score >= 3.2 ? 'bg-emerald-900/40 border-emerald-500/50 text-emerald-100' : score >= 2.0 ? 'bg-blue-900/40 border-blue-500/50 text-blue-100' : 'bg-red-900/40 border-red-500/50 text-red-100'}`}>
-                <h3 className="font-black text-2xl mb-4 flex items-center justify-center gap-3">
-                  <BrainCircuit size={28}/> Mensaje de Calificación Pedagógica
-                </h3>
-                <p className="leading-relaxed text-lg font-medium">
-                  {score >= 3.2 ? "¡Nivel Dios alcanzado! Tu dominio sobre los flujos vectoriales y la ley de Gauss es absoluto. Estás listo para topologías complejas y distribuciones asimétricas." : 
-                   score >= 2.0 ? "Buen trabajo operativo. Sin embargo, hay vacíos conceptuales en las fronteras de Gauss. Analiza la diferencia entre Flujo Neto y el Principio de Superposición en el Campo Local." : 
-                   "Anomalía detectada. El sistema adaptativo sugiere repasar urgentemente los mecanismos de polarización y el concepto de carga encerrada. ¡Vuelve a intentarlo, la física requiere iteración!"}
-                </p>
-                {usedTips.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-current/20 text-sm font-bold opacity-80">
-                    Penalización por {usedTips.length} pista(s) táctica(s) solicitada(s) aplicada.
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                  {/* Pedagogical Feedback */}
+                  <div className={`p-8 rounded-3xl border-2 ${score >= 4.0 ? 'bg-emerald-900/40 border-emerald-500/50 text-emerald-100' : score >= 3.0 ? 'bg-blue-900/40 border-blue-500/50 text-blue-100' : 'bg-red-900/40 border-red-500/50 text-red-100'}`}>
+                    <h3 className="font-black text-2xl mb-4 flex items-center gap-3">
+                      <BrainCircuit size={28}/> Análisis Cognitivo
+                    </h3>
+                    <p className="leading-relaxed text-lg font-medium mb-4">
+                      {score >= 4.0 ? "¡Nivel Dios alcanzado! Tu dominio sobre los flujos vectoriales y distribuciones continuas es sólido." : 
+                       score >= 3.0 ? "Buen trabajo operativo. Sin embargo, hay vacíos conceptuales. Analiza la diferencia entre Flujo Neto y el Principio de Superposición." : 
+                       "Anomalía detectada. El sistema sugiere repasar urgentemente los mecanismos de polarización y los límites de integración. ¡Vuelve a intentarlo, la física requiere iteración!"}
+                    </p>
+                    <p className="text-sm font-bold opacity-80 border-t border-current pt-4">
+                        <Timer size={16} className="inline mr-2 -mt-1"/>
+                        {timeMsg}
+                    </p>
                   </div>
-                )}
+
+                  {/* IMPORTANCIA DE LOS APUNTES */}
+                  <div className="p-8 rounded-3xl border-2 bg-amber-900/30 border-amber-500/50 text-amber-100 flex flex-col justify-center">
+                      <h3 className="font-black text-2xl mb-4 flex items-center gap-3">
+                        <BookOpenCheck size={28} className="text-amber-400"/> El Poder del Lápiz y Papel
+                      </h3>
+                      <p className="leading-relaxed text-base font-medium mb-4">
+                        Recuerda que esta plataforma es un complemento. La verdadera ingeniería se forja tomando apuntes rigurosos y resolviendo ejercicios a mano. Las conexiones neuronales al escribir son irremplazables.
+                      </p>
+                      <ul className="text-sm font-bold opacity-90 space-y-2 list-disc list-inside ml-4">
+                          <li>Dedica 30 min diarios a transcribir fórmulas.</li>
+                          <li>Dibuja los vectores antes de calcular.</li>
+                          <li>Tus apuntes organizados garantizan ese 1.0 extra en tu vida profesional.</li>
+                      </ul>
+                  </div>
               </div>
 
-              {/* Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-14">
-                <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm shadow-lg hover:-translate-y-1 transition-transform">
-                  <Clock className="text-blue-400 mx-auto mb-3" size={32}/>
-                  <p className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-1">Tiempo Total</p>
-                  <p className="text-2xl font-mono font-bold text-white">{formatTime(finalTime)}</p>
-                </div>
-                <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm shadow-lg hover:-translate-y-1 transition-transform">
-                  <Timer className="text-violet-400 mx-auto mb-3" size={32}/>
-                  <p className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-1">Tiempo / Misión</p>
-                  <p className="text-2xl font-mono font-bold text-white">{Math.floor(finalTime / 5)}s</p>
-                </div>
-                <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm shadow-lg hover:-translate-y-1 transition-transform">
-                  <Target className="text-emerald-400 mx-auto mb-3" size={32}/>
-                  <p className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-1">Precisión</p>
-                  <p className="text-2xl font-mono font-bold text-white">{Math.round((score/4.0) * 100)}%</p>
-                </div>
-                <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm shadow-lg hover:-translate-y-1 transition-transform">
-                  <RefreshCw className="text-amber-400 mx-auto mb-3" size={32}/>
-                  <p className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-1">Estado en Nube</p>
-                  <p className="text-lg font-black mt-1 text-amber-400 uppercase">Guardado</p>
-                </div>
-              </div>
-              
               {/* RATING REAL SYSTEM */}
-              <div className="mt-12 bg-slate-800/50 p-8 rounded-3xl border border-slate-700/50 backdrop-blur-sm flex flex-col items-center shadow-lg">
-                  <p className="text-slate-300 font-black mb-4 uppercase tracking-widest text-sm">¿Cómo calificarías esta simulación?</p>
-                  <div className="flex gap-2">
-                      {[1,2,3,4,5].map(star => (
-                          <button key={star} onClick={() => submitRating(star)} disabled={hasRated} className={`transition-all ${hasRated ? 'cursor-default' : 'hover:scale-125 cursor-pointer'} ${userRating >= star ? 'text-amber-400' : 'text-slate-600 hover:text-amber-400'}`}>
-                              <Star size={36} className={userRating >= star ? 'fill-current' : ''} />
-                          </button>
-                      ))}
+              <div className="mt-12 bg-slate-800/50 p-8 rounded-3xl border border-slate-700/50 backdrop-blur-sm shadow-lg max-w-4xl mx-auto">
+                  <h3 className="text-white font-black mb-6 uppercase tracking-widest text-xl text-center flex items-center justify-center gap-3"><MessageSquare/> Encuesta de Calidad de la Plataforma</h3>
+                  
+                  {!hasRated ? (
+                  <div className="space-y-6">
+                      <div className="flex flex-col md:flex-row justify-between items-center bg-slate-900/50 p-4 rounded-xl">
+                          <span className="font-bold text-slate-300">1. Usabilidad e Interfaz:</span>
+                          <div className="flex gap-2 mt-2 md:mt-0">
+                              {[1,2,3,4,5].map(star => (
+                                  <button key={star} onClick={() => setSurvey({...survey, platform: star})} className={`hover:scale-125 transition-transform ${survey.platform >= star ? 'text-amber-400' : 'text-slate-600'}`}>
+                                      <Star size={28} className={survey.platform >= star ? 'fill-current' : ''} />
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+                      <div className="flex flex-col md:flex-row justify-between items-center bg-slate-900/50 p-4 rounded-xl">
+                          <span className="font-bold text-slate-300">2. Calidad de Simulaciones 3D y Gráficos:</span>
+                          <div className="flex gap-2 mt-2 md:mt-0">
+                              {[1,2,3,4,5].map(star => (
+                                  <button key={star} onClick={() => setSurvey({...survey, graphics: star})} className={`hover:scale-125 transition-transform ${survey.graphics >= star ? 'text-amber-400' : 'text-slate-600'}`}>
+                                      <Star size={28} className={survey.graphics >= star ? 'fill-current' : ''} />
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+                      <div className="flex flex-col md:flex-row justify-between items-center bg-slate-900/50 p-4 rounded-xl">
+                          <span className="font-bold text-slate-300">3. Nivel de Desafío del Examen:</span>
+                          <div className="flex gap-2 mt-2 md:mt-0">
+                              {[1,2,3,4,5].map(star => (
+                                  <button key={star} onClick={() => setSurvey({...survey, challenge: star})} className={`hover:scale-125 transition-transform ${survey.challenge >= star ? 'text-amber-400' : 'text-slate-600'}`}>
+                                      <Star size={28} className={survey.challenge >= star ? 'fill-current' : ''} />
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+                      <div>
+                          <label className="font-bold text-slate-300 block mb-2">Comentarios Adicionales (Opcional):</label>
+                          <textarea value={survey.comment} onChange={e=>setSurvey({...survey, comment: e.target.value})} className="w-full bg-slate-900 text-white border border-slate-700 rounded-xl p-4 outline-none focus:border-blue-500" rows="3" placeholder="¿Qué mejorarías de esta evaluación?"></textarea>
+                      </div>
+                      <button onClick={submitRating} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl shadow-lg transition-colors uppercase tracking-widest">Enviar Feedback</button>
                   </div>
-                  {hasRated && <p className="text-emerald-400 font-bold mt-4 text-sm"><CheckCircle2 size={16} className="inline mr-1"/>¡Gracias por tu feedback real!</p>}
+                  ) : (
+                      <div className="text-center py-10">
+                          <CheckCircle2 size={64} className="mx-auto text-emerald-500 mb-4" />
+                          <p className="text-emerald-400 font-black text-2xl">¡Feedback Recibido!</p>
+                          <p className="text-slate-400 font-medium mt-2">Tus respuestas ayudarán a mejorar el modelo de evaluación universitaria.</p>
+                      </div>
+                  )}
               </div>
 
               <div className="flex flex-col md:flex-row gap-6 justify-center mt-14">
@@ -2053,7 +2161,7 @@
         <div className="max-w-[1200px] mx-auto mt-12 px-6 animate-in fade-in duration-500 pb-20 flex-grow">
           <div className="mb-10">
             <h2 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Centro de Mando Docente</h2>
-            <p className="text-slate-500 font-bold text-lg">Analíticas reales calculadas directamente desde Firestore.</p>
+            <p className="text-slate-500 font-bold text-lg">Analíticas reales calculadas directamente desde Firestore (Escala 5.0).</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
@@ -2069,7 +2177,7 @@
               <div className="flex justify-between items-start mb-4">
                 <div className="p-4 bg-violet-50 text-violet-600 rounded-2xl"><BarChart2 size={28}/></div>
               </div>
-              <h3 className="text-4xl font-black text-slate-800">{metrics.avgScore} / 4.0</h3>
+              <h3 className="text-4xl font-black text-slate-800">{metrics.avgScore} / 5.0</h3>
               <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">Nota Promedio</p>
             </div>
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:shadow-lg transition-shadow">
@@ -2095,7 +2203,7 @@
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-8 py-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                <h3 className="font-black text-slate-800 text-xl">Métricas por Nivel Simuladas</h3>
+                <h3 className="font-black text-slate-800 text-xl">Métricas por Nivel</h3>
                 <span className="text-xs text-slate-500 font-black uppercase tracking-widest bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">Identificación Cuellos de botella</span>
               </div>
               <div className="p-6 border-b border-slate-100 bg-white">
@@ -2137,7 +2245,7 @@
               <div className="px-8 py-6 border-b border-slate-200 bg-slate-50">
                 <h3 className="font-black text-slate-800 text-xl">Últimos Entregados (Real)</h3>
               </div>
-              <div className="p-0 flex-grow bg-white overflow-y-auto max-h-[500px]">
+              <div className="p-0 flex-grow bg-white overflow-y-auto max-h-[600px] custom-scrollbar">
                 {metrics.attempts.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 font-bold">No hay evaluaciones registradas en Firestore.</div>
                 ) : (
@@ -2145,7 +2253,7 @@
                     <div key={idx} className="p-8 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                       <div className="flex justify-between items-center mb-3">
                         <span className="font-black text-slate-800 text-sm break-all" title={a.agent}>{a.agent.length > 20 ? a.agent.substring(0,18)+'...' : a.agent}</span>
-                        <span className={`font-mono font-black text-base px-3 py-1.5 rounded-lg border flex-shrink-0 ${a.score > 2.0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' : 'bg-red-50 text-red-700 border-red-200 shadow-sm'}`}>{a.score} pts</span>
+                        <span className={`font-mono font-black text-base px-3 py-1.5 rounded-lg border flex-shrink-0 ${a.score > 3.0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' : 'bg-red-50 text-red-700 border-red-200 shadow-sm'}`}>{a.score} pts</span>
                       </div>
                       <div className="flex justify-between items-center text-xs text-slate-500 font-bold uppercase tracking-wider mt-2">
                         <span>{a.date}</span>
