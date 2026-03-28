@@ -11,10 +11,14 @@
     <!-- Fuentes de Google -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         /* Ocultar barra de scroll para estética limpia */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Efecto cuaderno */
+        .cuaderno-shadow { box-shadow: 20px 20px 60px rgba(0,0,0,0.05), -5px 0px 15px rgba(0,0,0,0.02); }
+        .lomo-cuaderno { border-left: 12px solid #1e3a8a; border-radius: 4px 24px 24px 4px; }
     </style>
 
     <!-- KaTeX cargado estáticamente para garantizar el renderizado -->
@@ -38,13 +42,13 @@
           ArrowUp, ArrowDown, ArrowLeft, ArrowRight as ArrowRightIcon,
           ArrowUpRight, ArrowUpLeft, ArrowDownRight, ArrowDownLeft, MousePointer2,
           CheckCircle2, XCircle, Info, Hand, PenTool, User, ChevronDown, LogIn, Mail, ChevronRight, ChevronLeft,
-          Brain, BarChart3, Settings
+          Brain, BarChart3, Settings, Star
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         // Importaciones oficiales de Firebase (Gstatic)
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, setDoc, doc, getDocs, getDoc, serverTimestamp, query, orderBy } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, setDoc, doc, getDocs, getDoc, serverTimestamp, query, orderBy, onSnapshot, increment } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
         import { getAnalytics } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js';
 
         // --- 1. FIREBASE INITIALIZATION ---
@@ -53,7 +57,7 @@
         if (typeof __firebase_config !== 'undefined' && __firebase_config) {
           firebaseConfig = JSON.parse(__firebase_config);
         } else {
-          // CREDENCIALES DE PRODUCCIÓN REALES
+          // CREDENCIALES DE PRODUCCIÓN
           firebaseConfig = {
             apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
             authDomain: "laboratorio-de-coulomb.firebaseapp.com",
@@ -69,7 +73,7 @@
         const app = initializeApp(firebaseConfig);
         let analytics = null;
         if (firebaseConfig.measurementId) {
-            try { analytics = getAnalytics(app); } catch(e) { console.warn("Analytics error:", e); }
+            try { analytics = getAnalytics(app); } catch(e) {}
         }
         
         const auth = getAuth(app);
@@ -84,10 +88,6 @@
               link.id = 'katex-css'; link.rel = 'stylesheet';
               link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
               document.head.appendChild(link);
-              
-              const script = document.createElement('script');
-              script.id = 'katex-js'; script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js';
-              document.head.appendChild(script);
             }
           }, []);
         };
@@ -333,7 +333,6 @@
           );
         };
 
-        // El Nuevo InlineSelect 100% Custom para que funcione el LaTeX
         const InlineSelect = ({ id, value, onChange, options, points, width="w-auto", isSubmitted, expected }) => {
           const [isOpen, setIsOpen] = useState(false);
           const dropdownRef = useRef(null);
@@ -638,12 +637,12 @@
                 <div className="flex items-end h-40 gap-4 mt-4">
                     {bins.map((val, idx) => {
                         const height = (val / maxBin) * 100;
-                        const labels = ["0 - 1.0", "1.1 - 2.0", "2.1 - 3.0", "3.1 - 4.0"];
+                        const labels = ["0.0 - 1.0", "1.1 - 2.0", "2.1 - 3.0", "3.1 - 4.0"];
                         return (
                             <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full group relative">
                                 <div className="absolute -top-8 bg-slate-800 text-white px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">{val} entregas</div>
                                 <div className="w-full bg-blue-500 rounded-t-lg transition-all duration-1000 ease-out" style={{ height: `${height}%` }}></div>
-                                <div className="mt-2 text-xs font-bold text-slate-500">{labels[idx]}</div>
+                                <div className="mt-2 text-xs font-bold text-slate-500 text-center leading-tight">{labels[idx]}</div>
                             </div>
                         );
                     })}
@@ -682,14 +681,22 @@
           }, null, 2));
           const [configSaved, setConfigSaved] = useState(false);
 
-          // Dashboard Real State
-          const [metrics, setMetrics] = useState({ 
-              views: 0, avgScore: 0, avgTime: 0, 
-              attempts: [], questionMetrics: [],
-              frustrationIndex: 0, retention: 0
-          });
+          // Dashboard Real State & Real-time Views
+          const [metrics, setMetrics] = useState({ views: 0, avgScore: 0, avgTime: 0, attempts: [], questionMetrics: [], frustrationIndex: 0, retention: 0 });
+          const [realViews, setRealViews] = useState(0);
 
-          // Auth Handlers
+          // Real-time Views Listener
+          useEffect(() => {
+              const viewsRef = doc(db, 'artifacts', appId, 'public', 'stats');
+              setDoc(viewsRef, { views: increment(1) }, { merge: true }).catch(e=>console.log(e));
+              
+              const unsub = onSnapshot(viewsRef, (doc) => {
+                  if(doc.exists()) setRealViews(doc.data().views);
+              });
+              return () => unsub();
+          }, []);
+
+          // Auth Handlers (NO anonymous auth. Forced Identity)
           const handleGoogleLogin = async () => {
             setAuthError("");
             const provider = new GoogleAuthProvider();
@@ -725,7 +732,17 @@
             const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
               setUser(currentUser);
               if (currentUser) {
-                  // Admin is strictly dudbilopr@gmail.com
+                  // Register directory to allow reading all
+                  if (!currentUser.isAnonymous) {
+                      try {
+                          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'directory', currentUser.uid), {
+                              email: currentUser.email || 'Google Auth',
+                              lastLogin: serverTimestamp()
+                          }, { merge: true });
+                      } catch (e) { console.log(e); }
+                  }
+
+                  // Master Key check
                   if (currentUser.email === 'dudbilopr@gmail.com') {
                       setRole('admin');
                       setView('admin_role_select');
@@ -752,63 +769,58 @@
           // Fetch Dashboard Real Data
           const fetchDashboardData = async () => {
               try {
-                  // By rules, admin can read all users
-                  const q = query(collection(db, 'artifacts', appId, 'users'));
-                  // We simulate the global fetch. In a real large app, you'd use a Cloud Function or aggregation collection.
-                  // For this LMS demo, we'll fetch attempts if we know the UIDs, but without a list, 
-                  // we will fetch the public directory (assuming you created it or we fetch all eval_attempts via CollectionGroup).
-                  
-                  // Since CollectionGroup needs indexes, we will create a mock-up of real metrics if Firestore structure is basic
-                  // In a real scenario, we save a public log of attempts for the teacher.
-                  const attemptsSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'global_attempts'));
-                  
+                  const dirSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'directory'));
                   let allAttempts = [];
                   let totalScore = 0;
                   let totalTime = 0;
                   let totalHints = 0;
-                  let s1 = 0, s2 = 0, s3 = 0, s4 = 0;
+                  let s1 = 0, s2 = 0, s3 = 0;
 
-                  attemptsSnap.forEach(doc => {
-                      const data = doc.data();
-                      allAttempts.push({
-                          id: doc.id,
-                          agent: data.email,
-                          score: data.score,
-                          time: data.time,
-                          hints: data.hints || 0,
-                          date: data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : 'Reciente',
-                          timestamp: data.timestamp ? data.timestamp.toMillis() : 0
-                      });
-                      totalScore += parseFloat(data.score);
-                      totalTime += data.time;
-                      totalHints += (data.hints || 0);
+                  // Admin reads ALL attempts iterating the directory
+                  for (const userDoc of dirSnap.docs) {
+                      const uid = userDoc.id;
+                      const email = userDoc.data().email;
+                      const attSnap = await getDocs(collection(db, 'artifacts', appId, 'users', uid, 'eval_attempts'));
                       
-                      // Simulated section scores if not provided
-                      s1 += data.details?.s1 || (data.score * 0.2);
-                      s2 += data.details?.s2 || (data.score * 0.2);
-                      s3 += data.details?.s3 || (data.score * 0.3);
-                      s4 += data.details?.s4 || (data.score * 0.3);
-                  });
+                      attSnap.forEach(doc => {
+                          const data = doc.data();
+                          allAttempts.push({
+                              id: doc.id,
+                              agent: email,
+                              score: data.score,
+                              time: data.time,
+                              hints: data.hints || 0,
+                              date: data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : 'Reciente',
+                              timestamp: data.timestamp ? data.timestamp.toMillis() : 0
+                          });
+                          totalScore += parseFloat(data.score);
+                          totalTime += data.time;
+                          totalHints += (data.hints || 0);
+                          
+                          s1 += data.details?.s1 || (data.score * 0.25);
+                          s2 += data.details?.s2 || (data.score * 0.375);
+                          s3 += data.details?.s3 || (data.score * 0.375);
+                      });
+                  }
 
                   allAttempts.sort((a,b) => b.timestamp - a.timestamp);
                   const count = allAttempts.length || 1;
                   const aScore = totalScore / count;
                   const aTime = totalTime / count;
 
-                  // Frustration Index Formula: (Time factor) * (Hints factor) / (Score factor)
-                  const frustration = count > 1 ? Math.min((aTime / 600) * (1 + totalHints/count) / Math.max(aScore, 0.1), 10).toFixed(1) : 0;
+                  // Frustration Index: (Time factor) * (Hints factor) / (Score factor)
+                  const frustration = count > 0 ? Math.min((aTime / 600) * (1 + totalHints/count) / Math.max(aScore, 0.1), 10).toFixed(1) : 0;
 
                   setMetrics({
-                      views: count,
+                      views: dirSnap.size,
                       avgScore: aScore.toFixed(2),
                       avgTime: Math.floor(aTime),
                       frustrationIndex: frustration,
-                      retention: Math.round((s1 / count) * 100),
                       attempts: allAttempts.slice(0, 50), 
                       questionMetrics: [
                           { id: 'Q1', title: 'Hoja 1: Naturaleza', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.2), status: (s1/count)>0.7 ? 'optimal' : 'review' },
-                          { id: 'Q2', title: 'Hoja 2: Ley de Coulomb', avgScore: (s2/count).toFixed(2), avgTime: Math.floor(aTime * 0.3), status: (s2/count)>0.7 ? 'optimal' : 'critical' },
-                          { id: 'Q3', title: 'Hoja 3: Matriz Universal Gauss', avgScore: (s3/count).toFixed(2), avgTime: Math.floor(aTime * 0.5), status: (s3/count)>0.7 ? 'optimal' : 'critical' }
+                          { id: 'Q2', title: 'Hoja 2: Ley de Coulomb', avgScore: (s2/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s2/count)>1.0 ? 'optimal' : 'critical' },
+                          { id: 'Q3', title: 'Hoja 3: Matriz Universal Gauss', avgScore: (s3/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s3/count)>1.0 ? 'optimal' : 'critical' }
                       ]
                   });
               } catch(e) { console.error("Error al cargar dashboard:", e); }
@@ -862,10 +874,10 @@
             const dist1 = examVars.q1;
             const dist2 = examVars.q1 + examVars.q2 + examVars.q3;
             const opts = [
-              {val: `${correct}q`, label: `$\\frac{${correct}q}{\\epsilon_0}$`},
-              {val: `${dist1}q_alt1`, label: `$\\frac{${dist1}q}{\\epsilon_0}$`},
-              {val: `${dist2}q_alt2`, label: `$\\frac{${dist2}q}{\\epsilon_0}$`},
-              {val: `0q`, label: `$0$`}
+              {val: `${correct}q`, label: `\\frac{${correct}q}{\\epsilon_0}`},
+              {val: `${dist1}q_alt1`, label: `\\frac{${dist1}q}{\\epsilon_0}`},
+              {val: `${dist2}q_alt2`, label: `\\frac{${dist2}q}{\\epsilon_0}`},
+              {val: `0q`, label: `0`}
             ];
             const uniqueOpts = []; const map = new Map();
             for (const item of opts) { if(!map.has(item.label)){ map.set(item.label, true); uniqueOpts.push(item); } }
@@ -876,9 +888,9 @@
             const correct = examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4;
             const dist1 = examVars.q3 + examVars.q4;
             const opts = [
-              {val: `${correct}q`, label: `$\\frac{${correct}q}{\\epsilon_0}$`},
-              {val: `${dist1}q_alt1`, label: `$\\frac{${dist1}q}{\\epsilon_0}$`},
-              {val: `0q`, label: `$0$`}
+              {val: `${correct}q`, label: `\\frac{${correct}q}{\\epsilon_0}`},
+              {val: `${dist1}q_alt1`, label: `\\frac{${dist1}q}{\\epsilon_0}`},
+              {val: `0q`, label: `0`}
             ];
             const uniqueOpts = []; const map = new Map();
             for (const item of opts) { if(!map.has(item.label)){ map.set(item.label, true); uniqueOpts.push(item); } }
@@ -886,16 +898,16 @@
           }, [examVars]);
 
           // Shared Options for Dropdowns
-          const coulombDensityOpts = [{val: '\\lambda', label: '$\\lambda$'}, {val: '\\sigma', label: '$\\sigma$'}, {val: '\\rho', label: '$\\rho$'}];
-          const coulombDqOpts = [{val: '\\lambda R d\\theta', label: '$\\lambda R d\\theta$'}, {val: '\\sigma 2\\pi r\' dr\'', label: '$\\sigma 2\\pi r\' dr\'$'}, {val: '\\lambda dy', label: '$\\lambda dy$'}];
-          const coulombR2Opts = [{val: 'R^2 + z^2', label: '$R^2 + z^2$'}, {val: '(r\')^2 + z^2', label: '$(r\')^2 + z^2$'}, {val: 'x^2 + y^2', label: '$x^2 + y^2$'}];
-          const coulombSymOpts = [{val: 'x,y', label: '$dE_x , dE_y$'}, {val: 'y,z', label: '$dE_y , dE_z$'}, {val: 'ninguna', label: '$\\text{Ninguna}$'}];
-          const coulombIntOpts = [{val: '0..2pi', label: '$\\int_0^{2\\pi}$'}, {val: '0..R', label: '$\\int_0^R$'}, {val: '0..a', label: '$\\int_0^a$'}];
+          const coulombDensityOpts = [{val: '\\lambda', label: '\\lambda'}, {val: '\\sigma', label: '\\sigma'}, {val: '\\rho', label: '\\rho'}];
+          const coulombDqOpts = [{val: '\\lambda R d\\theta', label: '\\lambda R d\\theta'}, {val: '\\sigma 2\\pi r\' dr\'', label: '\\sigma 2\\pi r\' dr\''}, {val: '\\lambda dy', label: '\\lambda dy'}];
+          const coulombR2Opts = [{val: 'R^2 + z^2', label: 'R^2 + z^2'}, {val: '(r\')^2 + z^2', label: '(r\')^2 + z^2'}, {val: 'x^2 + y^2', label: 'x^2 + y^2'}];
+          const coulombSymOpts = [{val: 'x,y', label: 'dE_x , dE_y'}, {val: 'y,z', label: 'dE_y , dE_z'}, {val: 'ninguna', label: '\\text{Ninguna}'}];
+          const coulombIntOpts = [{val: '0..2pi', label: '\\int_0^{2\\pi}'}, {val: '0..R', label: '\\int_0^R'}, {val: '0..a', label: '\\int_0^a'}];
 
-          const gaussDistOpts = [ {val: 'vol', label: '$\\text{Todo el volumen}$'}, {val: 'sup_ext', label: '$\\text{Superficie exterior}$'}, {val: 'vol_casc', label: '$\\text{Volumen } a < r < b$'} ];
-          const gaussAreaOpts = [ {val: 'E(4pir^2)', label: '$E(4\\pi r^2)$'}, {val: 'E(2pirL)', label: '$E(2\\pi r L)$'} ];
-          const gaussQencOpts = [ {val: '0', label: '$0$'}, {val: 'Q', label: '$Q$'}, {val: 'rho_v_esf', label: '$\\rho \\frac{4}{3}\\pi r^3$'}, {val: 'rho_v_casc', label: '$\\rho \\frac{4}{3}\\pi (r^3 - a^3)$'} ];
-          const gaussEOpts = [ {val: '0', label: '$0$'}, {val: 'E_ext', label: '$\\frac{Q}{4\\pi\\epsilon_0 r^2}$'}, {val: 'E_ins', label: '$\\frac{\\rho r}{3\\epsilon_0}$'}, {val: 'E_casc', label: '$\\frac{\\rho(r^3-a^3)}{3\\epsilon_0 r^2}$'} ];
+          const gaussDistOpts = [ {val: 'vol', label: '\\text{Todo el volumen}'}, {val: 'sup_ext', label: '\\text{Superficie exterior}'}, {val: 'vol_casc', label: '\\text{Volumen } a < r < b'} ];
+          const gaussAreaOpts = [ {val: 'E(4pir^2)', label: 'E(4\\pi r^2)'}, {val: 'E(2pirL)', label: 'E(2\\pi r L)'} ];
+          const gaussQencOpts = [ {val: '0', label: '0'}, {val: 'Q', label: 'Q'}, {val: 'rho_v_esf', label: '\\rho \\frac{4}{3}\\pi r^3'}, {val: 'rho_v_casc', label: '\\rho \\frac{4}{3}\\pi (r^3 - a^3)'} ];
+          const gaussEOpts = [ {val: '0', label: '0'}, {val: 'E_ext', label: '\\frac{Q}{4\\pi\\epsilon_0 r^2}'}, {val: 'E_ins', label: '\\frac{\\rho r}{3\\epsilon_0}'}, {val: 'E_casc', label: '\\frac{\\rho(r^3-a^3)}{3\\epsilon_0 r^2}'} ];
 
 
           const calculateScore = () => {
@@ -917,7 +929,7 @@
             if(answers.c2_den === '\\sigma') s2 += 0.05; if(answers.c2_dq === '\\sigma 2\\pi r\' dr\'') s2 += 0.05; if(answers.c2_r2 === '(r\')^2 + z^2') s2 += 0.10; if(answers.c2_sym === 'x,y') s2 += 0.10; if(answers.c2_int === '0..R') s2 += 0.10; if(answers.c2_num?.includes('151')) s2 += 0.10;
             if(answers.c3_den === '\\lambda') s2 += 0.05; if(answers.c3_dq === '\\lambda dy') s2 += 0.05; if(answers.c3_r2 === 'x^2 + y^2') s2 += 0.10; if(answers.c3_sym === 'ninguna') s2 += 0.10; if(answers.c3_int === '0..a') s2 += 0.10; if(answers.c3_num?.length > 1) s2 += 0.10; 
 
-            // Level 3 & 5 (Hoja 3 Gauss) - Max 1.90 -> Scaled to 1.50
+            // Level 3 & 5 (Hoja 3 Gauss) - Max 1.50
             const e1 = examVars.q1 + examVars.q2; const e3 = examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4;
             if(answers.p1 === `${e1}q`) s3 += 0.15; if(answers.p3 === `${e3}q`) s3 += 0.15; if(answers.pt === 'no') s3 += 0.10;
 
@@ -946,15 +958,10 @@
             setView('results');
             window.scrollTo(0,0);
 
-            if (user) {
+            if (user && !user.isAnonymous) {
               try {
-                // Guarda en la subcolección del usuario
-                const userRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
-                await addDoc(userRef, { score: result.total, maxScore: 4.0, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
-                
-                // Guarda copia pública para que el Teacher lea todas (simulando CollectionGroup que requiere índices)
-                const globalRef = collection(db, 'artifacts', appId, 'public', 'global_attempts');
-                await addDoc(globalRef, { email: user.email, score: result.total, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
+                const attemptRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
+                await addDoc(attemptRef, { score: result.total, maxScore: 4.0, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
               } catch (e) { console.error("Error guardando intento:", e); }
             }
           };
@@ -964,14 +971,14 @@
           if (loading) return <div className="flex h-screen items-center justify-center bg-slate-50"><Activity className="animate-pulse text-blue-600" size={48} /></div>;
 
           return (
-            <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-blue-200 pb-24 relative overflow-x-hidden">
+            <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-blue-200 pb-24 relative overflow-x-hidden flex flex-col">
               {/* Background styling */}
               <div className="fixed inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)', backgroundSize: '30px 30px', opacity: 0.3, zIndex: -1 }}></div>
 
               {/* HEADER */}
               <header className="bg-white border-b border-slate-300 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm relative">
                 <div className="flex items-center gap-3">
-                  <div className="bg-slate-900 p-2.5 rounded-xl shadow-inner border border-slate-700 cursor-pointer" onClick={() => user && user.email === 'dudbilopr@gmail.com' ? setView('admin_role_select') : null}>
+                  <div className="bg-slate-900 p-2.5 rounded-xl shadow-inner border border-slate-700 cursor-pointer transition-transform hover:scale-105" onClick={() => user && user.email === 'dudbilopr@gmail.com' ? setView('admin_role_select') : null}>
                     <Activity className="text-blue-400" size={24} />
                   </div>
                   <h1 className="font-black text-2xl tracking-tight text-slate-900 hidden sm:block">
@@ -999,7 +1006,7 @@
 
               {/* VIEW: LOGIN */}
               {view === 'login' && (
-                <div className="flex flex-col items-center justify-center mt-20 px-4 animate-in fade-in duration-700">
+                <div className="flex flex-col items-center justify-center mt-20 px-4 animate-in fade-in duration-700 flex-grow">
                   <div className="text-center max-w-3xl mb-12">
                     <h2 className="text-6xl font-black text-slate-900 mb-6 tracking-tight leading-tight">physics10<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600">.easy</span></h2>
                     <p className="text-xl text-slate-600 font-medium">Inicia sesión para acceder a tu evaluación. Tu rol se determinará automáticamente.</p>
@@ -1038,7 +1045,7 @@
 
               {/* VIEW: ADMIN ROLE SELECT */}
               {view === 'admin_role_select' && (
-                <div className="flex flex-col items-center justify-center mt-24 px-4 animate-in fade-in duration-700">
+                <div className="flex flex-col items-center justify-center mt-24 px-4 animate-in fade-in duration-700 flex-grow">
                   <div className="text-center max-w-3xl mb-12">
                     <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight leading-tight">Control Maestro</h2>
                     <p className="text-xl text-slate-600 font-medium">Bienvenido Administrador. ¿Bajo qué rol deseas operar el sistema?</p>
@@ -1068,20 +1075,20 @@
 
               {/* VIEW: ADMIN PANEL (JSON) */}
               {view === 'admin_panel' && role === 'admin' && (
-                <div className="max-w-4xl mx-auto mt-16 p-8 bg-white rounded-3xl shadow-2xl border border-slate-200 animate-in fade-in">
-                    <h2 className="text-3xl font-black text-slate-900 mb-2">Configuración del Motor (JSON)</h2>
-                    <p className="text-slate-500 font-medium mb-6">Edita la metadata del examen y empuja los cambios a Firestore.</p>
+                <div className="max-w-4xl mx-auto mt-16 p-8 bg-white rounded-3xl shadow-2xl border border-slate-200 animate-in fade-in flex-grow w-full pb-20">
+                    <h2 className="text-4xl font-black text-slate-900 mb-2">Configuración del Motor (JSON)</h2>
+                    <p className="text-slate-500 font-bold mb-6 text-lg">Edita la metadata del examen y empuja los cambios a Firestore para actualizar la plataforma de todos los alumnos en tiempo real.</p>
                     
                     <textarea 
                         value={examConfig} 
                         onChange={(e) => setExamConfig(e.target.value)}
-                        className="w-full h-96 p-6 font-mono text-sm bg-slate-900 text-green-400 rounded-2xl shadow-inner outline-none focus:ring-4 focus:ring-violet-500/30"
+                        className="w-full h-96 p-6 font-mono text-base bg-slate-900 text-emerald-400 rounded-2xl shadow-inner outline-none focus:ring-4 focus:ring-violet-500/30"
                     />
                     
                     <div className="mt-8 flex justify-end items-center gap-6">
-                        {configSaved && <span className="text-emerald-600 font-bold flex items-center gap-2"><CheckCircle2/> ¡Configuración Guardada!</span>}
-                        <button onClick={saveConfig} className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest px-10 py-4 rounded-xl shadow-lg transition-all flex items-center gap-3">
-                            <Save size={20}/> Aplicar Cambios
+                        {configSaved && <span className="text-emerald-600 font-black flex items-center gap-2 text-lg"><CheckCircle2/> ¡Actualizado en Producción!</span>}
+                        <button onClick={saveConfig} className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest px-10 py-5 rounded-xl shadow-lg transition-all flex items-center gap-3 hover:-translate-y-1">
+                            <Save size={24}/> EMPUJAR A BASE DE DATOS
                         </button>
                     </div>
                 </div>
@@ -1089,7 +1096,7 @@
 
               {/* VIEW: STUDENT EXAM INTRO */}
               {view === 'exam_intro' && (
-                <div className="max-w-3xl mx-auto mt-24 p-12 bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 text-center animate-in slide-in-from-bottom-8 relative z-10">
+                <div className="max-w-3xl mx-auto mt-24 p-12 bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 text-center animate-in slide-in-from-bottom-8 relative z-10 flex-grow">
                   <div className="w-28 h-28 bg-blue-50 text-blue-600 border-4 border-blue-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
                     <BrainCircuit size={56} />
                   </div>
@@ -1108,7 +1115,7 @@
 
               {/* VIEW: STUDENT EXAM (THE EVALUATION PAPER) */}
               {view === 'exam' && (
-                <div className="max-w-[1200px] mx-auto mt-10 relative pb-32 px-2 md:px-4 z-10">
+                <div className="max-w-[1200px] w-full mx-auto mt-10 relative pb-32 px-2 md:px-4 z-10 flex-grow">
                   
                   {/* Floating Timer */}
                   <div className="fixed bottom-8 right-8 bg-slate-900 text-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-slate-700 flex items-center gap-4 font-mono font-black z-50 transition-all hover:scale-105">
@@ -1117,7 +1124,7 @@
                   </div>
 
                   {/* Efecto Cuaderno */}
-                  <div className="bg-white shadow-[15px_15px_40px_rgba(0,0,0,0.1)] rounded-l-sm rounded-r-3xl border-y border-r border-l-8 border-slate-200 border-l-blue-900 text-base leading-relaxed p-6 md:p-16">
+                  <div className="bg-white cuaderno-shadow lomo-cuaderno text-base leading-relaxed p-6 md:p-12 lg:p-16 min-h-[80vh]">
                     
                     <div className="text-center mb-12 border-b-4 border-slate-900 pb-8 flex flex-col md:flex-row justify-between items-center md:items-end gap-6">
                       <div className="text-center md:text-left">
@@ -1146,15 +1153,15 @@
                                     <div>
                                       <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.02]</span></label>
                                       <InlineSelect id="t1" value={answers.t1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Frotamiento" width="w-full" options={[
-                                        {val:'Frotamiento', label:'$\\text{Frotamiento}$'}, {val:'Contacto', label:'$\\text{Contacto}$'}, {val:'Inducción', label:'$\\text{Inducción}$'}
+                                        {val:'Frotamiento', label:'\\text{Frotamiento}'}, {val:'Contacto', label:'\\text{Contacto}'}, {val:'Inducción', label:'\\text{Inducción}'}
                                       ]} />
                                     </div>
                                     <div className="flex-grow flex flex-col">
                                       <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.03]</span></label>
                                       <ERadioGroup id="o1" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="transfer" options={[
-                                        {val:'align', label:'$\\text{Alineación de dipolos sin transferencia.}$'},
-                                        {val:'protons', label:'$\\text{Intercambio de protones superficiales.}$'},
-                                        {val:'transfer', label:'$\\text{Transferencia de } e^- \\text{ por fricción.}$'}
+                                        {val:'align', label:'\\text{Alineación de dipolos.}'},
+                                        {val:'protons', label:'\\text{Intercambio de protones.}'},
+                                        {val:'transfer', label:'\\text{Transferencia de } e^- \\text{ por fricción.}'}
                                       ]} />
                                     </div>
                                   </div>
@@ -1166,15 +1173,15 @@
                                     <div>
                                       <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.02]</span></label>
                                       <InlineSelect id="t2" value={answers.t2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Contacto" width="w-full" options={[
-                                        {val:'Frotamiento', label:'$\\text{Frotamiento}$'}, {val:'Contacto', label:'$\\text{Contacto}$'}, {val:'Inducción', label:'$\\text{Inducción}$'}
+                                        {val:'Frotamiento', label:'\\text{Frotamiento}'}, {val:'Contacto', label:'\\text{Contacto}'}, {val:'Inducción', label:'\\text{Inducción}'}
                                       ]} />
                                     </div>
                                     <div className="flex-grow flex flex-col">
                                       <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.03]</span></label>
                                       <ERadioGroup id="o2" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="equil" options={[
-                                         {val:'create', label:'$\\text{Creación espontánea de cargas.}$'},
-                                         {val:'equil', label:'$\\text{Flujo de } e^- \\text{ libres hasta equilibrio.}$'},
-                                         {val:'polar', label:'$\\text{Polarización sin salto de electrones.}$'}
+                                         {val:'create', label:'\\text{Creación espontánea de cargas.}'},
+                                         {val:'equil', label:'\\text{Flujo de } e^- \\text{ libres hasta el equilibrio.}'},
+                                         {val:'polar', label:'\\text{Polarización sin salto electrónico.}'}
                                       ]} />
                                     </div>
                                   </div>
@@ -1186,15 +1193,15 @@
                                     <div>
                                       <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">Mecanismo <span className="text-red-500">[0.02]</span></label>
                                       <InlineSelect id="t3" value={answers.t3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="Inducción" width="w-full" options={[
-                                        {val:'Frotamiento', label:'$\\text{Frotamiento}$'}, {val:'Contacto', label:'$\\text{Contacto}$'}, {val:'Inducción', label:'$\\text{Inducción}$'}
+                                        {val:'Frotamiento', label:'\\text{Frotamiento}'}, {val:'Contacto', label:'\\text{Contacto}'}, {val:'Inducción', label:'\\text{Inducción}'}
                                       ]} />
                                     </div>
                                     <div className="flex-grow flex flex-col">
                                       <label className="uppercase text-slate-500 text-xs font-black tracking-widest mb-2 block flex justify-between">¿Qué ocurre? <span className="text-red-500">[0.03]</span></label>
                                       <ERadioGroup id="o3" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="ground" options={[
-                                         {val:'friction', label:'$\\text{Fricción inducida magnéticamente.}$'},
-                                         {val:'ground', label:'$\\text{Polarización y drenaje a tierra.}$'},
-                                         {val:'spark', label:'$\\text{Arco eléctrico por alta tensión.}$' }
+                                         {val:'friction', label:'\\text{Fricción inducida magnéticamente.}'},
+                                         {val:'ground', label:'\\text{Polarización y drenaje a tierra.}'},
+                                         {val:'spark', label:'\\text{Arco eléctrico por alta tensión.}' }
                                       ]} />
                                     </div>
                                   </div>
@@ -1263,7 +1270,7 @@
                               </div>
 
                               <div className="mb-10 leading-loose bg-white p-10 rounded-[2rem] border-2 border-slate-200 shadow-sm text-xl text-slate-700 text-center">
-                                La <strong className="text-slate-900 font-black">Fuerza Eléctrica</strong> es una interacción que requiere estrictamente de <InlineSelect id="b1" value={answers.b1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dos" options={[{val:'una', label:'$\\text{una}$'}, {val:'dos', label:'$\\text{dos}$'}, {val:'infinitas', label:'$\\text{infinitas}$'}]}/> cargas para existir. Por otro lado, el <strong className="text-slate-900 font-black">Campo Eléctrico</strong> es una perturbación del espacio generada por <InlineSelect id="b2" value={answers.b2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="una" options={[{val:'una', label:'$\\text{una}$'}, {val:'dos', label:'$\\text{dos}$'}, {val:'cero', label:'$\\text{ninguna}$'}]}/> carga fuente. Si colocamos una carga de prueba (<Latex text={"$q_0$"}/>) en un punto donde existe un campo vectorial <Latex text={'$\\vec{E}$'}/>, experimentará una fuerza según la ecuación matemática <Latex text={'$\\vec{F} = $'}/> <InlineSelect id="b3" value={answers.b3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="q_0 \vec{E}" width="w-48" options={[{val:'\\vec{E}/q_0', label:'$\\frac{\\vec{E}}{q_0}$'}, {val:'q_0 \\vec{E}', label:'$q_0 \\vec{E}$'}, {val:'k q_0 / r^2', label:'$\\frac{k q_0}{r^2}$'}]}/>.
+                                La <strong className="text-slate-900 font-black">Fuerza Eléctrica</strong> es una interacción que requiere estrictamente de <InlineSelect id="b1" value={answers.b1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dos" options={[{val:'una', label:'\\text{una}'}, {val:'dos', label:'\\text{dos}'}, {val:'infinitas', label:'\\text{infinitas}'}]}/> cargas para existir. Por otro lado, el <strong className="text-slate-900 font-black">Campo Eléctrico</strong> es una perturbación del espacio generada por <InlineSelect id="b2" value={answers.b2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="una" options={[{val:'una', label:'\\text{una}'}, {val:'dos', label:'\\text{dos}'}, {val:'cero', label:'\\text{ninguna}'}]}/> carga fuente. Si colocamos una carga de prueba (<Latex text={"$q_0$"}/>) en un punto donde existe un campo vectorial <Latex text={'$\\vec{E}$'}/>, experimentará una fuerza según la ecuación matemática <Latex text={'$\\vec{F} = $'}/> <InlineSelect id="b3" value={answers.b3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="q_0 \\vec{E}" width="w-48" options={[{val:'\\vec{E}/q_0', label:'\\frac{\\vec{E}}{q_0}'}, {val:'q_0 \\vec{E}', label:'q_0 \\vec{E}'}, {val:'k q_0 / r^2', label:'\\frac{k q_0}{r^2}'}]}/>.
                               </div>
 
                               <div className="bg-violet-50 border-l-4 border-violet-500 p-6 rounded-r-2xl mb-10 flex items-center justify-between">
@@ -1311,7 +1318,7 @@
                                   Complete la matriz estructurada para evaluar el campo eléctrico en un punto <Latex text={"$P$"} /> generado por tres distribuciones continuas diferentes.
                                 </p>
                               </div>
-                              <p className="text-sm text-slate-500 font-bold mb-4 flex items-center gap-2 md:hidden"><ArrowRightIcon size={16}/> Desliza horizontalmente para ver la tabla completa</p>
+                              <p className="text-sm text-slate-500 font-bold mb-4 flex items-center gap-2 lg:hidden"><ArrowRightIcon size={16}/> Desliza horizontalmente para ver la tabla completa</p>
 
                               <div className="overflow-x-auto pb-4 no-scrollbar">
                                 <table className="w-full min-w-[1000px] border-separate border-spacing-x-4 border-spacing-y-0 text-left">
@@ -1452,7 +1459,7 @@
                                   <span className="text-sm font-black bg-white px-3 py-1.5 rounded-xl text-sky-700 border border-sky-200 text-center"><Latex text={"$Q\\text{ total Constante}$"} /></span>
                                 </div>
                               </div>
-                              <p className="text-sm text-slate-500 font-bold mb-4 flex items-center gap-2 md:hidden"><ArrowRightIcon size={16}/> Desliza horizontalmente para ver la tabla completa</p>
+                              <p className="text-sm text-slate-500 font-bold mb-4 flex items-center gap-2 lg:hidden"><ArrowRightIcon size={16}/> Desliza horizontalmente para ver la tabla completa</p>
 
                               <div className="overflow-x-auto pb-4 no-scrollbar">
                                 <table className="w-full min-w-[1200px] border-separate border-spacing-x-4 border-spacing-y-0 text-left">
@@ -1666,7 +1673,7 @@
 
       {/* VIEW: RESULTS */}
       {view === 'results' && (
-        <div className="max-w-4xl mx-auto mt-16 p-6 animate-in zoom-in-95 duration-500">
+        <div className="max-w-4xl mx-auto mt-16 p-6 animate-in zoom-in-95 duration-500 flex-grow">
           <div className="bg-slate-900 rounded-[3rem] shadow-2xl overflow-hidden text-white relative border border-slate-800">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-[300px] bg-blue-600/20 blur-[120px] pointer-events-none rounded-full"></div>
             
@@ -1740,7 +1747,7 @@
 
       {/* VIEW: TEACHER DASHBOARD */}
       {view === 'dashboard' && role === 'teacher' && (
-        <div className="max-w-[1200px] mx-auto mt-12 px-6 animate-in fade-in duration-500 pb-20">
+        <div className="max-w-[1200px] mx-auto mt-12 px-6 animate-in fade-in duration-500 pb-20 flex-grow">
           <div className="mb-10">
             <h2 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Centro de Mando Docente</h2>
             <p className="text-slate-500 font-bold text-lg">Analíticas reales calculadas directamente desde Firestore.</p>
@@ -1785,7 +1792,7 @@
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-8 py-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                <h3 className="font-black text-slate-800 text-xl">Métricas por Nivel</h3>
+                <h3 className="font-black text-slate-800 text-xl">Métricas por Nivel Simuladas</h3>
                 <span className="text-xs text-slate-500 font-black uppercase tracking-widest bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">Identificación Cuellos de botella</span>
               </div>
               <div className="p-6 border-b border-slate-100 bg-white">
@@ -1850,26 +1857,31 @@
         </div>
       )}
 
-      {/* VIEW: ADMIN PANEL (JSON) */}
-      {view === 'admin_panel' && role === 'admin' && (
-        <div className="max-w-4xl mx-auto mt-16 p-8 bg-white rounded-3xl shadow-2xl border border-slate-200 animate-in fade-in pb-20">
-            <h2 className="text-4xl font-black text-slate-900 mb-2">Configuración del Motor (JSON)</h2>
-            <p className="text-slate-500 font-bold mb-6 text-lg">Edita la metadata del examen y empuja los cambios a Firestore para actualizar la plataforma de todos los alumnos en tiempo real.</p>
-            
-            <textarea 
-                value={examConfig} 
-                onChange={(e) => setExamConfig(e.target.value)}
-                className="w-full h-96 p-6 font-mono text-base bg-slate-900 text-emerald-400 rounded-2xl shadow-inner outline-none focus:ring-4 focus:ring-violet-500/30"
-            />
-            
-            <div className="mt-8 flex justify-end items-center gap-6">
-                {configSaved && <span className="text-emerald-600 font-black flex items-center gap-2 text-lg"><CheckCircle2/> ¡Actualizado en Producción!</span>}
-                <button onClick={saveConfig} className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest px-10 py-5 rounded-xl shadow-lg transition-all flex items-center gap-3 hover:-translate-y-1">
-                    <Save size={24}/> EMPUJAR A BASE DE DATOS
-                </button>
-            </div>
-        </div>
-      )}
+      {/* FOOTER Nivel Producción */}
+      <footer className="mt-auto py-8 bg-slate-900 border-t border-slate-800 text-center relative z-50">
+          <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center px-6 gap-4">
+              <div className="text-slate-400 font-medium text-sm">
+                  &copy; 2026 <span className="font-black text-white">physics10.easy</span> - Todos los derechos reservados.
+              </div>
+              
+              <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-1 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 shadow-inner">
+                      <Star size={14} className="text-amber-400 fill-current" />
+                      <Star size={14} className="text-amber-400 fill-current" />
+                      <Star size={14} className="text-amber-400 fill-current" />
+                      <Star size={14} className="text-amber-400 fill-current" />
+                      <Star size={14} className="text-amber-400 fill-current" />
+                      <span className="ml-2 font-bold text-amber-100 text-xs">4.9/5</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-400">
+                      <Eye size={14}/>
+                      <span>{realViews} Vistas en tiempo real</span>
+                  </div>
+              </div>
+          </div>
+      </footer>
+
     </div>
   );
 }
