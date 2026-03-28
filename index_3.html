@@ -133,7 +133,7 @@
           return <span ref={containerRef} className={className} dangerouslySetInnerHTML={{__html: text}} />;
         };
 
-        // 3D Gauss Simulator
+        // 3D Gauss Simulator (General)
         const ThreeCanvas = ({ q1, q2, q3, q4 }) => {
           const mountRef = useRef(null);
           const isLoaded = useThreeJS();
@@ -215,14 +215,107 @@
           }, [isLoaded, q1, q2, q3, q4]);
 
           return (
-            <div className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-inner border-2 border-slate-200 cursor-move touch-none">
+            <div className="relative w-full h-64 md:h-full min-h-[250px] rounded-2xl overflow-hidden shadow-inner border-2 border-slate-200 cursor-move touch-none">
               <div ref={mountRef} className="w-full h-full" />
               <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 border border-slate-200 shadow-sm pointer-events-none uppercase tracking-widest">
                 <Activity size={16} className="text-blue-500" />
-                Orbita el sistema 3D
+                Simulador 3D
               </div>
             </div>
           );
+        };
+
+        // NEW: Mini 3D Viewer for Gauss Matrix (Hoja 3)
+        const MiniThreeSphere = ({ type, isConductor }) => {
+          const mountRef = useRef(null);
+          const isLoaded = useThreeJS();
+
+          useEffect(() => {
+            if (!isLoaded || !mountRef.current) return;
+            const THREE = window.THREE;
+            const w = mountRef.current.clientWidth;
+            const h = mountRef.current.clientHeight;
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color('#f8fafc'); 
+            const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
+            camera.position.z = 4;
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(w, h);
+            mountRef.current.innerHTML = '';
+            mountRef.current.appendChild(renderer.domElement);
+
+            const light = new THREE.DirectionalLight(0xffffff, 0.8);
+            light.position.set(2, 2, 5);
+            scene.add(light);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+            const group = new THREE.Group();
+            
+            const color = isConductor ? 0x10b981 : 0x3b82f6; // Emerald para conductor, Azul para aislante
+            const chargeMat = new THREE.MeshBasicMaterial({color: 0xef4444});
+
+            if (type === 'solid') {
+                const sphere = new THREE.Mesh(
+                    new THREE.SphereGeometry(1.2, 32, 32),
+                    new THREE.MeshPhysicalMaterial({ color, transparent: true, opacity: isConductor ? 0.8 : 0.3, roughness: 0.2 })
+                );
+                group.add(sphere);
+                
+                const numCharges = 40;
+                for(let i=0; i<numCharges; i++){
+                    const q = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), chargeMat);
+                    let r = 1.2; // Surface default (Conductor)
+                    if(!isConductor) {
+                        r = Math.pow(Math.random(), 1/3) * 1.15; // Volume distribution
+                    }
+                    const theta = Math.random() * 2 * Math.PI;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    q.position.set(r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
+                    group.add(q);
+                }
+            } else {
+                // Hollow
+                const outer = new THREE.Mesh(
+                    new THREE.SphereGeometry(1.2, 32, 32),
+                    new THREE.MeshPhysicalMaterial({ color, transparent: true, opacity: 0.3, side: THREE.BackSide })
+                );
+                const inner = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.6, 32, 32),
+                    new THREE.MeshPhysicalMaterial({ color: 0x1e293b, wireframe: true })
+                );
+                group.add(outer, inner);
+                
+                const numCharges = 40;
+                for(let i=0; i<numCharges; i++){
+                    const q = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), chargeMat);
+                    let r = 1.2; // Surface default (Conductor)
+                    if(!isConductor) {
+                        r = Math.pow(Math.pow(0.6,3) + Math.random()*(Math.pow(1.15,3)-Math.pow(0.6,3)), 1/3); // Volume Shell
+                    }
+                    const theta = Math.random() * 2 * Math.PI;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    q.position.set(r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
+                    group.add(q);
+                }
+            }
+
+            scene.add(group);
+
+            let animId;
+            const animate = () => {
+                animId = requestAnimationFrame(animate);
+                group.rotation.y += 0.01;
+                group.rotation.x += 0.005;
+                renderer.render(scene, camera);
+            };
+            animate();
+
+            return () => { cancelAnimationFrame(animId); renderer.dispose(); };
+          }, [isLoaded, type, isConductor]);
+
+          return <div ref={mountRef} className="w-full h-32 bg-slate-50 rounded-xl overflow-hidden shadow-inner cursor-pointer hover:scale-105 transition-transform" title="Render 3D Dinámico"></div>;
         };
 
         // Interactive Vector Grid
@@ -363,8 +456,8 @@
                   type="button" disabled={isSubmitted} onClick={() => setIsOpen(!isOpen)}
                   className={`w-full px-4 py-2 min-h-[46px] text-base font-bold border-2 ${bgClass} ${textClass} rounded-xl outline-none transition-all shadow-sm flex items-center justify-between cursor-pointer disabled:cursor-default`}
                 >
-                  <span className="flex-grow text-center flex items-center justify-center">
-                    {selectedOption ? <Latex text={selectedOption.label} /> : <span className="text-slate-400 font-normal text-sm">-- seleccione --</span>}
+                  <span className="flex-grow text-center flex items-center justify-center overflow-hidden">
+                    {selectedOption ? <Latex text={selectedOption.label} /> : <span className="text-slate-400 font-normal text-sm whitespace-nowrap">-- selec --</span>}
                   </span>
                   {!isSubmitted && <ChevronDown size={18} className={`text-slate-400 flex-shrink-0 transition-transform ml-2 ${isOpen ? 'rotate-180' : ''}`} />}
                 </button>
@@ -455,13 +548,62 @@
               <h3 className="font-black text-2xl tracking-tight">{title}</h3>
               <span className="text-sm font-black bg-white/10 px-4 py-1.5 rounded-lg text-amber-400 border border-amber-400/30">Valor: {points} pts</span>
             </div>
-            <div className="p-8 md:p-10">
+            <div className="p-6 md:p-10">
               {children}
             </div>
           </div>
         );
 
         // --- 5. SVG STATIC DIAGRAMS ---
+        const SvgGaussVenn = ({ q1, q2, q3, q4 }) => (
+          <svg viewBox="-5 -4 10 8" className="w-full h-full drop-shadow-md bg-white rounded-2xl border-2 border-slate-200 p-2">
+             {/* S3 (Dashed) */}
+             <ellipse cx="0" cy="0" rx="4.5" ry="3.5" fill="none" stroke="#334155" strokeWidth="0.05" strokeDasharray="0.2,0.2"/>
+             <text x="3.5" y="-2.5" fontSize="0.4" fill="#334155" fontWeight="bold">S_3</text>
+             {/* S1 (Solid) */}
+             <ellipse cx="-1" cy="0.5" rx="2" ry="1.8" fill="none" stroke="#334155" strokeWidth="0.05"/>
+             <text x="-1" y="2.5" fontSize="0.4" fill="#334155" fontWeight="bold">S_1</text>
+             {/* S2 (Dotted) */}
+             <ellipse cx="-2.5" cy="-1.5" rx="1.5" ry="1" fill="none" stroke="#334155" strokeWidth="0.05" strokeDasharray="0.05,0.1" transform="rotate(-30 -2.5 -1.5)"/>
+             <text x="-4" y="-2" fontSize="0.4" fill="#334155" fontWeight="bold">S_2</text>
+
+             {/* Charges */}
+             <circle cx="-1.5" cy="1" r="0.4" fill="white" stroke="#334155" strokeWidth="0.03"/>
+             <text x="-1.5" y="1.15" fontSize="0.4" textAnchor="middle" fill="#334155" fontWeight="bold">{q1 > 0 ? `+${q1}` : q1}q</text>
+
+             <circle cx="0" cy="-0.2" r="0.4" fill="white" stroke="#334155" strokeWidth="0.03"/>
+             <text x="0" y="-0.05" fontSize="0.4" textAnchor="middle" fill="#334155" fontWeight="bold">{q2 > 0 ? `+${q2}` : q2}q</text>
+
+             <circle cx="-2.5" cy="-1.5" r="0.4" fill="white" stroke="#334155" strokeWidth="0.03"/>
+             <text x="-2.5" y="-1.35" fontSize="0.4" textAnchor="middle" fill="#334155" fontWeight="bold">{q3 > 0 ? `+${q3}` : q3}q</text>
+
+             <circle cx="2.5" cy="0.5" r="0.4" fill="white" stroke="#334155" strokeWidth="0.03"/>
+             <text x="2.5" y="0.65" fontSize="0.4" textAnchor="middle" fill="#334155" fontWeight="bold">{q4 > 0 ? `+${q4}` : q4}q</text>
+          </svg>
+        );
+
+        const SvgMaciza = () => (
+          <svg viewBox="-2 -2 4 4" className="w-20 h-20 mx-auto mb-4 drop-shadow-sm">
+            <circle cx="0" cy="0" r="1.5" fill="#f8fafc" stroke="#334155" strokeWidth="0.08"/>
+            <line x1="0" y1="0" x2="1.5" y2="0" stroke="#334155" strokeWidth="0.05" markerEnd="url(#arrow-slate-sm)"/>
+            <circle cx="0" cy="0" r="0.08" fill="#334155"/>
+            <text x="0.75" y="-0.2" fontSize="0.5" fill="#334155" fontWeight="bold">R</text>
+            <defs><marker id="arrow-slate-sm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker></defs>
+          </svg>
+        );
+
+        const SvgCascara = () => (
+          <svg viewBox="-2 -2 4 4" className="w-20 h-20 mx-auto mb-4 drop-shadow-sm">
+            <circle cx="0" cy="0" r="1.5" fill="#f8fafc" stroke="#334155" strokeWidth="0.08"/>
+            <circle cx="0" cy="0" r="0.8" fill="white" stroke="#334155" strokeWidth="0.08"/>
+            <line x1="0" y1="0" x2="0.8" y2="0" stroke="#334155" strokeWidth="0.05" markerEnd="url(#arrow-slate-sm)"/>
+            <line x1="0" y1="0" x2="-1.06" y2="1.06" stroke="#334155" strokeWidth="0.05" markerEnd="url(#arrow-slate-sm)"/>
+            <circle cx="0" cy="0" r="0.08" fill="#334155"/>
+            <text x="0.4" y="-0.15" fontSize="0.5" fill="#334155" fontWeight="bold">a</text>
+            <text x="-0.7" y="0.4" fontSize="0.5" fill="#334155" fontWeight="bold">b</text>
+          </svg>
+        );
+
         const SvgFriction = () => (
           <svg viewBox="0 0 100 100" className="w-full h-full max-h-[140px] drop-shadow-md">
             <rect x="10" y="10" width="40" height="80" rx="5" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
@@ -687,7 +829,8 @@
 
           // Real-time Views Listener
           useEffect(() => {
-              if(!user) return; // Esperar a tener auth
+              if(!user) return; 
+              // Usamos la ruta autorizada /public/data/...
               const viewsRef = doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'global');
               setDoc(viewsRef, { views: increment(1) }, { merge: true }).catch(e=>console.log(e));
               
@@ -697,7 +840,7 @@
               return () => unsub();
           }, [user]);
 
-          // Auth Handlers (NO anonymous auth. Forced Identity)
+          // Auth Handlers
           const handleGoogleLogin = async () => {
             setAuthError("");
             const provider = new GoogleAuthProvider();
@@ -875,10 +1018,10 @@
             const dist1 = examVars.q1;
             const dist2 = examVars.q1 + examVars.q2 + examVars.q3;
             const opts = [
-              {val: `${correct}q`, label: `\\frac{${correct}q}{\\epsilon_0}`},
-              {val: `${dist1}q_alt1`, label: `\\frac{${dist1}q}{\\epsilon_0}`},
-              {val: `${dist2}q_alt2`, label: `\\frac{${dist2}q}{\\epsilon_0}`},
-              {val: `0q`, label: `0`}
+              {val: `${correct}q`, label: `$\\frac{${correct}q}{\\epsilon_0}$`},
+              {val: `${dist1}q_alt1`, label: `$\\frac{${dist1}q}{\\epsilon_0}$`},
+              {val: `${dist2}q_alt2`, label: `$\\frac{${dist2}q}{\\epsilon_0}$`},
+              {val: `0q`, label: `$0$`}
             ];
             const uniqueOpts = []; const map = new Map();
             for (const item of opts) { if(!map.has(item.label)){ map.set(item.label, true); uniqueOpts.push(item); } }
@@ -889,9 +1032,9 @@
             const correct = examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4;
             const dist1 = examVars.q3 + examVars.q4;
             const opts = [
-              {val: `${correct}q`, label: `\\frac{${correct}q}{\\epsilon_0}`},
-              {val: `${dist1}q_alt1`, label: `\\frac{${dist1}q}{\\epsilon_0}`},
-              {val: `0q`, label: `0`}
+              {val: `${correct}q`, label: `$\\frac{${correct}q}{\\epsilon_0}$`},
+              {val: `${dist1}q_alt1`, label: `$\\frac{${dist1}q}{\\epsilon_0}$`},
+              {val: `0q`, label: `$0$`}
             ];
             const uniqueOpts = []; const map = new Map();
             for (const item of opts) { if(!map.has(item.label)){ map.set(item.label, true); uniqueOpts.push(item); } }
@@ -899,16 +1042,16 @@
           }, [examVars]);
 
           // Shared Options for Dropdowns
-          const coulombDensityOpts = [{val: '\\lambda', label: '\\lambda'}, {val: '\\sigma', label: '\\sigma'}, {val: '\\rho', label: '\\rho'}];
-          const coulombDqOpts = [{val: '\\lambda R d\\theta', label: '\\lambda R d\\theta'}, {val: '\\sigma 2\\pi r\' dr\'', label: '\\sigma 2\\pi r\' dr\''}, {val: '\\lambda dy', label: '\\lambda dy'}];
-          const coulombR2Opts = [{val: 'R^2 + z^2', label: 'R^2 + z^2'}, {val: '(r\')^2 + z^2', label: '(r\')^2 + z^2'}, {val: 'x^2 + y^2', label: 'x^2 + y^2'}];
-          const coulombSymOpts = [{val: 'x,y', label: 'dE_x , dE_y'}, {val: 'y,z', label: 'dE_y , dE_z'}, {val: 'ninguna', label: '\\text{Ninguna}'}];
-          const coulombIntOpts = [{val: '0..2pi', label: '\\int_0^{2\\pi}'}, {val: '0..R', label: '\\int_0^R'}, {val: '0..a', label: '\\int_0^a'}];
+          const coulombDensityOpts = [{val: '\\lambda', label: '$\\lambda$'}, {val: '\\sigma', label: '$\\sigma$'}, {val: '\\rho', label: '$\\rho$'}];
+          const coulombDqOpts = [{val: '\\lambda R d\\theta', label: '$\\lambda R d\\theta$'}, {val: '\\sigma 2\\pi r\' dr\'', label: '$\\sigma 2\\pi r\' dr\'$'}, {val: '\\lambda dy', label: '$\\lambda dy$'}];
+          const coulombR2Opts = [{val: 'R^2 + z^2', label: '$R^2 + z^2$'}, {val: '(r\')^2 + z^2', label: '$(r\')^2 + z^2$'}, {val: 'x^2 + y^2', label: '$x^2 + y^2$'}];
+          const coulombSymOpts = [{val: 'x,y', label: '$dE_x , dE_y$'}, {val: 'y,z', label: '$dE_y , dE_z$'}, {val: 'ninguna', label: '$\\text{Ninguna}$'}];
+          const coulombIntOpts = [{val: '0..2pi', label: '$\\int_0^{2\\pi}$'}, {val: '0..R', label: '$\\int_0^R$'}, {val: '0..a', label: '$\\int_0^a$'}];
 
-          const gaussDistOpts = [ {val: 'vol', label: '\\text{Todo el volumen}'}, {val: 'sup_ext', label: '\\text{Superficie exterior}'}, {val: 'vol_casc', label: '\\text{Volumen } a < r < b'} ];
-          const gaussAreaOpts = [ {val: 'E(4pir^2)', label: 'E(4\\pi r^2)'}, {val: 'E(2pirL)', label: 'E(2\\pi r L)'} ];
-          const gaussQencOpts = [ {val: '0', label: '0'}, {val: 'Q', label: 'Q'}, {val: 'rho_v_esf', label: '\\rho \\frac{4}{3}\\pi r^3'}, {val: 'rho_v_casc', label: '\\rho \\frac{4}{3}\\pi (r^3 - a^3)'} ];
-          const gaussEOpts = [ {val: '0', label: '0'}, {val: 'E_ext', label: '\\frac{Q}{4\\pi\\epsilon_0 r^2}'}, {val: 'E_ins', label: '\\frac{\\rho r}{3\\epsilon_0}'}, {val: 'E_casc', label: '\\frac{\\rho(r^3-a^3)}{3\\epsilon_0 r^2}'} ];
+          const gaussDistOpts = [ {val: 'vol', label: '$\\text{Todo el volumen}$'}, {val: 'sup_ext', label: '$\\text{Superficie exterior}$'}, {val: 'vol_casc', label: '$\\text{Volumen } a < r < b$'} ];
+          const gaussAreaOpts = [ {val: 'E(4pir^2)', label: '$E(4\\pi r^2)$'}, {val: 'E(2pirL)', label: '$E(2\\pi r L)$'} ];
+          const gaussQencOpts = [ {val: '0', label: '$0$'}, {val: 'Q', label: '$Q$'}, {val: 'rho_v_esf', label: '$\\rho \\frac{4}{3}\\pi r^3$'}, {val: 'rho_v_casc', label: '$\\rho \\frac{4}{3}\\pi (r^3 - a^3)$'} ];
+          const gaussEOpts = [ {val: '0', label: '$0$'}, {val: 'E_ext', label: '$\\frac{Q}{4\\pi\\epsilon_0 r^2}$'}, {val: 'E_ins', label: '$\\frac{\\rho r}{3\\epsilon_0}$'}, {val: 'E_casc', label: '$\\frac{\\rho(r^3-a^3)}{3\\epsilon_0 r^2}$'} ];
 
 
           const calculateScore = () => {
@@ -965,7 +1108,7 @@
                 const userRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
                 await addDoc(userRef, { score: result.total, maxScore: 4.0, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
                 
-                // Guarda copia pública para que el Teacher lea todas (simulando CollectionGroup que requiere índices)
+                // Guarda copia pública (simulando CollectionGroup que requiere índices)
                 const globalRef = collection(db, 'artifacts', appId, 'public', 'data', 'global_attempts');
                 await addDoc(globalRef, { email: user.email, score: result.total, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
               } catch (e) { console.error("Error guardando intento:", e); }
@@ -999,7 +1142,7 @@
                   )}
                   {role && (
                     <div className="flex items-center gap-3 bg-slate-100 px-5 py-2 rounded-full border border-slate-200 shadow-inner">
-                      <span className={`flex items-center gap-2 text-sm font-black uppercase tracking-wider ${role==='student'?'text-emerald-700': role==='teacher'?'text-blue-700':'text-violet-700'}`}>
+                      <span className={`flex items-center gap-2 text-sm font-black uppercase tracking-wider ${role==='student'?'text-emerald-700': 'text-blue-700'}`}>
                         {role === 'student' ? <GraduationCap size={18}/> : role === 'teacher' ? <BookOpen size={18}/> : <Settings size={18}/>}
                         <span className="hidden sm:inline">{role === 'student' ? 'Estudiante' : role === 'teacher' ? 'Docente' : 'Admin'}</span>
                       </span>
@@ -1139,6 +1282,19 @@
                       </div>
                       <div className="bg-slate-100 px-4 py-2 rounded-xl border border-slate-300 shadow-inner">
                           <span className="text-sm font-black text-slate-600 uppercase tracking-widest">Hoja {currentPage} de {totalPages}</span>
+                      </div>
+                    </div>
+
+                    {/* Student Info */}
+                    <div className="flex flex-col md:flex-row gap-8 bg-slate-50 p-6 rounded-2xl border-2 border-slate-200 mb-12 font-bold text-slate-700 shadow-inner">
+                      <div className="flex-grow flex items-center gap-4">
+                        <div className="bg-white p-2 rounded-lg border border-slate-200"><User size={20} className="text-blue-500"/></div>
+                        <span className="uppercase tracking-widest text-sm text-slate-500">Agente Auth:</span>
+                        <span className="flex-grow text-lg text-blue-700">{user?.email || 'Desconocido'}</span>
+                      </div>
+                      <div className="w-full md:w-80 flex items-center gap-4 border-l-0 md:border-l-2 border-slate-200 md:pl-6">
+                        <span className="uppercase tracking-widest text-sm text-slate-500">Status:</span>
+                        <span className="flex items-center gap-2 text-emerald-600"><CheckCircle2 size={18}/> Verificado</span>
                       </div>
                     </div>
 
@@ -1301,6 +1457,73 @@
                                     <span className="text-amber-400 bg-white/10 px-3 py-1 rounded-lg border border-amber-400/20">[0.15 pts]</span>
                                   </div>
                                   <InteractiveVectorField systemType="B" id="canvasB" onChange={handleInputChange} isSubmitted={isSubmitted} />
+                                </div>
+                              </div>
+                            </MisionBox>
+
+                            {/* DIAGRAMA DE VENN ADICIONADO PARA HOJA 1 */}
+                            <MisionBox title="III. La Bóveda de Gauss (Análisis Espacial)" points="0.40">
+                              <div className="bg-emerald-50 border-l-4 border-emerald-500 p-6 rounded-r-2xl mb-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                                <div>
+                                  <p className="font-black text-emerald-900 text-xl mb-2 flex items-center gap-2"><Target size={24}/> 3.1 Análisis de Fronteras Vivas</p>
+                                  <p className="text-emerald-800 font-medium text-base leading-relaxed">
+                                    El sistema contiene 4 cargas <strong className="text-emerald-950 bg-emerald-200 px-2 py-1 rounded-md shadow-sm border border-emerald-300">generadas aleatoriamente</strong>. Determine el Flujo Eléctrico Neto matemático a través de las superficies gaussianas $S_1, S_2, S_3$.
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 lg:grid-cols-12 gap-14">
+                                <div className="lg:col-span-5 flex flex-col">
+                                  {/* AQUÍ ESTÁ EL DIAGRAMA DE VENN 2D AÑADIDO PARA HOJA 1 */}
+                                  <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-inner border-2 border-slate-200 bg-white mb-6">
+                                      <SvgGaussVenn q1={examVars.q1} q2={examVars.q2} q3={examVars.q3} q4={examVars.q4} />
+                                  </div>
+                                  <ThreeCanvas q1={examVars.q1} q2={examVars.q2} q3={examVars.q3} q4={examVars.q4} />
+                                  <TipButton id="tip_3" usedTips={usedTips} setUsedTips={setUsedTips} text={"El flujo eléctrico neto $\\Phi_E$ que atraviesa una superficie cerrada depende únicamente de la suma algebraica de las cargas que están en su interior. Ignora cualquier carga exterior."} />
+                                </div>
+
+                                <div className="lg:col-span-7 flex flex-col justify-center space-y-12">
+                                  <div className="bg-white border-2 border-slate-200 rounded-3xl shadow-md overflow-hidden">
+                                    <div className="bg-slate-100 p-8 border-b-2 border-slate-200 flex justify-between items-center rounded-t-[calc(1.5rem-2px)]">
+                                      <div>
+                                        <h4 className="font-black text-slate-900 text-2xl mb-2">Evaluación Matemática de Flujo (<Latex text={'$\\Phi_E$'} />)</h4>
+                                        <p className="text-base text-slate-600 font-medium">Seleccione la suma correcta según los gráficos.</p>
+                                      </div>
+                                      <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.30 pts]</span>
+                                    </div>
+                                    <div className="p-10 space-y-8">
+                                      <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 border-slate-100 pb-6 gap-4">
+                                        <span className="font-bold text-slate-800 text-xl flex items-center gap-4"><div className="w-6 h-6 bg-blue-500/20 border-4 border-blue-500 rounded-full"></div> Flujo en <Latex text={"$S_1$"}/>:</span>
+                                        <span className="text-2xl font-bold flex items-center">
+                                          <Latex text={'$\\Phi_{E1} = $'} className="mr-3"/> 
+                                          <InlineSelect id="p1" value={answers.p1} onChange={handleInputChange} isSubmitted={isSubmitted} expected={`${examVars.q1 + examVars.q2}q`} width="w-48" options={gaussOptionsS1}/> 
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-col md:flex-row md:items-center justify-between pb-2 gap-4">
+                                        <span className="font-bold text-slate-800 text-xl flex items-center gap-4"><div className="w-6 h-6 bg-violet-500/20 border-4 border-violet-500 rounded-full"></div> Flujo en <Latex text={"$S_3$"}/>:</span>
+                                        <span className="text-2xl font-bold flex items-center">
+                                          <Latex text={'$\\Phi_{E3} = $'} className="mr-3"/> 
+                                          <InlineSelect id="p3" value={answers.p3} onChange={handleInputChange} isSubmitted={isSubmitted} expected={`${examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4}q`} width="w-48" options={gaussOptionsS3}/> 
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-slate-900 border-2 border-slate-800 p-10 rounded-3xl text-white shadow-2xl relative overflow-hidden group">
+                                    <div className="absolute -right-10 -bottom-10 opacity-5 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-700"><Lightbulb size={250}/></div>
+                                    <div className="relative z-10">
+                                      <p className="font-black text-2xl mb-6 flex justify-between items-center text-blue-400">
+                                        <span>Análisis Teórico Profundo</span>
+                                        <span className="text-red-400 bg-red-400/10 border border-red-400/30 px-4 py-1.5 rounded-xl text-base tracking-widest uppercase shadow-inner">[0.10 pts]</span>
+                                      </p>
+                                      <p className="text-lg text-slate-300 mb-6 leading-relaxed font-medium">¿El campo <Latex text={'$\\vec{E}$'} className="text-white font-bold"/> evaluado en un punto específico sobre la superficie fronteriza <Latex text={'$S_1$'} className="text-white font-bold"/> depende SOLO de las cargas internas?</p>
+                                      <ERadioGroup id="pt" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="no" options={[
+                                        {val: 'yes1', label: '\\text{Sí. La ley de Gauss establece que solo la carga encerrada genera el campo en la frontera.}'},
+                                        {val: 'yes2', label: '\\text{Sí. Las cargas externas al sistema son completamente apantalladas.}'},
+                                        {val: 'no', label: '\\text{No. El flujo neto depende solo de las internas, pero el vector campo E sufre superposición de TODAS las cargas.}'}
+                                      ]} />
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </MisionBox>
@@ -1485,16 +1708,24 @@
                                         <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Paso I [0.10 pts]</span>
                                         Distribución Física
                                       </td>
-                                      <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                      <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm text-center">
+                                        <SvgMaciza />
+                                        <div className="h-32 mb-4"><MiniThreeSphere type="solid" isConductor={false} /></div>
                                         <InlineSelect id="g1_dist" value={answers.g1_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="vol" width="w-full" options={gaussDistOpts} />
                                       </td>
-                                      <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                      <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm text-center">
+                                        <SvgMaciza />
+                                        <div className="h-32 mb-4"><MiniThreeSphere type="solid" isConductor={true} /></div>
                                         <InlineSelect id="g2_dist" value={answers.g2_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="sup_ext" width="w-full" options={gaussDistOpts} />
                                       </td>
-                                      <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                      <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm text-center">
+                                        <SvgCascara />
+                                        <div className="h-32 mb-4"><MiniThreeSphere type="hollow" isConductor={false} /></div>
                                         <InlineSelect id="g3_dist" value={answers.g3_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="vol_casc" width="w-full" options={gaussDistOpts} />
                                       </td>
-                                      <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
+                                      <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm text-center">
+                                        <SvgCascara />
+                                        <div className="h-32 mb-4"><MiniThreeSphere type="hollow" isConductor={true} /></div>
                                         <InlineSelect id="g4_dist" value={answers.g4_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="sup_ext" width="w-full" options={gaussDistOpts} />
                                       </td>
                                     </tr>
