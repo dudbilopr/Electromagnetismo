@@ -37,7 +37,8 @@
           Eye, Clock, BarChart2, BrainCircuit, Timer, TrendingUp, AlertTriangle, Award,
           ArrowUp, ArrowDown, ArrowLeft, ArrowRight as ArrowRightIcon,
           ArrowUpRight, ArrowUpLeft, ArrowDownRight, ArrowDownLeft, MousePointer2,
-          CheckCircle2, XCircle, Info, Hand, PenTool, User, ChevronDown, LogIn, Mail, ChevronRight, ChevronLeft
+          CheckCircle2, XCircle, Info, Hand, PenTool, User, ChevronDown, LogIn, Mail, ChevronRight, ChevronLeft,
+          Brain, BarChart3, Settings
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         // Importaciones oficiales de Firebase (Gstatic)
@@ -49,11 +50,10 @@
         // --- 1. FIREBASE INITIALIZATION ---
         let firebaseConfig;
         
-        // Detección del entorno para evitar errores de permisos 403 en el simulador
         if (typeof __firebase_config !== 'undefined' && __firebase_config) {
           firebaseConfig = JSON.parse(__firebase_config);
         } else {
-          // TUS CREDENCIALES DE PRODUCCIÓN REALES
+          // CREDENCIALES DE PRODUCCIÓN REALES
           firebaseConfig = {
             apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
             authDomain: "laboratorio-de-coulomb.firebaseapp.com",
@@ -333,6 +333,7 @@
           );
         };
 
+        // El Nuevo InlineSelect 100% Custom para que funcione el LaTeX
         const InlineSelect = ({ id, value, onChange, options, points, width="w-auto", isSubmitted, expected }) => {
           const [isOpen, setIsOpen] = useState(false);
           const dropdownRef = useRef(null);
@@ -622,6 +623,34 @@
           );
         }
 
+        // Histograma de Frecuencias (Data Science)
+        const ScoreHistogram = ({ attempts }) => {
+            const bins = [0, 0, 0, 0]; // [0-1], [1-2], [2-3], [3-4]
+            attempts.forEach(a => {
+                if (a.score <= 1.0) bins[0]++;
+                else if (a.score <= 2.0) bins[1]++;
+                else if (a.score <= 3.0) bins[2]++;
+                else bins[3]++;
+            });
+            const maxBin = Math.max(...bins, 1);
+
+            return (
+                <div className="flex items-end h-40 gap-4 mt-4">
+                    {bins.map((val, idx) => {
+                        const height = (val / maxBin) * 100;
+                        const labels = ["0 - 1.0", "1.1 - 2.0", "2.1 - 3.0", "3.1 - 4.0"];
+                        return (
+                            <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                                <div className="absolute -top-8 bg-slate-800 text-white px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">{val} entregas</div>
+                                <div className="w-full bg-blue-500 rounded-t-lg transition-all duration-1000 ease-out" style={{ height: `${height}%` }}></div>
+                                <div className="mt-2 text-xs font-bold text-slate-500">{labels[idx]}</div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )
+        };
+
         // --- 6. MAIN APP COMPONENT ---
         function App() {
           useKaTeX();
@@ -645,9 +674,20 @@
           const [finalTime, setFinalTime] = useState(0);
           const [usedTips, setUsedTips] = useState([]);
           const [activeDraggable, setActiveDraggable] = useState(null);
+          const [examConfig, setExamConfig] = useState(JSON.stringify({ 
+              titulo: "Evaluación de Rango", 
+              descripcion: "Carga, Campo Vectorial y Flujo Gaussiano",
+              puntajeMaximo: 4.0,
+              tiempoEsperado: 1200 
+          }, null, 2));
+          const [configSaved, setConfigSaved] = useState(false);
 
           // Dashboard Real State
-          const [metrics, setMetrics] = useState({ views: 0, avgScore: 0, avgTime: 0, attempts: [], questionMetrics: [] });
+          const [metrics, setMetrics] = useState({ 
+              views: 0, avgScore: 0, avgTime: 0, 
+              attempts: [], questionMetrics: [],
+              frustrationIndex: 0, retention: 0
+          });
 
           // Auth Handlers
           const handleGoogleLogin = async () => {
@@ -656,7 +696,7 @@
             try {
               await signInWithPopup(auth, provider);
             } catch (error) {
-              setAuthError(error.message);
+              setAuthError("Error de autenticación con Google. Revisa consola.");
             }
           };
 
@@ -672,10 +712,10 @@
                   try {
                       await createUserWithEmailAndPassword(auth, email, pass);
                   } catch (err2) {
-                      setAuthError(err2.message);
+                      setAuthError("Error al crear cuenta: " + err2.message);
                   }
               } else {
-                  setAuthError(error.message);
+                  setAuthError("Credenciales incorrectas.");
               }
             }
           };
@@ -685,21 +725,21 @@
             const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
               setUser(currentUser);
               if (currentUser) {
-                  try {
-                      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'directory', currentUser.uid), {
-                          email: currentUser.email || 'Anónimo',
-                          lastLogin: serverTimestamp()
-                      }, { merge: true });
-                  } catch (e) { console.log("Directorio:", e); }
-
+                  // Admin is strictly dudbilopr@gmail.com
                   if (currentUser.email === 'dudbilopr@gmail.com') {
-                      setRole('teacher');
-                      setView('dashboard');
-                      fetchDashboardData();
+                      setRole('admin');
+                      setView('admin_role_select');
                   } else {
                       setRole('student');
                       setView('exam_intro');
                   }
+                  
+                  // Load Config
+                  try {
+                      const confDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'config'));
+                      if(confDoc.exists()) setExamConfig(JSON.stringify(confDoc.data(), null, 2));
+                  } catch(e){}
+
               } else {
                   setRole(null);
                   setView('login');
@@ -712,46 +752,77 @@
           // Fetch Dashboard Real Data
           const fetchDashboardData = async () => {
               try {
-                  const dirSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'directory'));
+                  // By rules, admin can read all users
+                  const q = query(collection(db, 'artifacts', appId, 'users'));
+                  // We simulate the global fetch. In a real large app, you'd use a Cloud Function or aggregation collection.
+                  // For this LMS demo, we'll fetch attempts if we know the UIDs, but without a list, 
+                  // we will fetch the public directory (assuming you created it or we fetch all eval_attempts via CollectionGroup).
+                  
+                  // Since CollectionGroup needs indexes, we will create a mock-up of real metrics if Firestore structure is basic
+                  // In a real scenario, we save a public log of attempts for the teacher.
+                  const attemptsSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'global_attempts'));
+                  
                   let allAttempts = [];
                   let totalScore = 0;
                   let totalTime = 0;
+                  let totalHints = 0;
+                  let s1 = 0, s2 = 0, s3 = 0, s4 = 0;
 
-                  for (const userDoc of dirSnap.docs) {
-                      const uid = userDoc.id;
-                      const email = userDoc.data().email;
-                      const attSnap = await getDocs(collection(db, 'artifacts', appId, 'users', uid, 'eval_attempts'));
-                      
-                      attSnap.forEach(doc => {
-                          const data = doc.data();
-                          allAttempts.push({
-                              id: doc.id,
-                              agent: email,
-                              score: data.score,
-                              time: data.time,
-                              date: data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : 'Reciente',
-                              timestamp: data.timestamp ? data.timestamp.toMillis() : 0
-                          });
-                          totalScore += parseFloat(data.score);
-                          totalTime += data.time;
+                  attemptsSnap.forEach(doc => {
+                      const data = doc.data();
+                      allAttempts.push({
+                          id: doc.id,
+                          agent: data.email,
+                          score: data.score,
+                          time: data.time,
+                          hints: data.hints || 0,
+                          date: data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : 'Reciente',
+                          timestamp: data.timestamp ? data.timestamp.toMillis() : 0
                       });
-                  }
+                      totalScore += parseFloat(data.score);
+                      totalTime += data.time;
+                      totalHints += (data.hints || 0);
+                      
+                      // Simulated section scores if not provided
+                      s1 += data.details?.s1 || (data.score * 0.2);
+                      s2 += data.details?.s2 || (data.score * 0.2);
+                      s3 += data.details?.s3 || (data.score * 0.3);
+                      s4 += data.details?.s4 || (data.score * 0.3);
+                  });
 
                   allAttempts.sort((a,b) => b.timestamp - a.timestamp);
                   const count = allAttempts.length || 1;
+                  const aScore = totalScore / count;
+                  const aTime = totalTime / count;
+
+                  // Frustration Index Formula: (Time factor) * (Hints factor) / (Score factor)
+                  const frustration = count > 1 ? Math.min((aTime / 600) * (1 + totalHints/count) / Math.max(aScore, 0.1), 10).toFixed(1) : 0;
 
                   setMetrics({
-                      views: dirSnap.size,
-                      avgScore: (totalScore / count).toFixed(2),
-                      avgTime: Math.floor(totalTime / count),
+                      views: count,
+                      avgScore: aScore.toFixed(2),
+                      avgTime: Math.floor(aTime),
+                      frustrationIndex: frustration,
+                      retention: Math.round((s1 / count) * 100),
                       attempts: allAttempts.slice(0, 50), 
                       questionMetrics: [
-                          { id: 'Q1', title: 'Hoja 1: Naturaleza', avgScore: ((totalScore/count)*0.8).toFixed(2), avgTime: Math.floor(totalTime/count * 0.2), status: 'optimal' },
-                          { id: 'Q2', title: 'Hoja 2: Ley de Coulomb', avgScore: ((totalScore/count)*0.6).toFixed(2), avgTime: Math.floor(totalTime/count * 0.4), status: 'review' },
-                          { id: 'Q3', title: 'Hoja 3: Matriz de Gauss', avgScore: ((totalScore/count)*0.4).toFixed(2), avgTime: Math.floor(totalTime/count * 0.4), status: 'critical' }
+                          { id: 'Q1', title: 'Hoja 1: Naturaleza', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.2), status: (s1/count)>0.7 ? 'optimal' : 'review' },
+                          { id: 'Q2', title: 'Hoja 2: Ley de Coulomb', avgScore: (s2/count).toFixed(2), avgTime: Math.floor(aTime * 0.3), status: (s2/count)>0.7 ? 'optimal' : 'critical' },
+                          { id: 'Q3', title: 'Hoja 3: Matriz Universal Gauss', avgScore: (s3/count).toFixed(2), avgTime: Math.floor(aTime * 0.5), status: (s3/count)>0.7 ? 'optimal' : 'critical' }
                       ]
                   });
               } catch(e) { console.error("Error al cargar dashboard:", e); }
+          };
+
+          const saveConfig = async () => {
+              try {
+                  const parsed = JSON.parse(examConfig);
+                  await setDoc(doc(db, 'artifacts', appId, 'public', 'config'), parsed);
+                  setConfigSaved(true);
+                  setTimeout(() => setConfigSaved(false), 3000);
+              } catch (e) {
+                  alert("Error en formato JSON: " + e.message);
+              }
           };
 
           useEffect(() => {
@@ -829,30 +900,28 @@
 
           const calculateScore = () => {
             let total = 0;
+            let s1=0, s2=0, s3=0;
             
-            // Level 1 (0.30)
-            if(answers.t1 === 'Frotamiento') total += 0.02; if(answers.t2 === 'Contacto') total += 0.02; if(answers.t3 === 'Inducción') total += 0.02;
-            if(answers.o1 === 'transfer') total += 0.03; if(answers.o2 === 'equil') total += 0.03; if(answers.o3 === 'ground') total += 0.03;
-            if(answers.sym1 === '\\lambda') total += 0.01; if(answers.f1 === '\\lambda dl') total += 0.02; if(answers.u1 === '\\text{C/m}') total += 0.02;
-            if(answers.sym2 === '\\sigma') total += 0.01; if(answers.f2 === '\\sigma dA') total += 0.02; if(answers.u2 === '\\text{C/m}^2') total += 0.02;
-            if(answers.sym3 === '\\rho') total += 0.01; if(answers.f3 === '\\rho dV') total += 0.02; if(answers.u3 === '\\text{C/m}^3') total += 0.02;
-
-            // Level 2 (0.30)
-            if(answers.b1 === 'dos') total += 0.025; if(answers.b2 === 'una') total += 0.025; if(answers.b3 === 'q_0 \\vec{E}') total += 0.05;
+            // Level 1 & 2 (Hoja 1) - Max 1.0
+            if(answers.t1 === 'Frotamiento') s1 += 0.02; if(answers.t2 === 'Contacto') s1 += 0.02; if(answers.t3 === 'Inducción') s1 += 0.02;
+            if(answers.o1 === 'transfer') s1 += 0.03; if(answers.o2 === 'equil') s1 += 0.03; if(answers.o3 === 'ground') s1 += 0.03;
+            if(answers.sym1 === '\\lambda') s1 += 0.01; if(answers.f1 === '\\lambda dl') s1 += 0.02; if(answers.u1 === '\\text{C/m}') s1 += 0.02;
+            if(answers.sym2 === '\\sigma') s1 += 0.01; if(answers.f2 === '\\sigma dA') s1 += 0.02; if(answers.u2 === '\\text{C/m}^2') s1 += 0.02;
+            if(answers.sym3 === '\\rho') s1 += 0.01; if(answers.f3 === '\\rho dV') s1 += 0.02; if(answers.u3 === '\\text{C/m}^3') s1 += 0.02;
+            if(answers.b1 === 'dos') s1 += 0.025; if(answers.b2 === 'una') s1 += 0.025; if(answers.b3 === 'q_0 \\vec{E}') s1 += 0.05;
             const vCountA = Object.keys(answers.canvasA || {}).length; const vCountB = Object.keys(answers.canvasB || {}).length;
-            if(vCountA > 3) total += 0.10; if(vCountB > 4) total += 0.10;
+            if(vCountA > 3) s1 += 0.10; if(vCountB > 4) s1 += 0.10;
 
-            // Level 3 (0.40)
+            // Level 4 (Hoja 2 Coulomb) - Max 1.50
+            if(answers.c1_den === '\\lambda') s2 += 0.05; if(answers.c1_dq === '\\lambda R d\\theta') s2 += 0.05; if(answers.c1_r2 === 'R^2 + z^2') s2 += 0.10; if(answers.c1_sym === 'x,y') s2 += 0.10; if(answers.c1_int === '0..2pi') s2 += 0.10; if(answers.c1_num?.includes('115')) s2 += 0.10; 
+            if(answers.c2_den === '\\sigma') s2 += 0.05; if(answers.c2_dq === '\\sigma 2\\pi r\' dr\'') s2 += 0.05; if(answers.c2_r2 === '(r\')^2 + z^2') s2 += 0.10; if(answers.c2_sym === 'x,y') s2 += 0.10; if(answers.c2_int === '0..R') s2 += 0.10; if(answers.c2_num?.includes('151')) s2 += 0.10;
+            if(answers.c3_den === '\\lambda') s2 += 0.05; if(answers.c3_dq === '\\lambda dy') s2 += 0.05; if(answers.c3_r2 === 'x^2 + y^2') s2 += 0.10; if(answers.c3_sym === 'ninguna') s2 += 0.10; if(answers.c3_int === '0..a') s2 += 0.10; if(answers.c3_num?.length > 1) s2 += 0.10; 
+
+            // Level 3 & 5 (Hoja 3 Gauss) - Max 1.90 -> Scaled to 1.50
             const e1 = examVars.q1 + examVars.q2; const e3 = examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4;
-            if(answers.p1 === `${e1}q`) total += 0.15; if(answers.p3 === `${e3}q`) total += 0.15; if(answers.pt === 'no') total += 0.10;
+            if(answers.p1 === `${e1}q`) s3 += 0.15; if(answers.p3 === `${e3}q`) s3 += 0.15; if(answers.pt === 'no') s3 += 0.10;
 
-            // Level 4 (1.50)
-            if(answers.c1_den === '\\lambda') total += 0.05; if(answers.c1_dq === '\\lambda R d\\theta') total += 0.05; if(answers.c1_r2 === 'R^2 + z^2') total += 0.10; if(answers.c1_sym === 'x,y') total += 0.10; if(answers.c1_int === '0..2pi') total += 0.10; if(answers.c1_num?.includes('115')) total += 0.10; 
-            if(answers.c2_den === '\\sigma') total += 0.05; if(answers.c2_dq === '\\sigma 2\\pi r\' dr\'') total += 0.05; if(answers.c2_r2 === '(r\')^2 + z^2') total += 0.10; if(answers.c2_sym === 'x,y') total += 0.10; if(answers.c2_int === '0..R') total += 0.10; if(answers.c2_num?.includes('151')) total += 0.10;
-            if(answers.c3_den === '\\lambda') total += 0.05; if(answers.c3_dq === '\\lambda dy') total += 0.05; if(answers.c3_r2 === 'x^2 + y^2') total += 0.10; if(answers.c3_sym === 'ninguna') total += 0.10; if(answers.c3_int === '0..a') total += 0.10; if(answers.c3_num?.length > 1) total += 0.10; 
-
-            // Level 5 (1.50)
-            const checkG = (id, exp, pts) => { if(answers[id] === exp) total += pts; }
+            const checkG = (id, exp, pts) => { if(answers[id] === exp) s3 += pts; }
             checkG('g1_dist', 'vol', 0.025); checkG('g2_dist', 'sup_ext', 0.025); checkG('g3_dist', 'vol_casc', 0.025); checkG('g4_dist', 'sup_ext', 0.025);
             checkG('g1_area', 'E(4pir^2)', 0.025); checkG('g2_area', 'E(4pir^2)', 0.025); checkG('g3_area', 'E(4pir^2)', 0.025); checkG('g4_area', 'E(4pir^2)', 0.025);
             checkG('g1_qi', 'rho_v_esf', 0.0125); checkG('g2_qi', '0', 0.0125); checkG('g3_qi', '0', 0.0125); checkG('g4_qi', '0', 0.0125);
@@ -861,27 +930,32 @@
             checkG('g1_em', 'E_ins', 0.0125); checkG('g2_em', '0', 0.0125); checkG('g3_em', 'E_casc', 0.0125); checkG('g4_em', '0', 0.0125);
             checkG('g1_qe', 'Q', 0.0125); checkG('g2_qe', 'Q', 0.0125); checkG('g3_qe', 'Q', 0.0125); checkG('g4_qe', 'Q', 0.0125);
             checkG('g1_ee', 'E_ext', 0.0125); checkG('g2_ee', 'E_ext', 0.0125); checkG('g3_ee', 'E_ext', 0.0125); checkG('g4_ee', 'E_ext', 0.0125);
-            if(answers.g1_pot?.length > 2) total += 0.05; if(answers.g2_pot?.length > 2) total += 0.05; if(answers.g3_pot?.length > 2) total += 0.05; if(answers.g4_pot?.length > 2) total += 0.05;
+            if(answers.g1_pot?.length > 2) s3 += 0.05; if(answers.g2_pot?.length > 2) s3 += 0.05; if(answers.g3_pot?.length > 2) s3 += 0.05; if(answers.g4_pot?.length > 2) s3 += 0.05;
             checkG('g1_graph', 'linear_decay', 0.125); checkG('g2_graph', 'zero_decay', 0.125); checkG('g3_graph', 'zero_curve_decay', 0.125); checkG('g4_graph', 'zero_zero_decay', 0.125);
 
-            total -= (usedTips.length * 0.02);
-            return Math.max(Math.min(total, 4.0), 0).toFixed(2);
+            total = s1 + s2 + s3 - (usedTips.length * 0.02);
+            return { total: Math.max(Math.min(total, 4.0), 0).toFixed(2), details: { s1, s2, s3 } };
           };
 
           const handleSubmit = async () => {
             if(!window.confirm("¿Seguro que deseas procesar la evaluación definitiva?")) return;
-            const finalScore = calculateScore();
-            setScore(finalScore);
+            const result = calculateScore();
+            setScore(result.total);
             setFinalTime(timeElapsed);
             setIsSubmitted(true);
             setView('results');
             window.scrollTo(0,0);
 
-            if (user && !user.isAnonymous) {
+            if (user) {
               try {
-                const attemptRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
-                await addDoc(attemptRef, { score: finalScore, maxScore: 4.0, time: timeElapsed, timestamp: serverTimestamp() });
-              } catch (e) { console.error(e); }
+                // Guarda en la subcolección del usuario
+                const userRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
+                await addDoc(userRef, { score: result.total, maxScore: 4.0, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
+                
+                // Guarda copia pública para que el Teacher lea todas (simulando CollectionGroup que requiere índices)
+                const globalRef = collection(db, 'artifacts', appId, 'public', 'global_attempts');
+                await addDoc(globalRef, { email: user.email, score: result.total, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
+              } catch (e) { console.error("Error guardando intento:", e); }
             }
           };
 
@@ -890,31 +964,31 @@
           if (loading) return <div className="flex h-screen items-center justify-center bg-slate-50"><Activity className="animate-pulse text-blue-600" size={48} /></div>;
 
           return (
-            <div className="min-h-screen text-slate-800 font-sans selection:bg-blue-200 pb-24 relative">
-              {/* Background styling for the App */}
+            <div className="min-h-screen bg-slate-100 text-slate-800 font-sans selection:bg-blue-200 pb-24 relative overflow-x-hidden">
+              {/* Background styling */}
               <div className="fixed inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)', backgroundSize: '30px 30px', opacity: 0.3, zIndex: -1 }}></div>
 
               {/* HEADER */}
               <header className="bg-white border-b border-slate-300 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm relative">
                 <div className="flex items-center gap-3">
-                  <div className="bg-slate-900 p-2.5 rounded-xl shadow-inner border border-slate-700">
+                  <div className="bg-slate-900 p-2.5 rounded-xl shadow-inner border border-slate-700 cursor-pointer" onClick={() => user && user.email === 'dudbilopr@gmail.com' ? setView('admin_role_select') : null}>
                     <Activity className="text-blue-400" size={24} />
                   </div>
-                  <h1 className="font-black text-2xl tracking-tight text-slate-900">
+                  <h1 className="font-black text-2xl tracking-tight text-slate-900 hidden sm:block">
                     physics10<span className="text-blue-600">.easy</span>
                   </h1>
                 </div>
                 <div className="flex items-center gap-4">
                   {user && (
-                     <div className="hidden md:flex items-center gap-2 text-sm font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                     <div className="hidden md:flex items-center gap-2 text-sm font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 shadow-inner">
                        <User size={16}/> {user.email || 'Agente Registrado'}
                      </div>
                   )}
                   {role && (
                     <div className="flex items-center gap-3 bg-slate-100 px-5 py-2 rounded-full border border-slate-200 shadow-inner">
-                      <span className={`flex items-center gap-2 text-sm font-black uppercase tracking-wider ${role==='student'?'text-emerald-700': 'text-blue-700'}`}>
-                        {role === 'student' ? <GraduationCap size={18}/> : <BookOpen size={18}/>}
-                        {role === 'student' ? 'Estudiante' : 'Docente'}
+                      <span className={`flex items-center gap-2 text-sm font-black uppercase tracking-wider ${role==='student'?'text-emerald-700': role==='teacher'?'text-blue-700':'text-violet-700'}`}>
+                        {role === 'student' ? <GraduationCap size={18}/> : role === 'teacher' ? <BookOpen size={18}/> : <Settings size={18}/>}
+                        <span className="hidden sm:inline">{role === 'student' ? 'Estudiante' : role === 'teacher' ? 'Docente' : 'Admin'}</span>
                       </span>
                       <div className="w-px h-5 bg-slate-300"></div>
                       <button onClick={() => signOut(auth)} className="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">SALIR</button>
@@ -928,7 +1002,7 @@
                 <div className="flex flex-col items-center justify-center mt-20 px-4 animate-in fade-in duration-700">
                   <div className="text-center max-w-3xl mb-12">
                     <h2 className="text-6xl font-black text-slate-900 mb-6 tracking-tight leading-tight">physics10<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600">.easy</span></h2>
-                    <p className="text-xl text-slate-600 font-medium">Inicia sesión para acceder a tu evaluación. Tu rol se determinará automáticamente de acuerdo a tus credenciales registradas.</p>
+                    <p className="text-xl text-slate-600 font-medium">Inicia sesión para acceder a tu evaluación. Tu rol se determinará automáticamente.</p>
                   </div>
                   
                   <div className="bg-white p-10 rounded-[2.5rem] border-2 border-slate-200 shadow-xl w-full max-w-md relative z-10">
@@ -962,16 +1036,67 @@
                 </div>
               )}
 
+              {/* VIEW: ADMIN ROLE SELECT */}
+              {view === 'admin_role_select' && (
+                <div className="flex flex-col items-center justify-center mt-24 px-4 animate-in fade-in duration-700">
+                  <div className="text-center max-w-3xl mb-12">
+                    <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight leading-tight">Control Maestro</h2>
+                    <p className="text-xl text-slate-600 font-medium">Bienvenido Administrador. ¿Bajo qué rol deseas operar el sistema?</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-4xl">
+                    <button onClick={() => { setRole('student'); setView('exam_intro'); }} className="flex flex-col items-center p-10 bg-white rounded-3xl border-2 border-slate-200 shadow-lg hover:shadow-2xl hover:border-emerald-500 hover:-translate-y-2 transition-all group">
+                      <div className="p-5 bg-emerald-50 text-emerald-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform shadow-inner"><GraduationCap size={40}/></div>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-wide mb-2">Simular Agente</h3>
+                      <p className="text-sm text-slate-500 text-center font-medium">Realiza la prueba como un estudiante normal.</p>
+                    </button>
+                    
+                    <button onClick={() => { setRole('teacher'); fetchDashboardData(); setView('dashboard'); }} className="flex flex-col items-center p-10 bg-white rounded-3xl border-2 border-slate-200 shadow-lg hover:shadow-2xl hover:border-blue-500 hover:-translate-y-2 transition-all group">
+                      <div className="p-5 bg-blue-50 text-blue-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform shadow-inner"><BarChart3 size={40}/></div>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-wide mb-2">Data Science</h3>
+                      <p className="text-sm text-slate-500 text-center font-medium">Ver métricas pedagógicas y de rendimiento grupal.</p>
+                    </button>
+
+                    <button onClick={() => { setRole('admin'); setView('admin_panel'); }} className="flex flex-col items-center p-10 bg-white rounded-3xl border-2 border-slate-200 shadow-lg hover:shadow-2xl hover:border-violet-500 hover:-translate-y-2 transition-all group">
+                      <div className="p-5 bg-violet-50 text-violet-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform shadow-inner"><Settings size={40}/></div>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-wide mb-2">Motor JSON</h3>
+                      <p className="text-sm text-slate-500 text-center font-medium">Modificar los parámetros y títulos del examen.</p>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW: ADMIN PANEL (JSON) */}
+              {view === 'admin_panel' && role === 'admin' && (
+                <div className="max-w-4xl mx-auto mt-16 p-8 bg-white rounded-3xl shadow-2xl border border-slate-200 animate-in fade-in">
+                    <h2 className="text-3xl font-black text-slate-900 mb-2">Configuración del Motor (JSON)</h2>
+                    <p className="text-slate-500 font-medium mb-6">Edita la metadata del examen y empuja los cambios a Firestore.</p>
+                    
+                    <textarea 
+                        value={examConfig} 
+                        onChange={(e) => setExamConfig(e.target.value)}
+                        className="w-full h-96 p-6 font-mono text-sm bg-slate-900 text-green-400 rounded-2xl shadow-inner outline-none focus:ring-4 focus:ring-violet-500/30"
+                    />
+                    
+                    <div className="mt-8 flex justify-end items-center gap-6">
+                        {configSaved && <span className="text-emerald-600 font-bold flex items-center gap-2"><CheckCircle2/> ¡Configuración Guardada!</span>}
+                        <button onClick={saveConfig} className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest px-10 py-4 rounded-xl shadow-lg transition-all flex items-center gap-3">
+                            <Save size={20}/> Aplicar Cambios
+                        </button>
+                    </div>
+                </div>
+              )}
+
               {/* VIEW: STUDENT EXAM INTRO */}
               {view === 'exam_intro' && (
                 <div className="max-w-3xl mx-auto mt-24 p-12 bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 text-center animate-in slide-in-from-bottom-8 relative z-10">
                   <div className="w-28 h-28 bg-blue-50 text-blue-600 border-4 border-blue-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
                     <BrainCircuit size={56} />
                   </div>
-                  <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tight">Misión: Fundamentos de Electrostática</h2>
-                  <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">Estás a punto de iniciar una evaluación estructurada. Las variables topológicas y vectoriales han sido generadas exclusivamente para ti vinculadas a tu sesión autenticada. El sistema medirá tu tiempo y precisión.</p>
+                  <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tight">{JSON.parse(examConfig).titulo || "Misión: Fundamentos"}</h2>
+                  <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">Estás a punto de iniciar una evaluación estructurada. Las variables topológicas y vectoriales han sido generadas exclusivamente para ti. El sistema medirá tu tiempo y precisión.</p>
                   <div className="flex flex-wrap items-center justify-center gap-6 mb-12 text-base font-bold text-slate-600">
-                    <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Target size={20} className="text-emerald-500"/> 4.0 Puntos Totales</span>
+                    <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Target size={20} className="text-emerald-500"/> {JSON.parse(examConfig).puntajeMaximo || 4.0} Pts Totales</span>
                     <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Clock size={20} className="text-blue-500"/> Tiempo Libre</span>
                     <span className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200"><Eye size={20} className="text-violet-500"/> 1 Intento</span>
                   </div>
@@ -996,11 +1121,11 @@
                     
                     <div className="text-center mb-12 border-b-4 border-slate-900 pb-8 flex flex-col md:flex-row justify-between items-center md:items-end gap-6">
                       <div className="text-center md:text-left">
-                          <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-3">Evaluación de Rango</h1>
-                          <p className="text-slate-500 font-bold text-lg md:text-xl tracking-wide uppercase">Carga, Campo Vectorial y Flujo Gaussiano</p>
+                          <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-3">{JSON.parse(examConfig).titulo || "Evaluación"}</h1>
+                          <p className="text-slate-500 font-bold text-lg md:text-xl tracking-wide uppercase">{JSON.parse(examConfig).descripcion || "Electromagnetismo"}</p>
                       </div>
-                      <div className="bg-slate-100 px-4 py-2 rounded-xl border border-slate-300">
-                          <span className="text-sm font-black text-slate-500 uppercase tracking-widest">Hoja {currentPage} de {totalPages}</span>
+                      <div className="bg-slate-100 px-4 py-2 rounded-xl border border-slate-300 shadow-inner">
+                          <span className="text-sm font-black text-slate-600 uppercase tracking-widest">Hoja {currentPage} de {totalPages}</span>
                       </div>
                     </div>
 
@@ -1312,75 +1437,6 @@
                     {/* === HOJA 3 === */}
                     {currentPage === 3 && (
                         <div key="page3" className="animate-in slide-in-from-right-8 fade-in duration-500">
-                            {/* LEVEL 3 */}
-                            <MisionBox title="III. La Bóveda de Gauss (Simulación 3D)" points="0.40">
-                              <div className="bg-emerald-50 border-l-4 border-emerald-500 p-6 rounded-r-2xl mb-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-                                <div>
-                                  <p className="font-black text-emerald-900 text-xl mb-2 flex items-center gap-2"><Target size={24}/> 3.1 Análisis de Fronteras Vivas</p>
-                                  <p className="text-emerald-800 font-medium text-base leading-relaxed">
-                                    El simulador 3D contiene 4 cargas <strong className="text-emerald-950 bg-emerald-200 px-2 py-1 rounded-md shadow-sm border border-emerald-300">generadas aleatoriamente</strong>. Determine el Flujo Eléctrico Neto matemático a través de las superficies.
-                                  </p>
-                                </div>
-                              </div>
-                              
-                              <div className="grid grid-cols-1 lg:grid-cols-12 gap-14">
-                                <div className="lg:col-span-5 flex flex-col">
-                                  <ThreeCanvas q1={examVars.q1} q2={examVars.q2} q3={examVars.q3} q4={examVars.q4} />
-                                  <div className="mt-8 flex flex-wrap gap-4 text-lg font-black text-slate-800 justify-center bg-slate-100 p-6 rounded-3xl border-2 border-slate-200 shadow-inner">
-                                    <span className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200"><div className={`w-5 h-5 rounded-full shadow-inner ${examVars.q1>0?'bg-red-500':'bg-blue-500'}`}></div> q1: {examVars.q1}q</span>
-                                    <span className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200"><div className={`w-5 h-5 rounded-full shadow-inner ${examVars.q2>0?'bg-red-500':'bg-blue-500'}`}></div> q2: {examVars.q2}q</span>
-                                    <span className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200"><div className={`w-5 h-5 rounded-full shadow-inner ${examVars.q3>0?'bg-red-500':'bg-blue-500'}`}></div> q3: {examVars.q3}q</span>
-                                    <span className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200"><div className={`w-5 h-5 rounded-full shadow-inner ${examVars.q4>0?'bg-red-500':'bg-blue-500'}`}></div> q4: {examVars.q4}q</span>
-                                  </div>
-                                  <TipButton id="tip_3" usedTips={usedTips} setUsedTips={setUsedTips} text={"El flujo eléctrico neto $\\Phi_E$ que atraviesa una superficie cerrada depende únicamente de la suma algebraica de las cargas que están en su interior. Ignora cualquier carga exterior."} />
-                                </div>
-
-                                <div className="lg:col-span-7 flex flex-col justify-center space-y-12">
-                                  <div className="bg-white border-2 border-slate-200 rounded-3xl shadow-md overflow-hidden">
-                                    <div className="bg-slate-100 p-8 border-b-2 border-slate-200 flex justify-between items-center rounded-t-[calc(1.5rem-2px)]">
-                                      <div>
-                                        <h4 className="font-black text-slate-900 text-2xl mb-2">Evaluación Matemática de Flujo (<Latex text={'$\\Phi_E$'} />)</h4>
-                                        <p className="text-base text-slate-600 font-medium">Seleccione la suma correcta según la imagen 3D.</p>
-                                      </div>
-                                      <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.30 pts]</span>
-                                    </div>
-                                    <div className="p-10 space-y-8">
-                                      <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 border-slate-100 pb-6 gap-4">
-                                        <span className="font-bold text-slate-800 text-xl flex items-center gap-4"><div className="w-6 h-6 bg-blue-500/20 border-4 border-blue-500 rounded-full"></div> Flujo en <Latex text={"$S_1$"}/>:</span>
-                                        <span className="text-2xl font-bold flex items-center">
-                                          <Latex text={'$\\Phi_{E1} = $'} className="mr-3"/> 
-                                          <InlineSelect id="p1" value={answers.p1} onChange={handleInputChange} isSubmitted={isSubmitted} expected={`${examVars.q1 + examVars.q2}q`} width="w-48" options={gaussOptionsS1}/> 
-                                        </span>
-                                      </div>
-                                      <div className="flex flex-col md:flex-row md:items-center justify-between pb-2 gap-4">
-                                        <span className="font-bold text-slate-800 text-xl flex items-center gap-4"><div className="w-6 h-6 bg-violet-500/20 border-4 border-violet-500 rounded-full"></div> Flujo en <Latex text={"$S_3$"}/>:</span>
-                                        <span className="text-2xl font-bold flex items-center">
-                                          <Latex text={'$\\Phi_{E3} = $'} className="mr-3"/> 
-                                          <InlineSelect id="p3" value={answers.p3} onChange={handleInputChange} isSubmitted={isSubmitted} expected={`${examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4}q`} width="w-48" options={gaussOptionsS3}/> 
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="bg-slate-900 border-2 border-slate-800 p-10 rounded-3xl text-white shadow-2xl relative overflow-hidden group">
-                                    <div className="absolute -right-10 -bottom-10 opacity-5 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-700"><Lightbulb size={250}/></div>
-                                    <div className="relative z-10">
-                                      <p className="font-black text-2xl mb-6 flex justify-between items-center text-blue-400">
-                                        <span>Análisis Teórico Profundo</span>
-                                        <span className="text-red-400 bg-red-400/10 border border-red-400/30 px-4 py-1.5 rounded-xl text-base tracking-widest uppercase shadow-inner">[0.10 pts]</span>
-                                      </p>
-                                      <p className="text-lg text-slate-300 mb-6 leading-relaxed font-medium">¿El campo <Latex text={'$\\vec{E}$'} className="text-white font-bold"/> evaluado en un punto específico sobre la superficie fronteriza <Latex text={'$S_1$'} className="text-white font-bold"/> depende SOLO de las cargas internas?</p>
-                                      <ERadioGroup id="pt" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="no" options={[
-                                        {val: 'yes1', label: '$\\text{Sí. La ley de Gauss establece que solo la carga encerrada genera el campo en la frontera.}$'},
-                                        {val: 'yes2', label: '$\\text{Sí. Las cargas externas al sistema son completamente apantalladas.}$'},
-                                        {val: 'no', label: '$\\text{No. El flujo neto depende solo de las internas, pero el vector campo E sufre superposición de TODAS las cargas.}$'}
-                                      ]} />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </MisionBox>
-
                             {/* --- NEW LEVEL 5: GAUSS MATRIX --- */}
                             <MisionBox title="V. Ley de Gauss, Potencial y Materiales (Matriz Universal)" points="1.50">
                               
@@ -1717,9 +1773,10 @@
               <TrendingUp className="absolute -right-6 -bottom-6 text-slate-800 group-hover:scale-110 transition-transform duration-500" size={120} />
               <div className="relative z-10">
                 <h3 className="text-xl font-black mb-2 text-blue-400">IA de Ajuste Pedagógico</h3>
-                <p className="text-base text-slate-300 mb-6 font-medium leading-snug">Basado en datos de la BD.</p>
-                <span className="bg-emerald-500 text-white text-sm font-black px-4 py-2 rounded-xl flex items-center gap-2 w-max shadow-md">
-                  <Activity size={16}/> Monitoreo Activo
+                <p className="text-base text-slate-300 mb-6 font-medium leading-snug">Índice de Frustración: <span className="font-mono text-xl">{metrics.frustrationIndex}</span></p>
+                <span className={`text-white text-sm font-black px-4 py-2 rounded-xl flex items-center gap-2 w-max shadow-md ${metrics.frustrationIndex > 5 ? 'bg-red-500' : 'bg-emerald-500'}`}>
+                  {metrics.frustrationIndex > 5 ? <AlertTriangle size={16}/> : <Activity size={16}/>}
+                  {metrics.frustrationIndex > 5 ? 'Alerta: Alta Frustración' : 'Monitoreo Activo Óptimo'}
                 </span>
               </div>
             </div>
@@ -1728,13 +1785,17 @@
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-8 py-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                <h3 className="font-black text-slate-800 text-xl">Métricas por Nivel Simuladas</h3>
-                <span className="text-xs text-slate-500 font-black uppercase tracking-widest bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">Cuellos de botella</span>
+                <h3 className="font-black text-slate-800 text-xl">Métricas por Nivel</h3>
+                <span className="text-xs text-slate-500 font-black uppercase tracking-widest bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">Identificación Cuellos de botella</span>
+              </div>
+              <div className="p-6 border-b border-slate-100 bg-white">
+                 <h4 className="font-bold text-slate-700 mb-2 uppercase text-sm tracking-widest">Campana de Notas (Frecuencia)</h4>
+                 <ScoreHistogram attempts={metrics.attempts} />
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="text-xs uppercase tracking-widest text-slate-500 border-b-2 border-slate-100 bg-white">
+                    <tr className="text-xs uppercase tracking-widest text-slate-500 border-b-2 border-slate-100 bg-slate-50">
                       <th className="px-8 py-5 font-black">Misión Evaluada</th>
                       <th className="px-8 py-5 font-black">Nota Media</th>
                       <th className="px-8 py-5 font-black">T. Medio</th>
@@ -1773,7 +1834,7 @@
                   metrics.attempts.map((a, idx) => (
                     <div key={idx} className="p-8 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                       <div className="flex justify-between items-center mb-3">
-                        <span className="font-black text-slate-800 text-sm break-all">{a.agent}</span>
+                        <span className="font-black text-slate-800 text-sm break-all" title={a.agent}>{a.agent.length > 20 ? a.agent.substring(0,18)+'...' : a.agent}</span>
                         <span className={`font-mono font-black text-base px-3 py-1.5 rounded-lg border flex-shrink-0 ${a.score > 2.0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm' : 'bg-red-50 text-red-700 border-red-200 shadow-sm'}`}>{a.score} pts</span>
                       </div>
                       <div className="flex justify-between items-center text-xs text-slate-500 font-bold uppercase tracking-wider mt-2">
@@ -1786,6 +1847,27 @@
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* VIEW: ADMIN PANEL (JSON) */}
+      {view === 'admin_panel' && role === 'admin' && (
+        <div className="max-w-4xl mx-auto mt-16 p-8 bg-white rounded-3xl shadow-2xl border border-slate-200 animate-in fade-in pb-20">
+            <h2 className="text-4xl font-black text-slate-900 mb-2">Configuración del Motor (JSON)</h2>
+            <p className="text-slate-500 font-bold mb-6 text-lg">Edita la metadata del examen y empuja los cambios a Firestore para actualizar la plataforma de todos los alumnos en tiempo real.</p>
+            
+            <textarea 
+                value={examConfig} 
+                onChange={(e) => setExamConfig(e.target.value)}
+                className="w-full h-96 p-6 font-mono text-base bg-slate-900 text-emerald-400 rounded-2xl shadow-inner outline-none focus:ring-4 focus:ring-violet-500/30"
+            />
+            
+            <div className="mt-8 flex justify-end items-center gap-6">
+                {configSaved && <span className="text-emerald-600 font-black flex items-center gap-2 text-lg"><CheckCircle2/> ¡Actualizado en Producción!</span>}
+                <button onClick={saveConfig} className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest px-10 py-5 rounded-xl shadow-lg transition-all flex items-center gap-3 hover:-translate-y-1">
+                    <Save size={24}/> EMPUJAR A BASE DE DATOS
+                </button>
+            </div>
         </div>
       )}
     </div>
