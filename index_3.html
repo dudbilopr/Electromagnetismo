@@ -42,7 +42,7 @@
           ArrowUp, ArrowDown, ArrowLeft, ArrowRight as ArrowRightIcon,
           ArrowUpRight, ArrowUpLeft, ArrowDownRight, ArrowDownLeft, MousePointer2,
           CheckCircle2, XCircle, Info, Hand, PenTool, User, ChevronDown, LogIn, Mail, ChevronRight, ChevronLeft,
-          Brain, BarChart3, Settings, Star
+          Brain, BarChart3, Settings, Star, Scissors
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         // Importaciones oficiales de Firebase (Gstatic)
@@ -57,7 +57,7 @@
         if (typeof __firebase_config !== 'undefined' && __firebase_config) {
           firebaseConfig = JSON.parse(__firebase_config);
         } else {
-          // CREDENCIALES DE PRODUCCIÓN
+          // CREDENCIALES DE PRODUCCIÓN REALES
           firebaseConfig = {
             apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
             authDomain: "laboratorio-de-coulomb.firebaseapp.com",
@@ -73,7 +73,7 @@
         const app = initializeApp(firebaseConfig);
         let analytics = null;
         if (firebaseConfig.measurementId) {
-            try { analytics = getAnalytics(app); } catch(e) {}
+            try { analytics = getAnalytics(app); } catch(e) { console.warn("Analytics error:", e); }
         }
         
         const auth = getAuth(app);
@@ -88,6 +88,10 @@
               link.id = 'katex-css'; link.rel = 'stylesheet';
               link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
               document.head.appendChild(link);
+              
+              const script = document.createElement('script');
+              script.id = 'katex-js'; script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js';
+              document.head.appendChild(script);
             }
           }, []);
         };
@@ -133,7 +137,7 @@
           return <span ref={containerRef} className={className} dangerouslySetInnerHTML={{__html: text}} />;
         };
 
-        // 3D Gauss Simulator (General)
+        // 3D Gauss Simulator
         const ThreeCanvas = ({ q1, q2, q3, q4 }) => {
           const mountRef = useRef(null);
           const isLoaded = useThreeJS();
@@ -215,18 +219,18 @@
           }, [isLoaded, q1, q2, q3, q4]);
 
           return (
-            <div className="relative w-full h-64 md:h-full min-h-[250px] rounded-2xl overflow-hidden shadow-inner border-2 border-slate-200 cursor-move touch-none">
+            <div className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-inner border-2 border-slate-200 cursor-move touch-none">
               <div ref={mountRef} className="w-full h-full" />
               <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 border border-slate-200 shadow-sm pointer-events-none uppercase tracking-widest">
                 <Activity size={16} className="text-blue-500" />
-                Simulador 3D
+                Orbita el sistema 3D
               </div>
             </div>
           );
         };
 
-        // NEW: Mini 3D Viewer for Gauss Matrix (Hoja 3)
-        const MiniThreeSphere = ({ type, isConductor }) => {
+        // NEW: Mini 3D Viewer for Gauss Matrix (Hoja 3) with 3D Cut capability
+        const MiniThreeSphere = ({ type, isConductor, isCut3D }) => {
           const mountRef = useRef(null);
           const isLoaded = useThreeJS();
 
@@ -243,6 +247,9 @@
 
             const renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(w, h);
+            // Habilitar recortes locales en el renderizador
+            renderer.localClippingEnabled = true;
+            
             mountRef.current.innerHTML = '';
             mountRef.current.appendChild(renderer.domElement);
 
@@ -254,12 +261,18 @@
             const group = new THREE.Group();
             
             const color = isConductor ? 0x10b981 : 0x3b82f6; // Emerald para conductor, Azul para aislante
-            const chargeMat = new THREE.MeshBasicMaterial({color: 0xef4444});
+            
+            // Plano de recorte si el modo de Corte 3D está activo
+            const clipPlanes = isCut3D ? [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)] : [];
+            const chargeMat = new THREE.MeshBasicMaterial({color: 0xef4444, clippingPlanes: clipPlanes});
 
             if (type === 'solid') {
                 const sphere = new THREE.Mesh(
                     new THREE.SphereGeometry(1.2, 32, 32),
-                    new THREE.MeshPhysicalMaterial({ color, transparent: true, opacity: isConductor ? 0.8 : 0.3, roughness: 0.2 })
+                    new THREE.MeshPhysicalMaterial({ 
+                        color, transparent: true, opacity: isConductor ? 0.8 : 0.3, roughness: 0.2,
+                        clippingPlanes: clipPlanes, side: isCut3D ? THREE.DoubleSide : THREE.FrontSide
+                    })
                 );
                 group.add(sphere);
                 
@@ -279,11 +292,17 @@
                 // Hollow
                 const outer = new THREE.Mesh(
                     new THREE.SphereGeometry(1.2, 32, 32),
-                    new THREE.MeshPhysicalMaterial({ color, transparent: true, opacity: 0.3, side: THREE.BackSide })
+                    new THREE.MeshPhysicalMaterial({ 
+                        color, transparent: true, opacity: 0.3, side: THREE.DoubleSide,
+                        clippingPlanes: clipPlanes
+                    })
                 );
                 const inner = new THREE.Mesh(
                     new THREE.SphereGeometry(0.6, 32, 32),
-                    new THREE.MeshPhysicalMaterial({ color: 0x1e293b, wireframe: true })
+                    new THREE.MeshPhysicalMaterial({ 
+                        color: 0x1e293b, wireframe: true,
+                        clippingPlanes: clipPlanes
+                    })
                 );
                 group.add(outer, inner);
                 
@@ -303,6 +322,11 @@
 
             scene.add(group);
 
+            // Posición inicial favorable para ver el corte
+            if (isCut3D) {
+                group.rotation.y = Math.PI / 4;
+            }
+
             let animId;
             const animate = () => {
                 animId = requestAnimationFrame(animate);
@@ -313,7 +337,7 @@
             animate();
 
             return () => { cancelAnimationFrame(animId); renderer.dispose(); };
-          }, [isLoaded, type, isConductor]);
+          }, [isLoaded, type, isConductor, isCut3D]);
 
           return <div ref={mountRef} className="w-full h-32 bg-slate-50 rounded-xl overflow-hidden shadow-inner cursor-pointer hover:scale-105 transition-transform" title="Render 3D Dinámico"></div>;
         };
@@ -548,7 +572,7 @@
               <h3 className="font-black text-2xl tracking-tight">{title}</h3>
               <span className="text-sm font-black bg-white/10 px-4 py-1.5 rounded-lg text-amber-400 border border-amber-400/30">Valor: {points} pts</span>
             </div>
-            <div className="p-6 md:p-10">
+            <div className="p-8 md:p-10">
               {children}
             </div>
           </div>
@@ -815,6 +839,7 @@
           const [finalTime, setFinalTime] = useState(0);
           const [usedTips, setUsedTips] = useState([]);
           const [activeDraggable, setActiveDraggable] = useState(null);
+          const [isCut3D, setIsCut3D] = useState(false);
           const [examConfig, setExamConfig] = useState(JSON.stringify({ 
               titulo: "Evaluación de Rango", 
               descripcion: "Carga, Campo Vectorial y Flujo Gaussiano",
@@ -826,18 +851,31 @@
           // Dashboard Real State & Real-time Views
           const [metrics, setMetrics] = useState({ views: 0, avgScore: 0, avgTime: 0, attempts: [], questionMetrics: [], frustrationIndex: 0, retention: 0 });
           const [realViews, setRealViews] = useState(0);
+          
+          // Reviews
+          const [ratingStats, setRatingStats] = useState({ average: 0, count: 0 });
+          const [userRating, setUserRating] = useState(0);
+          const [hasRated, setHasRated] = useState(false);
 
-          // Real-time Views Listener
+          // Real-time Views & Reviews Listener
           useEffect(() => {
               if(!user) return; 
               // Usamos la ruta autorizada /public/data/...
               const viewsRef = doc(db, 'artifacts', appId, 'public', 'data', 'stats', 'global');
               setDoc(viewsRef, { views: increment(1) }, { merge: true }).catch(e=>console.log(e));
               
-              const unsub = onSnapshot(viewsRef, (doc) => {
-                  if(doc.exists()) setRealViews(doc.data().views);
+              const unsub = onSnapshot(viewsRef, (docSnap) => {
+                  if(docSnap.exists()) setRealViews(docSnap.data().views || 0);
               }, (error) => console.error("Error en vistas:", error));
-              return () => unsub();
+
+              const reviewsRef = collection(db, 'artifacts', appId, 'public', 'data', 'reviews');
+              const unsubRev = onSnapshot(reviewsRef, (snap) => {
+                  let sum = 0; let count = 0;
+                  snap.forEach(doc => { sum += doc.data().stars; count++; });
+                  if (count > 0) setRatingStats({ average: (sum/count).toFixed(1), count });
+              }, (error) => console.error("Error en reviews:", error));
+
+              return () => { unsub(); unsubRev(); };
           }, [user]);
 
           // Auth Handlers
@@ -981,6 +1019,22 @@
               }
           };
 
+          const submitRating = async (stars) => {
+              if (hasRated || !user) return;
+              setUserRating(stars);
+              setHasRated(true);
+              try {
+                  const reviewsRef = collection(db, 'artifacts', appId, 'public', 'data', 'reviews');
+                  await addDoc(reviewsRef, {
+                      stars: stars,
+                      userId: user.uid,
+                      timestamp: serverTimestamp()
+                  });
+              } catch (e) {
+                  console.error("Error submitting review", e);
+              }
+          }
+
           useEffect(() => {
             let timer;
             if (view === 'exam' && !isSubmitted) {
@@ -999,6 +1053,8 @@
             setIsSubmitted(false);
             setAnswers({});
             setUsedTips([]);
+            setHasRated(false);
+            setUserRating(0);
             setView('exam');
           };
 
@@ -1285,19 +1341,6 @@
                       </div>
                     </div>
 
-                    {/* Student Info */}
-                    <div className="flex flex-col md:flex-row gap-8 bg-slate-50 p-6 rounded-2xl border-2 border-slate-200 mb-12 font-bold text-slate-700 shadow-inner">
-                      <div className="flex-grow flex items-center gap-4">
-                        <div className="bg-white p-2 rounded-lg border border-slate-200"><User size={20} className="text-blue-500"/></div>
-                        <span className="uppercase tracking-widest text-sm text-slate-500">Agente Auth:</span>
-                        <span className="flex-grow text-lg text-blue-700">{user?.email || 'Desconocido'}</span>
-                      </div>
-                      <div className="w-full md:w-80 flex items-center gap-4 border-l-0 md:border-l-2 border-slate-200 md:pl-6">
-                        <span className="uppercase tracking-widest text-sm text-slate-500">Status:</span>
-                        <span className="flex items-center gap-2 text-emerald-600"><CheckCircle2 size={18}/> Verificado</span>
-                      </div>
-                    </div>
-
                     {/* === HOJA 1 === */}
                     {currentPage === 1 && (
                         <div key="page1" className="animate-in slide-in-from-right-8 fade-in duration-500">
@@ -1460,73 +1503,6 @@
                                 </div>
                               </div>
                             </MisionBox>
-
-                            {/* DIAGRAMA DE VENN ADICIONADO PARA HOJA 1 */}
-                            <MisionBox title="III. La Bóveda de Gauss (Análisis Espacial)" points="0.40">
-                              <div className="bg-emerald-50 border-l-4 border-emerald-500 p-6 rounded-r-2xl mb-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-                                <div>
-                                  <p className="font-black text-emerald-900 text-xl mb-2 flex items-center gap-2"><Target size={24}/> 3.1 Análisis de Fronteras Vivas</p>
-                                  <p className="text-emerald-800 font-medium text-base leading-relaxed">
-                                    El sistema contiene 4 cargas <strong className="text-emerald-950 bg-emerald-200 px-2 py-1 rounded-md shadow-sm border border-emerald-300">generadas aleatoriamente</strong>. Determine el Flujo Eléctrico Neto matemático a través de las superficies gaussianas $S_1, S_2, S_3$.
-                                  </p>
-                                </div>
-                              </div>
-                              
-                              <div className="grid grid-cols-1 lg:grid-cols-12 gap-14">
-                                <div className="lg:col-span-5 flex flex-col">
-                                  {/* AQUÍ ESTÁ EL DIAGRAMA DE VENN 2D AÑADIDO PARA HOJA 1 */}
-                                  <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-inner border-2 border-slate-200 bg-white mb-6">
-                                      <SvgGaussVenn q1={examVars.q1} q2={examVars.q2} q3={examVars.q3} q4={examVars.q4} />
-                                  </div>
-                                  <ThreeCanvas q1={examVars.q1} q2={examVars.q2} q3={examVars.q3} q4={examVars.q4} />
-                                  <TipButton id="tip_3" usedTips={usedTips} setUsedTips={setUsedTips} text={"El flujo eléctrico neto $\\Phi_E$ que atraviesa una superficie cerrada depende únicamente de la suma algebraica de las cargas que están en su interior. Ignora cualquier carga exterior."} />
-                                </div>
-
-                                <div className="lg:col-span-7 flex flex-col justify-center space-y-12">
-                                  <div className="bg-white border-2 border-slate-200 rounded-3xl shadow-md overflow-hidden">
-                                    <div className="bg-slate-100 p-8 border-b-2 border-slate-200 flex justify-between items-center rounded-t-[calc(1.5rem-2px)]">
-                                      <div>
-                                        <h4 className="font-black text-slate-900 text-2xl mb-2">Evaluación Matemática de Flujo (<Latex text={'$\\Phi_E$'} />)</h4>
-                                        <p className="text-base text-slate-600 font-medium">Seleccione la suma correcta según los gráficos.</p>
-                                      </div>
-                                      <span className="text-lg font-black text-red-600 bg-red-100 px-4 py-1.5 rounded-xl shadow-sm border border-red-200">[0.30 pts]</span>
-                                    </div>
-                                    <div className="p-10 space-y-8">
-                                      <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 border-slate-100 pb-6 gap-4">
-                                        <span className="font-bold text-slate-800 text-xl flex items-center gap-4"><div className="w-6 h-6 bg-blue-500/20 border-4 border-blue-500 rounded-full"></div> Flujo en <Latex text={"$S_1$"}/>:</span>
-                                        <span className="text-2xl font-bold flex items-center">
-                                          <Latex text={'$\\Phi_{E1} = $'} className="mr-3"/> 
-                                          <InlineSelect id="p1" value={answers.p1} onChange={handleInputChange} isSubmitted={isSubmitted} expected={`${examVars.q1 + examVars.q2}q`} width="w-48" options={gaussOptionsS1}/> 
-                                        </span>
-                                      </div>
-                                      <div className="flex flex-col md:flex-row md:items-center justify-between pb-2 gap-4">
-                                        <span className="font-bold text-slate-800 text-xl flex items-center gap-4"><div className="w-6 h-6 bg-violet-500/20 border-4 border-violet-500 rounded-full"></div> Flujo en <Latex text={"$S_3$"}/>:</span>
-                                        <span className="text-2xl font-bold flex items-center">
-                                          <Latex text={'$\\Phi_{E3} = $'} className="mr-3"/> 
-                                          <InlineSelect id="p3" value={answers.p3} onChange={handleInputChange} isSubmitted={isSubmitted} expected={`${examVars.q1 + examVars.q2 + examVars.q3 + examVars.q4}q`} width="w-48" options={gaussOptionsS3}/> 
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="bg-slate-900 border-2 border-slate-800 p-10 rounded-3xl text-white shadow-2xl relative overflow-hidden group">
-                                    <div className="absolute -right-10 -bottom-10 opacity-5 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-700"><Lightbulb size={250}/></div>
-                                    <div className="relative z-10">
-                                      <p className="font-black text-2xl mb-6 flex justify-between items-center text-blue-400">
-                                        <span>Análisis Teórico Profundo</span>
-                                        <span className="text-red-400 bg-red-400/10 border border-red-400/30 px-4 py-1.5 rounded-xl text-base tracking-widest uppercase shadow-inner">[0.10 pts]</span>
-                                      </p>
-                                      <p className="text-lg text-slate-300 mb-6 leading-relaxed font-medium">¿El campo <Latex text={'$\\vec{E}$'} className="text-white font-bold"/> evaluado en un punto específico sobre la superficie fronteriza <Latex text={'$S_1$'} className="text-white font-bold"/> depende SOLO de las cargas internas?</p>
-                                      <ERadioGroup id="pt" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="no" options={[
-                                        {val: 'yes1', label: '\\text{Sí. La ley de Gauss establece que solo la carga encerrada genera el campo en la frontera.}'},
-                                        {val: 'yes2', label: '\\text{Sí. Las cargas externas al sistema son completamente apantalladas.}'},
-                                        {val: 'no', label: '\\text{No. El flujo neto depende solo de las internas, pero el vector campo E sufre superposición de TODAS las cargas.}'}
-                                      ]} />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </MisionBox>
                         </div>
                     )}
 
@@ -1678,7 +1654,13 @@
                               
                               <div className="bg-sky-50 border-l-4 border-sky-500 p-8 rounded-r-2xl mb-6 shadow-sm flex flex-col md:flex-row justify-between gap-6">
                                 <div>
-                                  <p className="font-black text-sky-900 text-xl flex items-center gap-2 mb-2"><Activity size={24}/> Matriz de Topologías Gaussianas</p>
+                                  <div className="flex items-center gap-4 mb-2">
+                                      <Activity size={24} className="text-sky-600"/>
+                                      <h3 className="font-black text-sky-900 text-xl">Matriz de Topologías Gaussianas</h3>
+                                      <button onClick={() => setIsCut3D(!isCut3D)} className={`ml-auto md:ml-4 text-xs font-black px-4 py-2 rounded-xl flex items-center justify-center gap-2 border transition-colors ${isCut3D ? 'bg-sky-600 text-white border-sky-600 shadow-inner' : 'bg-white text-sky-700 border-sky-200 shadow-sm hover:bg-sky-100'}`}>
+                                          <Scissors size={14}/> Corte 3D {isCut3D ? 'ON' : 'OFF'}
+                                      </button>
+                                  </div>
                                   <p className="text-sky-800 font-medium text-base">
                                     Evalúe el comportamiento del campo <Latex text={"$\\vec{E}$"} /> y potencial <Latex text={"$V$"} /> para 4 distribuciones bajo las mismas dimensiones (<Latex text={"$b=20\\text{cm}, a=10\\text{cm}$"} />).
                                   </p>
@@ -1710,22 +1692,22 @@
                                       </td>
                                       <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm text-center">
                                         <SvgMaciza />
-                                        <div className="h-32 mb-4"><MiniThreeSphere type="solid" isConductor={false} /></div>
+                                        <div className="h-32 mb-4"><MiniThreeSphere type="solid" isConductor={false} isCut3D={isCut3D} /></div>
                                         <InlineSelect id="g1_dist" value={answers.g1_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="vol" width="w-full" options={gaussDistOpts} />
                                       </td>
                                       <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm text-center">
                                         <SvgMaciza />
-                                        <div className="h-32 mb-4"><MiniThreeSphere type="solid" isConductor={true} /></div>
+                                        <div className="h-32 mb-4"><MiniThreeSphere type="solid" isConductor={true} isCut3D={isCut3D} /></div>
                                         <InlineSelect id="g2_dist" value={answers.g2_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="sup_ext" width="w-full" options={gaussDistOpts} />
                                       </td>
                                       <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm text-center">
                                         <SvgCascara />
-                                        <div className="h-32 mb-4"><MiniThreeSphere type="hollow" isConductor={false} /></div>
+                                        <div className="h-32 mb-4"><MiniThreeSphere type="hollow" isConductor={false} isCut3D={isCut3D} /></div>
                                         <InlineSelect id="g3_dist" value={answers.g3_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="vol_casc" width="w-full" options={gaussDistOpts} />
                                       </td>
                                       <td className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm text-center">
                                         <SvgCascara />
-                                        <div className="h-32 mb-4"><MiniThreeSphere type="hollow" isConductor={true} /></div>
+                                        <div className="h-32 mb-4"><MiniThreeSphere type="hollow" isConductor={true} isCut3D={isCut3D} /></div>
                                         <InlineSelect id="g4_dist" value={answers.g4_dist} onChange={handleInputChange} isSubmitted={isSubmitted} expected="sup_ext" width="w-full" options={gaussDistOpts} />
                                       </td>
                                     </tr>
@@ -1968,6 +1950,19 @@
                   <p className="text-lg font-black mt-1 text-amber-400 uppercase">Guardado</p>
                 </div>
               </div>
+              
+              {/* RATING REAL SYSTEM */}
+              <div className="mt-12 bg-slate-800/50 p-8 rounded-3xl border border-slate-700/50 backdrop-blur-sm flex flex-col items-center shadow-lg">
+                  <p className="text-slate-300 font-black mb-4 uppercase tracking-widest text-sm">¿Cómo calificarías esta simulación?</p>
+                  <div className="flex gap-2">
+                      {[1,2,3,4,5].map(star => (
+                          <button key={star} onClick={() => submitRating(star)} disabled={hasRated} className={`transition-all ${hasRated ? 'cursor-default' : 'hover:scale-125 cursor-pointer'} ${userRating >= star ? 'text-amber-400' : 'text-slate-600 hover:text-amber-400'}`}>
+                              <Star size={36} className={userRating >= star ? 'fill-current' : ''} />
+                          </button>
+                      ))}
+                  </div>
+                  {hasRated && <p className="text-emerald-400 font-bold mt-4 text-sm"><CheckCircle2 size={16} className="inline mr-1"/>¡Gracias por tu feedback real!</p>}
+              </div>
 
               <div className="flex flex-col md:flex-row gap-6 justify-center mt-14">
                  <button onClick={() => { setView('exam'); setCurrentPage(1); window.scrollTo(0,0); }} className="bg-slate-800 hover:bg-slate-700 text-white font-black tracking-widest uppercase px-8 py-4 rounded-xl transition-all border border-slate-600 shadow-md hover:shadow-lg">
@@ -2103,12 +2098,10 @@
               
               <div className="flex items-center gap-6">
                   <div className="flex items-center gap-1 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 shadow-inner">
-                      <Star size={14} className="text-amber-400 fill-current" />
-                      <Star size={14} className="text-amber-400 fill-current" />
-                      <Star size={14} className="text-amber-400 fill-current" />
-                      <Star size={14} className="text-amber-400 fill-current" />
-                      <Star size={14} className="text-amber-400 fill-current" />
-                      <span className="ml-2 font-bold text-amber-100 text-xs">4.9/5</span>
+                      {[1,2,3,4,5].map(star => (
+                         <Star key={star} size={14} className={`text-amber-400 ${star <= Math.round(ratingStats.average) ? 'fill-current' : ''}`} />
+                      ))}
+                      <span className="ml-2 font-bold text-amber-100 text-xs">{ratingStats.average}/5 ({ratingStats.count})</span>
                   </div>
                   
                   <div className="flex items-center gap-2 text-xs font-bold text-blue-400">
