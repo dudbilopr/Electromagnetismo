@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>physics10.easy - El Universo Matemático</title>
+    
+    <!-- Fuentes de alto nivel para interfaz y matemáticas -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: transparent;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        #webgl-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            /* Viñeteado más profundo para sensación de espacio infinito */
+            background: radial-gradient(circle at center, transparent 30%, rgba(0, 2, 8, 0.7) 100%);
+        }
+
+        .logo-text-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            text-align: center;
+            pointer-events: none;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Tipografía Premium */
+        .logo-title {
+            font-family: 'Cinzel', serif;
+            font-size: clamp(3rem, 8vw, 6.5rem);
+            color: #ffffff;
+            margin: 0;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            text-transform: lowercase;
+            text-shadow: 
+                0 0 20px rgba(0, 255, 255, 0.3),
+                0 0 40px rgba(0, 150, 255, 0.5),
+                0 0 80px rgba(100, 0, 255, 0.4);
+            background: linear-gradient(180deg, #ffffff 0%, #aee0ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-subtitle {
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(0.7rem, 1.2vw, 1.1rem);
+            color: rgba(200, 240, 255, 0.9);
+            letter-spacing: 0.8em;
+            text-transform: uppercase;
+            margin-top: 15px;
+            font-weight: 400;
+            position: relative;
+            padding: 0 25px;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .logo-subtitle::before, .logo-subtitle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 80px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.6), transparent);
+        }
+        .logo-subtitle::before { right: 100%; }
+        .logo-subtitle::after { left: 100%; }
+
+        /* Efectos Holográficos CSS */
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0, 255, 255, 0.05) 50%, rgba(0, 255, 255, 0.05));
+            background-size: 100% 4px;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        .hologram-flicker {
+            animation: flicker 4s infinite alternate;
+        }
+
+        @keyframes flicker {
+            0%, 96%, 98%, 100% { opacity: 1; }
+            97% { opacity: 0.7; transform: translate(-50%, -51%); filter: hue-rotate(90deg); }
+            99% { opacity: 0.5; transform: translate(-51%, -50%); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+    <div id="webgl-container"></div>
+
+    <div class="logo-text-container hologram-flicker">
+        <h1 class="logo-title">physics10.easy</h1>
+        <div class="logo-subtitle">The Mathematical Universe</div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // ==========================================
+        // 1. CONFIGURACIÓN DEL MOTOR
+        // ==========================================
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000208, 0.025); // Niebla espacial profunda
+        
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 4, 22); // Elevamos ligeramente la cámara para ver la curvatura
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, logarithmicDepthBuffer: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.3;
+        renderer.setClearColor(0x000000, 0); 
+        container.appendChild(renderer.domElement);
+
+        const universeGroup = new THREE.Group();
+        scene.add(universeGroup);
+
+        // ==========================================
+        // 2. EL UNIVERSO: CAMPO ESTELAR PROFUNDO
+        // ==========================================
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 2000;
+        const starPos = new Float32Array(starCount * 3);
+        const starColors = new Float32Array(starCount * 3);
+        const color1 = new THREE.Color(0x00ffff);
+        const color2 = new THREE.Color(0xff00ff);
+        const tempColor = new THREE.Color();
+
+        for(let i=0; i<starCount; i++) {
+            const r = 30 + Math.random() * 70;
+            const theta = 2 * Math.PI * Math.random();
+            const phi = Math.acos(2 * Math.random() - 1);
+            
+            starPos[i*3] = r * Math.sin(phi) * Math.cos(theta);
+            starPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+            starPos[i*3+2] = r * Math.cos(phi);
+
+            tempColor.lerpColors(color1, color2, Math.random());
+            starColors[i*3] = tempColor.r;
+            starColors[i*3+1] = tempColor.g;
+            starColors[i*3+2] = tempColor.b;
+        }
+        
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+        
+        const starMat = new THREE.PointsMaterial({
+            size: 0.15, vertexColors: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending
+        });
+        const starField = new THREE.Points(starGeo, starMat);
+        universeGroup.add(starField);
+
+        // ==========================================
+        // 3. FÍSICA AUTÉNTICA: TEJIDO DEL ESPACIO-TIEMPO (Shader)
+        // Sustituye al plexus genérico. Representa la Relatividad General de Einstein.
+        // ==========================================
+        // Reducimos la densidad de la malla (de 100 a 70) para que no sea tan invasiva
+        const spacetimeGeo = new THREE.PlaneGeometry(60, 60, 70, 70);
+        spacetimeGeo.rotateX(-Math.PI / 2); // Acostar la cuadrícula
+        
+        const spacetimeMat = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uMass: { value: 8.0 } // Masa de la singularidad central
+            },
+            vertexShader: `
+                uniform float uTime;
+                uniform float uMass;
+                varying float vDepth;
+                varying float vDist; // Pasamos la distancia al Fragment Shader
+                
+                void main() {
+                    vec3 pos = position;
+                    // Distancia al centro exacto
+                    float dist = length(pos.xz);
+                    vDist = dist; // Guardamos para el difuminado radial
+                    
+                    // 1. Pozo Gravitatorio (La masa curva el espacio hacia abajo)
+                    float well = -uMass / (dist * 0.15 + 0.5);
+                    
+                    // 2. Ondas Gravitacionales (Ripples irradiando desde el centro)
+                    float wave = sin(dist * 1.5 - uTime * 2.0) * 0.3;
+                    
+                    // Aplicar deformación combinada
+                    pos.y = well + wave * smoothstep(0.0, 15.0, dist);
+                    vDepth = pos.y;
+                    
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying float vDepth;
+                varying float vDist;
+                void main() {
+                    // El color cambia dependiendo de la profundidad en el pozo gravitatorio
+                    float depthFactor = smoothstep(-12.0, 0.0, vDepth);
+                    vec3 deepColor = vec3(0.4, 0.0, 0.8); // Púrpura más oscuro
+                    vec3 edgeColor = vec3(0.0, 0.5, 0.8); // Cian más apagado
+                    vec3 finalColor = mix(deepColor, edgeColor, depthFactor);
+                    
+                    // Difuminado radial: desaparece suavemente al alejarse del centro
+                    float radialFade = 1.0 - smoothstep(8.0, 22.0, vDist);
+                    
+                    // Opacidad ultra sutil (máximo 12%) para que no sea invasiva
+                    float alpha = radialFade * 0.12; 
+                    
+                    gl_FragColor = vec4(finalColor, alpha);
+                }
+            `,
+            wireframe: true, 
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        
+        const spacetimeGrid = new THREE.Mesh(spacetimeGeo, spacetimeMat);
+        // Bajamos ligeramente la malla para que no tape las matemáticas
+        spacetimeGrid.position.y = -0.5;
+        universeGroup.add(spacetimeGrid);
+
+        // ==========================================
+        // 4. MATEMÁTICAS AUTÉNTICAS: ATRACTOR DE LORENZ (Teoría del Caos)
+        // Representa cómo las matemáticas puras modelan sistemas dinámicos complejos
+        // ==========================================
+        const lorenzGeo = new THREE.BufferGeometry();
+        const lorenzPts = [];
+        
+        // Ecuaciones Diferenciales de Lorenz
+        let x = 0.01, y = 0, z = 0;
+        const a = 10, b = 28, c = 8.0 / 3.0;
+        const dt = 0.005;
+        
+        for(let i=0; i<8000; i++) {
+            let dx = (a * (y - x)) * dt;
+            let dy = (x * (b - z) - y) * dt;
+            let dz = (x * y - c * z) * dt;
+            x += dx; y += dy; z += dz;
+            
+            // Escalar y centrar el atractor alrededor del núcleo
+            lorenzPts.push(new THREE.Vector3(x * 0.15, y * 0.15 - 3.5, z * 0.15));
+        }
+        lorenzGeo.setFromPoints(lorenzPts);
+        
+        const lorenzMat = new THREE.LineBasicMaterial({
+            color: 0xff00ff,
+            transparent: true,
+            opacity: 0.3,
+            blending: THREE.AdditiveBlending
+        });
+        const lorenzAttractor = new THREE.Line(lorenzGeo, lorenzMat);
+        // Inclinamos el atractor para que el "efecto mariposa" sea más visible
+        lorenzAttractor.rotation.x = Math.PI / 2;
+        universeGroup.add(lorenzAttractor);
+
+        // ==========================================
+        // 5. NUEVAS CIENCIAS: SINGULARIDAD Y ASTROLABIO
+        // ==========================================
+        const coreGroup = new THREE.Group();
+        // Bajamos el núcleo para que coincida con el fondo del pozo gravitatorio
+        coreGroup.position.y = -1.5; 
+        universeGroup.add(coreGroup);
+
+        // Singularidad (Agujero negro cuántico)
+        const singularityGeo = new THREE.SphereGeometry(1.5, 64, 64);
+        const singularityMat = new THREE.MeshBasicMaterial({ color: 0x000000 }); 
+        const singularity = new THREE.Mesh(singularityGeo, singularityMat);
+        coreGroup.add(singularity);
+
+        // Halo del horizonte de eventos
+        const haloGeo = new THREE.SphereGeometry(1.8, 32, 32);
+        const haloMat = new THREE.ShaderMaterial({
+            uniforms: { viewVector: { type: "v3", value: camera.position } },
+            vertexShader: `
+                uniform vec3 viewVector;
+                varying float intensity;
+                void main() {
+                    vec3 vNormal = normalize(normalMatrix * normal);
+                    vec3 vNormel = normalize(normalMatrix * viewVector);
+                    intensity = pow(0.6 - dot(vNormal, vNormel), 3.0);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying float intensity;
+                void main() {
+                    vec3 glow = vec3(0.0, 0.8, 1.0) * intensity;
+                    gl_FragColor = vec4(glow, intensity * 1.5);
+                }
+            `,
+            side: THREE.BackSide,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            depthWrite: false
+        });
+        const halo = new THREE.Mesh(haloGeo, haloMat);
+        coreGroup.add(halo);
+
+        // Astrolabio Cuántico
+        const mathFrameGeo = new THREE.IcosahedronGeometry(2.8, 1);
+        const mathFrameMat = new THREE.MeshBasicMaterial({
+            color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending
+        });
+        const mathFrame = new THREE.Mesh(mathFrameGeo, mathFrameMat);
+        coreGroup.add(mathFrame);
+
+        for(let i=0; i<3; i++) {
+            const ringG = new THREE.TorusGeometry(3.5 + i*0.5, 0.015, 16, 100);
+            const ringM = new THREE.MeshBasicMaterial({ 
+                color: 0xff00ff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending 
+            });
+            const ring = new THREE.Mesh(ringG, ringM);
+            ring.rotation.x = Math.random() * Math.PI;
+            ring.rotation.y = Math.random() * Math.PI;
+            coreGroup.add(ring);
+            ring.userData = { speedX: (Math.random()-0.5)*0.015, speedY: (Math.random()-0.5)*0.015 };
+        }
+
+        // ==========================================
+        // 6. DISCO DE ACRECIÓN: EL ANILLO HOLOGRÁFICO LaTeX
+        // ==========================================
+        function createPerfectLatexTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 8192; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.04)';
+            for(let i=0; i<canvas.height; i+=5) {
+                ctx.fillRect(0, i, canvas.width, 1);
+            }
+            
+            const mathFont = 'italic 70px "Cambria Math", "Times New Roman", serif';
+            
+            function drawAllEquations() {
+                function drawEquation(x, y, eqType) {
+                    ctx.font = mathFont;
+                    if (eqType === 'einstein') {
+                        ctx.fillText('R', x, y); ctx.font = 'italic 40px "Cambria Math"'; ctx.fillText('μν', x+45, y+25);
+                        ctx.font = mathFont; ctx.fillText('−', x+110, y);
+                        ctx.font = 'italic 45px "Cambria Math"'; ctx.fillText('1', x+170, y-25); ctx.fillRect(x+165, y-5, 30, 4); ctx.fillText('2', x+170, y+35);
+                        ctx.font = mathFont; ctx.fillText('R g', x+210, y); ctx.font = 'italic 40px "Cambria Math"'; ctx.fillText('μν', x+310, y+25);
+                        ctx.font = mathFont; ctx.fillText('+ Λ g', x+380, y); ctx.font = 'italic 40px "Cambria Math"'; ctx.fillText('μν', x+530, y+25);
+                        ctx.font = mathFont; ctx.fillText('=', x+600, y);
+                        ctx.font = 'italic 50px "Cambria Math"'; ctx.fillText('8πG', x+665, y-25); ctx.fillRect(x+655, y-5, 100, 4); ctx.fillText('c', x+685, y+35); ctx.font = 'italic 30px "Cambria Math"'; ctx.fillText('4', x+710, y+15);
+                        ctx.font = mathFont; ctx.fillText('T', x+770, y); ctx.font = 'italic 40px "Cambria Math"'; ctx.fillText('μν', x+815, y+25);
+                    } else if (eqType === 'schrodinger') {
+                        ctx.fillText('i ℏ', x, y); ctx.font = 'italic 45px "Cambria Math"'; ctx.fillText('∂Ψ', x+80, y-25); ctx.fillRect(x+75, y-5, 65, 4); ctx.fillText('∂ t', x+85, y+35);
+                        ctx.font = mathFont; ctx.fillText('=  H Ψ', x+170, y); ctx.font = '35px "Cambria Math"'; ctx.fillText('^', x+235, y-45);
+                    } else if (eqType === 'hawking') {
+                        ctx.fillText('S =', x, y); ctx.font = 'italic 45px "Cambria Math"'; ctx.fillText('k A c', x+120, y-25); ctx.font = 'italic 25px "Cambria Math"'; ctx.fillText('3', x+215, y-45); ctx.fillRect(x+110, y-5, 130, 4); ctx.font = 'italic 45px "Cambria Math"'; ctx.fillText('4 G ℏ', x+125, y+35);
+                    }
+                }
+                drawEquation(200, 256, 'einstein');
+                drawEquation(2500, 256, 'schrodinger');
+                drawEquation(4800, 256, 'hawking');
+                drawEquation(6500, 256, 'einstein');
+            }
+
+            ctx.shadowColor = 'rgba(0, 255, 255, 1)';
+            ctx.shadowBlur = 25;
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
+            drawAllEquations();
+
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            drawAllEquations();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping; 
+            return texture;
+        }
+
+        const tex = createPerfectLatexTexture();
+        
+        // Muro de ecuaciones posicionado encima de la malla gravitatoria
+        const mathGeo = new THREE.CylinderGeometry(8, 8, 3.5, 64, 1, true);
+        const mathMat = new THREE.MeshBasicMaterial({
+            map: tex, transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const mathRing = new THREE.Mesh(mathGeo, mathMat);
+        mathRing.position.y = 2.5; 
+        mathRing.rotation.x = 0.15; 
+        universeGroup.add(mathRing);
+
+        const mathRingEcho = new THREE.Mesh(
+            new THREE.CylinderGeometry(8.3, 8.3, 4.0, 64, 1, true),
+            new THREE.MeshBasicMaterial({
+                map: tex, transparent: true, opacity: 0.2, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
+            })
+        );
+        mathRingEcho.position.y = 2.5;
+        mathRingEcho.rotation.x = 0.15;
+        universeGroup.add(mathRingEcho);
+
+        // ==========================================
+        // 7. INTERACCIÓN Y ANIMACIÓN
+        // ==========================================
+        let mouseX = 0, mouseY = 0;
+        const halfX = window.innerWidth / 2;
+        const halfY = window.innerHeight / 2;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - halfX);
+            mouseY = (e.clientY - halfY);
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            // Rotación estelar
+            starField.rotation.y = time * 0.02;
+            starField.rotation.z = time * 0.01;
+
+            // ACTUALIZAR MATEMÁTICAS PURAS
+            // 1. Olas de gravedad en el Espacio-Tiempo
+            spacetimeMat.uniforms.uTime.value = time;
+            spacetimeGrid.rotation.z = time * 0.01;
+
+            // 2. Rotación del Atractor de Lorenz
+            lorenzAttractor.rotation.z = time * 0.1;
+            // Un leve efecto de "respiración" caótica
+            lorenzAttractor.scale.setScalar(1.0 + Math.sin(time * 3) * 0.02);
+
+            // Singularidad y Astrolabio
+            mathFrame.rotation.y = -time * 0.1;
+            mathFrame.rotation.x = time * 0.05;
+            
+            haloMat.uniforms.viewVector.value = new THREE.Vector3().subVectors(camera.position, halo.position);
+
+            coreGroup.children.forEach(child => {
+                if(child.userData.speedX) {
+                    child.rotation.x += child.userData.speedX;
+                    child.rotation.y += child.userData.speedY;
+                }
+            });
+
+            // HUD de Ecuaciones
+            mathRing.rotation.y -= 0.004;
+            mathRingEcho.rotation.y -= 0.0035;
+            tex.offset.x -= 0.001;
+
+            if (Math.random() > 0.97) {
+                mathRing.material.opacity = 0.4 + Math.random() * 0.6;
+                mathRingEcho.material.opacity = Math.random() * 0.4;
+                tex.offset.y = (Math.random() - 0.5) * 0.03; 
+            } else {
+                mathRing.material.opacity = 0.9;
+                mathRingEcho.material.opacity = 0.2;
+                tex.offset.y = 0;
+            }
+
+            // Parallax 3D
+            universeGroup.rotation.y += 0.02 * ((mouseX * 0.001) - universeGroup.rotation.y);
+            universeGroup.rotation.x += 0.02 * ((mouseY * 0.001) - universeGroup.rotation.x);
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
