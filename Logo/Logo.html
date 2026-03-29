@@ -169,6 +169,26 @@
         const cage = new THREE.Mesh(cageGeo, cageMat);
         artifactGroup.add(cage);
 
+        // E. Electrones y Estados Cuánticos (¡NUEVO!)
+        const electronGroup = new THREE.Group();
+        artifactGroup.add(electronGroup);
+        const electronGeo = new THREE.SphereGeometry(0.08, 16, 16);
+        const electronMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        
+        const electronList = [];
+        // Creamos 4 partículas que orbitarán de forma discontinua
+        for(let i = 0; i < 4; i++) {
+            const el = new THREE.Mesh(electronGeo, electronMat);
+            electronGroup.add(el);
+            electronList.push({
+                mesh: el,
+                radius: 3.2,
+                angle1: 0,
+                angle2: 0,
+                nextLeap: Math.random() * 2 // Temporizador asíncrono para el primer salto
+            });
+        }
+
         // ==========================================
         // 4. ILUMINACIÓN (Para resaltar el cristal)
         // ==========================================
@@ -224,11 +244,48 @@
             const pulse = 1 + Math.sin(time * 3) * 0.1;
             aura.scale.set(pulse, pulse, pulse);
 
-            // Rotación caótica de los anillos de cristal
+            // Rotación caótica de los anillos de cristal + Saltos de Fase
             rings.forEach(r => {
                 r.mesh.rotation.x += r.speedX * (speedMultiplier === 3 ? 3 : 1);
                 r.mesh.rotation.y += r.speedY * (speedMultiplier === 3 ? 3 : 1);
+                
+                // SALTO CUÁNTICO MACRO: Cambio instantáneo de 90 grados (Baja probabilidad por frame)
+                if (Math.random() > 0.998) {
+                    r.mesh.rotation.x += Math.PI / 2;
+                }
             });
+
+            // LÓGICA DE SALTOS CUÁNTICOS (Partículas/Electrones)
+            electronList.forEach(e => {
+                if (time > e.nextLeap) {
+                    // 1. Teletransportación a nuevas coordenadas angulares (Sin pasar por el espacio intermedio)
+                    e.angle1 = Math.random() * Math.PI * 2;
+                    e.angle2 = Math.random() * Math.PI * 2;
+                    
+                    // 2. Salto a niveles de energía discretos (Órbitas: n=1, n=2, n=3)
+                    const nivelesEnergia = [2.5, 3.2, 4.0];
+                    e.radius = nivelesEnergia[Math.floor(Math.random() * nivelesEnergia.length)];
+                    
+                    // 3. Programar el siguiente salto (entre 0.1 y 2.5 segundos)
+                    e.nextLeap = time + 0.1 + Math.random() * 2.4;
+                    
+                    // 4. Emisión de Fotones: El núcleo y la luz destellan violentamente
+                    innerLight.intensity = 200; 
+                    core.scale.set(1.8, 1.8, 1.8); 
+                }
+                
+                // Aplicar posición cartesiana basada en coordenadas esféricas 3D
+                e.mesh.position.x = e.radius * Math.cos(e.angle1) * Math.sin(e.angle2);
+                e.mesh.position.y = e.radius * Math.sin(e.angle1) * Math.sin(e.angle2);
+                e.mesh.position.z = e.radius * Math.cos(e.angle2);
+            });
+
+            // Relajación/Decaimiento: La luz y el núcleo vuelven a su estado base de forma natural tras el salto
+            innerLight.intensity += (20 - innerLight.intensity) * 0.1;
+            const currentScale = core.scale.x;
+            const targetScale = 1.0;
+            const newScale = currentScale + (targetScale - currentScale) * 0.15;
+            core.scale.set(newScale, newScale, newScale);
 
             // Rotación lenta de la jaula protectora
             cage.rotation.z -= 0.2 * delta;
