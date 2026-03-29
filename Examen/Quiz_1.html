@@ -29,7 +29,8 @@
         .progress-bar-fill { transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
         
         /* Efecto Step Activo */
-        .step-active { border-left: 4px solid #ea580c; background: #fff7ed; }
+        .step-active { border-left: 4px solid #ea580c; background: #fff7ed; transition: all 0.3s ease; }
+        .step-pending { border-left: 4px solid #cbd5e1; background: #f8fafc; opacity: 0.9; }
     </style>
 
     <!-- KaTeX cargado estáticamente -->
@@ -53,7 +54,7 @@
           ArrowUpRight, ArrowUpLeft, ArrowDownRight, ArrowDownLeft, MousePointer2,
           CheckCircle as CheckCircle2, XCircle, Info, Hand, PenTool, User, ChevronDown, LogIn, Mail, ChevronRight, ChevronLeft,
           Brain, BarChart3, Settings, Star, Scissors, MessageSquare, BookOpenCheck,
-          UserCircle, Building, Camera, Globe, FileText, ShieldCheck, ListChecks, Crosshair, Map, GitMerge, Move
+          UserCircle, Building, Camera, Globe, FileText, ShieldCheck, ListChecks, Crosshair, Map, GitMerge, Move, Compass
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         // Firebase (Gstatic)
@@ -87,7 +88,7 @@
         
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "quiz-coulomb-v2-cognitivo"; 
+        const appId = "quiz-coulomb-v3-didactico"; 
 
         // --- 2. KATEX HOOK ---
         const useKaTeX = () => {
@@ -140,198 +141,6 @@
           
           if (displayMode) return <div ref={containerRef} className={`my-3 text-center overflow-x-auto custom-scrollbar ${className}`} />;
           return <span ref={containerRef} className={className} dangerouslySetInnerHTML={{__html: text}} />;
-        };
-
-        // 3D Gauss Simulator
-        const ThreeCanvas = ({ q1, q2, q3, q4 }) => {
-          const mountRef = useRef(null);
-          const isLoaded = useThreeJS();
-
-          useEffect(() => {
-            if (!isLoaded || !mountRef.current) return;
-            const THREE = window.THREE;
-            const width = mountRef.current.clientWidth;
-            const height = mountRef.current.clientHeight;
-
-            const scene = new THREE.Scene();
-            scene.background = new THREE.Color('#f8fafc'); 
-
-            const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-            camera.position.set(0, 5, 12);
-
-            const renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(width, height);
-            mountRef.current.innerHTML = '';
-            mountRef.current.appendChild(renderer.domElement);
-
-            const controls = new window.THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-            scene.add(ambientLight);
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-            dirLight.position.set(5, 10, 7);
-            scene.add(dirLight);
-
-            const s1Geo = new THREE.SphereGeometry(2, 32, 32);
-            const s1Mat = new THREE.MeshPhysicalMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.15, side: THREE.DoubleSide, wireframe: true });
-            const s1 = new THREE.Mesh(s1Geo, s1Mat);
-            scene.add(s1);
-
-            const s3Geo = new THREE.SphereGeometry(4.5, 32, 32);
-            const s3Mat = new THREE.MeshPhysicalMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.1, side: THREE.DoubleSide, wireframe: true });
-            const s3 = new THREE.Mesh(s3Geo, s3Mat);
-            scene.add(s3);
-
-            const createCharge = (val, pos) => {
-              const color = val > 0 ? 0xef4444 : 0x0ea5e9;
-              const geo = new THREE.SphereGeometry(0.35, 16, 16);
-              const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4 });
-              const mesh = new THREE.Mesh(geo, mat);
-              mesh.position.set(pos[0], pos[1], pos[2]);
-              return mesh;
-            };
-
-            scene.add(createCharge(q1, [0, 0, 0])); 
-            scene.add(createCharge(q2, [1, 1, -0.5])); 
-            scene.add(createCharge(q3, [-3, -1, 1])); 
-            scene.add(createCharge(q4, [2, -2, 2])); 
-
-            let animationId;
-            const animate = () => {
-              animationId = requestAnimationFrame(animate);
-              controls.update();
-              s1.rotation.y += 0.002;
-              s3.rotation.y -= 0.001;
-              renderer.render(scene, camera);
-            };
-            animate();
-
-            const handleResize = () => {
-              if(!mountRef.current) return;
-              camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
-              camera.updateProjectionMatrix();
-              renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-            };
-            window.addEventListener('resize', handleResize);
-
-            return () => {
-              cancelAnimationFrame(animationId);
-              window.removeEventListener('resize', handleResize);
-              renderer.dispose();
-            };
-          }, [isLoaded, q1, q2, q3, q4]);
-
-          return (
-            <div className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-inner border-2 border-slate-200 cursor-move touch-none">
-              <div ref={mountRef} className="w-full h-full" />
-              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 border border-slate-200 shadow-sm pointer-events-none uppercase tracking-widest">
-                <Activity size={16} className="text-blue-500" />
-                Orbita el sistema 3D
-              </div>
-            </div>
-          );
-        };
-
-        // Mini 3D Viewer for Gauss Matrix
-        const MiniThreeSphere = ({ type, isConductor, isCut3D }) => {
-          const mountRef = useRef(null);
-          const isLoaded = useThreeJS();
-
-          useEffect(() => {
-            if (!isLoaded || !mountRef.current) return;
-            const THREE = window.THREE;
-            const w = mountRef.current.clientWidth;
-            const h = mountRef.current.clientHeight;
-
-            const scene = new THREE.Scene();
-            scene.background = new THREE.Color('#f8fafc'); 
-            const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
-            camera.position.z = 4;
-
-            const renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(w, h);
-            renderer.localClippingEnabled = true;
-            
-            mountRef.current.innerHTML = '';
-            mountRef.current.appendChild(renderer.domElement);
-
-            const light = new THREE.DirectionalLight(0xffffff, 0.8);
-            light.position.set(2, 2, 5);
-            scene.add(light);
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-
-            const group = new THREE.Group();
-            const color = isConductor ? 0x10b981 : 0x3b82f6; 
-            const clipPlanes = isCut3D ? [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)] : [];
-            const chargeMat = new THREE.MeshBasicMaterial({color: 0xef4444, clippingPlanes: clipPlanes});
-
-            if (type === 'solid') {
-                const sphere = new THREE.Mesh(
-                    new THREE.SphereGeometry(1.2, 32, 32),
-                    new THREE.MeshPhysicalMaterial({ 
-                        color, transparent: true, opacity: isConductor ? 0.8 : 0.3, roughness: 0.2,
-                        clippingPlanes: clipPlanes, side: isCut3D ? THREE.DoubleSide : THREE.FrontSide
-                    })
-                );
-                group.add(sphere);
-                
-                const numCharges = 40;
-                for(let i=0; i<numCharges; i++){
-                    const q = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), chargeMat);
-                    let r = 1.2; 
-                    if(!isConductor) r = Math.pow(Math.random(), 1/3) * 1.15; 
-                    const theta = Math.random() * 2 * Math.PI;
-                    const phi = Math.acos(2 * Math.random() - 1);
-                    q.position.set(r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
-                    group.add(q);
-                }
-            } else {
-                const outer = new THREE.Mesh(
-                    new THREE.SphereGeometry(1.2, 32, 32),
-                    new THREE.MeshPhysicalMaterial({ 
-                        color, transparent: true, opacity: 0.3, side: THREE.DoubleSide,
-                        clippingPlanes: clipPlanes
-                    })
-                );
-                const inner = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.6, 32, 32),
-                    new THREE.MeshPhysicalMaterial({ 
-                        color: 0x1e293b, wireframe: true,
-                        clippingPlanes: clipPlanes
-                    })
-                );
-                group.add(outer, inner);
-                
-                const numCharges = 40;
-                for(let i=0; i<numCharges; i++){
-                    const q = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), chargeMat);
-                    let r = 1.2; 
-                    if(!isConductor) r = Math.pow(Math.pow(0.6,3) + Math.random()*(Math.pow(1.15,3)-Math.pow(0.6,3)), 1/3); 
-                    const theta = Math.random() * 2 * Math.PI;
-                    const phi = Math.acos(2 * Math.random() - 1);
-                    q.position.set(r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
-                    group.add(q);
-                }
-            }
-
-            scene.add(group);
-            if (isCut3D) group.rotation.y = Math.PI / 4;
-
-            let animId;
-            const animate = () => {
-                animId = requestAnimationFrame(animate);
-                group.rotation.y += 0.01;
-                group.rotation.x += 0.005;
-                renderer.render(scene, camera);
-            };
-            animate();
-
-            return () => { cancelAnimationFrame(animId); renderer.dispose(); };
-          }, [isLoaded, type, isConductor, isCut3D]);
-
-          return <div ref={mountRef} className="w-full h-32 bg-slate-50 rounded-xl overflow-hidden shadow-inner cursor-pointer hover:scale-105 transition-transform" title="Render 3D Dinámico"></div>;
         };
 
         // 3D Ring Simulator for Q3
@@ -425,115 +234,7 @@
           );
         };
 
-        // Interactive Vector Grid
-        const InteractiveVectorField = ({ systemType, id, onChange, isSubmitted }) => {
-          const TOOLS = [
-            { rot: -90, icon: ArrowUp }, { rot: -45, icon: ArrowUpRight }, { rot: 0, icon: ArrowRightIcon }, { rot: 45, icon: ArrowDownRight },
-            { rot: 90, icon: ArrowDown }, { rot: 135, icon: ArrowDownLeft }, { rot: 180, icon: ArrowLeft }, { rot: -135, icon: ArrowUpLeft },
-            { rot: null, icon: Eraser, color: 'text-red-500' }
-          ];
-
-          const [activeTool, setActiveTool] = useState(0); 
-          const [grid, setGrid] = useState({}); 
-          const rows = 5, cols = 5;
-
-          const handleCellClick = (r, c) => {
-            if (isSubmitted) return;
-            const key = `${r}-${c}`;
-            const newGrid = { ...grid };
-            if (activeTool === null) delete newGrid[key];
-            else newGrid[key] = activeTool;
-            setGrid(newGrid);
-            if(onChange) onChange(id, newGrid);
-          };
-
-          return (
-            <div className="flex flex-col h-full bg-slate-50/50 rounded-2xl border-2 border-slate-200 overflow-hidden shadow-inner">
-              {!isSubmitted && (
-                <div className="bg-white border-b-2 border-slate-200 p-3 flex flex-wrap justify-center gap-3">
-                  <div className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center mr-2"><MousePointer2 size={16} className="mr-2"/> Selector:</div>
-                  {TOOLS.map((tool, idx) => {
-                    const Icon = tool.icon;
-                    const isActive = activeTool === tool.rot;
-                    return (
-                      <button key={idx} onClick={() => setActiveTool(tool.rot)}
-                        className={`p-2.5 rounded-xl transition-all border-2 ${isActive ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-110' : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-300'} ${tool.color || ''}`}
-                      >
-                        <Icon size={20} />
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-              <div className="relative flex-grow min-h-[350px] w-full p-6">
-                {systemType === 'A' ? (
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-blue-50 border-4 border-blue-600 rounded-full flex items-center justify-center font-black text-blue-600 z-10 shadow-lg text-2xl"><Latex text={"$-Q$"}/></div>
-                ) : (
-                  <>
-                    <div className="absolute top-1/2 left-[30%] -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-red-50 border-4 border-red-600 rounded-full flex items-center justify-center font-black text-red-600 z-10 shadow-lg text-2xl"><Latex text={"$+2Q$"}/></div>
-                    <div className="absolute top-1/2 left-[70%] -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-blue-50 border-4 border-blue-600 rounded-full flex items-center justify-center font-black text-blue-600 z-10 shadow-lg text-2xl"><Latex text={"$-Q$"}/></div>
-                  </>
-                )}
-                <div className="absolute inset-6 grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)` }}>
-                  {Array.from({ length: rows * cols }).map((_, i) => {
-                    const r = Math.floor(i / cols), c = i % cols;
-                    const isChargeArea = (systemType === 'A' && r === 2 && c === 2) || (systemType === 'B' && r === 2 && (c === 1 || c === 3));
-
-                    return (
-                      <div key={`${r}-${c}`} onClick={() => !isChargeArea && handleCellClick(r, c)}
-                        className={`border border-slate-300/30 flex items-center justify-center transition-colors ${!isChargeArea && !isSubmitted ? 'hover:bg-blue-100/50 cursor-pointer' : ''}`}
-                      >
-                        {grid[`${r}-${c}`] !== undefined && (
-                          <ArrowRightIcon size={32} className="text-slate-800 drop-shadow-md transition-transform" style={{ transform: `rotate(${grid[`${r}-${c}`]}deg)` }} />
-                        )}
-                        {grid[`${r}-${c}`] === undefined && !isChargeArea && (
-                          <div className="w-2 h-2 bg-slate-200 rounded-full opacity-50"></div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        };
-
-        // --- E-LEARNING INTERACTIVE COMPONENTS ---
-        const ERadioGroup = ({ id, options, answers, handleInputChange, isSubmitted, expected }) => {
-          const isCorrect = answers[id] === expected;
-          return (
-            <div className="space-y-3 mt-4">
-              {options.map((opt) => {
-                const isSelected = answers[id] === opt.val;
-                let ringClass = "border-slate-200 hover:border-blue-400 hover:bg-blue-50";
-                if (isSelected) ringClass = "border-blue-500 bg-blue-50 shadow-sm ring-2 ring-blue-500/20";
-                
-                if (isSubmitted) {
-                  if (opt.val === expected) ringClass = "border-emerald-500 bg-emerald-50 shadow-sm ring-2 ring-emerald-500/20"; 
-                  else if (isSelected && !isCorrect) ringClass = "border-red-500 bg-red-50 shadow-sm"; 
-                  else ringClass = "border-slate-200 bg-slate-50 opacity-50"; 
-                }
-
-                return (
-                  <button 
-                    key={opt.val} disabled={isSubmitted}
-                    onClick={() => handleInputChange(id, opt.val)}
-                    className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 ${ringClass}`}
-                  >
-                    <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${isSelected ? 'border-blue-500' : 'border-slate-300'}`}>
-                      {isSelected && <div className={`w-2.5 h-2.5 rounded-full ${isSubmitted ? (opt.val===expected ? 'bg-emerald-500' : 'bg-red-500') : 'bg-blue-500'}`} />}
-                    </div>
-                    <div className="text-sm font-medium text-slate-700 leading-snug"><Latex text={opt.label}/></div>
-                    {isSubmitted && opt.val === expected && <CheckCircle2 className="text-emerald-500 ml-auto flex-shrink-0" size={20}/>}
-                    {isSubmitted && isSelected && !isCorrect && <XCircle className="text-red-500 ml-auto flex-shrink-0" size={20}/>}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        };
-
-        const InlineSelect = ({ id, value, onChange, options, points, width="w-auto", isSubmitted, expected }) => {
+        const InlineSelect = ({ id, value, onChange, options, width="w-auto", isSubmitted, expected }) => {
           const [isOpen, setIsOpen] = useState(false);
           const dropdownRef = useRef(null);
 
@@ -586,29 +287,57 @@
           );
         };
 
-        const StyledInput = ({ id, placeholder, width="w-full", answers, handleInputChange, isSubmitted, expected }) => {
-            const isCorrect = isSubmitted && answers[id] === expected;
-            const isWrong = isSubmitted && answers[id] !== expected;
-            
-            let bgClass = "bg-white border-slate-300 focus:border-orange-500 focus:bg-orange-50";
-            if (isCorrect) bgClass = "bg-emerald-50 border-emerald-500 text-emerald-800";
-            if (isWrong) bgClass = "bg-red-50 border-red-500 text-red-800";
+        // NEW: Componente DCL Interactivo (Diagrama de Cuerpo Libre)
+        const DCLSelector = ({ id, value, onChange, isSubmitted, expected, label }) => {
+            const directions = [
+                { val: 'N', icon: ArrowUp, desc: 'Norte (+y)' },
+                { val: 'NE', icon: ArrowUpRight, desc: 'Noreste (+x, +y)' },
+                { val: 'E', icon: ArrowRightIcon, desc: 'Este (+x)' },
+                { val: 'SE', icon: ArrowDownRight, desc: 'Sureste (+x, -y)' },
+                { val: 'S', icon: ArrowDown, desc: 'Sur (-y)' },
+                { val: 'SW', icon: ArrowDownLeft, desc: 'Suroeste (-x, -y)' },
+                { val: 'W', icon: ArrowLeft, desc: 'Oeste (-x)' },
+                { val: 'NW', icon: ArrowUpLeft, desc: 'Noroeste (-x, +y)' }
+            ];
+
+            const isCorrect = isSubmitted && value === expected;
+            const isWrong = isSubmitted && value !== expected;
 
             return (
-              <div className="relative w-full">
-                <input 
-                  type="text" value={answers[id] || ''} onChange={(e) => handleInputChange(id, e.target.value)} 
-                  placeholder={placeholder} disabled={isSubmitted}
-                  className={`${width} px-4 py-3 text-base border-2 rounded-xl outline-none transition-colors font-medium shadow-sm ${bgClass}`}
-                />
-                {isWrong && expected && (
-                   <div className="absolute -top-6 right-0 bg-white border border-slate-200 px-2 py-1 rounded shadow-md text-xs text-red-600 font-bold z-10">
-                      Era: {expected}
-                   </div>
-                )}
-              </div>
+                <div className={`p-4 rounded-2xl border-2 ${isCorrect ? 'border-emerald-500 bg-emerald-50' : isWrong ? 'border-red-500 bg-red-50' : 'border-slate-200 bg-white'} flex flex-col items-center justify-center relative`}>
+                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Compass size={14}/> {label}</p>
+                    <div className="grid grid-cols-3 gap-2">
+                        {directions.map((dir, idx) => {
+                            // Empty center
+                            if(idx === 4) {
+                                return (
+                                    <React.Fragment key="center_frag">
+                                        <div className="w-12 h-12 flex items-center justify-center"><div className="w-3 h-3 bg-slate-800 rounded-full"></div></div>
+                                        <button 
+                                            type="button" disabled={isSubmitted} onClick={() => onChange(id, dir.val)}
+                                            className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all border-2 ${value === dir.val ? 'bg-orange-500 text-white border-orange-600 scale-110 shadow-md' : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-orange-100 hover:text-orange-600'}`}
+                                            title={dir.desc}
+                                        ><dir.icon size={24} /></button>
+                                    </React.Fragment>
+                                );
+                            }
+                            return (
+                                <button 
+                                    key={dir.val} type="button" disabled={isSubmitted} onClick={() => onChange(id, dir.val)}
+                                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all border-2 ${value === dir.val ? 'bg-orange-500 text-white border-orange-600 scale-110 shadow-md' : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-orange-100 hover:text-orange-600'}`}
+                                    title={dir.desc}
+                                ><dir.icon size={24} /></button>
+                            );
+                        })}
+                    </div>
+                    {isWrong && expected && (
+                        <div className="absolute top-2 right-2 bg-white border border-red-200 px-2 py-1 rounded shadow-md text-xs text-red-600 font-bold">
+                            Era: {directions.find(d => d.val === expected)?.desc}
+                        </div>
+                    )}
+                </div>
             )
-        };
+        }
 
         const PenaltyTipButton = ({ text, id, usedTips, setUsedTips, penalty = 0.05 }) => {
           const [isOpen, setIsOpen] = useState(false);
@@ -638,37 +367,6 @@
           );
         };
 
-        const SelectZone = ({ id, expected, answers, isSubmitted, activeDraggable, handleDropClick }) => {
-          const isCorrect = answers[id] === expected;
-          return (
-            <div 
-              onClick={() => handleDropClick(id)}
-              className={`min-h-[48px] min-w-[100px] border-2 ${isSubmitted ? (isCorrect ? 'border-emerald-500 bg-emerald-50' : 'border-red-500 bg-red-50') : (activeDraggable ? 'border-blue-400 border-dashed bg-blue-50 cursor-pointer hover:bg-blue-100' : 'border-slate-200 border-dashed bg-slate-50 cursor-pointer hover:bg-slate-100')} rounded-xl flex items-center justify-center p-2 transition-all relative`}
-            >
-              {answers[id] ? (
-                 <Latex text={`$${answers[id]}$`} className={`font-black text-lg ${isSubmitted ? (isCorrect ? 'text-emerald-700' : 'text-red-700') : 'text-blue-800'}`} />
-              ) : (
-                <span className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1"><Hand size={12}/> Toca aquí</span>
-              )}
-              {isSubmitted && !isCorrect && expected && (
-                <div className="absolute -top-4 -right-4 bg-white border border-slate-200 px-2 py-0.5 rounded-lg shadow-md text-xs text-slate-500 font-bold z-10 whitespace-nowrap">
-                  Era: <Latex text={`$${expected}$`}/>
-                </div>
-              )}
-            </div>
-          );
-        };
-
-        const DraggableItem = ({ val, isSubmitted, activeDraggable, setActiveDraggable }) => (
-          <button 
-            disabled={isSubmitted}
-            onClick={() => setActiveDraggable(val === activeDraggable ? null : val)}
-            className={`px-4 py-2 rounded-xl border-2 font-black text-lg transition-all shadow-sm ${activeDraggable === val ? 'bg-blue-600 text-white border-blue-600 scale-110 shadow-blue-500/30' : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'}`}
-          >
-            <Latex text={`$${val}$`} />
-          </button>
-        );
-
         const MisionBox = ({ title, points, children }) => (
           <div className="mb-12 rounded-[2rem] border border-slate-300 bg-white shadow-lg relative">
             <div className="bg-slate-900 text-white px-8 py-5 flex flex-wrap justify-between items-center border-b-4 border-orange-600 gap-4 rounded-t-[calc(2rem-1px)]">
@@ -682,218 +380,79 @@
         );
 
         // --- 5. SVG STATIC DIAGRAMS ---
-        const SvgGaussVenn = ({ q1, q2, q3, q4 }) => (
-          <svg viewBox="-5 -4 10 8" className="w-full h-full drop-shadow-md bg-white rounded-2xl border-2 border-slate-200 p-2">
-             {/* S3 (Dashed) */}
-             <ellipse cx="0" cy="0" rx="4.5" ry="3.5" fill="none" stroke="#334155" strokeWidth="0.05" strokeDasharray="0.2,0.2"/>
-             <text x="3.5" y="-2.5" fontSize="0.4" fill="#334155" fontWeight="bold">S_3</text>
-             {/* S1 (Solid) */}
-             <ellipse cx="-1" cy="0.5" rx="2" ry="1.8" fill="none" stroke="#334155" strokeWidth="0.05"/>
-             <text x="-1" y="2.5" fontSize="0.4" fill="#334155" fontWeight="bold">S_1</text>
-             {/* S2 (Dotted) */}
-             <ellipse cx="-2.5" cy="-1.5" rx="1.5" ry="1" fill="none" stroke="#334155" strokeWidth="0.05" strokeDasharray="0.05,0.1" transform="rotate(-30 -2.5 -1.5)"/>
-             <text x="-4" y="-2" fontSize="0.4" fill="#334155" fontWeight="bold">S_2</text>
+        const SvgForceProblem = () => (
+          <svg viewBox="-1.5 -1.5 4 3" className="w-full h-full max-h-[300px] drop-shadow-md overflow-visible bg-slate-50 rounded-xl border border-slate-200 p-4">
+            {/* Grid & Axis */}
+            <line x1="-1.5" y1="0" x2="2.5" y2="0" stroke="#cbd5e1" strokeWidth="0.02" markerEnd="url(#arrow-force)"/>
+            <line x1="0" y1="-1.5" x2="0" y2="1.5" stroke="#cbd5e1" strokeWidth="0.02" markerEnd="url(#arrow-force)"/>
+            <text x="2.3" y="-0.1" fontSize="0.15" fill="#64748b" fontWeight="bold">x (m)</text>
+            <text x="0.1" y="1.4" fontSize="0.15" fill="#64748b" fontWeight="bold">y (m)</text>
+            
+            {/* Distancias visuales (dashed) */}
+            <line x1="-0.5" y1="0" x2="0" y2="1" stroke="#94a3b8" strokeWidth="0.03" strokeDasharray="0.1"/>
+            <line x1="1.5" y1="0" x2="0" y2="1" stroke="#94a3b8" strokeWidth="0.03" strokeDasharray="0.1"/>
 
-             {/* Charges */}
-             <circle cx="-1.5" cy="1" r="0.4" fill="white" stroke="#334155" strokeWidth="0.03"/>
-             <text x="-1.5" y="1.15" fontSize="0.4" textAnchor="middle" fill="#334155" fontWeight="bold">{q1 > 0 ? `+${q1}` : q1}q</text>
+            {/* Charges */}
+            <circle cx="-0.5" cy="0" r="0.12" fill="#3b82f6" />
+            <text x="-0.5" y="-0.2" fontSize="0.15" textAnchor="middle" fill="#1e3a8a" fontWeight="bold">q1 = +1.3 µC</text>
+            <text x="-0.5" y="0.25" fontSize="0.15" textAnchor="middle" fill="#64748b">(-0.5, 0)</text>
 
-             <circle cx="0" cy="-0.2" r="0.4" fill="white" stroke="#334155" strokeWidth="0.03"/>
-             <text x="0" y="-0.05" fontSize="0.4" textAnchor="middle" fill="#334155" fontWeight="bold">{q2 > 0 ? `+${q2}` : q2}q</text>
+            <circle cx="1.5" cy="0" r="0.12" fill="#3b82f6" />
+            <text x="1.5" y="-0.2" fontSize="0.15" textAnchor="middle" fill="#1e3a8a" fontWeight="bold">q2 = +3.2 µC</text>
+            <text x="1.5" y="0.25" fontSize="0.15" textAnchor="middle" fill="#64748b">(1.5, 0)</text>
 
-             <circle cx="-2.5" cy="-1.5" r="0.4" fill="white" stroke="#334155" strokeWidth="0.03"/>
-             <text x="-2.5" y="-1.35" fontSize="0.4" textAnchor="middle" fill="#334155" fontWeight="bold">{q3 > 0 ? `+${q3}` : q3}q</text>
-
-             <circle cx="2.5" cy="0.5" r="0.4" fill="white" stroke="#334155" strokeWidth="0.03"/>
-             <text x="2.5" y="0.65" fontSize="0.4" textAnchor="middle" fill="#334155" fontWeight="bold">{q4 > 0 ? `+${q4}` : q4}q</text>
+            <circle cx="0" cy="1" r="0.15" fill="#ef4444" stroke="#b91c1c" strokeWidth="0.03"/>
+            <text x="0.5" y="1.0" fontSize="0.15" fill="#7f1d1d" fontWeight="bold">q3 = +2.5 µC</text>
+            <text x="-0.4" y="1.0" fontSize="0.15" fill="#64748b">(0, 1.0)</text>
+            
+            <defs><marker id="arrow-force" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3" markerHeight="3" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#cbd5e1"/></marker></defs>
           </svg>
         );
 
-        const SvgMaciza = () => (
-          <svg viewBox="-2 -2 4 4" className="w-20 h-20 mx-auto mb-4 drop-shadow-sm">
-            <circle cx="0" cy="0" r="1.5" fill="#f8fafc" stroke="#334155" strokeWidth="0.08"/>
-            <line x1="0" y1="0" x2="1.5" y2="0" stroke="#334155" strokeWidth="0.05" markerEnd="url(#arrow-slate-sm)"/>
-            <circle cx="0" cy="0" r="0.08" fill="#334155"/>
-            <text x="0.75" y="-0.2" fontSize="0.5" fill="#334155" fontWeight="bold">R</text>
-            <defs><marker id="arrow-slate-sm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker></defs>
-          </svg>
-        );
+        const SvgCircleProblem = () => (
+          <svg viewBox="-2.5 -2.5 5 5" className="w-full h-full max-h-[350px] drop-shadow-md overflow-visible bg-slate-50 rounded-xl border border-slate-200 p-4">
+            {/* Axis */}
+            <line x1="-2.5" y1="0" x2="2.5" y2="0" stroke="#94a3b8" strokeWidth="0.02" strokeDasharray="0.1"/>
+            <line x1="0" y1="-2.5" x2="0" y2="2.5" stroke="#94a3b8" strokeWidth="0.02" strokeDasharray="0.1"/>
+            
+            {/* Circle */}
+            <circle cx="0" cy="0" r="2" fill="none" stroke="#64748b" strokeWidth="0.03" strokeDasharray="0.1"/>
+            <line x1="0" y1="0" x2="2" y2="0" stroke="#334155" strokeWidth="0.02"/>
+            <text x="1" y="-0.1" fontSize="0.2" fill="#334155" fontWeight="bold">R</text>
 
-        const SvgCascara = () => (
-          <svg viewBox="-2 -2 4 4" className="w-20 h-20 mx-auto mb-4 drop-shadow-sm">
-            <circle cx="0" cy="0" r="1.5" fill="#f8fafc" stroke="#334155" strokeWidth="0.08"/>
-            <circle cx="0" cy="0" r="0.8" fill="white" stroke="#334155" strokeWidth="0.08"/>
-            <line x1="0" y1="0" x2="0.8" y2="0" stroke="#334155" strokeWidth="0.05" markerEnd="url(#arrow-slate-sm)"/>
-            <line x1="0" y1="0" x2="-1.06" y2="1.06" stroke="#334155" strokeWidth="0.05" markerEnd="url(#arrow-slate-sm)"/>
-            <circle cx="0" cy="0" r="0.08" fill="#334155"/>
-            <text x="0.4" y="-0.15" fontSize="0.5" fill="#334155" fontWeight="bold">a</text>
-            <text x="-0.7" y="0.4" fontSize="0.5" fill="#334155" fontWeight="bold">b</text>
-          </svg>
-        );
+            {/* Point P */}
+            <circle cx="-2" cy="0" r="0.12" fill="#0f172a" />
+            <text x="-2.3" y="0.05" fontSize="0.25" fill="#0f172a" fontWeight="bold">P</text>
 
-        const SvgFriction = () => (
-          <svg viewBox="0 0 100 100" className="w-full h-full max-h-[140px] drop-shadow-md">
-            <rect x="10" y="10" width="40" height="80" rx="5" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
-            <text x="30" y="30" fontSize="10" textAnchor="middle" fill="#1e293b" fontWeight="bold">Paño</text>
-            <text x="30" y="60" fontSize="16" textAnchor="middle" fill="#ef4444" fontWeight="black">++</text>
-            <rect x="50" y="20" width="15" height="80" rx="3" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5" transform="rotate(20 50 20)"/>
-            <text x="80" y="50" fontSize="9" textAnchor="middle" fill="#1e293b" fontWeight="bold" transform="rotate(20 80 50)">Varilla</text>
-            <text x="65" y="80" fontSize="16" textAnchor="middle" fill="#3b82f6" fontWeight="black" transform="rotate(20 65 80)">--</text>
-            <path d="M 35 50 Q 50 35 65 50" fill="none" stroke="#1e293b" strokeWidth="2" markerEnd="url(#arrow-sm)"/>
-            <text x="50" y="35" fontSize="12" textAnchor="middle" fill="#1e293b" fontWeight="bold">e⁻</text>
-            <defs><marker id="arrow-sm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e293b"/></marker></defs>
-          </svg>
-        );
+            {/* Cargas */}
+            {/* -2q at (R,0) */}
+            <circle cx="2" cy="0" r="0.15" fill="white" stroke="#1e293b" strokeWidth="0.04"/>
+            <text x="2.4" y="0.05" fontSize="0.2" fill="#1e293b" fontWeight="bold">-2q</text>
 
-        const SvgContact = () => (
-          <svg viewBox="0 0 100 100" className="w-full h-full max-h-[140px] drop-shadow-md">
-            <circle cx="30" cy="50" r="20" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
-            <circle cx="70" cy="50" r="20" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
-            <text x="30" y="55" fontSize="16" textAnchor="middle" fill="#3b82f6" fontWeight="black">- -</text>
-            <path d="M 45 40 Q 50 25 55 40" fill="none" stroke="#1e293b" strokeWidth="2" markerEnd="url(#arrow-sm)"/>
-            <text x="50" y="22" fontSize="12" textAnchor="middle" fill="#1e293b" fontWeight="bold">e⁻</text>
-            <defs><marker id="arrow-sm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e293b"/></marker></defs>
-          </svg>
-        );
+            {/* +q at 30 deg from vertical (y-axis) in 2nd quad: x = -R*sin(30), y = R*cos(30) */}
+            <g transform="rotate(30)">
+                <line x1="0" y1="0" x2="0" y2="2" stroke="#64748b" strokeWidth="0.02"/>
+                <circle cx="0" cy="2" r="0.15" fill="white" stroke="#1e293b" strokeWidth="0.04"/>
+                <text x="-0.4" y="2.1" fontSize="0.2" fill="#1e293b" fontWeight="bold" transform="rotate(-30 0 2)">+q</text>
+            </g>
+            <path d="M 0 1 A 1 1 0 0 1 -0.5 0.866" fill="none" stroke="#64748b" strokeWidth="0.02"/>
+            <text x="-0.2" y="1.2" fontSize="0.15" fill="#64748b">30°</text>
 
-        const SvgInduction = () => (
-          <svg viewBox="0 0 120 100" className="w-full h-full max-h-[140px] drop-shadow-md">
-            <rect x="5" y="40" width="30" height="12" rx="3" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
-            <text x="20" y="49" fontSize="14" textAnchor="middle" fill="#ef4444" fontWeight="black">++</text>
-            <circle cx="65" cy="45" r="20" fill="#ffffff" stroke="#1e293b" strokeWidth="2.5"/>
-            <text x="52" y="49" fontSize="14" textAnchor="middle" fill="#3b82f6" fontWeight="black">-</text>
-            <text x="78" y="49" fontSize="14" textAnchor="middle" fill="#ef4444" fontWeight="black">+</text>
-            <line x1="65" y1="65" x2="65" y2="85" stroke="#1e293b" strokeWidth="2.5"/>
-            <line x1="50" y1="85" x2="80" y2="85" stroke="#1e293b" strokeWidth="2.5"/>
-            <path d="M 85 45 L 105 45 L 105 75" fill="none" stroke="#1e293b" strokeWidth="2"/>
-            <line x1="95" y1="75" x2="115" y2="75" stroke="#1e293b" strokeWidth="2"/>
-            <line x1="100" y1="80" x2="110" y2="80" stroke="#1e293b" strokeWidth="2"/>
-            <line x1="103" y1="85" x2="107" y2="85" stroke="#1e293b" strokeWidth="2"/>
-            <path d="M 95 30 L 100 40" fill="none" stroke="#1e293b" strokeWidth="2" markerEnd="url(#arrow-sm)"/>
-            <text x="90" y="25" fontSize="12" textAnchor="middle" fill="#1e293b" fontWeight="bold">e⁻</text>
-            <defs><marker id="arrow-sm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1e293b"/></marker></defs>
-          </svg>
-        );
+            {/* +2q at 30 deg from negative y-axis in 3rd quad: x = -R*sin(30), y = -R*cos(30) */}
+            <g transform="rotate(-30)">
+                <line x1="0" y1="0" x2="0" y2="-2" stroke="#64748b" strokeWidth="0.02"/>
+                <circle cx="0" cy="-2" r="0.15" fill="white" stroke="#1e293b" strokeWidth="0.04"/>
+                <text x="-0.5" y="-2.1" fontSize="0.2" fill="#1e293b" fontWeight="bold" transform="rotate(30 0 -2)">+2q</text>
+            </g>
+            <path d="M 0 -1 A 1 1 0 0 0 -0.5 -0.866" fill="none" stroke="#64748b" strokeWidth="0.02"/>
+            <text x="-0.2" y="-1.1" fontSize="0.15" fill="#64748b">30°</text>
 
-        const SvgRing = () => (
-          <svg viewBox="-50 -30 100 140" className="w-full h-full max-h-[160px] drop-shadow-md overflow-visible">
-            <line x1="0" y1="80" x2="0" y2="-10" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
-            <text x="8" y="-5" fontSize="12" fill="#334155" fontWeight="bold">z</text>
-            <line x1="0" y1="80" x2="45" y2="80" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
-            <text x="40" y="95" fontSize="12" fill="#334155" fontWeight="bold">y</text>
-            <line x1="0" y1="80" x2="-35" y2="115" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
-            <text x="-45" y="115" fontSize="12" fill="#334155" fontWeight="bold">x</text>
-            <ellipse cx="0" cy="80" rx="35" ry="12" fill="none" stroke="#d97706" strokeWidth="5"/>
-            <line x1="0" y1="80" x2="35" y2="80" stroke="#334155" strokeWidth="1.5" strokeDasharray="4"/>
-            <text x="15" y="75" fontSize="10" fill="#334155" fontWeight="bold">R</text>
-            <circle cx="0" cy="15" r="4" fill="#0f172a"/>
-            <text x="10" y="20" fontSize="12" fill="#0f172a" fontWeight="bold">P(0,0,z)</text>
-            <defs><marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker></defs>
           </svg>
         );
-
-        const SvgDisk = () => (
-          <svg viewBox="-50 -30 100 140" className="w-full h-full max-h-[160px] drop-shadow-md overflow-visible">
-            <line x1="0" y1="80" x2="0" y2="-10" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
-            <text x="8" y="-5" fontSize="12" fill="#334155" fontWeight="bold">z</text>
-            <line x1="0" y1="80" x2="45" y2="80" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
-            <text x="40" y="95" fontSize="12" fill="#334155" fontWeight="bold">y</text>
-            <line x1="0" y1="80" x2="-35" y2="115" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
-            <text x="-45" y="115" fontSize="12" fill="#334155" fontWeight="bold">x</text>
-            <ellipse cx="0" cy="80" rx="40" ry="14" fill="#dbeafe" stroke="#3b82f6" strokeWidth="2"/>
-            <ellipse cx="0" cy="80" rx="20" ry="7" fill="none" stroke="#1d4ed8" strokeWidth="3"/>
-            <line x1="0" y1="80" x2="40" y2="80" stroke="#334155" strokeWidth="1.5" strokeDasharray="3"/>
-            <text x="25" y="92" fontSize="9" fill="#334155" fontWeight="bold">R</text>
-            <line x1="0" y1="80" x2="-18" y2="74" stroke="#334155" strokeWidth="1.5" strokeDasharray="2"/>
-            <text x="-15" y="70" fontSize="9" fill="#334155" fontWeight="bold">r'</text>
-            <circle cx="0" cy="15" r="4" fill="#0f172a"/>
-            <text x="10" y="20" fontSize="12" fill="#0f172a" fontWeight="bold">P(0,0,z)</text>
-          </svg>
-        );
-
-        const SvgRod = () => (
-          <svg viewBox="-20 -20 120 120" className="w-full h-full max-h-[160px] drop-shadow-md overflow-visible">
-            <line x1="10" y1="90" x2="10" y2="0" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
-            <text x="15" y="5" fontSize="12" fill="#334155" fontWeight="bold">y</text>
-            <line x1="0" y1="80" x2="100" y2="80" stroke="#64748b" strokeWidth="2" markerEnd="url(#arrow-slate)"/>
-            <text x="95" y="95" fontSize="12" fill="#334155" fontWeight="bold">x</text>
-            <line x1="10" y1="80" x2="10" y2="20" stroke="#ea580c" strokeWidth="6" strokeLinecap="round"/>
-            <text x="-5" y="25" fontSize="12" fill="#334155" fontWeight="bold">a</text>
-            <text x="-5" y="85" fontSize="12" fill="#334155" fontWeight="bold">0</text>
-            <text x="-5" y="55" fontSize="12" fill="#ea580c" fontWeight="bold">Q</text>
-            <circle cx="70" cy="80" r="4" fill="#0f172a"/>
-            <text x="60" y="70" fontSize="12" fill="#0f172a" fontWeight="bold">P(x,0)</text>
-          </svg>
-        );
-
-        const SvgGraphSolIns = () => (
-          <svg viewBox="0 0 100 60" className="w-full h-12">
-            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
-            <path d="M10,55 L40,15 Q60,45 90,52" fill="none" stroke="currentColor" strokeWidth="3"/>
-            <line x1="40" y1="55" x2="40" y2="15" stroke="#94a3b8" strokeDasharray="2,2"/>
-          </svg>
-        );
-        const SvgGraphSolCond = () => (
-          <svg viewBox="0 0 100 60" className="w-full h-12">
-            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
-            <path d="M10,53 L40,53" fill="none" stroke="currentColor" strokeWidth="3"/>
-            <path d="M40,15 Q60,45 90,52" fill="none" stroke="currentColor" strokeWidth="3"/>
-            <line x1="40" y1="55" x2="40" y2="15" stroke="#94a3b8" strokeDasharray="2,2"/>
-          </svg>
-        );
-        const SvgGraphHollowIns = () => (
-          <svg viewBox="0 0 100 60" className="w-full h-12">
-            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
-            <path d="M10,53 L30,53" fill="none" stroke="currentColor" strokeWidth="3"/>
-            <path d="M30,53 Q45,15 60,15" fill="none" stroke="currentColor" strokeWidth="3"/>
-            <path d="M60,15 Q75,45 95,52" fill="none" stroke="currentColor" strokeWidth="3"/>
-            <line x1="30" y1="55" x2="30" y2="53" stroke="#94a3b8" strokeDasharray="2,2"/>
-            <line x1="60" y1="55" x2="60" y2="15" stroke="#94a3b8" strokeDasharray="2,2"/>
-          </svg>
-        );
-        const SvgGraphHollowCond = () => (
-          <svg viewBox="0 0 100 60" className="w-full h-12">
-            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
-            <path d="M10,53 L60,53" fill="none" stroke="currentColor" strokeWidth="3"/>
-            <path d="M60,15 Q75,45 95,52" fill="none" stroke="currentColor" strokeWidth="3"/>
-            <line x1="60" y1="55" x2="60" y2="15" stroke="#94a3b8" strokeDasharray="2,2"/>
-          </svg>
-        );
-
-        const GraphSelector = ({ id, answers, handleInputChange, isSubmitted, expected }) => {
-          const options = [
-            { val: 'linear_decay', svg: <SvgGraphSolIns/> },
-            { val: 'zero_decay', svg: <SvgGraphSolCond/> },
-            { val: 'zero_curve_decay', svg: <SvgGraphHollowIns/> },
-            { val: 'zero_zero_decay', svg: <SvgGraphHollowCond/> }
-          ];
-          const isCorrect = answers[id] === expected;
-          return (
-            <div className="grid grid-cols-2 gap-2 mt-2 min-w-[120px]">
-              {options.map(opt => {
-                const isSelected = answers[id] === opt.val;
-                let ringClass = "border-slate-200 hover:border-blue-400 bg-white";
-                if (isSelected) ringClass = "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20";
-                if (isSubmitted) {
-                  if (opt.val === expected) ringClass = "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/20";
-                  else if (isSelected && !isCorrect) ringClass = "border-red-500 bg-red-50";
-                  else ringClass = "border-slate-200 opacity-40 bg-white";
-                }
-                return (
-                  <button type="button" key={opt.val} disabled={isSubmitted} onClick={() => handleInputChange(id, opt.val)}
-                    className={`p-2 rounded-xl border-2 transition-all ${ringClass} text-slate-600 shadow-sm`}
-                  >
-                    {opt.svg}
-                  </button>
-                )
-              })}
-            </div>
-          );
-        }
 
         // Histograma de Frecuencias (Data Science) ajustado a escala 5.0
         const ScoreHistogram = ({ attempts }) => {
-            const bins = [0, 0, 0, 0]; // [0-1.5], [1.6-3.0], [3.1-4.0], [4.1-5.0]
+            const bins = [0, 0, 0, 0]; 
             attempts.forEach(a => {
                 if (a.score <= 1.5) bins[0]++;
                 else if (a.score <= 3.0) bins[1]++;
@@ -947,15 +506,13 @@
           const [timeElapsed, setTimeElapsed] = useState(0);
           const [finalTime, setFinalTime] = useState(0);
           const [usedTips, setUsedTips] = useState([]);
-          const [activeDraggable, setActiveDraggable] = useState(null);
-          const [isCut3D, setIsCut3D] = useState(false);
+          
           const [examConfig, setExamConfig] = useState(JSON.stringify({ 
               titulo: "Evaluación: Ley de Coulomb", 
               descripcion: "Bases teóricas, análisis de fuerzas netas en 2D y campos de distribuciones.",
               puntajeMaximo: 5.0,
               tiempoEsperado: 2400 
           }, null, 2));
-          const [configSaved, setConfigSaved] = useState(false);
 
           // Dashboard Real State & Real-time Views
           const [metrics, setMetrics] = useState({ views: 0, avgScore: 0, avgTime: 0, attempts: [], questionMetrics: [], frustrationIndex: 0, retention: 0 });
@@ -1000,11 +557,8 @@
           const handleGoogleLogin = async () => {
             setAuthError("");
             const provider = new GoogleAuthProvider();
-            try {
-              await signInWithPopup(auth, provider);
-            } catch (error) {
-              setAuthError("Error de autenticación con Google. Revisa consola.");
-            }
+            try { await signInWithPopup(auth, provider); } 
+            catch (error) { setAuthError("Error de autenticación con Google. Revisa consola."); }
           };
 
           const handleEmailLogin = async (e) => {
@@ -1016,14 +570,9 @@
               await signInWithEmailAndPassword(auth, email, pass);
             } catch (error) {
               if(error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                  try {
-                      await createUserWithEmailAndPassword(auth, email, pass);
-                  } catch (err2) {
-                      setAuthError("Error al crear cuenta: " + err2.message);
-                  }
-              } else {
-                  setAuthError("Credenciales incorrectas.");
-              }
+                  try { await createUserWithEmailAndPassword(auth, email, pass); } 
+                  catch (err2) { setAuthError("Error al crear cuenta: " + err2.message); }
+              } else { setAuthError("Credenciales incorrectas."); }
             }
           };
 
@@ -1032,7 +581,6 @@
             const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
               setUser(currentUser);
               if (currentUser) {
-                  // Register directory to allow reading all
                   if (!currentUser.isAnonymous) {
                       try {
                           await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'directory', currentUser.uid), {
@@ -1041,37 +589,29 @@
                           }, { merge: true });
                           
                           const pDoc = await getDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'data'));
-                          if(pDoc.exists()) {
-                              setProfile({ ...profile, ...pDoc.data() });
-                          }
+                          if(pDoc.exists()) setProfile({ ...profile, ...pDoc.data() });
                       } catch (e) { console.log(e); }
                   }
 
-                  // Master Key check
                   if (currentUser.email === 'dudbilopr@gmail.com') {
-                      setRole('admin');
-                      setView('admin_role_select');
+                      setRole('admin'); setView('admin_role_select');
                   } else {
-                      setRole('student');
-                      setView('exam_intro');
+                      setRole('student'); setView('exam_intro');
                   }
                   
-                  // Load Config
                   try {
                       const confDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'));
                       if(confDoc.exists()) setExamConfig(JSON.stringify(confDoc.data(), null, 2));
                   } catch(e){}
 
               } else {
-                  setRole(null);
-                  setView('login');
+                  setRole(null); setView('login');
               }
               setLoading(false);
             });
             return () => unsubscribe();
           }, []);
           
-          // Profile Handler
           const saveProfile = async (e) => {
               e.preventDefault();
               setSavingProfile(true);
@@ -1079,14 +619,10 @@
                   await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'), profile, { merge: true });
                   alert("Perfil actualizado correctamente. Puedes iniciar tu misión.");
                   setView('exam_intro');
-              } catch (err) {
-                  console.error(err);
-                  alert("Error guardando perfil");
-              }
+              } catch (err) { alert("Error guardando perfil"); }
               setSavingProfile(false);
           };
 
-          // Fetch Dashboard Real Data
           const fetchDashboardData = async () => {
               try {
                   const dirSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'directory'));
@@ -1104,38 +640,23 @@
                       attSnap.forEach(doc => {
                           const data = doc.data();
                           allAttempts.push({
-                              id: doc.id,
-                              agent: email,
-                              score: data.score,
-                              time: data.time,
-                              hints: data.hints || 0,
+                              id: doc.id, agent: email, score: data.score, time: data.time, hints: data.hints || 0,
                               date: data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : 'Reciente',
                               timestamp: data.timestamp ? data.timestamp.toMillis() : 0
                           });
-                          totalScore += parseFloat(data.score);
-                          totalTime += data.time;
-                          totalHints += (data.hints || 0);
-                          
-                          s1 += data.details?.s1 || (data.score * 0.4);
-                          s2 += data.details?.s2 || (data.score * 0.3);
-                          s3 += data.details?.s3 || (data.score * 0.3);
+                          totalScore += parseFloat(data.score); totalTime += data.time; totalHints += (data.hints || 0);
+                          s1 += data.details?.s1 || (data.score * 0.4); s2 += data.details?.s2 || (data.score * 0.3); s3 += data.details?.s3 || (data.score * 0.3);
                       });
                   }
 
                   allAttempts.sort((a,b) => b.timestamp - a.timestamp);
                   const count = allAttempts.length || 1;
-                  const aScore = totalScore / count;
-                  const aTime = totalTime / count;
-
-                  // Frustration Index: (Time factor) * (Hints factor) / (Score factor)
+                  const aScore = totalScore / count; const aTime = totalTime / count;
                   const frustration = count > 0 ? Math.min((aTime / 600) * (1 + totalHints/count) / Math.max(aScore, 0.1), 10).toFixed(1) : 0;
 
                   setMetrics({
-                      views: dirSnap.size,
-                      avgScore: aScore.toFixed(2),
-                      avgTime: Math.floor(aTime),
-                      frustrationIndex: frustration,
-                      attempts: allAttempts.slice(0, 50), 
+                      views: dirSnap.size, avgScore: aScore.toFixed(2), avgTime: Math.floor(aTime),
+                      frustrationIndex: frustration, attempts: allAttempts.slice(0, 50), 
                       questionMetrics: [
                           { id: 'Q1', title: 'Hoja 1: Teoría', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.3), status: (s1/count)>1.5 ? 'optimal' : 'review' },
                           { id: 'Q2', title: 'Hoja 2: Fuerza Neta', avgScore: (s2/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s2/count)>1.0 ? 'optimal' : 'critical' },
@@ -1149,32 +670,19 @@
               try {
                   const parsed = JSON.parse(examConfig);
                   await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'), parsed);
-                  setConfigSaved(true);
-                  setTimeout(() => setConfigSaved(false), 3000);
-              } catch (e) {
-                  alert("Error en formato JSON: " + e.message);
-              }
+                  alert("Configuración Guardada");
+              } catch (e) { alert("Error en formato JSON"); }
           };
 
           const submitRating = async () => {
               if (hasRated || !user || survey.platform===0 || survey.graphics===0 || survey.challenge===0) {
-                  alert("Por favor califica todas las áreas con estrellas.");
-                  return;
+                  alert("Por favor califica todas las áreas con estrellas."); return;
               }
               setHasRated(true);
               try {
                   const reviewsRef = collection(db, 'artifacts', appId, 'public', 'data', 'reviews');
-                  await addDoc(reviewsRef, {
-                      platform: survey.platform,
-                      graphics: survey.graphics,
-                      challenge: survey.challenge,
-                      comment: survey.comment,
-                      userId: user.uid,
-                      timestamp: serverTimestamp()
-                  });
-              } catch (e) {
-                  console.error("Error submitting review", e);
-              }
+                  await addDoc(reviewsRef, { ...survey, userId: user.uid, timestamp: serverTimestamp() });
+              } catch (e) { console.error(e); }
           }
 
           useEffect(() => {
@@ -1204,15 +712,26 @@
           const optsTeoria = useMemo(() => [
               {val: 'f_coulomb', label: '$\\vec{F} = k \\frac{q_1 q_2}{r^2} \\hat{r}$'},
               {val: 'cargas_tipos', label: '$\\text{Positiva y Negativa}$'},
-              {val: 'carga_def', label: '$\\text{Propiedad intrínseca de la materia (interacción EM)}$'},
+              {val: 'carga_def', label: '$\\text{Propiedad intrínseca de la materia}$'},
               {val: 'elec_tipos', label: '$\\text{Frotamiento, Contacto, Inducción}$'},
               {val: 'dipolo_def', label: '$\\text{Dos cargas de igual magnitud y signo opuesto separadas } d$'}
           ].sort(() => Math.random() - 0.5), []);
 
           // OPCIONES PROCEDIMENTALES MATEMÁTICAS ESCAPADAS
-          const optsCuadrante = [ {val: 'c1', label: '$\\text{Cuadrante I (+x, +y)}$'}, {val: 'c2', label: '$\\text{Cuadrante II (-x, +y)}$'}, {val: 'c3', label: '$\\text{Cuadrante III (-x, -y)}$'}, {val: 'c4', label: '$\\text{Cuadrante IV (+x, -y)}$'} ];
-          const optsUnitarios13 = [ {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'} ];
-          const optsUnitarios23 = [ {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'} ];
+          const optsDist2 = [ {val: '0.75', label: '$0.75$'}, {val: '1.25', label: '$1.25$'}, {val: '2.25', label: '$2.25$'}, {val: '3.25', label: '$3.25$'} ];
+          const optsUnitarios13 = [ {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, {val: 'u3', label: '$\\frac{1.0 \\hat{i} + 0.5 \\hat{j}}{\\sqrt{1.25}}$'} ];
+          const optsUnitarios23 = [ {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, {val: 'u3', label: '$\\frac{-1.0 \\hat{i} - 1.0 \\hat{j}}{\\sqrt{2.00}}$'} ];
+          const optsMag = [ {val: '0.0150', label: '$0.0150$'}, {val: '0.0221', label: '$0.0221$'}, {val: '0.0234', label: '$0.0234$'}, {val: '0.0410', label: '$0.0410$'} ];
+          const optsSumX = [ {val: '-0.0079', label: '$-0.0079$'}, {val: '0.0079', label: '$0.0079$'}, {val: '0.0332', label: '$0.0332$'}, {val: '-0.0332', label: '$-0.0332$'} ];
+          const optsSumY = [ {val: '-0.0079', label: '$-0.0079$'}, {val: '0.0079', label: '$0.0079$'}, {val: '0.0332', label: '$0.0332$'}, {val: '-0.0332', label: '$-0.0332$'} ];
+          const optsTot = [ {val: '0.0250', label: '$0.0250$'}, {val: '0.0341', label: '$0.0341$'}, {val: '0.0410', label: '$0.0410$'} ];
+          
+          const optsDist3 = [ {val: '5', label: '$5$'}, {val: '9', label: '$9$'}, {val: '16', label: '$16$'}, {val: '25', label: '$25$'} ];
+          const optsBaseE0 = [ {val: '2160', label: '$2160$'}, {val: '4320', label: '$4320$'}, {val: '8640', label: '$8640$'}, {val: '11250', label: '$11250$'} ];
+          const optsMagRel = [ {val: 'E_0/2', label: '$E_0/2$'}, {val: 'E_0', label: '$E_0$'}, {val: '2E_0', label: '$2E_0$'} ];
+          const optsSumX3 = [ {val: '-11250', label: '$-11250$'}, {val: '0', label: '$0$'}, {val: '9742', label: '$9742$'}, {val: '14881', label: '$14881$'} ];
+          const optsSumY3 = [ {val: '-11250', label: '$-11250$'}, {val: '0', label: '$0$'}, {val: '9742', label: '$9742$'}, {val: '14881', label: '$14881$'} ];
+          const optsTot3 = [ {val: '9742', label: '$9742$'}, {val: '11250', label: '$11250$'}, {val: '14881', label: '$14881$'} ];
 
           const calculateScore = () => {
             let total = 0;
@@ -1238,7 +757,7 @@
             c2('f_sumx', '-0.0079'); 
             c2('f_sumy', '0.0332');
             c2('f_mag', '0.0341');
-            c2('f_cuad', 'c2');
+            c2('f_cuad', 'NW'); // Diagrama DCL NW
 
             // Hoja 3: Campo Circunferencia (Max 2.0 -> 10 steps of 0.2)
             const c3 = (id, exp, pts=0.2) => { if(answers[id] === exp) { s3+=pts; return pts;} return 0; }
@@ -1667,8 +1186,12 @@
                                           <div className={`p-4 rounded-xl border ${answers.f_r1 ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 1-2: Geometría</p>
                                               <div className="grid grid-cols-2 gap-4">
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Distancia <Latex text={"$(r_1)^2$"} /> [m²]</label><StyledInput id="f_r1" placeholder="Ej. 1.25" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="1.25" width="w-full" /></div>
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Distancia <Latex text={"$(r_2)^2$"} /> [m²]</label><StyledInput id="f_r2" placeholder="Ej. 3.25" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="3.25" width="w-full" /></div>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Distancia <Latex text={"$(r_1)^2$"} /> [m²]</label>
+                                                     <InlineSelect id="f_r1" value={answers.f_r1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="1.25" width="w-full" options={optsDist2} />
+                                                  </div>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Distancia <Latex text={"$(r_2)^2$"} /> [m²]</label>
+                                                     <InlineSelect id="f_r2" value={answers.f_r2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="3.25" width="w-full" options={optsDist2} />
+                                                  </div>
                                               </div>
                                           </div>
 
@@ -1683,27 +1206,36 @@
                                           <div className={`p-4 rounded-xl border ${answers.f_f1 ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 4-5: Magnitudes Individuales</p>
                                               <div className="grid grid-cols-2 gap-4">
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Mag. <Latex text={"$|F_1|$"} /> (N)</label><StyledInput id="f_f1" placeholder="Ej. 0.0234" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0234" width="w-full" /></div>
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Mag. <Latex text={"$|F_2|$"} /> (N)</label><StyledInput id="f_f2" placeholder="Ej. 0.0221" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0221" width="w-full" /></div>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Mag. <Latex text={"$|F_1|$"} /> (N)</label>
+                                                     <InlineSelect id="f_f1" value={answers.f_f1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0234" width="w-full" options={optsMag} />
+                                                  </div>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Mag. <Latex text={"$|F_2|$"} /> (N)</label>
+                                                     <InlineSelect id="f_f2" value={answers.f_f2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0221" width="w-full" options={optsMag} />
+                                                  </div>
                                               </div>
                                           </div>
 
                                           <div className={`p-4 rounded-xl border ${answers.f_sumx ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 6-7: Superposición (Total X, Y)</p>
                                               <div className="grid grid-cols-2 gap-4">
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum F_x$"} /> (N)</label><StyledInput id="f_sumx" placeholder="Ej. -0.0079" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="-0.0079" width="w-full" /></div>
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum F_y$"} /> (N)</label><StyledInput id="f_sumy" placeholder="Ej. 0.0332" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0332" width="w-full" /></div>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum F_x$"} /> (N)</label>
+                                                      <InlineSelect id="f_sumx" value={answers.f_sumx} onChange={handleInputChange} isSubmitted={isSubmitted} expected="-0.0079" width="w-full" options={optsSumX} />
+                                                  </div>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum F_y$"} /> (N)</label>
+                                                      <InlineSelect id="f_sumy" value={answers.f_sumy} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0332" width="w-full" options={optsSumY} />
+                                                  </div>
                                               </div>
                                           </div>
 
                                           <div className={`p-4 rounded-xl border ${answers.f_mag ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 8-10: Resultante Final</p>
                                               <div className="grid grid-cols-1 gap-4 mb-4">
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Magnitud Total <Latex text={"$|F_{\\text{neta}}|$"} /> (N)</label><StyledInput id="f_mag" placeholder="Ej. 0.0341" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0341" width="w-full font-black text-blue-700 text-xl" /></div>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Magnitud Total <Latex text={"$|F_{\\text{neta}}|$"} /> (N)</label>
+                                                     <InlineSelect id="f_mag" value={answers.f_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0341" width="w-full" options={optsTot} />
+                                                  </div>
                                               </div>
                                               <div>
-                                                  <label className="text-sm font-bold text-slate-700 block mb-1">Cuadrante del Vector Resultante</label>
-                                                  <InlineSelect id="f_cuad" value={answers.f_cuad} onChange={handleInputChange} isSubmitted={isSubmitted} expected="c2" width="w-full" options={optsCuadrante} />
+                                                  <DCLSelector id="f_cuad" label="DCL Cuadrante Resultante" value={answers.f_cuad} onChange={handleInputChange} isSubmitted={isSubmitted} expected="NW" />
                                               </div>
                                           </div>
                                       </div>
@@ -1729,7 +1261,7 @@
                                       <div className="h-[350px] flex items-center justify-center bg-white border-2 border-slate-200 rounded-3xl shadow-sm overflow-hidden p-2">
                                           <SvgCircleProblem />
                                       </div>
-                                      <PenaltyTipButton id="ptip_3" usedTips={usedTips} setUsedTips={setUsedTips} text="Geometría Oculta:\\n La distancia desde cualquier carga en la circunferencia hasta el centro es $R$. El punto $P$ está a $R$ del centro. Calcula los vectores posición de cada carga para hallar la distancia real a $P$.\\n Usa $k \\cdot q / R^2 = E_0 = 11250$ N/C como base." />
+                                      <PenaltyTipButton id="ptip_3" usedTips={usedTips} setUsedTips={setUsedTips} text={"Geometría Oculta:\\n La distancia desde cualquier carga en la circunferencia hasta el centro es $R$. El punto $P$ está a $R$ del centro. Calcula los vectores posición de cada carga para hallar la distancia real a $P$.\\n Usa $k \\cdot q / R^2 = E_0 = 11250$ N/C como base."} />
                                   </div>
 
                                   <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm flex flex-col justify-center space-y-6 h-max">
@@ -1747,29 +1279,37 @@
 
                                           <div className={`p-4 rounded-xl border ${answers.c_e0 ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 4: Factor Base <Latex text={"$E_0 = k q / R^2$"} /></p>
-                                              <div><label className="text-sm font-bold text-slate-700 block mb-1">Valor de <Latex text={"$E_0$"} /> (N/C)</label><StyledInput id="c_e0" placeholder="Ej. 11250" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="11250" width="w-full" /></div>
+                                              <div><label className="text-sm font-bold text-slate-700 block mb-1">Valor de <Latex text={"$E_0$"} /> (N/C)</label>
+                                                 <InlineSelect id="c_e0" value={answers.c_e0} onChange={handleInputChange} isSubmitted={isSubmitted} expected="11250" width="w-full" options={optsBaseE0} />
+                                              </div>
                                           </div>
 
                                           <div className={`p-4 rounded-xl border ${answers.c_e1_mag ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 5: Magnitudes (En función de <Latex text={"$E_0$"} />)</p>
                                               <div className="grid grid-cols-3 gap-4">
-                                                  <InlineSelect id="c_e1_mag" value={answers.c_e1_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_0" width="w-full" options={[{val:'E_0', label:'$E_0$'}, {val:'E_0/2', label:'$E_0/2$'}, {val:'2E_0', label:'$2E_0$'}]} />
-                                                  <InlineSelect id="c_e2_mag" value={answers.c_e2_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_0/2" width="w-full" options={[{val:'E_0', label:'$E_0$'}, {val:'E_0/2', label:'$E_0/2$'}, {val:'2E_0', label:'$2E_0$'}]} />
-                                                  <InlineSelect id="c_e3_mag" value={answers.c_e3_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="2E_0" width="w-full" options={[{val:'E_0', label:'$E_0$'}, {val:'E_0/2', label:'$E_0/2$'}, {val:'2E_0', label:'$2E_0$'}]} />
+                                                  <InlineSelect id="c_e1_mag" value={answers.c_e1_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_0" width="w-full" options={optsMagRel} />
+                                                  <InlineSelect id="c_e2_mag" value={answers.c_e2_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_0/2" width="w-full" options={optsMagRel} />
+                                                  <InlineSelect id="c_e3_mag" value={answers.c_e3_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="2E_0" width="w-full" options={optsMagRel} />
                                               </div>
                                           </div>
 
                                           <div className={`p-4 rounded-xl border ${answers.c_sumx ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 6-7: Superposición Numérica (N/C)</p>
                                               <div className="grid grid-cols-2 gap-4">
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum E_x$"} /></label><StyledInput id="c_sumx" placeholder="Ej. -11250" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="-11250" width="w-full" /></div>
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum E_y$"} /></label><StyledInput id="c_sumy" placeholder="Ej. 9742" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="9742" width="w-full" /></div>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum E_x$"} /></label>
+                                                    <InlineSelect id="c_sumx" value={answers.c_sumx} onChange={handleInputChange} isSubmitted={isSubmitted} expected="-11250" width="w-full" options={optsSumX3} />
+                                                  </div>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum E_y$"} /></label>
+                                                    <InlineSelect id="c_sumy" value={answers.c_sumy} onChange={handleInputChange} isSubmitted={isSubmitted} expected="9742" width="w-full" options={optsSumY3} />
+                                                  </div>
                                               </div>
                                           </div>
 
                                           <div className={`p-4 rounded-xl border ${answers.c_mag_tot ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 8: Magnitud Final</p>
-                                              <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$|\\vec{E}_{\\text{neto}}|$"} /> en P (N/C)</label><StyledInput id="c_mag_tot" placeholder="Ej. 14881" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="14881" width="w-full font-black text-violet-700 text-xl" /></div>
+                                              <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$|\\vec{E}_{\\text{neto}}|$"} /> en P (N/C)</label>
+                                                <InlineSelect id="c_mag_tot" value={answers.c_mag_tot} onChange={handleInputChange} isSubmitted={isSubmitted} expected="14881" width="w-full" options={optsTot3} />
+                                              </div>
                                           </div>
                                       </div>
                                   </div>
