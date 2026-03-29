@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>physics10.easy - Motor Evaluativo Cognitivo</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Fuentes de Google y Estilos Personalizados -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
@@ -38,11 +36,9 @@
         .inline-blank { display: inline-block; vertical-align: middle; margin: 0 6px; }
     </style>
 
-    <!-- KaTeX cargado estáticamente -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
 
-    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
@@ -94,7 +90,7 @@
         
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "quiz-coulomb-v8-cognitivedcl"; 
+        const appId = "quiz-coulomb-v9-cognitivedcl"; 
 
         // --- 2. KATEX HOOK ---
         const useKaTeX = () => {
@@ -147,6 +143,97 @@
           
           if (displayMode) return <div ref={containerRef} className={`my-3 text-center overflow-x-auto custom-scrollbar ${className}`} />;
           return <span ref={containerRef} className={className} dangerouslySetInnerHTML={{__html: text}} />;
+        };
+
+        // 3D Ring Simulator for Q3
+        const ThreeRingCanvas = () => {
+          const mountRef = useRef(null);
+          const isLoaded = useThreeJS();
+
+          useEffect(() => {
+            if (!isLoaded || !mountRef.current) return;
+            const THREE = window.THREE;
+            const width = mountRef.current.clientWidth;
+            const height = mountRef.current.clientHeight;
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color('#f8fafc'); 
+
+            const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(5, 5, 8);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            mountRef.current.innerHTML = '';
+            mountRef.current.appendChild(renderer.domElement);
+
+            const controls = new window.THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
+
+            // Ring Geometry
+            const ringGeo = new THREE.TorusGeometry(3, 0.15, 16, 100);
+            const ringMat = new THREE.MeshPhysicalMaterial({ color: 0xd97706, roughness: 0.1, metalness: 0.5 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.y = Math.PI / 2;
+            scene.add(ring);
+
+            // Point P
+            const pointGeo = new THREE.SphereGeometry(0.2, 16, 16);
+            const pointMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+            const point = new THREE.Mesh(pointGeo, pointMat);
+            point.position.set(4, 0, 0); 
+            scene.add(point);
+
+            // Axis line
+            const points = [];
+            points.push(new THREE.Vector3(-2, 0, 0));
+            points.push(new THREE.Vector3(6, 0, 0));
+            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMat = new THREE.LineDashedMaterial({ color: 0x64748b, dashSize: 0.2, gapSize: 0.1 });
+            const line = new THREE.Line(lineGeo, lineMat);
+            line.computeLineDistances();
+            scene.add(line);
+
+            let animationId;
+            const animate = () => {
+              animationId = requestAnimationFrame(animate);
+              controls.update();
+              ring.rotation.z += 0.01;
+              renderer.render(scene, camera);
+            };
+            animate();
+
+            const handleResize = () => {
+              if(!mountRef.current) return;
+              camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
+              camera.updateProjectionMatrix();
+              renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+            };
+            window.addEventListener('resize', handleResize);
+
+            return () => {
+              cancelAnimationFrame(animationId);
+              window.removeEventListener('resize', handleResize);
+              renderer.dispose();
+            };
+          }, [isLoaded]);
+
+          return (
+            <div className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-inner border-2 border-slate-200 cursor-move touch-none">
+              <div ref={mountRef} className="w-full h-full" />
+              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 border border-slate-200 shadow-sm pointer-events-none uppercase tracking-widest">
+                <Activity size={16} className="text-orange-500" />
+                Simulador de Campo Vectorial 3D
+              </div>
+            </div>
+          );
         };
 
         const InlineSelect = ({ id, value, onChange, options, width="w-auto", isSubmitted, expected }) => {
@@ -231,9 +318,9 @@
             )
         };
 
-        // --- NEW COMPONENT: CognitiveDCL ---
-        // El alumno da clic en un nodo cardinal, se dibuja la flecha y se le pide identificarla.
-        const CognitiveDCL = ({ idPrefix, options, answers, onChange, isSubmitted, expectedMap }) => {
+        // --- NEW COMPONENT: RealDCL (Cognitivo Interactivo) ---
+        // El alumno da clic en un cuadrante vacío, se dibuja un vector y debe asignarle una etiqueta matemática
+        const RealDCL = ({ idPrefix, options, answers, onChange, isSubmitted, expectedMap }) => {
             const nodes = [
                 { dir: 'N', cx: 0, cy: -80 },
                 { dir: 'NE', cx: 56, cy: -56 },
@@ -349,6 +436,36 @@
           );
         };
 
+        const CurveSelector = ({ id, answers, handleInputChange, isSubmitted, expected }) => {
+          const options = [
+            { val: 'inv_sq', svg: <SvgGraphInverseSquare/> },
+            { val: 'linear', svg: <SvgGraphLinear/> },
+            { val: 'constant', svg: <SvgGraphConstant/> }
+          ];
+          const isCorrect = answers[id] === expected;
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+              {options.map(opt => {
+                const isSelected = answers[id] === opt.val;
+                let ringClass = "border-slate-200 hover:border-orange-400 bg-white";
+                if (isSelected) ringClass = "border-orange-500 bg-orange-50 ring-2 ring-orange-500/20 shadow-md scale-105 z-10";
+                if (isSubmitted) {
+                  if (opt.val === expected) ringClass = "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/20";
+                  else if (isSelected && !isCorrect) ringClass = "border-red-500 bg-red-50";
+                  else ringClass = "border-slate-200 opacity-40 bg-white";
+                }
+                return (
+                  <button type="button" key={opt.val} disabled={isSubmitted} onClick={() => handleInputChange(id, opt.val)}
+                    className={`p-3 rounded-xl border-2 transition-all flex justify-center items-center ${ringClass} text-slate-600`}
+                  >
+                    {opt.svg}
+                  </button>
+                )
+              })}
+            </div>
+          );
+        }
+
         const MisionBox = ({ title, points, children }) => (
           <div className="mb-12 rounded-[2rem] border border-slate-300 bg-white shadow-lg relative overflow-visible">
             <div className="bg-slate-900 text-white px-8 py-5 flex flex-wrap justify-between items-center border-b-4 border-orange-600 gap-4 rounded-t-[calc(2rem-1px)]">
@@ -421,6 +538,65 @@
 
           </svg>
         );
+
+        const SvgEquilibrium = () => (
+          <svg viewBox="-3 -1 6 2" className="w-full h-full max-h-[150px] drop-shadow-md">
+            <line x1="-2.5" y1="0" x2="2.5" y2="0" stroke="#cbd5e1" strokeWidth="0.05" markerEnd="url(#arrow-force)"/>
+            <circle cx="-1.5" cy="0" r="0.2" fill="#ef4444" />
+            <text x="-1.5" y="-0.4" fontSize="0.25" textAnchor="middle" fill="#7f1d1d" fontWeight="bold">+q</text>
+            <circle cx="1.5" cy="0" r="0.2" fill="#ef4444" />
+            <text x="1.5" y="-0.4" fontSize="0.25" textAnchor="middle" fill="#7f1d1d" fontWeight="bold">+q</text>
+            <line x1="-1.5" y1="0.5" x2="1.5" y2="0.5" stroke="#94a3b8" strokeWidth="0.03" strokeDasharray="0.1"/>
+            <text x="0" y="0.8" fontSize="0.2" textAnchor="middle" fill="#64748b" fontWeight="bold">d</text>
+          </svg>
+        );
+
+        const SvgGraphInverseSquare = () => (
+          <svg viewBox="0 0 100 60" className="w-full h-16">
+            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
+            <path d="M 12 5 Q 15 50 90 53" fill="none" stroke="currentColor" strokeWidth="3"/>
+          </svg>
+        );
+        const SvgGraphLinear = () => (
+          <svg viewBox="0 0 100 60" className="w-full h-16">
+            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
+            <path d="M 10 55 L 90 10" fill="none" stroke="currentColor" strokeWidth="3"/>
+          </svg>
+        );
+        const SvgGraphConstant = () => (
+          <svg viewBox="0 0 100 60" className="w-full h-16">
+            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
+            <path d="M 10 25 L 90 25" fill="none" stroke="currentColor" strokeWidth="3"/>
+          </svg>
+        );
+
+        // Histograma de Frecuencias (Data Science)
+        const ScoreHistogram = ({ attempts }) => {
+            const bins = [0, 0, 0, 0]; 
+            attempts.forEach(a => {
+                if (a.score <= 1.5) bins[0]++;
+                else if (a.score <= 3.0) bins[1]++;
+                else if (a.score <= 4.0) bins[2]++;
+                else bins[3]++;
+            });
+            const maxBin = Math.max(...bins, 1);
+
+            return (
+                <div className="flex items-end h-40 gap-4 mt-4">
+                    {bins.map((val, idx) => {
+                        const height = (val / maxBin) * 100;
+                        const labels = ["0.0 - 1.5", "1.6 - 3.0", "3.1 - 4.0", "4.1 - 5.0"];
+                        return (
+                            <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                                <div className="absolute -top-8 bg-slate-800 text-white px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">{val} entregas</div>
+                                <div className="w-full bg-orange-500 rounded-t-lg transition-all duration-1000 ease-out" style={{ height: `${height}%` }}></div>
+                                <div className="mt-2 text-xs font-bold text-slate-500 text-center leading-tight">{labels[idx]}</div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )
+        };
 
         // --- 6. MAIN APP COMPONENT ---
         export default function App() {
@@ -620,7 +796,7 @@
                       views: dirSnap.size, avgScore: aScore.toFixed(2), avgTime: Math.floor(aTime),
                       frustrationIndex: frustration, attempts: allAttempts.slice(0, 50), 
                       questionMetrics: [
-                          { id: 'Q1', title: 'Hoja 1: Teoría', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.3), status: (s1/count)>1.5 ? 'optimal' : 'review' },
+                          { id: 'Q1', title: 'Hoja 1: Teoría', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.3), status: (s1/count)>0.8 ? 'optimal' : 'review' },
                           { id: 'Q2', title: 'Hoja 2: Fuerza Neta', avgScore: (s2/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s2/count)>1.0 ? 'optimal' : 'critical' },
                           { id: 'Q3', title: 'Hoja 3: Campo P', avgScore: (s3/count).toFixed(2), avgTime: Math.floor(aTime * 0.3), status: (s3/count)>1.0 ? 'optimal' : 'critical' }
                       ],
@@ -682,48 +858,49 @@
               setAnswers(prev => ({ ...prev, [id]: val }));
           };
 
-          // OPCIONES TEORÍA
+          // OPCIONES TEORÍA Y SUPERPOSICIÓN
           const optsTeoria = useMemo(() => [
               {val: 'f_coulomb', label: '$\\vec{F} = k \\frac{q_1 q_2}{r^2} \\hat{r}$'},
               {val: 'cargas_tipos', label: '$\\text{Positiva y Negativa}$'},
-              {val: 'carga_def', label: '$\\text{Propiedad de la materia}$'},
-              {val: 'elec_tipos', label: '$\\text{Fricción, Contacto, Inducción}$'},
-              {val: 'dipolo_def', label: '$\\text{Dos cargas de igual mag. y distinto signo}$'}
+              {val: 'carga_def', label: '$\\text{Propiedad intrínseca de la materia (interacción EM)}$'},
+              {val: 'elec_tipos', label: '$\\text{Frotamiento, Contacto, Inducción}$'},
+              {val: 'dipolo_def', label: '$\\text{Dos cargas de igual magnitud y signo opuesto separadas } d$'}
           ].sort(() => Math.random() - 0.5), []);
           
           const optsProporcionF = [
               {val: 'f_4', label: '$\\vec{F}/4$'}, {val: 'f_2', label: '$\\vec{F}/2$'}, {val: '2f', label: '$2\\vec{F}$'}, {val: '4f', label: '$4\\vec{F}$'}
           ];
           const optsSuperposicion = [
-              {val: 'sup_correcta', label: '$\\text{La fuerza neta es la suma vectorial individual}$'},
-              {val: 'sup_incorrecta', label: '$\\text{Las cargas grandes anulan a las pequeñas}$'}
+              {val: 'sup_correcta', label: '$\\text{La fuerza neta es la suma vectorial de las fuerzas individuales}$'},
+              {val: 'sup_incorrecta', label: '$\\text{Las cargas grandes anulan las fuerzas de las pequeñas}$'}
           ];
           const optsEquilibrio = [
-              {val: 'medio', label: '$\\text{Punto medio exacto}$'},
-              {val: 'infinito', label: '$\\text{Solo en infinito}$'},
-              {val: 'cerca_q1', label: '$\\text{Cerca a } q_1$'}
+              {val: 'medio', label: '$\\text{En el punto medio exacto entre las cargas}$'},
+              {val: 'infinito', label: '$\\text{Solamente en el infinito}$'},
+              {val: 'cerca_q1', label: '$\\text{Más cerca de la carga de la izquierda}$'}
           ];
           const optsConclusionFuerza = [
-              {val: 'ok', label: '$\\text{Repulsión de } q_2 \\text{ domina el eje X negativo}$'},
-              {val: 'bad1', label: '$\\text{Las fuerzas se anulan en X}$'},
-              {val: 'bad2', label: '$\\text{La carga } q_3 \\text{ va hacia el origen}$'}
+              {val: 'ok', label: '$\\text{La repulsión de } q_2 \\text{ domina en x, empujando a } q_3 \\text{ al cuadrante II}$'},
+              {val: 'bad1', label: '$\\text{Todas las fuerzas se anulan y el sistema está en equilibrio}$'},
+              {val: 'bad2', label: '$\\text{La carga } q_3 \\text{ es atraída hacia el origen}$'}
           ];
           const optsConclusionAnillo = [
-              {val: 'ok', label: '$\\text{Componentes Y se anulan, el dipolo domina en X}$'},
-              {val: 'bad', label: '$\\text{Campo total nulo por simetría}$'}
+              {val: 'ok', label: '$\\text{Las componentes } x,y \\text{ se anulan por simetría, quedando solo campo en } z$'},
+              {val: 'bad', label: '$\\text{El campo total es nulo porque las cargas están opuestas diametralmente}$'}
           ];
 
-          // OPCIONES MATEMATICAS (HOJA 2 y 3)
+          // OPCIONES PROCEDIMENTALES MATEMÁTICAS 
+          // Hoja 2
           const optsDist2 = [ {val: '0.75', label: '$0.75$'}, {val: '1.25', label: '$1.25$'}, {val: '2.25', label: '$2.25$'}, {val: '3.25', label: '$3.25$'} ];
           const optsUnitarios13 = [ 
-            {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, 
-            {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, 
-            {val: 'u3', label: '$\\frac{1.0 \\hat{i} + 0.5 \\hat{j}}{\\sqrt{1.25}}$'} 
+            {val: 'u1', label: '$\\cos(63.4^\\circ)\\hat{i} + \\sin(63.4^\\circ)\\hat{j} = \\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, 
+            {val: 'u2', label: '$\\cos(146.3^\\circ)\\hat{i} + \\sin(146.3^\\circ)\\hat{j} = \\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, 
+            {val: 'u3', label: '$\\cos(26.5^\\circ)\\hat{i} + \\sin(26.5^\\circ)\\hat{j} = \\frac{1.0 \\hat{i} + 0.5 \\hat{j}}{\\sqrt{1.25}}$'} 
           ];
           const optsUnitarios23 = [ 
-            {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, 
-            {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, 
-            {val: 'u3', label: '$\\frac{-1.0 \\hat{i} - 1.0 \\hat{j}}{\\sqrt{2.00}}$'} 
+            {val: 'u1', label: '$\\cos(63.4^\\circ)\\hat{i} + \\sin(63.4^\\circ)\\hat{j} = \\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, 
+            {val: 'u2', label: '$\\cos(146.3^\\circ)\\hat{i} + \\sin(146.3^\\circ)\\hat{j} = \\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, 
+            {val: 'u3', label: '$\\cos(225^\\circ)\\hat{i} + \\sin(225^\\circ)\\hat{j} = \\frac{-1.0 \\hat{i} - 1.0 \\hat{j}}{\\sqrt{2.00}}$'} 
           ];
           
           const optsK = [ {val: 'k', label: '$9 \\times 10^9$'}, {val: 'e0', label: '$8.85 \\times 10^{-12}$'} ];
@@ -735,6 +912,7 @@
           const optsSumY = [ {val: '-0.0080', label: '$-0.0080$'}, {val: '0.0080', label: '$0.0080$'}, {val: '0.0331', label: '$0.0331$'}, {val: '-0.0331', label: '$-0.0331$'} ];
           const optsTot = [ {val: '0.0250', label: '$0.0250$'}, {val: '0.0340', label: '$0.0340$'}, {val: '0.0410', label: '$0.0410$'} ];
           
+          // Hoja 3
           const optsDist3 = [ {val: 'R', label: '$R$'}, {val: '2R', label: '$2R$'}, {val: 'R/2', label: '$R/2$'} ];
           const optsBaseE0 = [ {val: '2160', label: '$2160$'}, {val: '4320', label: '$4320$'}, {val: '8640', label: '$8640$'}, {val: '11250', label: '$11250$'} ];
           const optsMagRel = [ {val: 'E_0/2', label: '$E_0/2$'}, {val: 'E_0', label: '$E_0$'}, {val: '2E_0', label: '$2E_0$'} ];
@@ -742,9 +920,9 @@
           const optsSumY3 = [ {val: '-11250', label: '$-11250$'}, {val: '0', label: '$0$'}, {val: '9742', label: '$9742$'}, {val: '14881', label: '$14881$'} ];
           const optsTot3 = [ {val: '9742', label: '$9742$'}, {val: '11250', label: '$11250$'}, {val: '14881', label: '$14881$'} ];
 
-          // DCL Draw Data (Vectores Reales en el Plano)
+          // DCL Options
           const optsDclF = [ {val: 'f13', label: '$\\vec{F}_{13}$'}, {val: 'f23', label: '$\\vec{F}_{23}$'}, {val: 'fnet', label: '$\\vec{F}_{\\text{neta}}$'}, {val: 'f_err', label: '$\\vec{F}_{g}$'} ];
-          const expectedDCLP2 = { 'NE': 'f13', 'NW': 'f23', 'N': 'fnet' }; // fnet falls naturally near North between NE and NW
+          const expectedDCLP2 = { 'NE': 'f13', 'NW': 'f23', 'N': 'fnet' }; 
 
           const optsDclE = [ {val: 'eq', label: '$\\vec{E}_{+q}$'}, {val: 'e2q', label: '$\\vec{E}_{+2q}$'}, {val: 'em2q', label: '$\\vec{E}_{-2q}$'}, {val: 'enet', label: '$\\vec{E}_{\\text{neto}}$'} ];
           const expectedDCLP3 = { 'SW': 'eq', 'NW': 'e2q', 'E': 'em2q', 'W': 'enet' }; 
@@ -754,14 +932,15 @@
             let s1=0, s2=0, s3=0;
 
             const check1 = (id, exp, pts) => { if(answers[id] === exp) { s1+=pts; return pts;} return 0; }
-            // Hoja 1 (1.30 pts)
+            
+            // Hoja 1: Teoría Ampliada (Max 1.30)
             check1('t_a', 'f_coulomb', 0.1); check1('t_b', 'cargas_tipos', 0.1); check1('t_c', 'carga_def', 0.1); 
             check1('t_d', 'elec_tipos', 0.1); check1('t_e', 'dipolo_def', 0.1);
             check1('t_prop1', '2f', 0.1); check1('t_prop2', 'f_4', 0.1);
-            check1('t_sup', 'sup_correcta', 0.2); check1('t_eq', 'medio', 0.2);
             check1('t_graphF', 'inv_sq', 0.1); check1('t_graphE', 'inv_sq', 0.1);
+            check1('t_sup', 'sup_correcta', 0.2); check1('t_eq', 'medio', 0.2);
 
-            // Hoja 2: Fuerza Neta (1.85 pts)
+            // Hoja 2: Fuerza Neta (Max 1.85 -> steps)
             const check2 = (id, exp, pts=0.1) => { if(answers[id] === exp) { s2+=pts; return pts;} return 0; }
             check2('f_dcl_NE', 'f13', 0.1); check2('f_dcl_NW', 'f23', 0.1); check2('f_dcl_N', 'fnet', 0.1); // DCL
             check2('f_r1', '1.25'); check2('f_r2', '3.25'); 
@@ -772,15 +951,15 @@
             check2('f_mag', '0.0340', 0.2); 
             check2('f_concl', 'ok', 0.3); // Conclusion
 
-            // Hoja 3: Campo Circunferencia (1.85 pts)
+            // Hoja 3: Campo Circunferencia (Max 1.85 -> steps)
             const check3 = (id, exp, pts=0.1) => { if(answers[id] === exp) { s3+=pts; return pts;} return 0; }
-            check3('c_dcl_SW', 'eq'); check3('c_dcl_NW', 'e2q'); check3('c_dcl_E', 'em2q'); check3('c_dcl_W', 'enet'); // DCL (4x0.1)
+            check3('c_dcl_SW', 'eq'); check3('c_dcl_NW', 'e2q'); check3('c_dcl_E', 'em2q'); check3('c_dcl_W', 'enet'); // DCL
             check3('c_r1', 'R'); check3('c_r2', 'R'); check3('c_r3', '2R'); 
-            check3('c_e0', '11250'); 
+            check3('c_e0', '11250', 0.1); 
             check3('c_e1_mag', 'E_0', 0.05); check3('c_e2_mag', '2E_0', 0.05); check3('c_e3_mag', 'E_0/2', 0.05); 
             check3('c_sumx', '-11250', 0.15); check3('c_sumy', '9742', 0.15); 
-            check3('c_mag_tot', '14881'); 
-            check3('c_concl', 'ok', 0.3);
+            check3('c_mag_tot', '14881', 0.1); 
+            check3('c_concl', 'ok', 0.35); // Conclusion
 
             total = s1 + s2 + s3 - (usedTips.length * 0.05); 
             return { total: Math.max(Math.min(total, 5.0), 0).toFixed(2), details: { s1, s2, s3 } };
@@ -809,7 +988,7 @@
 
           const formatTime = (sec) => sec != null ? `${Math.floor(sec / 60)}m ${(sec % 60).toString().padStart(2, '0')}s` : '0m 00s';
 
-          // Mensajes y Perfiles
+          // Mensaje Psicológico de Tiempo e Índice de Duda
           let timeMsg = "";
           if (finalTime > 0) {
               if (finalTime < 180) timeMsg = "Has respondido en tiempo récord (< 3 min). Tu impulsividad es alta. La ingeniería exige pausa y análisis metódico.";
@@ -1080,7 +1259,7 @@
                           <button onClick={() => setView('profile')} className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-6 rounded-xl transition-colors">Completar mi Perfil Universitario</button>
                       </div>
                   ) : (
-                      <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">¡Hola {profile.displayName.split(' ')[0]}! Bienvenido a tu prueba procedimental de Electromagnetismo. Esta evaluación exige desarrollo analítico paso a paso. La calificación es sobre 5.0. <strong>Nota vital:</strong> Tu tiempo y telemetría serán medidos para determinar tu perfil cognitivo. Ten a mano lápiz, papel y calculadora.</p>
+                      <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">¡Hola {profile.displayName.split(' ')[0]}! Bienvenido a tu prueba procedimental de Electromagnetismo. Esta evaluación exige desarrollo analítico paso a paso. La calificación es sobre 5.0. <strong>Nota vital:</strong> Tu tiempo y uso de asistencias cognitivas serán medidos para determinar tu perfil de aprendizaje mediante telemetría. Ten a mano lápiz, papel y calculadora.</p>
                   )}
                   
                   <div className="flex flex-wrap items-center justify-center gap-6 mb-12 text-base font-bold text-slate-600">
@@ -1139,26 +1318,24 @@
                               <div className="bg-orange-50 border-l-4 border-orange-500 p-6 rounded-r-2xl mb-10 flex items-center justify-between">
                                 <div>
                                     <p className="font-black text-orange-900 text-xl mb-2 flex items-center gap-2"><BookOpenCheck size={24}/> 1.1 Teoría Electrostática Base</p>
-                                    <p className="text-orange-800 font-medium text-base">Relacione cada concepto o pregunta solicitada con su representación matemática o enunciado correcto.</p>
+                                    <p className="text-orange-800 font-medium text-base">Construye el párrafo analítico con las representaciones matemáticas o enunciados correctos.</p>
                                 </div>
                                 <span className="text-sm text-red-600 bg-red-100 px-3 py-1 rounded-lg font-bold">[0.10 pts c/u]</span>
                               </div>
 
-                              <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm mb-12 grid grid-cols-1 gap-10 text-lg leading-loose text-slate-700 text-justify">
-                                  <div>
-                                      La <strong>Ley de Coulomb</strong> puede ser expresada como <InlineSelect id="t_a" value={answers.t_a} onChange={handleInputChange} isSubmitted={isSubmitted} expected="f_coulomb" options={optsTeoria} /> y modela la magnitud de la fuerza eléctrica. 
-                                      Existen dos tipos de carga en la naturaleza: <InlineSelect id="t_b" value={answers.t_b} onChange={handleInputChange} isSubmitted={isSubmitted} expected="cargas_tipos" options={optsTeoria} />. 
-                                      Físicamente, la carga se define como <InlineSelect id="t_c" value={answers.t_c} onChange={handleInputChange} isSubmitted={isSubmitted} expected="carga_def" options={optsTeoria} />.
-                                      Los mecanismos principales por los que los cuerpos ganan o pierden esta propiedad son <InlineSelect id="t_d" value={answers.t_d} onChange={handleInputChange} isSubmitted={isSubmitted} expected="elec_tipos" options={optsTeoria} />.
-                                      Cuando analizamos <InlineSelect id="t_e" value={answers.t_e} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dipolo_def" options={optsTeoria} />, nos referimos a un dipolo eléctrico.
-                                  </div>
+                              <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm mb-12 text-lg leading-loose text-slate-700 text-justify">
+                                  La <strong>Ley de Coulomb</strong> puede ser expresada como <InlineSelect id="t_a" value={answers.t_a} onChange={handleInputChange} isSubmitted={isSubmitted} expected="f_coulomb" options={optsTeoria} /> y modela la magnitud de la fuerza eléctrica. 
+                                  Existen dos tipos de carga en la naturaleza: <InlineSelect id="t_b" value={answers.t_b} onChange={handleInputChange} isSubmitted={isSubmitted} expected="cargas_tipos" options={optsTeoria} />. 
+                                  Físicamente, la carga se define como <InlineSelect id="t_c" value={answers.t_c} onChange={handleInputChange} isSubmitted={isSubmitted} expected="carga_def" options={optsTeoria} />.
+                                  Los mecanismos principales por los que los cuerpos ganan o pierden esta propiedad son <InlineSelect id="t_d" value={answers.t_d} onChange={handleInputChange} isSubmitted={isSubmitted} expected="elec_tipos" options={optsTeoria} />.
+                                  Cuando analizamos <InlineSelect id="t_e" value={answers.t_e} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dipolo_def" options={optsTeoria} />, nos referimos a un dipolo eléctrico.
                               </div>
 
                               {/* NEW THEORY: Proportions and Graphs */}
                               <div className="bg-orange-50 border-l-4 border-orange-500 p-6 rounded-r-2xl mb-10 flex items-center justify-between">
                                 <div>
                                     <p className="font-black text-orange-900 text-xl mb-2 flex items-center gap-2"><TrendingDown size={24}/> 1.2 Comportamiento Matemático y Superposición</p>
-                                    <p className="text-orange-800 font-medium text-base">Complete el análisis lógico de las ecuaciones electrostáticas.</p>
+                                    <p className="text-orange-800 font-medium text-base">Analice el comportamiento de las ecuaciones electrostáticas ante la variación de sus parámetros.</p>
                                 </div>
                               </div>
                               <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm mb-12">
@@ -1217,10 +1394,10 @@
                                           <SvgForceProblem />
                                       </div>
                                       
-                                      <RealDCL 
+                                      {/* Cognitive DCL */}
+                                      <CognitiveDCL 
                                         idPrefix="f_dcl" 
-                                        vectors={dclVectorsP2} 
-                                        drawData={dclDrawP2}
+                                        options={optsDclF}
                                         answers={answers} 
                                         onChange={handleInputChange} 
                                         isSubmitted={isSubmitted} 
@@ -1322,7 +1499,7 @@
                                               </div>
                                           </div>
 
-                                          {/* CONCLUSION STEP */}
+                                          {/* CONCLUSION STEP TEXT */}
                                           <div className={`p-4 rounded-xl border step-container ${answers.f_concl ? 'step-active' : 'step-pending'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 11: Conclusión Física</p>
                                               <div className="text-lg leading-loose text-slate-700 text-justify">
@@ -1355,23 +1532,23 @@
                                           <SvgCircleProblem />
                                       </div>
                                       
-                                      <RealDCL 
+                                      {/* Cognitive DCL */}
+                                      <CognitiveDCL 
                                         idPrefix="c_dcl" 
-                                        vectors={dclVectorsP3} 
-                                        drawData={dclDrawP3}
+                                        options={optsDclE}
                                         answers={answers} 
                                         onChange={handleInputChange} 
                                         isSubmitted={isSubmitted} 
                                         expectedMap={expectedDCLP3} 
                                       />
 
-                                      <PenaltyTipButton id="ptip_3" usedTips={usedTips} setUsedTips={setUsedTips} penalty={0.05} text={"Geometría Oculta:\\n La distancia desde cualquier carga en la circunferencia hasta el centro es $R$. El punto $P$ está a $R$ del centro. Calcula los vectores posición de cada carga para hallar la distancia real a $P$.\\n Usa $k \\cdot q / R^2 = E_0 = 11250$ N/C como base."} />
+                                      <PenaltyTipButton id="ptip_3" usedTips={usedTips} setUsedTips={setUsedTips} penalty={0.05} text={"Geometría Oculta:<br/> La distancia desde cualquier carga en la circunferencia hasta el centro es $R$. El punto $P$ está a $R$ del centro. Calcula los vectores posición de cada carga para hallar la distancia real a $P$.<br/> Usa $k \\cdot q / R^2 = E_0 = 11250$ N/C como base."} />
                                   </div>
 
                                   <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm flex flex-col justify-center space-y-6 h-max">
                                       <h4 className="font-black text-slate-800 text-lg border-b-2 border-slate-100 pb-2">Metodología Analítica</h4>
                                       
-                                      <div className="space-y-4">
+                                      <div className="space-y-4 relative">
                                           <div className={`p-4 rounded-xl border step-container ${answers.c_r1 ? 'step-active' : 'step-pending'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 2: Distancias Reales a P</p>
                                               <div className="grid grid-cols-3 gap-4">
@@ -1416,7 +1593,7 @@
                                               </div>
                                           </div>
 
-                                          {/* CONCLUSION STEP */}
+                                          {/* CONCLUSION STEP TEXT */}
                                           <div className={`p-4 rounded-xl border step-container ${answers.c_concl ? 'step-active' : 'step-pending'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 9: Análisis de Simetría y Conclusión</p>
                                               <div className="text-lg leading-loose text-slate-700 text-justify">
@@ -1772,7 +1949,7 @@
               <div className="px-8 py-6 border-b border-slate-200 bg-slate-50">
                 <h3 className="font-black text-slate-800 text-xl">Últimos Entregados (Real)</h3>
               </div>
-              <div className="p-0 flex-grow bg-white overflow-y-auto max-h-[850px] custom-scrollbar">
+              <div className="p-0 flex-grow bg-white overflow-y-auto max-h-[600px] custom-scrollbar">
                 {metrics.attempts.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 font-bold">No hay evaluaciones registradas en Firestore.</div>
                 ) : (
