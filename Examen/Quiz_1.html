@@ -29,10 +29,13 @@
         .progress-bar-fill { transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
         
         /* Efecto Timeline Procedimental */
-        .step-container { border-left: 4px solid #e2e8f0; padding-left: 24px; position: relative; margin-bottom: 32px; }
+        .step-container { border-left: 4px solid #e2e8f0; padding-left: 24px; position: relative; margin-bottom: 32px; z-index: 10; }
         .step-container::before { content: ''; position: absolute; left: -14px; top: 0; width: 24px; height: 24px; background: #fff; border: 4px solid #cbd5e1; border-radius: 50%; transition: all 0.3s; }
-        .step-active { border-left-color: #ea580c; background: #fff7ed; transition: all 0.3s ease; }
+        .step-active { border-left-color: #ea580c; background: #fff7ed; transition: all 0.3s ease; z-index: 20; }
         .step-pending { border-left: 4px solid #cbd5e1; background: #f8fafc; opacity: 0.9; }
+
+        /* Selectores integrados al texto */
+        .inline-blank { display: inline-block; vertical-align: middle; margin: 0 6px; }
     </style>
 
     <!-- KaTeX cargado estáticamente -->
@@ -91,7 +94,7 @@
         
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "quiz-coulomb-v6-psychometrics"; 
+        const appId = "quiz-coulomb-v8-cognitivedcl"; 
 
         // --- 2. KATEX HOOK ---
         const useKaTeX = () => {
@@ -146,97 +149,6 @@
           return <span ref={containerRef} className={className} dangerouslySetInnerHTML={{__html: text}} />;
         };
 
-        // 3D Ring Simulator for Q3
-        const ThreeRingCanvas = () => {
-          const mountRef = useRef(null);
-          const isLoaded = useThreeJS();
-
-          useEffect(() => {
-            if (!isLoaded || !mountRef.current) return;
-            const THREE = window.THREE;
-            const width = mountRef.current.clientWidth;
-            const height = mountRef.current.clientHeight;
-
-            const scene = new THREE.Scene();
-            scene.background = new THREE.Color('#f8fafc'); 
-
-            const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-            camera.position.set(5, 5, 8);
-
-            const renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(width, height);
-            mountRef.current.innerHTML = '';
-            mountRef.current.appendChild(renderer.domElement);
-
-            const controls = new window.THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-            scene.add(ambientLight);
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-            dirLight.position.set(5, 10, 7);
-            scene.add(dirLight);
-
-            // Ring Geometry
-            const ringGeo = new THREE.TorusGeometry(3, 0.15, 16, 100);
-            const ringMat = new THREE.MeshPhysicalMaterial({ color: 0xd97706, roughness: 0.1, metalness: 0.5 });
-            const ring = new THREE.Mesh(ringGeo, ringMat);
-            ring.rotation.y = Math.PI / 2;
-            scene.add(ring);
-
-            // Point P
-            const pointGeo = new THREE.SphereGeometry(0.2, 16, 16);
-            const pointMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
-            const point = new THREE.Mesh(pointGeo, pointMat);
-            point.position.set(4, 0, 0); 
-            scene.add(point);
-
-            // Axis line
-            const points = [];
-            points.push(new THREE.Vector3(-2, 0, 0));
-            points.push(new THREE.Vector3(6, 0, 0));
-            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-            const lineMat = new THREE.LineDashedMaterial({ color: 0x64748b, dashSize: 0.2, gapSize: 0.1 });
-            const line = new THREE.Line(lineGeo, lineMat);
-            line.computeLineDistances();
-            scene.add(line);
-
-            let animationId;
-            const animate = () => {
-              animationId = requestAnimationFrame(animate);
-              controls.update();
-              ring.rotation.z += 0.01;
-              renderer.render(scene, camera);
-            };
-            animate();
-
-            const handleResize = () => {
-              if(!mountRef.current) return;
-              camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
-              camera.updateProjectionMatrix();
-              renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-            };
-            window.addEventListener('resize', handleResize);
-
-            return () => {
-              cancelAnimationFrame(animationId);
-              window.removeEventListener('resize', handleResize);
-              renderer.dispose();
-            };
-          }, [isLoaded]);
-
-          return (
-            <div className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-inner border-2 border-slate-200 cursor-move touch-none">
-              <div ref={mountRef} className="w-full h-full" />
-              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-xl text-xs font-black text-slate-700 flex items-center gap-2 border border-slate-200 shadow-sm pointer-events-none uppercase tracking-widest">
-                <Activity size={16} className="text-orange-500" />
-                Simulador de Campo Vectorial 3D
-              </div>
-            </div>
-          );
-        };
-
         const InlineSelect = ({ id, value, onChange, options, width="w-auto", isSubmitted, expected }) => {
           const [isOpen, setIsOpen] = useState(false);
           const dropdownRef = useRef(null);
@@ -261,16 +173,16 @@
           const selectedOption = options.find(o => o.val === value);
 
           return (
-            <span ref={dropdownRef} className={`inline-flex items-center gap-1 relative group ${width}`}>
+            <span ref={dropdownRef} className={`inline-flex items-center gap-1 relative group ${width} inline-blank`}>
               <div className="relative w-full">
                 <button 
                   type="button" disabled={isSubmitted} onClick={() => setIsOpen(!isOpen)}
-                  className={`w-full px-4 py-3 min-h-[46px] text-base font-bold border-2 ${bgClass} ${textClass} rounded-xl outline-none transition-all shadow-sm flex items-center justify-between cursor-pointer disabled:cursor-default`}
+                  className={`w-full px-3 py-2 min-h-[40px] text-sm md:text-base font-bold border-2 ${bgClass} ${textClass} rounded-xl outline-none transition-all shadow-sm flex items-center justify-between cursor-pointer disabled:cursor-default`}
                 >
                   <span className="flex-grow text-center flex items-center justify-center overflow-hidden">
-                    {selectedOption ? <Latex text={selectedOption.label} /> : <span className="text-slate-400 font-normal text-sm whitespace-nowrap">-- Seleccionar --</span>}
+                    {selectedOption ? <Latex text={selectedOption.label} /> : <span className="text-slate-400 font-normal text-xs whitespace-nowrap">Seleccionar...</span>}
                   </span>
-                  {!isSubmitted && <ChevronDown size={18} className={`text-slate-400 flex-shrink-0 transition-transform ml-2 ${isOpen ? 'rotate-180' : ''}`} />}
+                  {!isSubmitted && <ChevronDown size={14} className={`text-slate-400 flex-shrink-0 transition-transform ml-2 ${isOpen ? 'rotate-180' : ''}`} />}
                 </button>
 
                 {isOpen && !isSubmitted && (
@@ -278,7 +190,7 @@
                     {options.map((o) => (
                       <div
                         key={o.val} onClick={() => { onChange(id, o.val); setIsOpen(false); }}
-                        className="px-6 py-4 hover:bg-orange-50 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors text-center text-slate-800 font-bold flex items-center justify-center"
+                        className="px-4 py-3 hover:bg-orange-50 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors text-center text-slate-800 font-bold flex items-center justify-center text-sm md:text-base"
                       >
                         <Latex text={o.label} />
                       </div>
@@ -286,7 +198,7 @@
                   </div>
                 )}
                 {isWrong && expected && (
-                   <div className="absolute -top-6 right-0 bg-white border border-slate-200 px-2 py-1 rounded shadow-md text-xs text-red-600 font-bold z-10">
+                   <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white border border-slate-200 px-2 py-1 rounded shadow-md text-[10px] text-red-600 font-bold z-10 whitespace-nowrap">
                       Era: <Latex text={options.find(o=>o.val===expected)?.label || ''}/>
                    </div>
                 )}
@@ -319,92 +231,92 @@
             )
         };
 
-        // Componente DCL Interactivo Real (Nivel Producción)
-        const RealDCL = ({ idPrefix, vectors, drawData, answers, onChange, isSubmitted, expectedMap }) => {
-            const [activeVec, setActiveVec] = useState(vectors[0].id);
+        // --- NEW COMPONENT: CognitiveDCL ---
+        // El alumno da clic en un nodo cardinal, se dibuja la flecha y se le pide identificarla.
+        const CognitiveDCL = ({ idPrefix, options, answers, onChange, isSubmitted, expectedMap }) => {
+            const nodes = [
+                { dir: 'N', cx: 0, cy: -80 },
+                { dir: 'NE', cx: 56, cy: -56 },
+                { dir: 'E', cx: 80, cy: 0 },
+                { dir: 'SE', cx: 56, cy: 56 },
+                { dir: 'S', cx: 0, cy: 80 },
+                { dir: 'SW', cx: -56, cy: 56 },
+                { dir: 'W', cx: -80, cy: 0 },
+                { dir: 'NW', cx: -56, cy: -56 }
+            ];
 
-            const handleZoneClick = (zoneId) => {
+            const toggleNode = (dir) => {
                 if (isSubmitted) return;
-                onChange(`${idPrefix}_${activeVec}`, zoneId);
-                const currIdx = vectors.findIndex(v => v.id === activeVec);
-                if (currIdx < vectors.length - 1) setActiveVec(vectors[currIdx + 1].id);
+                const currentVal = answers[`${idPrefix}_${dir}`];
+                if (currentVal !== undefined) {
+                    onChange(`${idPrefix}_${dir}`, undefined); // Remove
+                } else {
+                    onChange(`${idPrefix}_${dir}`, ''); // Add empty
+                }
             };
 
             return (
                 <div className="bg-slate-50 border-2 border-slate-200 p-6 rounded-2xl shadow-inner flex flex-col items-center w-full">
                     <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <Compass size={16}/> Diagrama de Cuerpo Libre Exacto
+                        <Compass size={16}/> Constructor de Diagrama de Cuerpo Libre
                     </p>
-                    <p className="text-[11px] text-slate-500 mb-4 text-center max-w-sm font-bold">Selecciona una etiqueta matemática y asígnala al nodo de su vector correspondiente en el plano.</p>
+                    <p className="text-[11px] text-slate-500 mb-6 text-center max-w-sm font-bold">Haz clic en el cuadrante o eje donde interactúa una fuerza/campo, y luego selecciona su etiqueta matemática.</p>
 
-                    <div className="flex flex-wrap justify-center gap-2 mb-6 w-full">
-                        {vectors.map(v => {
-                            const isSelected = activeVec === v.id;
-                            const hasValue = !!answers[`${idPrefix}_${v.id}`];
-                            return (
-                                <button 
-                                    key={v.id} type="button" disabled={isSubmitted} onClick={() => setActiveVec(v.id)}
-                                    className={`px-4 py-2 rounded-xl border-2 font-bold text-sm transition-all flex items-center gap-2 ${isSelected ? 'bg-orange-600 text-white border-orange-600 shadow-md scale-105' : (hasValue ? 'bg-orange-50 border-orange-300 text-orange-800' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100')}`}
-                                >
-                                    <Latex text={v.label}/>
-                                    {hasValue && <CheckCircle2 size={14} className={isSelected ? "text-orange-200" : "text-orange-500"}/>}
-                                </button>
-                            )
-                        })}
-                    </div>
-
-                    <div className="relative w-full max-w-[280px] aspect-square bg-white rounded-3xl shadow-lg border-4 border-slate-100 overflow-visible p-4">
-                        <svg viewBox="-100 -100 200 200" className="w-full h-full overflow-visible">
+                    <div className="relative w-full max-w-[320px] aspect-square bg-white rounded-full shadow-lg border-4 border-slate-100 p-4 mx-auto mb-4">
+                        <svg viewBox="-100 -100 200 200" className="w-full h-full overflow-visible absolute inset-0">
                             <defs>
-                                <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/></marker>
-                                <marker id="arrow-orange" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ea580c"/></marker>
+                                <marker id={`arr_${idPrefix}`} viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ea580c"/></marker>
                             </defs>
-                            
-                            {/* Ejes Cartesianos */}
-                            <line x1="-100" y1="0" x2="100" y2="0" stroke="#e2e8f0" strokeWidth="2" />
-                            <line x1="0" y1="-100" x2="0" y2="100" stroke="#e2e8f0" strokeWidth="2" />
+                            {/* Ejes Cartesianos Ténues */}
+                            <line x1="-100" y1="0" x2="100" y2="0" stroke="#f1f5f9" strokeWidth="2" />
+                            <line x1="0" y1="-100" x2="0" y2="100" stroke="#f1f5f9" strokeWidth="2" />
                             <circle cx="0" cy="0" r="4" fill="#94a3b8" />
-
-                            {drawData.map(vec => {
-                                const assignedLabels = vectors.filter(v => answers[`${idPrefix}_${v.id}`] === vec.id);
-                                const markerUrl = vec.color === '#ea580c' ? 'url(#arrow-orange)' : 'url(#arrow-blue)';
-                                
-                                return (
-                                    <g key={vec.id}>
-                                        <line 
-                                            x1="0" y1="0" x2={vec.dx} y2={vec.dy} 
-                                            stroke={vec.color} strokeWidth={vec.weight || 3} 
-                                            strokeDasharray={vec.isDashed ? "5,5" : "none"}
-                                            markerEnd={markerUrl}
-                                        />
-                                        <foreignObject x={vec.dx - 18} y={vec.dy - 18} width="36" height="36" className="overflow-visible">
-                                            <div 
-                                                onClick={() => handleZoneClick(vec.id)}
-                                                className={`w-9 h-9 rounded-full border-[3px] flex items-center justify-center cursor-pointer transition-all ${assignedLabels.length > 0 ? 'bg-orange-50 border-orange-500 shadow-lg scale-110' : 'bg-white border-slate-300 hover:border-orange-400 hover:bg-orange-50 hover:scale-110 shadow-sm'}`}
-                                            >
-                                                {assignedLabels.length > 0 ? (
-                                                    <span className="text-[10px] font-black text-orange-700 leading-none pointer-events-none">
-                                                        <Latex text={assignedLabels[0].label} />
-                                                    </span>
-                                                ) : (
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300 pointer-events-none"></div>
-                                                )}
-                                            </div>
-                                        </foreignObject>
-                                        
-                                        {/* Feedback visual si se equivoca */}
-                                        {isSubmitted && Object.entries(expectedMap).some(([k, v]) => v === vec.id && answers[k] !== vec.id) && (
-                                            <foreignObject x={vec.dx + 12} y={vec.dy - 24} width="20" height="20" className="pointer-events-none">
-                                                <div className="bg-white rounded-full p-0.5 shadow-md border border-red-200 animate-bounce">
-                                                    <XCircle size={14} className="text-red-500"/>
-                                                </div>
-                                            </foreignObject>
-                                        )}
-                                    </g>
-                                )
+                            
+                            {/* Dibuja las líneas activas primero para que queden bajo los HTML overlays */}
+                            {nodes.map(n => {
+                                const isActive = answers[`${idPrefix}_${n.dir}`] !== undefined;
+                                if(isActive) return <line key={`l_${n.dir}`} x1="0" y1="0" x2={n.cx} y2={n.cy} stroke="#ea580c" strokeWidth="3" markerEnd={`url(#arr_${idPrefix})`} />;
+                                return null;
                             })}
                         </svg>
+
+                        {/* HTML Overlays para interacciones puras */}
+                        <div className="absolute inset-0">
+                            {nodes.map(n => {
+                                const val = answers[`${idPrefix}_${n.dir}`];
+                                const isActive = val !== undefined;
+                                const isCorrect = isSubmitted && val === expectedMap[n.dir];
+                                const isWrong = isSubmitted && val !== expectedMap[n.dir] && expectedMap[n.dir] !== undefined;
+                                const missed = isSubmitted && !isActive && expectedMap[n.dir] !== undefined;
+
+                                const left = `${(n.cx + 100) / 2}%`;
+                                const top = `${(n.cy + 100) / 2}%`;
+
+                                return (
+                                    <div key={`n_${n.dir}`} className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1" style={{ left, top }}>
+                                        {!isActive ? (
+                                            <button 
+                                                type="button" disabled={isSubmitted} onClick={() => toggleNode(n.dir)} 
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm z-10 ${missed ? 'bg-red-100 border-2 border-red-400 animate-pulse' : 'bg-slate-100 hover:bg-orange-200 border-2 border-white'}`}
+                                            >
+                                                {missed ? <XCircle size={16} className="text-red-500"/> : <div className="w-2 h-2 bg-slate-300 rounded-full"></div>}
+                                            </button>
+                                        ) : (
+                                            <div className="flex flex-col items-center z-30">
+                                                {!isSubmitted && (
+                                                    <button type="button" onClick={() => toggleNode(n.dir)} className="w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full text-white flex items-center justify-center text-xs shadow-md mb-1 cursor-pointer transition-transform hover:scale-110">×</button>
+                                                )}
+                                                <div className={`p-1 rounded-xl bg-white shadow-lg border-2 ${isCorrect ? 'border-emerald-500' : isWrong ? 'border-red-500' : 'border-orange-200'}`}>
+                                                    <InlineSelect id={`${idPrefix}_${n.dir}`} value={val} onChange={onChange} options={options} isSubmitted={isSubmitted} expected={expectedMap[n.dir]} width="w-24 md:w-32" />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
                     </div>
+                    {isSubmitted && <div className="text-xs text-slate-400 font-bold mt-4">Los nodos parpadeantes rojos indican vectores que omitiste dibujar.</div>}
                 </div>
             )
         }
@@ -437,39 +349,9 @@
           );
         };
 
-        const CurveSelector = ({ id, answers, handleInputChange, isSubmitted, expected }) => {
-          const options = [
-            { val: 'inv_sq', svg: <SvgGraphInverseSquare/> },
-            { val: 'linear', svg: <SvgGraphLinear/> },
-            { val: 'constant', svg: <SvgGraphConstant/> }
-          ];
-          const isCorrect = answers[id] === expected;
-          return (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
-              {options.map(opt => {
-                const isSelected = answers[id] === opt.val;
-                let ringClass = "border-slate-200 hover:border-orange-400 bg-white";
-                if (isSelected) ringClass = "border-orange-500 bg-orange-50 ring-2 ring-orange-500/20 shadow-md scale-105 z-10";
-                if (isSubmitted) {
-                  if (opt.val === expected) ringClass = "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/20";
-                  else if (isSelected && !isCorrect) ringClass = "border-red-500 bg-red-50";
-                  else ringClass = "border-slate-200 opacity-40 bg-white";
-                }
-                return (
-                  <button type="button" key={opt.val} disabled={isSubmitted} onClick={() => handleInputChange(id, opt.val)}
-                    className={`p-3 rounded-xl border-2 transition-all flex justify-center items-center ${ringClass} text-slate-600`}
-                  >
-                    {opt.svg}
-                  </button>
-                )
-              })}
-            </div>
-          );
-        }
-
         const MisionBox = ({ title, points, children }) => (
-          <div className="mb-12 rounded-[2rem] border border-slate-300 bg-white shadow-lg relative overflow-hidden">
-            <div className="bg-slate-900 text-white px-8 py-5 flex flex-wrap justify-between items-center border-b-4 border-orange-600 gap-4">
+          <div className="mb-12 rounded-[2rem] border border-slate-300 bg-white shadow-lg relative overflow-visible">
+            <div className="bg-slate-900 text-white px-8 py-5 flex flex-wrap justify-between items-center border-b-4 border-orange-600 gap-4 rounded-t-[calc(2rem-1px)]">
               <h3 className="font-black text-2xl tracking-tight">{title}</h3>
               <span className="text-sm font-black bg-white/10 px-4 py-1.5 rounded-lg text-amber-400 border border-amber-400/30 shadow-inner">Valor: {points} pts</span>
             </div>
@@ -540,94 +422,6 @@
           </svg>
         );
 
-        const SvgEquilibrium = () => (
-          <svg viewBox="-3 -1 6 2" className="w-full h-full max-h-[150px] drop-shadow-md">
-            <line x1="-2.5" y1="0" x2="2.5" y2="0" stroke="#cbd5e1" strokeWidth="0.05" markerEnd="url(#arrow-force)"/>
-            <circle cx="-1.5" cy="0" r="0.2" fill="#ef4444" />
-            <text x="-1.5" y="-0.4" fontSize="0.25" textAnchor="middle" fill="#7f1d1d" fontWeight="bold">+q</text>
-            <circle cx="1.5" cy="0" r="0.2" fill="#ef4444" />
-            <text x="1.5" y="-0.4" fontSize="0.25" textAnchor="middle" fill="#7f1d1d" fontWeight="bold">+q</text>
-            <line x1="-1.5" y1="0.5" x2="1.5" y2="0.5" stroke="#94a3b8" strokeWidth="0.03" strokeDasharray="0.1"/>
-            <text x="0" y="0.8" fontSize="0.2" textAnchor="middle" fill="#64748b" fontWeight="bold">d</text>
-          </svg>
-        );
-
-        const SvgGraphInverseSquare = () => (
-          <svg viewBox="0 0 100 60" className="w-full h-16">
-            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
-            <path d="M 12 5 Q 15 50 90 53" fill="none" stroke="currentColor" strokeWidth="3"/>
-          </svg>
-        );
-        const SvgGraphLinear = () => (
-          <svg viewBox="0 0 100 60" className="w-full h-16">
-            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
-            <path d="M 10 55 L 90 10" fill="none" stroke="currentColor" strokeWidth="3"/>
-          </svg>
-        );
-        const SvgGraphConstant = () => (
-          <svg viewBox="0 0 100 60" className="w-full h-16">
-            <polyline points="10,55 10,5 10,55 95,55" fill="none" stroke="#94a3b8" strokeWidth="2"/>
-            <path d="M 10 25 L 90 25" fill="none" stroke="currentColor" strokeWidth="3"/>
-          </svg>
-        );
-
-        // SVG Scatter Plot for Time vs Score correlation
-        const ScatterPlot = ({ data }) => {
-            // data array of objects { time, score }
-            if (!data || data.length === 0) return <div className="text-slate-400 text-sm">Insuficientes datos para correlación</div>;
-            
-            const maxTime = Math.max(...data.map(d => d.time), 3600); // Base max 1 hour
-            
-            // Map values to SVG coordinates (100x100)
-            const pts = data.map(d => ({
-                cx: (d.time / maxTime) * 90 + 5, // 5 to 95
-                cy: 95 - (d.score / 5.0) * 90,   // Inverted Y
-            }));
-
-            return (
-                <svg viewBox="0 0 100 100" className="w-full h-40 mt-4 overflow-visible">
-                    {/* Axes */}
-                    <line x1="5" y1="95" x2="95" y2="95" stroke="#94a3b8" strokeWidth="0.5"/>
-                    <line x1="5" y1="5" x2="5" y2="95" stroke="#94a3b8" strokeWidth="0.5"/>
-                    <text x="50" y="105" fontSize="4" fill="#64748b" textAnchor="middle">Tiempo (s)</text>
-                    <text x="-50" y="-1" fontSize="4" fill="#64748b" textAnchor="middle" transform="rotate(-90)">Nota</text>
-                    
-                    {/* Points */}
-                    {pts.map((pt, i) => (
-                        <circle key={i} cx={pt.cx} cy={pt.cy} r="1.5" fill="#ea580c" opacity="0.6"/>
-                    ))}
-                </svg>
-            )
-        };
-
-        // Histograma de Frecuencias (Data Science) ajustado a escala 5.0
-        const ScoreHistogram = ({ attempts }) => {
-            const bins = [0, 0, 0, 0]; 
-            attempts.forEach(a => {
-                if (a.score <= 1.5) bins[0]++;
-                else if (a.score <= 3.0) bins[1]++;
-                else if (a.score <= 4.0) bins[2]++;
-                else bins[3]++;
-            });
-            const maxBin = Math.max(...bins, 1);
-
-            return (
-                <div className="flex items-end h-40 gap-4 mt-4">
-                    {bins.map((val, idx) => {
-                        const height = (val / maxBin) * 100;
-                        const labels = ["0.0 - 1.5", "1.6 - 3.0", "3.1 - 4.0", "4.1 - 5.0"];
-                        return (
-                            <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-                                <div className="absolute -top-8 bg-slate-800 text-white px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">{val} entregas</div>
-                                <div className="w-full bg-orange-500 rounded-t-lg transition-all duration-1000 ease-out" style={{ height: `${height}%` }}></div>
-                                <div className="mt-2 text-xs font-bold text-slate-500 text-center leading-tight">{labels[idx]}</div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )
-        };
-
         // --- 6. MAIN APP COMPONENT ---
         export default function App() {
           useKaTeX();
@@ -656,7 +450,7 @@
           const [timeElapsed, setTimeElapsed] = useState(0);
           const [finalTime, setFinalTime] = useState(0);
           const [usedTips, setUsedTips] = useState([]);
-          const [hesitationCount, setHesitationCount] = useState(0); // NUEVO TELEMETRÍA
+          const [hesitationCount, setHesitationCount] = useState(0); 
           
           const [examConfig, setExamConfig] = useState(JSON.stringify({ 
               titulo: "Evaluación: Ley de Coulomb", 
@@ -780,7 +574,6 @@
                   let totalScore = 0; let totalTime = 0; let totalHints = 0; let totalHesitation = 0;
                   let s1 = 0, s2 = 0, s3 = 0;
                   
-                  // Clusters
                   let engaged = 0, struggling = 0, guessing = 0;
 
                   for (const userDoc of dirSnap.docs) {
@@ -801,19 +594,17 @@
                           
                           s1 += data.details?.s1 || (data.score * 0.4); s2 += data.details?.s2 || (data.score * 0.3); s3 += data.details?.s3 || (data.score * 0.3);
                       
-                          // EWS Classification
                           if(data.score >= 3.0) engaged++;
                           else if (data.time < 300) guessing++;
                           else struggling++;
                       });
                   }
 
-                  allAttempts.sort((a,b) => b.score - a.score); // Sorted by score for IRT
+                  allAttempts.sort((a,b) => b.score - a.score); 
                   const count = allAttempts.length || 1;
                   const aScore = totalScore / count; const aTime = totalTime / count;
                   const frustration = count > 0 ? Math.min((aTime / 600) * (1 + totalHints/count) / Math.max(aScore, 0.1), 10).toFixed(1) : 0;
                   
-                  // IRT Calculation
                   const top27Idx = Math.max(1, Math.floor(count * 0.27));
                   const topGroup = allAttempts.slice(0, top27Idx);
                   const botGroup = allAttempts.slice(count - top27Idx);
@@ -838,8 +629,7 @@
                           p2: calcP(s2, 1.85), d2: calcD(topGroup, botGroup, 1.85),
                           p3: calcP(s3, 1.85), d3: calcD(topGroup, botGroup, 1.85),
                       },
-                      clusters: { engaged, struggling, guessing },
-                      scatterData: allAttempts.map(a => ({time: a.time, score: a.score}))
+                      clusters: { engaged, struggling, guessing }
                   });
               } catch(e) { console.error("Error al cargar dashboard:", e); }
           };
@@ -860,7 +650,7 @@
               try {
                   const reviewsRef = collection(db, 'artifacts', appId, 'public', 'data', 'reviews');
                   await addDoc(reviewsRef, { ...survey, userId: user.uid, timestamp: serverTimestamp() });
-              } catch (e) { console.error(e); }
+              } catch (e) { console.error("Error submitting review", e); }
           }
 
           useEffect(() => {
@@ -885,7 +675,6 @@
             setView('exam');
           };
 
-          // Handle input with Telemetry (Hesitation tracking)
           const handleInputChange = (id, val) => {
               if (answers[id] !== undefined && answers[id] !== val) {
                   setHesitationCount(prev => prev + 1);
@@ -893,42 +682,49 @@
               setAnswers(prev => ({ ...prev, [id]: val }));
           };
 
-          // OPCIONES TEORÍA Y SUPERPOSICIÓN ESCAPADAS CORRECTAMENTE
+          // OPCIONES TEORÍA
           const optsTeoria = useMemo(() => [
               {val: 'f_coulomb', label: '$\\vec{F} = k \\frac{q_1 q_2}{r^2} \\hat{r}$'},
               {val: 'cargas_tipos', label: '$\\text{Positiva y Negativa}$'},
-              {val: 'carga_def', label: '$\\text{Propiedad intrínseca de la materia (interacción EM)}$'},
-              {val: 'elec_tipos', label: '$\\text{Frotamiento, Contacto, Inducción}$'},
-              {val: 'dipolo_def', label: '$\\text{Dos cargas de igual magnitud y signo opuesto separadas } d$'}
+              {val: 'carga_def', label: '$\\text{Propiedad de la materia}$'},
+              {val: 'elec_tipos', label: '$\\text{Fricción, Contacto, Inducción}$'},
+              {val: 'dipolo_def', label: '$\\text{Dos cargas de igual mag. y distinto signo}$'}
           ].sort(() => Math.random() - 0.5), []);
           
           const optsProporcionF = [
               {val: 'f_4', label: '$\\vec{F}/4$'}, {val: 'f_2', label: '$\\vec{F}/2$'}, {val: '2f', label: '$2\\vec{F}$'}, {val: '4f', label: '$4\\vec{F}$'}
           ];
           const optsSuperposicion = [
-              {val: 'sup_correcta', label: '$\\text{La fuerza neta es la suma vectorial de las fuerzas individuales}$'},
-              {val: 'sup_incorrecta', label: '$\\text{Las cargas grandes anulan las fuerzas de las pequeñas}$'}
+              {val: 'sup_correcta', label: '$\\text{La fuerza neta es la suma vectorial individual}$'},
+              {val: 'sup_incorrecta', label: '$\\text{Las cargas grandes anulan a las pequeñas}$'}
           ];
           const optsEquilibrio = [
-              {val: 'medio', label: '$\\text{En el punto medio exacto entre las cargas}$'},
-              {val: 'infinito', label: '$\\text{Solamente en el infinito}$'},
-              {val: 'cerca_q1', label: '$\\text{Más cerca de la carga de la izquierda}$'}
+              {val: 'medio', label: '$\\text{Punto medio exacto}$'},
+              {val: 'infinito', label: '$\\text{Solo en infinito}$'},
+              {val: 'cerca_q1', label: '$\\text{Cerca a } q_1$'}
           ];
           const optsConclusionFuerza = [
-              {val: 'ok', label: '$\\text{La repulsión de } q_2 \\text{ domina en x, empujando a } q_3 \\text{ al cuadrante II}$'},
-              {val: 'bad1', label: '$\\text{Todas las fuerzas se anulan y el sistema está en equilibrio}$'},
-              {val: 'bad2', label: '$\\text{La carga } q_3 \\text{ es atraída hacia el origen}$'}
+              {val: 'ok', label: '$\\text{Repulsión de } q_2 \\text{ domina el eje X negativo}$'},
+              {val: 'bad1', label: '$\\text{Las fuerzas se anulan en X}$'},
+              {val: 'bad2', label: '$\\text{La carga } q_3 \\text{ va hacia el origen}$'}
           ];
           const optsConclusionAnillo = [
-              {val: 'ok', label: '$\\text{Las componentes } x,y \\text{ se anulan por simetría, quedando solo campo en } z$'},
-              {val: 'bad', label: '$\\text{El campo total es nulo porque las cargas están opuestas diametralmente}$'}
+              {val: 'ok', label: '$\\text{Componentes Y se anulan, el dipolo domina en X}$'},
+              {val: 'bad', label: '$\\text{Campo total nulo por simetría}$'}
           ];
 
-          // OPCIONES PROCEDIMENTALES MATEMÁTICAS 
-          // Hoja 2
+          // OPCIONES MATEMATICAS (HOJA 2 y 3)
           const optsDist2 = [ {val: '0.75', label: '$0.75$'}, {val: '1.25', label: '$1.25$'}, {val: '2.25', label: '$2.25$'}, {val: '3.25', label: '$3.25$'} ];
-          const optsUnitarios13 = [ {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, {val: 'u3', label: '$\\frac{1.0 \\hat{i} + 0.5 \\hat{j}}{\\sqrt{1.25}}$'} ];
-          const optsUnitarios23 = [ {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, {val: 'u3', label: '$\\frac{-1.0 \\hat{i} - 1.0 \\hat{j}}{\\sqrt{2.00}}$'} ];
+          const optsUnitarios13 = [ 
+            {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, 
+            {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, 
+            {val: 'u3', label: '$\\frac{1.0 \\hat{i} + 0.5 \\hat{j}}{\\sqrt{1.25}}$'} 
+          ];
+          const optsUnitarios23 = [ 
+            {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, 
+            {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, 
+            {val: 'u3', label: '$\\frac{-1.0 \\hat{i} - 1.0 \\hat{j}}{\\sqrt{2.00}}$'} 
+          ];
           
           const optsK = [ {val: 'k', label: '$9 \\times 10^9$'}, {val: 'e0', label: '$8.85 \\times 10^{-12}$'} ];
           const optsQ1Q3 = [ {val: 'q13', label: '$|1.3\\mu\\text{C} \\cdot 2.5\\mu\\text{C}|$'}, {val: 'q23', label: '$|3.2\\mu\\text{C} \\cdot 2.5\\mu\\text{C}|$'} ];
@@ -939,7 +735,6 @@
           const optsSumY = [ {val: '-0.0080', label: '$-0.0080$'}, {val: '0.0080', label: '$0.0080$'}, {val: '0.0331', label: '$0.0331$'}, {val: '-0.0331', label: '$-0.0331$'} ];
           const optsTot = [ {val: '0.0250', label: '$0.0250$'}, {val: '0.0340', label: '$0.0340$'}, {val: '0.0410', label: '$0.0410$'} ];
           
-          // Hoja 3
           const optsDist3 = [ {val: 'R', label: '$R$'}, {val: '2R', label: '$2R$'}, {val: 'R/2', label: '$R/2$'} ];
           const optsBaseE0 = [ {val: '2160', label: '$2160$'}, {val: '4320', label: '$4320$'}, {val: '8640', label: '$8640$'}, {val: '11250', label: '$11250$'} ];
           const optsMagRel = [ {val: 'E_0/2', label: '$E_0/2$'}, {val: 'E_0', label: '$E_0$'}, {val: '2E_0', label: '$2E_0$'} ];
@@ -948,56 +743,44 @@
           const optsTot3 = [ {val: '9742', label: '$9742$'}, {val: '11250', label: '$11250$'}, {val: '14881', label: '$14881$'} ];
 
           // DCL Draw Data (Vectores Reales en el Plano)
-          const dclVectorsP2 = [ {id: 'f1', label: '$\\vec{F}_{13}$'}, {id: 'f2', label: '$\\vec{F}_{23}$'}, {id: 'fnet', label: '$\\vec{F}_{\\text{neta}}$'} ];
-          const dclDrawP2 = [
-              { id: 'v_f13', dx: 25, dy: -50, color: '#3b82f6', weight: 3 },  // NE
-              { id: 'v_f23', dx: -45, dy: -30, color: '#3b82f6', weight: 3 }, // NW
-              { id: 'v_fnet', dx: -20, dy: -80, color: '#ea580c', isDashed: true, weight: 4 } // NW Steeper
-          ];
-          const expectedDCLP2 = { 'f_dcl_f1': 'v_f13', 'f_dcl_f2': 'v_f23', 'f_dcl_fnet': 'v_fnet' };
+          const optsDclF = [ {val: 'f13', label: '$\\vec{F}_{13}$'}, {val: 'f23', label: '$\\vec{F}_{23}$'}, {val: 'fnet', label: '$\\vec{F}_{\\text{neta}}$'}, {val: 'f_err', label: '$\\vec{F}_{g}$'} ];
+          const expectedDCLP2 = { 'NE': 'f13', 'NW': 'f23', 'N': 'fnet' }; // fnet falls naturally near North between NE and NW
 
-          const dclVectorsP3 = [ {id: 'e1', label: '$\\vec{E}_{+q}$'}, {id: 'e2', label: '$\\vec{E}_{+2q}$'}, {id: 'e3', label: '$\\vec{E}_{-2q}$'}, {id: 'enet', label: '$\\vec{E}_{\\text{neto}}$'} ];
-          const dclDrawP3 = [
-              { id: 'v_e3', dx: 45, dy: 0, color: '#3b82f6', weight: 3 }, // E
-              { id: 'v_e1', dx: -30, dy: 50, color: '#3b82f6', weight: 3 }, // SW
-              { id: 'v_e2', dx: -60, dy: -100, color: '#3b82f6', weight: 3 }, // NW
-              { id: 'v_enet', dx: -45, dy: -50, color: '#ea580c', isDashed: true, weight: 4 } // NW
-          ];
-          const expectedDCLP3 = { 'c_dcl_e1': 'v_e1', 'c_dcl_e2': 'v_e2', 'c_dcl_e3': 'v_e3', 'c_dcl_enet': 'v_enet' };
+          const optsDclE = [ {val: 'eq', label: '$\\vec{E}_{+q}$'}, {val: 'e2q', label: '$\\vec{E}_{+2q}$'}, {val: 'em2q', label: '$\\vec{E}_{-2q}$'}, {val: 'enet', label: '$\\vec{E}_{\\text{neto}}$'} ];
+          const expectedDCLP3 = { 'SW': 'eq', 'NW': 'e2q', 'E': 'em2q', 'W': 'enet' }; 
 
           const calculateScore = () => {
             let total = 0;
             let s1=0, s2=0, s3=0;
 
             const check1 = (id, exp, pts) => { if(answers[id] === exp) { s1+=pts; return pts;} return 0; }
-            
-            // Hoja 1: Teoría Ampliada (Max 1.30)
+            // Hoja 1 (1.30 pts)
             check1('t_a', 'f_coulomb', 0.1); check1('t_b', 'cargas_tipos', 0.1); check1('t_c', 'carga_def', 0.1); 
             check1('t_d', 'elec_tipos', 0.1); check1('t_e', 'dipolo_def', 0.1);
             check1('t_prop1', '2f', 0.1); check1('t_prop2', 'f_4', 0.1);
-            check1('t_graphF', 'inv_sq', 0.1); check1('t_graphE', 'inv_sq', 0.1);
             check1('t_sup', 'sup_correcta', 0.2); check1('t_eq', 'medio', 0.2);
+            check1('t_graphF', 'inv_sq', 0.1); check1('t_graphE', 'inv_sq', 0.1);
 
-            // Hoja 2: Fuerza Neta (Max 1.85 -> steps)
+            // Hoja 2: Fuerza Neta (1.85 pts)
             const check2 = (id, exp, pts=0.1) => { if(answers[id] === exp) { s2+=pts; return pts;} return 0; }
-            check2('f_dcl_f1', 'v_f13'); check2('f_dcl_f2', 'v_f23'); check2('f_dcl_fnet', 'v_fnet'); // 0.3
-            check2('f_r1', '1.25'); check2('f_r2', '3.25'); // 0.2
-            check2('f_u1', 'u1'); check2('f_u2', 'u2'); // 0.2
-            check2('f_sub_k', 'k', 0.05); check2('f_sub_q', 'q13', 0.05); check2('f_sub_r', '1.25', 0.05); // 0.15
-            check2('f_f1', '0.0234'); check2('f_f2', '0.0221'); // 0.2
-            check2('f_sumx', '-0.0080', 0.15); check2('f_sumy', '0.0331', 0.15); // 0.3
-            check2('f_mag', '0.0340', 0.2); // 0.2
-            check2('f_concl', 'ok', 0.3); // Conclusión 0.3 -> Total = 1.85
+            check2('f_dcl_NE', 'f13', 0.1); check2('f_dcl_NW', 'f23', 0.1); check2('f_dcl_N', 'fnet', 0.1); // DCL
+            check2('f_r1', '1.25'); check2('f_r2', '3.25'); 
+            check2('f_u1', 'u1'); check2('f_u2', 'u2'); 
+            check2('f_sub_k', 'k', 0.05); check2('f_sub_q', 'q13', 0.05); check2('f_sub_r', '1.25', 0.05); 
+            check2('f_f1', '0.0234'); check2('f_f2', '0.0221'); 
+            check2('f_sumx', '-0.0080', 0.15); check2('f_sumy', '0.0331', 0.15); 
+            check2('f_mag', '0.0340', 0.2); 
+            check2('f_concl', 'ok', 0.3); // Conclusion
 
-            // Hoja 3: Campo Circunferencia (Max 1.85 -> steps)
+            // Hoja 3: Campo Circunferencia (1.85 pts)
             const check3 = (id, exp, pts=0.1) => { if(answers[id] === exp) { s3+=pts; return pts;} return 0; }
-            check3('c_dcl_e1', 'v_e1'); check3('c_dcl_e2', 'v_e2'); check3('c_dcl_e3', 'v_e3'); check3('c_dcl_enet', 'v_enet'); // 0.4
-            check3('c_r1', 'R'); check3('c_r2', 'R'); check3('c_r3', '2R'); // 0.3
-            check3('c_e0', '11250', 0.1); // 0.1
-            check3('c_e1_mag', 'E_0'); check3('c_e2_mag', '2E_0'); check3('c_e3_mag', 'E_0/2'); // 0.3
-            check3('c_sumx', '-11250', 0.1); check3('c_sumy', '9742', 0.1); // 0.2
-            check3('c_mag_tot', '14881', 0.1); // 0.1
-            check3('c_concl', 'ok', 0.35); // Conclusión 0.35 -> Total = 1.85
+            check3('c_dcl_SW', 'eq'); check3('c_dcl_NW', 'e2q'); check3('c_dcl_E', 'em2q'); check3('c_dcl_W', 'enet'); // DCL (4x0.1)
+            check3('c_r1', 'R'); check3('c_r2', 'R'); check3('c_r3', '2R'); 
+            check3('c_e0', '11250'); 
+            check3('c_e1_mag', 'E_0', 0.05); check3('c_e2_mag', '2E_0', 0.05); check3('c_e3_mag', 'E_0/2', 0.05); 
+            check3('c_sumx', '-11250', 0.15); check3('c_sumy', '9742', 0.15); 
+            check3('c_mag_tot', '14881'); 
+            check3('c_concl', 'ok', 0.3);
 
             total = s1 + s2 + s3 - (usedTips.length * 0.05); 
             return { total: Math.max(Math.min(total, 5.0), 0).toFixed(2), details: { s1, s2, s3 } };
@@ -1026,26 +809,25 @@
 
           const formatTime = (sec) => sec != null ? `${Math.floor(sec / 60)}m ${(sec % 60).toString().padStart(2, '0')}s` : '0m 00s';
 
-          // Mensaje Psicológico de Tiempo e Índice de Duda
+          // Mensajes y Perfiles
           let timeMsg = "";
           if (finalTime > 0) {
-              if (finalTime < 180) timeMsg = "Has respondido en un tiempo récord (< 3 min). Tu impulsividad es alta. La ingeniería requiere pausa y análisis metódico.";
-              else if (finalTime > 2400) timeMsg = "Has tomado un tiempo considerable (> 40 min). Esto refleja esfuerzo, pero también indica bloqueos cognitivos en conceptos base. ¡Estudia con cuaderno en mano para ganar agilidad!";
-              else timeMsg = "Tu ritmo de procesamiento temporal es óptimo y metódico. Has interiorizado el esquema procedimental de resolución.";
+              if (finalTime < 180) timeMsg = "Has respondido en tiempo récord (< 3 min). Tu impulsividad es alta. La ingeniería exige pausa y análisis metódico.";
+              else if (finalTime > 2400) timeMsg = "Tomaste más de 40 min. Refleja esfuerzo, pero alerta de bloqueos cognitivos. ¡Escribe los DCL a mano para ganar agilidad!";
+              else timeMsg = "Tu ritmo de procesamiento es óptimo. Has interiorizado el esquema procedimental de 10 pasos.";
           }
           
           let doubtMsg = "";
-          if (hesitationCount > 20) doubtMsg = `El Índice de Duda (Telemetría) registra ${hesitationCount} cambios de decisión antes de enviar. Hay mucha inseguridad en la metacognición.`;
-          else if (hesitationCount > 5) doubtMsg = `Índice de Duda normal (${hesitationCount} rectificaciones). Demuestras capacidad reflexiva y de corrección en vivo.`;
-          else doubtMsg = `Índice de Duda bajo (${hesitationCount}). Eres muy certero(a) en tus decisiones, confías plenamente en tus cálculos.`;
+          if (hesitationCount > 15) doubtMsg = `Telemetría registra ${hesitationCount} cambios de decisión. Hay inseguridad en tus certezas cognitivas.`;
+          else if (hesitationCount > 4) doubtMsg = `Duda normal (${hesitationCount} rectificaciones). Demuestras capacidad reflexiva en vivo.`;
+          else doubtMsg = `Índice de duda mínimo (${hesitationCount}). Confías plenamente en tus cálculos.`;
 
-          // Insignia Dinámica
           let insignia = { title: "", icon: Brain, color: "" };
           const s = parseFloat(score);
-          if (s >= 4.5) insignia = { title: "Maestro Analítico de Coulomb", icon: Award, color: "text-amber-400" };
+          if (s >= 4.5) insignia = { title: "Maestro Analítico", icon: Award, color: "text-amber-400" };
           else if (s >= 3.5) insignia = { title: "Estratega Vectorial", icon: Activity, color: "text-blue-400" };
           else if (s >= 2.5) insignia = { title: "Aprendiz de Faraday", icon: Lightbulb, color: "text-emerald-400" };
-          else insignia = { title: "Iniciado en Electroestática", icon: Target, color: "text-slate-400" };
+          else insignia = { title: "Iniciado Teórico", icon: Target, color: "text-slate-400" };
 
           if (loading) return <div className="flex h-screen items-center justify-center bg-slate-50"><Activity className="animate-pulse text-orange-600" size={48} /></div>;
 
@@ -1093,7 +875,7 @@
                         </div>
                         <h2 className="text-6xl font-black text-slate-900 tracking-tight leading-tight">physics10<span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">.easy</span></h2>
                     </div>
-                    <p className="text-xl text-slate-600 font-medium">Inicia sesión para acceder a tu evaluación. Tu rol se determinará automáticamente de acuerdo a tus credenciales registradas.</p>
+                    <p className="text-xl text-slate-600 font-medium">Inicia sesión para acceder a tu evaluación procedimental de electromagnetismo.</p>
                   </div>
                   
                   <div className="bg-white p-10 rounded-[2.5rem] border-2 border-slate-200 shadow-xl w-full max-w-md relative z-10">
@@ -1145,13 +927,13 @@
                     <button onClick={() => { setRole('teacher'); fetchDashboardData(); setView('dashboard'); }} className="flex flex-col items-center p-10 bg-white rounded-3xl border-2 border-slate-200 shadow-lg hover:shadow-2xl hover:border-blue-500 hover:-translate-y-2 transition-all group">
                       <div className="p-5 bg-blue-50 text-blue-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform shadow-inner"><BarChart3 size={40}/></div>
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-wide mb-2">Data Science</h3>
-                      <p className="text-sm text-slate-500 text-center font-medium">Ver métricas pedagógicas y de rendimiento grupal.</p>
+                      <p className="text-sm text-slate-500 text-center font-medium">Ver métricas pedagógicas y EWS en tiempo real.</p>
                     </button>
 
                     <button onClick={() => { setRole('admin'); setView('admin_panel'); }} className="flex flex-col items-center p-10 bg-white rounded-3xl border-2 border-slate-200 shadow-lg hover:shadow-2xl hover:border-violet-500 hover:-translate-y-2 transition-all group">
                       <div className="p-5 bg-violet-50 text-violet-600 rounded-2xl mb-4 group-hover:scale-110 transition-transform shadow-inner"><Settings size={40}/></div>
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-wide mb-2">Motor JSON</h3>
-                      <p className="text-sm text-slate-500 text-center font-medium">Modificar los parámetros y títulos del examen.</p>
+                      <p className="text-sm text-slate-500 text-center font-medium">Modificar los parámetros y títulos de la plataforma.</p>
                     </button>
                   </div>
                 </div>
@@ -1161,7 +943,7 @@
               {view === 'admin_panel' && role === 'admin' && (
                 <div className="max-w-4xl mx-auto mt-16 p-8 bg-white rounded-3xl shadow-2xl border border-slate-200 animate-in fade-in flex-grow w-full pb-20">
                     <h2 className="text-4xl font-black text-slate-900 mb-2">Configuración del Motor (JSON)</h2>
-                    <p className="text-slate-500 font-bold mb-6 text-lg">Edita la metadata del examen y empuja los cambios a Firestore para actualizar la plataforma de todos los alumnos en tiempo real.</p>
+                    <p className="text-slate-500 font-bold mb-6 text-lg">Edita la metadata del examen y empuja los cambios a Firestore para actualizar la plataforma en tiempo real.</p>
                     
                     <textarea 
                         value={examConfig} 
@@ -1172,7 +954,7 @@
                     <div className="mt-8 flex justify-end items-center gap-6">
                         {configSaved && <span className="text-emerald-600 font-black flex items-center gap-2 text-lg"><CheckCircle2/> ¡Actualizado en Producción!</span>}
                         <button onClick={saveConfig} className="bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest px-10 py-5 rounded-xl shadow-lg transition-all flex items-center gap-3 hover:-translate-y-1">
-                            <Save size={24}/> EMPUJAR A BASE DE DATOS
+                            <Save size={24}/> EMPUJAR A B.D.
                         </button>
                     </div>
                 </div>
@@ -1298,7 +1080,7 @@
                           <button onClick={() => setView('profile')} className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-6 rounded-xl transition-colors">Completar mi Perfil Universitario</button>
                       </div>
                   ) : (
-                      <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">¡Hola {profile.displayName.split(' ')[0]}! Bienvenido a tu prueba procedimental de Electromagnetismo. Esta evaluación exige desarrollo analítico paso a paso. La calificación es sobre 5.0. <strong>Nota vital:</strong> Tu tiempo y uso de asistencias cognitivas serán medidos para determinar tu perfil de aprendizaje mediante telemetría. Ten a mano lápiz, papel y calculadora.</p>
+                      <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">¡Hola {profile.displayName.split(' ')[0]}! Bienvenido a tu prueba procedimental de Electromagnetismo. Esta evaluación exige desarrollo analítico paso a paso. La calificación es sobre 5.0. <strong>Nota vital:</strong> Tu tiempo y telemetría serán medidos para determinar tu perfil cognitivo. Ten a mano lápiz, papel y calculadora.</p>
                   )}
                   
                   <div className="flex flex-wrap items-center justify-center gap-6 mb-12 text-base font-bold text-slate-600">
@@ -1362,30 +1144,13 @@
                                 <span className="text-sm text-red-600 bg-red-100 px-3 py-1 rounded-lg font-bold">[0.10 pts c/u]</span>
                               </div>
 
-                              <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm mb-12 grid grid-cols-1 md:grid-cols-2 gap-10">
-                                  <div className="space-y-8">
-                                      <div>
-                                          <label className="block text-sm font-bold text-slate-700 mb-2">(a) Defina la Ley de Coulomb</label>
-                                          <InlineSelect id="t_a" value={answers.t_a} onChange={handleInputChange} isSubmitted={isSubmitted} expected="f_coulomb" width="w-full" options={optsTeoria} />
-                                      </div>
-                                      <div>
-                                          <label className="block text-sm font-bold text-slate-700 mb-2">(b) ¿Cuáles son los dos tipos de carga eléctrica?</label>
-                                          <InlineSelect id="t_b" value={answers.t_b} onChange={handleInputChange} isSubmitted={isSubmitted} expected="cargas_tipos" width="w-full" options={optsTeoria} />
-                                      </div>
-                                      <div>
-                                          <label className="block text-sm font-bold text-slate-700 mb-2">(c) Defina el concepto de carga eléctrica</label>
-                                          <InlineSelect id="t_c" value={answers.t_c} onChange={handleInputChange} isSubmitted={isSubmitted} expected="carga_def" width="w-full" options={optsTeoria} />
-                                      </div>
-                                  </div>
-                                  <div className="space-y-8">
-                                      <div>
-                                          <label className="block text-sm font-bold text-slate-700 mb-2">(d) Describa los diferentes tipos de electrización</label>
-                                          <InlineSelect id="t_d" value={answers.t_d} onChange={handleInputChange} isSubmitted={isSubmitted} expected="elec_tipos" width="w-full" options={optsTeoria} />
-                                      </div>
-                                      <div>
-                                          <label className="block text-sm font-bold text-slate-700 mb-2">(e) Defina qué es un dipolo eléctrico</label>
-                                          <InlineSelect id="t_e" value={answers.t_e} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dipolo_def" width="w-full" options={optsTeoria} />
-                                      </div>
+                              <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm mb-12 grid grid-cols-1 gap-10 text-lg leading-loose text-slate-700 text-justify">
+                                  <div>
+                                      La <strong>Ley de Coulomb</strong> puede ser expresada como <InlineSelect id="t_a" value={answers.t_a} onChange={handleInputChange} isSubmitted={isSubmitted} expected="f_coulomb" options={optsTeoria} /> y modela la magnitud de la fuerza eléctrica. 
+                                      Existen dos tipos de carga en la naturaleza: <InlineSelect id="t_b" value={answers.t_b} onChange={handleInputChange} isSubmitted={isSubmitted} expected="cargas_tipos" options={optsTeoria} />. 
+                                      Físicamente, la carga se define como <InlineSelect id="t_c" value={answers.t_c} onChange={handleInputChange} isSubmitted={isSubmitted} expected="carga_def" options={optsTeoria} />.
+                                      Los mecanismos principales por los que los cuerpos ganan o pierden esta propiedad son <InlineSelect id="t_d" value={answers.t_d} onChange={handleInputChange} isSubmitted={isSubmitted} expected="elec_tipos" options={optsTeoria} />.
+                                      Cuando analizamos <InlineSelect id="t_e" value={answers.t_e} onChange={handleInputChange} isSubmitted={isSubmitted} expected="dipolo_def" options={optsTeoria} />, nos referimos a un dipolo eléctrico.
                                   </div>
                               </div>
 
@@ -1393,25 +1158,17 @@
                               <div className="bg-orange-50 border-l-4 border-orange-500 p-6 rounded-r-2xl mb-10 flex items-center justify-between">
                                 <div>
                                     <p className="font-black text-orange-900 text-xl mb-2 flex items-center gap-2"><TrendingDown size={24}/> 1.2 Comportamiento Matemático y Superposición</p>
-                                    <p className="text-orange-800 font-medium text-base">Analice el comportamiento de las ecuaciones electrostáticas ante la variación de sus parámetros.</p>
+                                    <p className="text-orange-800 font-medium text-base">Complete el análisis lógico de las ecuaciones electrostáticas.</p>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm mb-12">
-                                  <div className="space-y-6">
-                                      <div>
-                                         <label className="block text-sm font-bold text-slate-700 mb-2">Si la distancia entre dos cargas se duplica, ¿qué ocurre con la magnitud de la fuerza? <span className="text-red-500">[0.10]</span></label>
-                                         <InlineSelect id="t_prop2" value={answers.t_prop2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="f_4" width="w-full" options={optsProporcionF} />
-                                      </div>
-                                      <div>
-                                         <label className="block text-sm font-bold text-slate-700 mb-2">Si la magnitud de una de las cargas se duplica, ¿qué ocurre con la magnitud de la fuerza? <span className="text-red-500">[0.10]</span></label>
-                                         <InlineSelect id="t_prop1" value={answers.t_prop1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="2f" width="w-full" options={optsProporcionF} />
-                                      </div>
-                                      <div>
-                                         <label className="block text-sm font-bold text-slate-700 mb-2">Defina el Principio de Superposición: <span className="text-red-500">[0.20]</span></label>
-                                         <InlineSelect id="t_sup" value={answers.t_sup} onChange={handleInputChange} isSubmitted={isSubmitted} expected="sup_correcta" width="w-full" options={optsSuperposicion} />
-                                      </div>
+                              <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm mb-12">
+                                  <div className="text-lg leading-loose text-slate-700 text-justify mb-8">
+                                     Si la distancia $r$ entre dos cargas interactuantes se duplica ($2r$), la magnitud de la fuerza se convierte en <InlineSelect id="t_prop2" value={answers.t_prop2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="f_4" options={optsProporcionF} />. 
+                                     Si, en cambio, la magnitud de solo una de las cargas se duplica, la fuerza resultará en <InlineSelect id="t_prop1" value={answers.t_prop1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="2f" options={optsProporcionF} />.
+                                     Para sistemas múltiples, el Principio de Superposición nos dicta que <InlineSelect id="t_sup" value={answers.t_sup} onChange={handleInputChange} isSubmitted={isSubmitted} expected="sup_correcta" options={optsSuperposicion} />.
                                   </div>
-                                  <div className="space-y-6 flex flex-col justify-between">
+                                  
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                                       <div>
                                          <label className="block text-sm font-bold text-slate-700 mb-2"><Latex text={"Comportamiento Gráfico Fuerza vs Distancia ($F$ vs $r$)"} /> <span className="text-red-500">[0.10]</span></label>
                                          <CurveSelector id="t_graphF" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="inv_sq" />
@@ -1435,9 +1192,8 @@
                                    <div className="flex items-center justify-center p-4 bg-slate-50 rounded-xl border border-slate-200">
                                        <SvgEquilibrium />
                                    </div>
-                                   <div className="flex flex-col justify-center">
-                                       <label className="block text-sm font-bold text-slate-700 mb-4"><Latex text={"Si tenemos dos cargas puntuales positivas ($+q$) idénticas separadas por una distancia $d$, ¿en qué punto del espacio la fuerza neta sobre una tercera carga de prueba sería exactamente cero?"}/></label>
-                                       <InlineSelect id="t_eq" value={answers.t_eq} onChange={handleInputChange} isSubmitted={isSubmitted} expected="medio" width="w-full" options={optsEquilibrio} />
+                                   <div className="flex flex-col justify-center text-lg leading-loose text-slate-700 text-justify">
+                                       Si tenemos dos cargas puntuales positivas ($+q$) idénticas separadas por una distancia $d$, la fuerza neta sobre una tercera carga de prueba sería exactamente cero en <InlineSelect id="t_eq" value={answers.t_eq} onChange={handleInputChange} isSubmitted={isSubmitted} expected="medio" options={optsEquilibrio} />.
                                    </div>
                               </div>
 
@@ -1475,7 +1231,7 @@
                                   </div>
 
                                   {/* Columna 2: Los 11 Pasos */}
-                                  <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm flex flex-col space-y-6">
+                                  <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm flex flex-col space-y-6 relative overflow-visible">
                                       <h4 className="font-black text-slate-800 text-lg border-b-2 border-slate-100 pb-2">Metodología Procedimental</h4>
                                       
                                       <div className="space-y-4">
@@ -1505,28 +1261,31 @@
                                               </div>
                                           </div>
 
-                                          <div className={`p-4 rounded-xl border step-container ${answers.f_sub_k ? 'step-active' : 'step-pending'}`}>
+                                          <div className={`p-4 rounded-xl border step-container ${answers.f_sub_k ? 'step-active' : 'step-pending'} overflow-visible`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2"><Latex text={"Paso 4: Formulación Vectorial ($\\vec{F}_{13}$)"}/></p>
-                                              <div className="flex flex-wrap items-center justify-center gap-4 bg-white p-6 rounded-xl border-2 border-slate-200 shadow-sm text-lg">
-                                                  <div className="font-black text-2xl text-slate-800"><Latex text={"$\\vec{F}_{13} = $"} /></div>
-                                                  
-                                                  <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-inner">
-                                                      <InlineSelect id="f_sub_k" value={answers.f_sub_k} onChange={handleInputChange} isSubmitted={isSubmitted} expected="k" options={optsK} />
-                                                      <div className="font-black text-2xl text-slate-800"><Latex text={"$ \\cdot $"} /></div>
-                                                      <div className="flex flex-col items-center gap-1.5">
-                                                          <InlineSelect id="f_sub_q" value={answers.f_sub_q} onChange={handleInputChange} isSubmitted={isSubmitted} expected="q13" options={optsQ1Q3} />
-                                                          <div className="w-full border-b-[3px] border-slate-800 rounded-full"></div>
-                                                          <InlineSelect id="f_sub_r" value={answers.f_sub_r} onChange={handleInputChange} isSubmitted={isSubmitted} expected="1.25" options={optsDist2} />
-                                                      </div>
-                                                  </div>
+                                              
+                                              <div className="overflow-x-auto custom-scrollbar w-full py-4">
+                                                <div className="flex flex-nowrap items-center justify-center gap-4 bg-white p-6 rounded-xl border-2 border-slate-200 shadow-sm text-lg min-w-max">
+                                                    <div className="font-black text-2xl text-slate-800"><Latex text={"$\\vec{F}_{13} = $"} /></div>
+                                                    
+                                                    <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-inner">
+                                                        <InlineSelect id="f_sub_k" value={answers.f_sub_k} onChange={handleInputChange} isSubmitted={isSubmitted} expected="k" options={optsK} />
+                                                        <div className="font-black text-2xl text-slate-800"><Latex text={"$ \\cdot $"} /></div>
+                                                        <div className="flex flex-col items-center gap-1.5">
+                                                            <InlineSelect id="f_sub_q" value={answers.f_sub_q} onChange={handleInputChange} isSubmitted={isSubmitted} expected="q13" options={optsQ1Q3} />
+                                                            <div className="w-full border-b-[3px] border-slate-800 rounded-full"></div>
+                                                            <InlineSelect id="f_sub_r" value={answers.f_sub_r} onChange={handleInputChange} isSubmitted={isSubmitted} expected="1.25" options={optsDist2} />
+                                                        </div>
+                                                    </div>
 
-                                                  <div className="font-black text-2xl text-slate-800"><Latex text={"$ \\cdot $"} /></div>
+                                                    <div className="font-black text-2xl text-slate-800"><Latex text={"$ \\cdot $"} /></div>
 
-                                                  <div className="flex flex-col items-center">
-                                                       <div className="bg-blue-50 px-5 py-3 rounded-2xl border-2 border-blue-200 font-bold text-blue-800 shadow-sm">
-                                                          <Latex text={"$\\hat{u}_{13}$"} />
-                                                       </div>
-                                                  </div>
+                                                    <div className="flex flex-col items-center">
+                                                         <div className="bg-blue-50 px-5 py-3 rounded-2xl border-2 border-blue-200 font-bold text-blue-800 shadow-sm">
+                                                            <Latex text={"$\\hat{u}_{13}$"} />
+                                                         </div>
+                                                    </div>
+                                                </div>
                                               </div>
                                           </div>
 
@@ -1563,14 +1322,15 @@
                                               </div>
                                           </div>
 
-                                          {/* NEW CONCLUSION STEP */}
+                                          {/* CONCLUSION STEP */}
                                           <div className={`p-4 rounded-xl border step-container ${answers.f_concl ? 'step-active' : 'step-pending'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 11: Conclusión Física</p>
-                                              <div>
-                                                  <label className="text-sm font-bold text-slate-700 block mb-2">Análisis del resultado vectorial obtenido:</label>
-                                                  <InlineSelect id="f_concl" value={answers.f_concl} onChange={handleInputChange} isSubmitted={isSubmitted} expected="ok" width="w-full" options={optsConclusionFuerza} />
+                                              <div className="text-lg leading-loose text-slate-700 text-justify">
+                                                  En resumen, observamos que <InlineSelect id="f_concl" value={answers.f_concl} onChange={handleInputChange} isSubmitted={isSubmitted} expected="ok" options={optsConclusionFuerza} />.
                                               </div>
                                           </div>
+                                          
+                                          <div className="h-48 w-full pointer-events-none"></div> {/* Spacer to allow scrolling when dropdown is open */}
                                       </div>
                                   </div>
                               </div>
@@ -1656,14 +1416,15 @@
                                               </div>
                                           </div>
 
-                                          {/* NEW CONCLUSION STEP */}
+                                          {/* CONCLUSION STEP */}
                                           <div className={`p-4 rounded-xl border step-container ${answers.c_concl ? 'step-active' : 'step-pending'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 9: Análisis de Simetría y Conclusión</p>
-                                              <div>
-                                                  <label className="text-sm font-bold text-slate-700 block mb-2">¿Por qué el vector neto tiene esta dirección y magnitud?</label>
-                                                  <InlineSelect id="c_concl" value={answers.c_concl} onChange={handleInputChange} isSubmitted={isSubmitted} expected="ok" width="w-full" options={optsConclusionAnillo} />
+                                              <div className="text-lg leading-loose text-slate-700 text-justify">
+                                                  El resultado del vector neto en el espacio indica que <InlineSelect id="c_concl" value={answers.c_concl} onChange={handleInputChange} isSubmitted={isSubmitted} expected="ok" options={optsConclusionAnillo} />.
                                               </div>
                                           </div>
+                                          
+                                          <div className="h-48 w-full pointer-events-none"></div> {/* Spacer to allow scrolling when dropdown is open */}
                                       </div>
                                   </div>
                               </div>
@@ -1960,16 +1721,6 @@
                           </div>
                       </div>
 
-                      <div className="bg-slate-900 p-6 rounded-2xl shadow-inner text-white flex-grow flex flex-col justify-between">
-                          <h4 className="font-black text-blue-400 text-sm uppercase tracking-widest mb-2">Correlación: Tiempo vs. Nota</h4>
-                          <div className="w-full">
-                              {metrics.scatterData && metrics.scatterData.length > 0 ? (
-                                  <ScatterPlot data={metrics.scatterData} />
-                              ) : (
-                                  <div className="h-40 flex items-center justify-center text-slate-500 text-sm font-bold">Esperando recolección de datos...</div>
-                              )}
-                          </div>
-                      </div>
                   </div>
 
               </div>
