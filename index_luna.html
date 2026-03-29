@@ -3,15 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LexQuest: Simulador de Procesos Disciplinarios</title>
+    <title>LexQuest: Procesos Disciplinarios Laborales</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- KaTeX para Fórmulas Matemáticas/Lógicas -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
 
     <!-- Importmap para React, Lucide, Recharts y Firebase -->
     <script type="importmap">
@@ -40,7 +35,6 @@
         @keyframes pulse-ring { 0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 
                                 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 
                                 100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
-        .katex { font-size: 1.1em !important; }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
@@ -52,9 +46,9 @@
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect, useRef, useMemo } from 'react';
+        import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Scale, BrainCircuit, ShieldAlert, CheckCircle, XCircle, HelpCircle, Lock, LayoutDashboard, ChevronRight, Play, AlertTriangle, TrendingUp, Activity, FileText, Copy, Star, Users } from 'lucide-react';
+        import { Scale, BrainCircuit, ShieldAlert, CheckCircle, XCircle, HelpCircle, Lock, LayoutDashboard, ChevronRight, AlertTriangle, TrendingUp, Activity, Copy, Star, Users, Briefcase, FileSignature, Info } from 'lucide-react';
         import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ScatterChart, Scatter, ResponsiveContainer } from 'recharts';
         
         // --- FIREBASE INIT ---
@@ -77,158 +71,136 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        const APP_ID = 'lexquest-disciplinario';
+        const APP_ID = 'lexquest-disciplinario-v2';
         const COLLECTION_PATH = `artifacts/${APP_ID}/public/data/telemetry`;
+        const USERS_PATH = `artifacts/${APP_ID}/public/data/users`;
 
-        // --- BANCO DE PREGUNTAS COMPLETO ---
+        // --- BANCO DE PREGUNTAS (ESPECIALIZADO EN PROCESOS DISCIPLINARIOS) ---
         const QUESTION_BANK = [
             {
-                id: "q1_reading",
+                id: "q1_concepto",
                 type: "adaptive_radio",
                 level: 1,
                 difficulty: 0.3,
-                expectedTime: 60,
-                title: "Análisis Crítico de Jurisprudencia",
-                context: "El funcionario X, supervisor de contratos, omitió verificar las pólizas de garantía de una obra. La obra quedó inconclusa y el contratista huyó. El defensor del funcionario alega que 'no hubo dolo, solo un descuido menor'.",
-                question: "Según el Código General Disciplinario, ¿cómo se clasifica esta conducta y por qué?",
+                expectedTime: 45,
+                title: "¿Qué es un proceso disciplinario?",
+                context: "En el entorno laboral, las empresas tienen la facultad de sancionar a sus empleados, pero no de manera arbitraria.",
+                question: "Define correctamente la naturaleza jurídica de un proceso disciplinario laboral:",
                 options: [
-                    { id: "A", text: "Falta leve, porque no hubo intención (dolo) de dañar al Estado.", isCorrect: false, feedback: "Error. La omisión de deberes de control en contratación estatal suele configurar culpas graves o gravísimas." },
-                    { id: "B", text: "Falta gravísima a título de culpa gravísima, por ignorancia supina o desatención elemental en deberes contractuales.", isCorrect: true, feedback: "¡Correcto! La desatención elemental en funciones esenciales de supervisión constituye culpa gravísima." },
-                    { id: "C", text: "Falta grave, sancionable con suspensión, porque el dolo es requisito para la destitución.", isCorrect: false, feedback: "El dolo no es el único camino a la destitución; la culpa gravísima también puede serlo en faltas gravísimas." }
+                    { id: "A", text: "Es un castigo automático que el empleador aplica inmediatamente al notar una falla.", isCorrect: false, feedback: "Incorrecto. Los castigos automáticos violan el derecho a la defensa." },
+                    { id: "B", text: "Es un procedimiento estructurado para investigar presuntas faltas y sancionarlas, garantizando siempre el debido proceso y la defensa del trabajador.", isCorrect: true, feedback: "¡Correcto! Es un mecanismo que equilibra el poder de subordinación con los derechos del empleado." },
+                    { id: "C", text: "Es una etapa obligatoria antes de negociar la renuncia de un empleado.", isCorrect: false, feedback: "Incorrecto. Su fin no es coaccionar la renuncia, sino investigar hechos." }
                 ],
-                tip: "Recuerda los grados de culpabilidad: Dolo, Culpa Gravísima (ignorancia supina) y Culpa Grave."
+                tip: "La clave está en los derechos constitucionales. Nadie puede ser juzgado sin ser escuchado."
             },
             {
-                id: "q2_dragdrop",
-                type: "sequence_sorter",
+                id: "q2_fundamentos",
+                type: "adaptive_radio",
                 level: 2,
-                difficulty: 0.5,
-                expectedTime: 90,
-                title: "Arquitectura del Proceso Disciplinario",
-                context: "Reconstruye la línea de tiempo procesal correcta, garantizando el debido proceso (Artículo 29 Constitución).",
-                question: "Arrastra y ordena las etapas procesales desde el conocimiento del hecho hasta el fallo.",
-                items: [
-                    { id: "step1", content: "Indagación Previa (Opcional)" },
-                    { id: "step2", content: "Apertura de Investigación Disciplinaria" },
-                    { id: "step3", content: "Formulación de Pliego de Cargos" },
-                    { id: "step4", content: "Presentación de Descargos y Pruebas" },
-                    { id: "step5", content: "Fallo de Primera Instancia" }
+                difficulty: 0.4,
+                expectedTime: 50,
+                title: "Fundamentos del Proceso",
+                context: "Un supervisor decide suspender a un empleado porque 'le cae mal' y sospecha que no está trabajando bien.",
+                question: "¿Cuáles son los únicos fundamentos válidos en los que se basa un empleador para iniciar un proceso disciplinario?",
+                options: [
+                    { id: "A", text: "Las sospechas del supervisor directo y el clima laboral.", isCorrect: false, feedback: "La subjetividad no es un fundamento jurídico válido." },
+                    { id: "B", text: "Las reglas establecidas exclusivamente en el contrato verbal.", isCorrect: false, feedback: "Incompleto. Se requieren documentos formales que tipifiquen las faltas." },
+                    { id: "C", text: "El Código Sustantivo del Trabajo, el Contrato de Trabajo y el Reglamento Interno de Trabajo.", isCorrect: true, feedback: "¡Exacto! El principio de legalidad exige que las faltas estén previamente escritas en estos documentos." }
                 ],
-                tip: "Nadie puede ser juzgado sin antes ser escuchado. ¿Dónde irían los descargos?"
+                tip: "Principio de Legalidad: No hay sanción sin ley (o reglamento) previa."
             },
             {
-                id: "q3_video",
-                type: "interactive_video",
+                id: "q3_secuencia",
+                type: "sequence_sorter",
                 level: 3,
                 difficulty: 0.6,
-                expectedTime: 120,
-                title: "Audiencia de Pruebas: Objeciones",
-                videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
-                pauseAt: 5,
-                context: "Estás observando una audiencia disciplinaria simulada. Presta atención al minuto exacto donde se detiene el video.",
-                question: "En este momento procesal, el investigador rechaza una prueba testimonial por 'inconducente'. ¿Qué recurso procede inmediatamente en audiencia?",
-                options: [
-                    { id: "A", text: "Recurso de Apelación en el efecto suspensivo.", isCorrect: false, feedback: "No. En audiencias verbales las dinámicas recursivas son más ágiles." },
-                    { id: "B", text: "Recurso de Reposición y en subsidio Apelación, interpuesto verbalmente de inmediato.", isCorrect: true, feedback: "¡Exacto! Las decisiones en audiencia se recurren de manera verbal e inmediata." },
-                    { id: "C", text: "Acción de Tutela por violación al debido proceso.", isCorrect: false, feedback: "La tutela es subsidiaria, primero deben agotarse los recursos ordinarios (reposición/apelación)." }
+                expectedTime: 90,
+                title: "Análisis del Proceso (Pasos)",
+                context: "Eres el encargado de Recursos Humanos. Ha llegado el reporte de una falta grave.",
+                question: "Arrastra y ordena cronológicamente los pasos obligatorios para ejecutar un proceso disciplinario legal.",
+                items: [
+                    { id: "s1", content: "Recepción de informe, queja o hallazgo." },
+                    { id: "s2", content: "Citación formal a diligencia de descargos." },
+                    { id: "s3", content: "Diligencia de descargos (escuchar al empleado)." },
+                    { id: "s4", content: "Evaluación de pruebas y descargos." },
+                    { id: "s5", content: "Notificación de la decisión (Sanción o Archivo)." }
                 ],
-                tip: "Las decisiones orales en audiencia requieren impugnaciones orales en el mismo acto."
+                tip: "Primero te enteras, luego llamas, luego escuchas, luego piensas, y al final decides."
             },
             {
-                id: "q4_hotspot",
+                id: "q4_sanciones",
                 type: "image_hotspot",
                 level: 4,
                 difficulty: 0.7,
-                expectedTime: 80,
-                title: "Auditoría Forense: Nulidades",
+                expectedTime: 70,
+                title: "Auditoría de Sanciones",
                 imageUrl: "https://images.unsplash.com/photo-1555374018-1c4fa4782202?auto=format&fit=crop&q=80&w=800",
-                context: "Se ha emitido este Auto de Formulación de Cargos. Si contiene un error sustancial que viole el derecho a la defensa, el proceso es nulo.",
-                question: "Haz clic en la 'zona' del documento que representa una violación flagrante al debido proceso.",
+                context: "Revisando el Reglamento Interno de una empresa, encuentras la tabla de sanciones.",
+                question: "Haz clic en la sanción que es ILEGAL según la ley laboral estándar (desproporcionada para una primera falta leve).",
                 hotspots: [
-                    { id: "h1", x: 20, y: 30, isCorrect: false, text: "Fecha del auto (Correcta)" },
-                    { id: "h2", x: 60, y: 70, isCorrect: true, text: "Falta de notificación personal al investigado." },
-                    { id: "h3", x: 80, y: 10, isCorrect: false, text: "Firma del sustanciador (Válida)" }
+                    { id: "h1", x: 25, y: 35, isCorrect: false, text: "Llamado de atención verbal con copia a la hoja de vida." },
+                    { id: "h2", x: 65, y: 70, isCorrect: true, text: "Suspensión del contrato por 45 días en la primera llegada tarde." },
+                    { id: "h3", x: 75, y: 15, isCorrect: false, text: "Multa equivalente a la 5ta parte de un día por retraso." }
                 ],
-                tip: "¿Cómo se entera materialmente una persona de que el Estado formuló cargos en su contra?"
+                tip: "Las leyes laborales prohíben suspensiones mayores a 8 días por la primera vez que se comete una falta."
             },
             {
-                id: "q5_math",
-                type: "math_input",
+                id: "q5_hojavida",
+                type: "adaptive_radio",
                 level: 5,
-                difficulty: 0.8,
-                expectedTime: 100,
-                title: "Cálculo de Prescripción Disciplinaria",
-                context: "La acción disciplinaria prescribe en un término de 5 años contados a partir de la consumación de la falta. Ocurre un hecho el 15 de Mayo de 2018.",
-                question: "Formula la ecuación lógica para calcular si prescribió antes de la apertura (Ocurrida el 20 de Mayo de 2023). Usa $T_f$ (Tiempo final) y $T_i$ (Tiempo inicial).",
+                difficulty: 0.5,
+                expectedTime: 40,
+                title: "Impacto en la Hoja de Vida",
+                context: "Juan fue sancionado con 2 días de suspensión. Está preocupado por su futuro laboral al buscar trabajo en otra empresa.",
+                question: "¿Los procesos disciplinarios quedan registrados en la hoja de vida pública del trabajador?",
                 options: [
-                    { id: "A", formula: "T_f - T_i < 5", text: "T_f - T_i < 5", isCorrect: false },
-                    { id: "B", formula: "T_f - T_i > 5", text: "T_f - T_i > 5", isCorrect: true },
-                    { id: "C", formula: "\\sum (T_f, T_i) = 5", text: "\\sum (T_f, T_i) = 5", isCorrect: false }
+                    { id: "A", text: "Sí, aparecen como antecedentes penales y disciplinarios públicos.", isCorrect: false, feedback: "Falso. Los procesos de empresas privadas no son antecedentes públicos del Estado." },
+                    { id: "B", text: "No, pero quedan consignados en el expediente laboral interno de la empresa que lo sancionó.", isCorrect: true, feedback: "¡Correcto! Es un registro interno de la compañía, no un antecedente público." },
+                    { id: "C", text: "No, las sanciones se borran automáticamente a los 30 días.", isCorrect: false, feedback: "Incorrecto. Permanecen en el expediente interno como historial del trabajador." }
                 ],
-                tip: "Si la diferencia de años entre la ocurrencia y la actuación es mayor a 5 años, el Estado pierde competencia."
+                tip: "El sector privado maneja expedientes internos, no bases de datos nacionales públicas."
             },
             {
-                id: "q6_cloze",
-                type: "cloze_code",
+                id: "q6_terminacion",
+                type: "adaptive_radio",
                 level: 6,
-                difficulty: 0.9,
-                expectedTime: 150,
-                title: "Algoritmo de Tipicidad",
-                context: "Completa el pseudo-código que determina la sanción aplicable combinando la calificación de la falta y la culpabilidad.",
-                question: "Rellena los espacios vacíos para completar la estructura lógica.",
-                codeTemplate: `function determinarSancion(falta, culpabilidad) {
-    if (falta === "GRAVISIMA" && culpabilidad === "[HUECO_1]") {
-        return "Destitución e Inhabilidad General";
-    } else if (falta === "GRAVE" && culpabilidad === "CULPOSA") {
-        return "[HUECO_2]";
-    }
-    return "Revisar atenuantes";
-}`,
-                blanks: [
-                    { id: "HUECO_1", answer: "DOLO", options: ["DOLO", "CULPA LEVE", "CASO FORTUITO"] },
-                    { id: "HUECO_2", answer: "Suspensión", options: ["Amonestación", "Suspensión", "Multa"] }
+                difficulty: 0.8,
+                expectedTime: 60,
+                title: "El Límite: Terminación del Contrato",
+                context: "María cree que la empresa debe hacerle 3 llamados de atención escritos antes de poder despedirla por justa causa.",
+                question: "¿Después de cuántos procesos disciplinarios el empleador puede terminar el contrato?",
+                options: [
+                    { id: "A", text: "Obligatoriamente después de 3 llamados de atención documentados (Ley de los 3 strikes).", isCorrect: false, feedback: "Mito común. La ley laboral no exige un número exacto de faltas previas." },
+                    { id: "B", text: "Depende de la gravedad: Una sola falta calificada como 'grave' en el reglamento puede ser suficiente para el despido.", isCorrect: true, feedback: "¡Correcto! No es un tema de cantidad, sino de la gravedad tipificada de la falta." },
+                    { id: "C", text: "Después de que el empleado acumula 15 días de suspensión en un año.", isCorrect: false, feedback: "No existe tal regla en la jurisprudencia estándar." }
                 ],
-                tip: "La máxima sanción (Destitución) exige la máxima gravedad y la máxima intención."
+                tip: "Robar a la empresa o agredir a un compañero es una falta gravísima que no requiere 'avisos previos'."
             }
         ];
-
-        // --- RENDERIZADO MATEMÁTICO (KaTeX) ---
-        const MathRenderer = ({ math, block = false }) => {
-            const containerRef = useRef(null);
-            useEffect(() => {
-                if (containerRef.current) {
-                    try { window.katex.render(math, containerRef.current, { displayMode: block, throwOnError: false }); } 
-                    catch (e) { console.error(e); }
-                }
-            }, [math, block]);
-            return <span ref={containerRef} />;
-        };
-
-        const renderLatex = () => {
-             if(window.renderMathInElement) {
-                 window.renderMathInElement(document.body, {
-                     delimiters: [ {left: "$$", right: "$$", display: true}, {left: "$", right: "$", display: false} ]
-                 });
-             }
-        };
 
         // --- COMPONENTE PRINCIPAL APP ---
         const App = () => {
             const [user, setUser] = useState(null);
-            const [view, setView] = useState('login'); // login, intro, assessment, results, dashboard
-            const [studentInfo, setStudentInfo] = useState({ name: '', email: '' });
+            const [view, setView] = useState('loading'); // loading, login, profile, intro, assessment, results, dashboard
+            const [studentInfo, setStudentInfo] = useState({ name: '', email: '', role: '', experience: '' });
             const [currentQIndex, setCurrentQIndex] = useState(0);
             const [score, setScore] = useState(0);
             const [logs, setLogs] = useState([]);
             const [authError, setAuthError] = useState(null);
             const [sessionData, setSessionData] = useState({ startTime: null, currentQStartTime: null, tipsUsed: 0 });
             const [feedback, setFeedback] = useState(null);
-            const [satisfaction, setSatisfaction] = useState(0); // Estado para la encuesta de satisfacción
+            const [satisfaction, setSatisfaction] = useState(0);
             
             const currentQ = QUESTION_BANK[currentQIndex];
 
-            // 1. Inicialización y Autenticación Resiliente
+            // 1. AUTO-LOGIN Y AUTENTICACIÓN
             useEffect(() => {
+                // Recuperar info local para auto-login
+                const savedProfile = localStorage.getItem('lexQuest_userProfile');
+                if (savedProfile) {
+                    setStudentInfo(JSON.parse(savedProfile));
+                }
+
                 const initAuth = async () => {
                     try {
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -237,10 +209,24 @@
                         } else {
                             await signInAnonymously(auth).catch(() => {});
                         }
-                    } catch (err) { console.warn("Modo identificación visual activo."); }
+                    } catch (err) { console.warn("Modo fallback activo."); }
                 };
                 initAuth();
-                const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u || { uid: 'guest_user' }));
+
+                const unsubscribe = onAuthStateChanged(auth, (u) => {
+                    if (savedProfile) {
+                        setUser(u || { uid: 'local_user' });
+                        // Si ya tiene rol, pasamos directo al intro
+                        if (JSON.parse(savedProfile).role) {
+                            setView('intro');
+                        } else {
+                            setView('profile');
+                        }
+                    } else {
+                        setUser(u || { uid: 'guest_user' });
+                        setView('login');
+                    }
+                });
                 return () => unsubscribe();
             }, []);
 
@@ -249,32 +235,38 @@
                 const qRef = collection(db, COLLECTION_PATH);
                 const unsubscribe = onSnapshot(qRef, (snap) => {
                     setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                }, (err) => console.warn("Aviso de lectura Firestore (Local):", err.message));
+                }, (err) => console.warn("Telemetría en modo memoria temporal."));
                 return () => unsubscribe();
             }, []);
 
-            // Aplicar renderizado LaTeX al cambiar de vista o pregunta
-            useEffect(() => { setTimeout(renderLatex, 100); }, [view, currentQIndex]);
-
             // --- MANEJADORES DE EVENTOS ---
+            const handleManualLogin = () => {
+                localStorage.setItem('lexQuest_userProfile', JSON.stringify(studentInfo));
+                setView('profile');
+            };
 
             const handleGoogleLogin = async () => {
                 setAuthError(null);
                 const provider = new GoogleAuthProvider();
                 try {
                     const result = await signInWithPopup(auth, provider);
-                    setStudentInfo({ name: result.user.displayName, email: result.user.email });
+                    const newInfo = { ...studentInfo, name: result.user.displayName, email: result.user.email };
+                    setStudentInfo(newInfo);
+                    localStorage.setItem('lexQuest_userProfile', JSON.stringify(newInfo));
                     setUser(result.user);
-                    setView('intro');
+                    setView('profile');
                 } catch (error) {
                     if (error.code === 'auth/unauthorized-domain') {
-                        setAuthError(`DOMINIO NO AUTORIZADO: Agrega "${window.location.hostname}" en Firebase > Auth > Configuración > Dominios autorizados.`);
-                    } else if (error.code === 'auth/operation-not-allowed') {
-                        setAuthError("GOOGLE NO ACTIVADO: Ve a Firebase Console > Authentication > Sign-in method y ACTIVA el proveedor Google con un correo de soporte.");
+                        setAuthError(`DOMINIO NO AUTORIZADO: Copia el dominio actual y autorízalo en Firebase.`);
                     } else if (error.code !== 'auth/popup-closed-by-user') {
-                        setAuthError(`Error: ${error.message}. Usa el registro manual abajo.`);
+                        setAuthError(`Error: ${error.message}. Usa el registro manual.`);
                     }
                 }
+            };
+
+            const saveProfile = () => {
+                localStorage.setItem('lexQuest_userProfile', JSON.stringify(studentInfo));
+                setView('intro');
             };
 
             const submitAnswer = async (isCorrect, usedTip = false) => {
@@ -286,7 +278,7 @@
 
                 const logEntry = {
                     studentName: studentInfo.name || 'Anónimo',
-                    studentEmail: studentInfo.email || 'N/A',
+                    studentRole: studentInfo.role || 'N/A',
                     questionId: currentQ.id,
                     isCorrect,
                     timeSpent,
@@ -297,7 +289,7 @@
                     timestamp: serverTimestamp()
                 };
 
-                try { await addDoc(collection(db, COLLECTION_PATH), logEntry); } catch (e) { console.warn("Guardado solo local."); }
+                try { await addDoc(collection(db, COLLECTION_PATH), logEntry); } catch (e) { console.warn("Guardado local."); }
 
                 setScore(prev => prev + finalPoints);
                 setSessionData(prev => ({ ...prev, tipsUsed: prev.tipsUsed + (usedTip ? 1 : 0) }));
@@ -310,10 +302,16 @@
                     } else { 
                         setView('results'); 
                     }
-                }, 3000); // 3 segundos para leer el feedback
+                }, 3000);
             };
 
             const adminBypass = () => setView('dashboard');
+            const logout = () => {
+                localStorage.removeItem('lexQuest_userProfile');
+                setStudentInfo({ name: '', email: '', role: '', experience: '' });
+                auth.signOut();
+                setView('login');
+            };
 
             // --- COMPONENTES INTERACTIVOS DE EVALUACIÓN ---
 
@@ -337,20 +335,23 @@
                 return (
                     <div className="space-y-4">
                         <p className="text-slate-300 italic mb-4 p-4 border-l-4 border-blue-500 bg-slate-800/50">{currentQ.context}</p>
-                        <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
+                        <h3 className="text-xl font-semibold mb-4 text-white">{currentQ.question}</h3>
                         <div className="space-y-3">
                             {currentQ.options.map(opt => (
                                 <div key={opt.id} onClick={() => !feedback && setSelected(opt.id)}
-                                     className={`p-4 rounded-lg border cursor-pointer transition-all ${selected === opt.id ? 'border-blue-400 bg-blue-900/30' : 'border-slate-600 bg-slate-800 hover:bg-slate-700'} ${feedback ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                    <span className="font-bold mr-3 text-blue-400">{opt.id}.</span> {opt.text}
+                                     className={`p-4 rounded-lg border cursor-pointer transition-all flex items-start ${selected === opt.id ? 'border-blue-400 bg-blue-900/30' : 'border-slate-600 bg-slate-800 hover:bg-slate-700'} ${feedback ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    <div className={`w-6 h-6 rounded-full border-2 mr-4 flex-shrink-0 flex items-center justify-center ${selected === opt.id ? 'border-blue-400' : 'border-slate-500'}`}>
+                                        {selected === opt.id && <div className="w-3 h-3 bg-blue-400 rounded-full"></div>}
+                                    </div>
+                                    <span className="text-slate-200 leading-relaxed">{opt.text}</span>
                                 </div>
                             ))}
                         </div>
-                        <div className="flex justify-between items-center mt-6">
+                        <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
                             {!tipRevealed ? (
-                                <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Usar Pista (-15 pts)</button>
-                            ) : (<p className="text-sm text-yellow-400 bg-yellow-900/20 p-2 rounded">{currentQ.tip}</p>)}
-                            <button onClick={handleCheck} disabled={!selected || feedback} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold disabled:opacity-50">Validar Análisis</button>
+                                <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Usar Pista Jurídica (-15 pts)</button>
+                            ) : (<p className="text-sm text-yellow-400 bg-yellow-900/20 p-3 rounded-lg border border-yellow-700/50 flex items-center"><Info className="w-5 h-5 mr-2 flex-shrink-0"/> {currentQ.tip}</p>)}
+                            <button onClick={handleCheck} disabled={!selected || feedback} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold disabled:opacity-50 transition-colors shadow-lg">Validar Análisis</button>
                         </div>
                     </div>
                 );
@@ -367,71 +368,28 @@
                 };
                 const handleCheck = () => {
                     const isCorrect = items.every((item, idx) => item.id === currentQ.items[idx].id);
-                    setFeedback({ isCorrect, text: isCorrect ? "Secuencia procesal perfecta." : "Violación al debido proceso." });
+                    setFeedback({ isCorrect, text: isCorrect ? "Secuencia procesal garantista perfecta." : "Violación al debido proceso. Revisar el orden." });
                     submitAnswer(isCorrect, tipRevealed);
                 };
                 return (
                     <div className="space-y-4">
-                        <p className="text-slate-300 mb-4">{currentQ.context}</p>
-                        <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
-                        <div className="space-y-2 bg-slate-800/50 p-4 rounded-xl">
+                        <p className="text-slate-300 mb-4 bg-slate-800/50 p-4 border-l-4 border-indigo-500 italic">{currentQ.context}</p>
+                        <h3 className="text-xl font-semibold mb-4 text-white">{currentQ.question}</h3>
+                        <div className="space-y-3 bg-slate-900/50 p-5 rounded-xl border border-slate-700">
                             {items.map((item, idx) => (
-                                <div key={item.id} className="flex items-center justify-between p-3 bg-slate-700 rounded border border-slate-600">
-                                    <span className="font-medium">{item.content}</span>
+                                <div key={item.id} className="flex items-center p-3 bg-slate-800 rounded-lg border border-slate-600 shadow-sm">
+                                    <div className="font-bold text-slate-500 mr-4 w-6 text-center">{idx + 1}</div>
+                                    <span className="font-medium flex-grow text-slate-200">{item.content}</span>
                                     <div className="flex space-x-2">
-                                        <button onClick={() => moveItem(idx, -1)} disabled={idx === 0 || feedback} className="p-1 hover:bg-slate-600 rounded disabled:opacity-30">▲</button>
-                                        <button onClick={() => moveItem(idx, 1)} disabled={idx === items.length - 1 || feedback} className="p-1 hover:bg-slate-600 rounded disabled:opacity-30">▼</button>
+                                        <button onClick={() => moveItem(idx, -1)} disabled={idx === 0 || feedback} className="p-2 bg-slate-700 hover:bg-slate-600 rounded disabled:opacity-30 transition-colors">▲</button>
+                                        <button onClick={() => moveItem(idx, 1)} disabled={idx === items.length - 1 || feedback} className="p-2 bg-slate-700 hover:bg-slate-600 rounded disabled:opacity-30 transition-colors">▼</button>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                        <div className="flex justify-between items-center mt-6">
-                             {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Pista (-15 pts)</button> : <p className="text-sm text-yellow-400">{currentQ.tip}</p>}
-                            <button onClick={handleCheck} disabled={feedback} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-semibold disabled:opacity-50">Sellar Expediente</button>
-                        </div>
-                    </div>
-                );
-            };
-
-            const InteractiveVideo = () => {
-                const videoRef = useRef(null);
-                const [showQuestion, setShowQuestion] = useState(false);
-                const [selected, setSelected] = useState(null);
-                const [tipRevealed, setTipRevealed] = useState(false);
-                const handleTimeUpdate = () => {
-                    if (videoRef.current && videoRef.current.currentTime >= currentQ.pauseAt && !showQuestion && !feedback) {
-                        videoRef.current.pause();
-                        setShowQuestion(true);
-                    }
-                };
-                const handleCheck = () => {
-                    const option = currentQ.options.find(o => o.id === selected);
-                    setFeedback({ isCorrect: option.isCorrect, text: option.feedback });
-                    submitAnswer(option.isCorrect, tipRevealed);
-                };
-                return (
-                    <div className="space-y-4">
-                        <p className="text-sm text-slate-400 mb-4">{currentQ.context}</p>
-                        <div className="relative rounded-xl overflow-hidden border-2 border-slate-700 bg-black">
-                            <video ref={videoRef} onTimeUpdate={handleTimeUpdate} controls={!showQuestion} className="w-full h-64 object-cover opacity-60">
-                                <source src={currentQ.videoUrl} type="video/mp4" />
-                            </video>
-                            {showQuestion && (
-                                <div className="absolute inset-0 bg-slate-900/95 p-6 flex flex-col justify-center animate-fade-in z-10">
-                                    <h4 className="text-lg font-bold mb-4 text-white flex items-center"><AlertTriangle className="mr-2 text-yellow-500"/> {currentQ.question}</h4>
-                                    <div className="space-y-2">
-                                        {currentQ.options.map(opt => (
-                                            <button key={opt.id} onClick={() => !feedback && setSelected(opt.id)}
-                                                className={`w-full text-left p-3 rounded border transition-colors ${selected === opt.id ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700'} ${feedback ? 'opacity-50' : ''}`}>
-                                                {opt.text}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="mt-4 flex justify-end">
-                                        <button onClick={handleCheck} disabled={!selected || feedback} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded">Interponer Recurso</button>
-                                    </div>
-                                </div>
-                            )}
+                        <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
+                             {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Pista (-15 pts)</button> : <p className="text-sm text-yellow-400 bg-yellow-900/20 p-3 rounded-lg flex items-center"><Info className="w-5 h-5 mr-2 flex-shrink-0"/>{currentQ.tip}</p>}
+                            <button onClick={handleCheck} disabled={feedback} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold disabled:opacity-50 shadow-lg">Sellar Expediente</button>
                         </div>
                     </div>
                 );
@@ -441,96 +399,33 @@
                 const [tipRevealed, setTipRevealed] = useState(false);
                 const handleHotspotClick = (hotspot) => {
                     if (feedback) return;
-                    setFeedback({ isCorrect: hotspot.isCorrect, text: hotspot.isCorrect ? "¡Hallazgo correcto!" : "Error forense." });
+                    setFeedback({ isCorrect: hotspot.isCorrect, text: hotspot.isCorrect ? "¡Hallazgo correcto! Identificaste una sanción desproporcionada e ilegal." : "Error de auditoría. Esa sanción es válida dentro de ciertos parámetros." });
                     submitAnswer(hotspot.isCorrect, tipRevealed);
                 };
                 return (
                     <div className="space-y-4">
-                        <p className="text-slate-300">{currentQ.context}</p>
-                        <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
-                        <div className="relative border-2 border-slate-600 rounded-lg overflow-hidden bg-slate-800 h-80 flex items-center justify-center">
-                            <img src={currentQ.imageUrl} alt="Documento" className="object-cover w-full h-full opacity-50 grayscale" />
-                            <div className="absolute inset-0 p-8 flex flex-col justify-between font-serif text-black/80 text-sm" style={{background: 'rgba(240,240,230,0.85)'}}>
-                                <div className="text-center font-bold border-b border-black/20 pb-2">AUTO DE FORMULACIÓN DE CARGOS</div>
-                                <div><p className="mb-2"><strong>Hechos:</strong> Irregularidades detectadas.</p></div>
-                                <div><p className="text-xs">Fijado en estado: 20/05/2023</p></div>
+                        <p className="text-slate-300 bg-slate-800/50 p-4 border-l-4 border-blue-500 italic">{currentQ.context}</p>
+                        <h3 className="text-xl font-semibold mb-4 text-white">{currentQ.question}</h3>
+                        <div className="relative border-4 border-slate-700 rounded-xl overflow-hidden bg-slate-800 h-96 flex items-center justify-center shadow-inner">
+                            <img src={currentQ.imageUrl} alt="Reglamento" className="object-cover w-full h-full opacity-30 grayscale blur-[1px]" />
+                            <div className="absolute inset-0 p-8 flex flex-col justify-between font-serif text-slate-800 text-sm" style={{background: 'rgba(250,250,245,0.92)'}}>
+                                <div className="text-center font-bold border-b-2 border-slate-800 pb-4 mb-4 text-lg tracking-widest">REGLAMENTO INTERNO DE TRABAJO<br/><span className="text-sm font-normal">Capítulo: Régimen Sancionatorio</span></div>
+                                <div className="space-y-6 flex-grow">
+                                    <p className="font-semibold text-red-800">TABLA DE SANCIONES APLICABLES:</p>
+                                    <p className="pl-4 border-l-2 border-slate-300"><strong>Art 50.</strong> Faltas leves (Ej. Retraso de 10 min):<br/> - Llamado de atención escrito con copia al expediente.</p>
+                                    <p className="pl-4 border-l-2 border-slate-300"><strong>Art 51.</strong> Retraso reiterado (Tercera vez):<br/> - Multa equivalente a la 5ta parte de un día de salario.</p>
+                                    <p className="pl-4 border-l-2 border-slate-300"><strong>Art 52.</strong> Faltas graves (Ej. Ausencia injustificada 1 día):<br/> - Suspensión del contrato de trabajo por 45 días hábiles.</p>
+                                </div>
                             </div>
                             {currentQ.hotspots.map(h => (
                                 <button key={h.id} onClick={() => handleHotspotClick(h)} style={{ left: `${h.x}%`, top: `${h.y}%` }}
-                                    className={`absolute w-10 h-10 -ml-5 -mt-5 rounded-full border-2 border-blue-500 bg-blue-500/20 hotspot-pulse hover:bg-blue-500/50 transition-colors z-10 ${feedback ? 'pointer-events-none opacity-50' : ''}`}
+                                    className={`absolute w-12 h-12 -ml-6 -mt-6 rounded-full border-2 border-blue-600 bg-blue-500/30 hotspot-pulse hover:bg-blue-500/60 transition-colors z-10 ${feedback ? 'pointer-events-none opacity-0' : ''}`}
                                 />
                             ))}
                         </div>
-                        {!tipRevealed && !feedback && <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 mt-2">Pista (-15 pts)</button>}
-                    </div>
-                );
-            };
-
-            const MathForm = () => {
-                const [selected, setSelected] = useState(null);
-                const [tipRevealed, setTipRevealed] = useState(false);
-                const handleCheck = () => {
-                    const option = currentQ.options.find(o => o.id === selected);
-                    setFeedback({ isCorrect: option.isCorrect, text: option.isCorrect ? "Cálculo preciso." : "Cálculo erróneo." });
-                    submitAnswer(option.isCorrect, tipRevealed);
-                };
-                return (
-                    <div className="space-y-4">
-                        <p className="text-slate-300">{currentQ.context}</p>
-                        <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
-                            {currentQ.options.map(opt => (
-                                <button key={opt.id} onClick={() => !feedback && setSelected(opt.id)}
-                                    className={`p-6 rounded-xl border flex justify-center items-center text-xl transition-all ${selected === opt.id ? 'border-indigo-400 bg-indigo-900/50' : 'border-slate-600 bg-slate-800 hover:bg-slate-700'} ${feedback ? 'opacity-50' : ''}`}>
-                                    <MathRenderer math={opt.formula} />
-                                </button>
-                            ))}
-                        </div>
-                        <div className="flex justify-between mt-6">
-                             {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500">Pista (-15 pts)</button> : <span className="text-sm text-yellow-400">{currentQ.tip}</span>}
-                            <button onClick={handleCheck} disabled={!selected || feedback} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold disabled:opacity-50">Calcular Sentencia</button>
-                        </div>
-                    </div>
-                );
-            };
-
-            const ClozeCode = () => {
-                const [answers, setAnswers] = useState({});
-                const [tipRevealed, setTipRevealed] = useState(false);
-                const handleSelect = (blankId, val) => setAnswers(prev => ({...prev, [blankId]: val}));
-                const handleCheck = () => {
-                    let allCorrect = true;
-                    currentQ.blanks.forEach(b => { if (answers[b.id] !== b.answer) allCorrect = false; });
-                    setFeedback({ isCorrect: allCorrect, text: allCorrect ? "Lógica compilada con éxito." : "Error de sintaxis legal." });
-                    submitAnswer(allCorrect, tipRevealed);
-                };
-                const renderCode = () => {
-                    let parts = currentQ.codeTemplate.split(/(\[HUECO_\d+\])/g);
-                    return parts.map((part, i) => {
-                        const match = part.match(/\[(HUECO_\d+)\]/);
-                        if (match) {
-                            const blank = currentQ.blanks.find(b => b.id === match[1]);
-                            return (
-                                <select key={i} value={answers[blank.id] || ""} onChange={(e) => handleSelect(blank.id, e.target.value)} disabled={feedback !== null}
-                                    className="mx-1 bg-slate-800 text-blue-400 border border-slate-500 rounded px-2 py-1 outline-none text-sm font-mono appearance-none">
-                                    <option value="" disabled>seleccionar</option>
-                                    {blank.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                </select>
-                            );
-                        }
-                        return <span key={i}>{part}</span>;
-                    });
-                };
-                return (
-                    <div className="space-y-4">
-                        <p className="text-slate-300">{currentQ.context}</p>
-                        <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
-                        <div className="bg-slate-900 border border-slate-700 rounded-lg p-6 font-mono text-sm text-green-400 overflow-x-auto">
-                            <pre className="whitespace-pre-wrap leading-loose">{renderCode()}</pre>
-                        </div>
-                        <div className="flex justify-between mt-6">
-                            {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500">Pista (-15 pts)</button> : <span className="text-sm text-yellow-400">{currentQ.tip}</span>}
-                            <button onClick={handleCheck} disabled={Object.keys(answers).length < currentQ.blanks.length || feedback} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold disabled:opacity-50">Compilar Fallo</button>
+                        <div className="flex justify-between items-center pt-4">
+                            {!tipRevealed && !feedback && <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Pista Legal (-15 pts)</button>}
+                            {tipRevealed && !feedback && <p className="text-sm text-yellow-400 bg-yellow-900/20 p-2 rounded flex items-center"><Info className="w-5 h-5 mr-2"/>{currentQ.tip}</p>}
                         </div>
                     </div>
                 );
@@ -540,15 +435,12 @@
                 switch(currentQ.type) {
                     case 'adaptive_radio': return <AdaptiveRadio />;
                     case 'sequence_sorter': return <SequenceSorter />;
-                    case 'interactive_video': return <InteractiveVideo />;
                     case 'image_hotspot': return <ImageHotspot />;
-                    case 'math_input': return <MathForm />;
-                    case 'cloze_code': return <ClozeCode />;
-                    default: return <div>Interacción Desconocida</div>;
+                    default: return <div>Interacción en Construcción</div>;
                 }
             };
 
-            // --- PANEL ESTADÍSTICO (DOCENTE) ---
+            // --- PANEL ESTADÍSTICO DETALLADO (DOCENTE) ---
             const DashboardView = () => {
                 const calculateMetrics = () => {
                     const metrics = {};
@@ -557,123 +449,126 @@
                         const Nt = qLogs.length;
                         if (Nt === 0) return;
                         const Nc = qLogs.filter(l => l.isCorrect).length;
-                        const p = Nc / Nt; // Índice de dificultad clásico
-                        const D = (p > 0.5) ? (p * 0.8) : (p * 1.2); // Discriminación simulada para gráficos
-                        const avgFrust = qLogs.reduce((acc, curr) => acc + curr.frustrationIndex, 0) / Nt; // Promedio de frustración
-                        metrics[q.id] = { id: q.id, title: q.title.substring(0, 15)+'...', p: parseFloat(p.toFixed(2)), D: parseFloat(D.toFixed(2)), If: parseFloat(avgFrust.toFixed(2)), Nt };
+                        const p = parseFloat((Nc / Nt).toFixed(2)); // Índice de dificultad
+                        const D = parseFloat(((p > 0.5) ? (p * 0.8) : (p * 1.2)).toFixed(2)); // Discriminación simulada
+                        const avgFrust = parseFloat((qLogs.reduce((acc, curr) => acc + curr.frustrationIndex, 0) / Nt).toFixed(2));
+                        
+                        let diagnostico = "";
+                        if (p < 0.3) diagnostico = "Muy difícil / Confusa";
+                        else if (p > 0.8) diagnostico = "Muy fácil / Consolidación";
+                        else if (D > 0.4) diagnostico = "Excelente discriminación";
+                        else diagnostico = "Discriminación estándar";
+
+                        metrics[q.id] = { id: q.id, title: q.title, p, D, If: avgFrust, Nt, diagnostico };
                     });
                     return Object.values(metrics);
                 };
                 const dataMetrics = calculateMetrics();
 
-                const generateMockDataToFirestore = async () => {
-                    const batch = writeBatch(db);
-                    for(let i=0; i<30; i++) {
-                        const randomQ = QUESTION_BANK[Math.floor(Math.random() * QUESTION_BANK.length)];
-                        const isCorrect = Math.random() > 0.4;
-                        const tSpent = randomQ.expectedTime * (0.5 + Math.random());
-                        const ref = doc(collection(db, COLLECTION_PATH));
-                        batch.set(ref, {
-                            studentName: `Alumno_Simulado_${i}`, studentEmail: `alumno${i}@u.edu`,
-                            questionId: randomQ.id, isCorrect, timeSpent: tSpent, expectedTime: randomQ.expectedTime, usedTip: Math.random() > 0.7, 
-                            frustrationIndex: Math.max(0, (tSpent - randomQ.expectedTime)/randomQ.expectedTime), points: isCorrect ? 50 : 0, timestamp: serverTimestamp()
-                        });
-                    }
-                    try { await batch.commit(); alert("Datos de simulación (30 registros) inyectados con éxito."); } 
-                    catch (error) { alert("Error inyectando datos: " + error.message); }
-                };
-
                 return (
                     <div className="max-w-6xl mx-auto space-y-8 text-slate-200 animate-fade-in">
                         <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
                             <div>
-                                <h1 className="text-3xl font-bold font-serif text-white">Motor Estadístico IRT</h1>
-                                <p className="text-slate-400">Panel de Administración Docente</p>
+                                <h1 className="text-3xl font-bold font-serif text-white">Análisis Completo Respuesta al Ítem (IRT)</h1>
+                                <p className="text-slate-400">Panel de Administración y Psicométrica</p>
                             </div>
-                            <button onClick={() => setView('login')} className="px-4 py-2 bg-slate-800 border border-slate-600 rounded hover:bg-slate-700 text-sm">Cerrar Sesión Docente</button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                            <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 flex items-center">
-                                <Users className="w-8 h-8 text-blue-500 mr-4" />
-                                <div><div className="text-2xl font-bold text-white">{logs.length}</div><div className="text-sm text-slate-400">Interacciones Registradas</div></div>
-                            </div>
-                            <button onClick={generateMockDataToFirestore} className="col-span-1 md:col-span-2 bg-indigo-600/20 border border-indigo-500/50 text-indigo-300 p-4 rounded-lg hover:bg-indigo-600/40 transition-colors font-semibold flex items-center justify-center">
-                                <Activity className="w-5 h-5 mr-2" /> Inyectar Datos Simulados para Probar Gráficas
-                            </button>
+                            <button onClick={() => setView('intro')} className="px-4 py-2 bg-slate-800 border border-slate-600 rounded hover:bg-slate-700 text-sm">Volver a la App</button>
                         </div>
 
                         {logs.length > 0 ? (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {/* Dificultad */}
-                                <div className="glass-panel p-6 rounded-xl">
-                                    <h3 className="text-lg font-bold mb-2 text-white flex items-center"><TrendingUp className="mr-2 text-blue-400"/>1. Índice de Dificultad Clásico</h3>
-                                    <div className="text-xs text-slate-400 mb-4 bg-slate-900/50 p-2 rounded">Fórmula: $$p = \frac{N_c}{N_t}$$</div>
-                                    <div className="h-64">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={dataMetrics} layout="vertical" margin={{ left: 20 }}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                                <XAxis type="number" domain={[0, 1]} stroke="#94a3b8" />
-                                                <YAxis dataKey="title" type="category" stroke="#94a3b8" fontSize={10} width={100} />
-                                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
-                                                <Bar dataKey="p" fill="#3b82f6" name="Dificultad (p)" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
+                            <div className="space-y-8">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div className="glass-panel p-6 rounded-xl">
+                                        <h3 className="text-lg font-bold mb-4 text-white">Dificultad vs Pregunta</h3>
+                                        <div className="h-64">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={dataMetrics} layout="vertical" margin={{ left: 20 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                                    <XAxis type="number" domain={[0, 1]} stroke="#94a3b8" />
+                                                    <YAxis dataKey="title" type="category" stroke="#94a3b8" fontSize={10} width={120} />
+                                                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }} />
+                                                    <Bar dataKey="p" fill="#3b82f6" name="Dificultad (p)" radius={[0, 4, 4, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+                                    <div className="glass-panel p-6 rounded-xl">
+                                        <h3 className="text-lg font-bold mb-4 text-white">Mapa de Discriminación ($D$)</h3>
+                                        <div className="h-64">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                                    <XAxis type="number" dataKey="p" name="Dificultad" domain={[0, 1]} stroke="#94a3b8" />
+                                                    <YAxis type="number" dataKey="D" name="Discriminación" domain={[0, 1]} stroke="#94a3b8" />
+                                                    <Tooltip cursor={{strokeDasharray: '3 3'}} contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }} />
+                                                    <Scatter name="Ítems" data={dataMetrics} fill="#a855f7" />
+                                                </ScatterChart>
+                                            </ResponsiveContainer>
+                                        </div>
                                     </div>
                                 </div>
-                                {/* Discriminación */}
-                                <div className="glass-panel p-6 rounded-xl">
-                                    <h3 className="text-lg font-bold mb-2 text-white flex items-center"><Activity className="mr-2 text-purple-400"/>2. Índice de Discriminación</h3>
-                                    <div className="text-xs text-slate-400 mb-4 bg-slate-900/50 p-2 rounded">Fórmula: $$D = p_{sup} - p_{inf}$$</div>
-                                    <div className="h-64">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                                <XAxis type="number" dataKey="p" name="Dificultad" domain={[0, 1]} stroke="#94a3b8" />
-                                                <YAxis type="number" dataKey="D" name="Discriminación" domain={[0, 1]} stroke="#94a3b8" />
-                                                <Tooltip cursor={{strokeDasharray: '3 3'}} contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
-                                                <Scatter name="Ítems" data={dataMetrics} fill="#a855f7" />
-                                            </ScatterChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                                {/* Frustración */}
-                                <div className="glass-panel p-6 rounded-xl lg:col-span-2">
-                                    <h3 className="text-lg font-bold mb-2 text-white flex items-center"><AlertTriangle className="mr-2 text-red-400"/>3. Índice de Frustración Estudiantil</h3>
-                                    <div className="text-xs text-slate-400 mb-4 bg-slate-900/50 p-2 rounded">Fórmula: $$I_f = \alpha \cdot \max\left(0, \frac{t_i - t_e}{t_e}\right) + \beta \cdot h$$</div>
-                                    <div className="h-64">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={dataMetrics}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                                <XAxis dataKey="title" stroke="#94a3b8" fontSize={11} />
-                                                <YAxis stroke="#94a3b8" />
-                                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
-                                                <Bar dataKey="If" fill="#ef4444" name="Frustración (If)" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
+
+                                {/* TABLA DETALLADA DE DIAGNÓSTICO */}
+                                <div className="glass-panel p-6 rounded-xl overflow-x-auto">
+                                    <h3 className="text-xl font-bold mb-4 text-white flex items-center"><FileSignature className="mr-2"/> Tabla Analítica de Ítems</h3>
+                                    <table className="w-full text-left text-sm text-slate-300">
+                                        <thead className="text-xs text-slate-400 uppercase bg-slate-800/50">
+                                            <tr>
+                                                <th className="px-4 py-3 rounded-tl-lg">Pregunta</th>
+                                                <th className="px-4 py-3 text-center">Intentos (Nt)</th>
+                                                <th className="px-4 py-3 text-center">Dificultad (p)</th>
+                                                <th className="px-4 py-3 text-center">Discriminación (D)</th>
+                                                <th className="px-4 py-3 text-center">Frustración (If)</th>
+                                                <th className="px-4 py-3 rounded-tr-lg">Diagnóstico Pedagógico</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {dataMetrics.map((row, i) => (
+                                                <tr key={i} className="border-b border-slate-700 hover:bg-slate-800/30">
+                                                    <td className="px-4 py-3 font-medium text-white">{row.title}</td>
+                                                    <td className="px-4 py-3 text-center">{row.Nt}</td>
+                                                    <td className="px-4 py-3 text-center text-blue-400 font-bold">{row.p}</td>
+                                                    <td className="px-4 py-3 text-center text-purple-400">{row.D}</td>
+                                                    <td className="px-4 py-3 text-center text-red-400">{row.If}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${row.p < 0.4 ? 'bg-red-900/50 text-red-300' : row.p > 0.7 ? 'bg-emerald-900/50 text-emerald-300' : 'bg-blue-900/50 text-blue-300'}`}>
+                                                            {row.diagnostico}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-center py-20 text-slate-500">No hay datos suficientes para graficar. Inyecta datos simulados o pide a estudiantes que resuelvan la prueba.</div>
+                            <div className="text-center py-20 text-slate-500 bg-slate-800/30 rounded-xl border border-dashed border-slate-600">
+                                <Activity className="w-12 h-12 mx-auto mb-4 text-slate-600" />
+                                Esperando datos reales de estudiantes para generar el análisis IRT...
+                            </div>
                         )}
                     </div>
                 );
             };
 
+            if (view === 'loading') return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-blue-500"><Scale className="w-12 h-12 animate-pulse" /></div>;
+
             // --- RENDERIZADO PRINCIPAL ---
             return (
-                <div className="min-h-screen bg-slate-900 text-slate-200 p-4 font-sans">
-                    {/* Header para Estudiantes (Oculto en Dashboard) */}
-                    {view !== 'dashboard' && (
+                <div className="min-h-screen bg-slate-900 text-slate-200 p-4 sm:p-8 font-sans">
+                    {/* Header Top */}
+                    {view !== 'dashboard' && view !== 'login' && view !== 'profile' && (
                         <div className="max-w-4xl mx-auto flex justify-between items-center mb-8">
                             <div className="flex items-center space-x-3">
                                 <Scale className="w-8 h-8 text-blue-500" />
                                 <span className="text-2xl font-bold font-serif text-white tracking-wide">Lex<span className="text-blue-500">Quest</span></span>
                             </div>
-                            <button onClick={adminBypass} className="text-slate-500 hover:text-white transition-colors" title="Panel Docente">
-                                <Lock className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center space-x-4">
+                                <button onClick={logout} className="text-sm text-slate-400 hover:text-white transition-colors">Salir</button>
+                                <button onClick={adminBypass} className="text-slate-500 hover:text-white transition-colors bg-slate-800 p-2 rounded-full" title="Panel Estadístico Docente">
+                                    <LayoutDashboard className="w-5 h-5" />
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -681,78 +576,99 @@
                         
                         {/* 1. LOGIN */}
                         {view === 'login' && (
-                            <div className="glass-panel rounded-2xl p-8 shadow-2xl animate-fade-in border-t-4 border-t-blue-500 max-w-md mx-auto mt-10">
-                                <Scale className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-                                <h1 className="text-2xl font-bold text-center mb-6 font-serif">LexQuest Login</h1>
-                                
-                                {authError && (
-                                    <div className="bg-red-900/30 border border-red-500/50 text-red-200 p-4 rounded-lg mb-6 text-xs leading-relaxed">
-                                        <div className="flex items-center font-bold mb-1 text-red-400">
-                                            <AlertTriangle className="w-4 h-4 mr-2" /> ACCIÓN REQUERIDA
-                                        </div>
-                                        {authError}
-                                        {authError.includes("DOMINIO") && (
-                                            <button 
-                                                onClick={() => { navigator.clipboard.writeText(window.location.hostname); alert("Dominio copiado al portapapeles."); }}
-                                                className="mt-2 w-full py-2 bg-red-800/80 rounded flex items-center justify-center hover:bg-red-700 text-white font-bold">
-                                                <Copy className="w-4 h-4 mr-2" /> Copiar Dominio Actual
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
+                            <div className="glass-panel rounded-3xl p-8 sm:p-12 shadow-2xl animate-fade-in border-t-4 border-t-blue-500 max-w-md mx-auto mt-10 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+                                <Scale className="w-16 h-16 text-blue-500 mx-auto mb-6 drop-shadow-lg" />
+                                <h1 className="text-3xl font-bold text-center mb-2 font-serif text-white">LexQuest</h1>
+                                <p className="text-center text-slate-400 mb-8 text-sm">Plataforma de capacitación jurídica</p>
 
-                                <button onClick={handleGoogleLogin} className="w-full mb-6 py-3 bg-white text-slate-900 font-bold rounded-lg flex justify-center items-center shadow-md hover:bg-slate-100 transition-colors">
+                                <button onClick={handleGoogleLogin} className="w-full mb-6 py-3 bg-white text-slate-900 font-bold rounded-xl flex justify-center items-center shadow-lg hover:bg-slate-100 transition-transform transform hover:scale-105">
                                     <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
-                                    Continuar con Google
+                                    Ingresar con Google
                                 </button>
 
                                 <div className="flex items-center mb-6 text-xs text-slate-500">
                                     <div className="flex-grow border-t border-slate-700"></div>
-                                    <span className="px-3 uppercase">Registro Manual</span>
+                                    <span className="px-3 uppercase tracking-wider">O Ingreso Manual</span>
                                     <div className="flex-grow border-t border-slate-700"></div>
                                 </div>
 
                                 <div className="space-y-4">
-                                    <input type="text" value={studentInfo.name} onChange={e => setStudentInfo({...studentInfo, name: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm outline-none focus:border-blue-500 text-white" placeholder="Nombre completo" />
-                                    <input type="email" value={studentInfo.email} onChange={e => setStudentInfo({...studentInfo, email: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm outline-none focus:border-blue-500 text-white" placeholder="Correo institucional" />
-                                    <button onClick={() => setView('intro')} disabled={!studentInfo.name || !studentInfo.email} className="w-full py-3 bg-blue-600 disabled:opacity-50 text-white font-bold rounded-lg hover:bg-blue-500 transition-colors">Ingresar a la Plataforma</button>
+                                    <input type="text" value={studentInfo.name} onChange={e => setStudentInfo({...studentInfo, name: e.target.value})} className="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-sm outline-none focus:border-blue-500 focus:bg-slate-800 text-white transition-colors" placeholder="Nombre completo" />
+                                    <input type="email" value={studentInfo.email} onChange={e => setStudentInfo({...studentInfo, email: e.target.value})} className="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-sm outline-none focus:border-blue-500 focus:bg-slate-800 text-white transition-colors" placeholder="Correo electrónico" />
+                                    <button onClick={handleManualLogin} disabled={!studentInfo.name || !studentInfo.email} className="w-full py-4 bg-blue-600 disabled:opacity-50 text-white font-bold rounded-xl hover:bg-blue-500 transition-colors shadow-lg">Continuar</button>
                                 </div>
                             </div>
                         )}
 
-                        {/* 2. INTRODUCCIÓN */}
-                        {view === 'intro' && (
-                            <div className="glass-panel rounded-2xl p-10 text-center animate-fade-in">
-                                <ShieldAlert className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-                                <h1 className="text-3xl sm:text-4xl font-bold mb-4 font-serif text-white">Simulador Procesal</h1>
-                                <p className="text-slate-400 mb-8 max-w-2xl mx-auto">Bienvenido, {studentInfo.name}. Estás a punto de iniciar una evaluación adaptativa que medirá tu capacidad de lectura crítica y resolución de casos mediante Teoría de Respuesta al Ítem (IRT).</p>
-                                <button onClick={() => { setView('assessment'); setSessionData({startTime: Date.now(), currentQStartTime: Date.now(), tipsUsed: 0}); }} className="px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full font-bold shadow-lg hover:from-blue-500 hover:to-indigo-500 transition-all text-white text-lg">Iniciar Expediente</button>
-                            </div>
-                        )}
-
-                        {/* 3. EVALUACIÓN (Preguntas) */}
-                        {view === 'assessment' && (
-                            <div className="animate-fade-in">
-                                <ProgressBar />
-                                <div className="flex justify-between items-center mb-6 text-sm text-slate-400">
-                                    <span>Nivel {currentQ.level} • Dificultad Dinámica: {currentQ.difficulty}</span>
-                                    <span>Puntaje Acumulado: <strong className="text-blue-400 text-lg">{score.toFixed(0)}</strong></span>
-                                </div>
-                                <div className="glass-panel rounded-2xl p-8 sm:p-10 shadow-xl border-l-4 border-l-blue-500">
-                                    <div className="flex items-center space-x-3 mb-8">
-                                        <div className="bg-blue-900/50 text-blue-400 p-2 rounded-lg"><BrainCircuit className="w-6 h-6" /></div>
-                                        <h2 className="text-2xl font-bold font-serif text-white">Fase de Instrucción {currentQIndex + 1}</h2>
+                        {/* 2. COMPLETAR PERFIL */}
+                        {view === 'profile' && (
+                            <div className="glass-panel rounded-3xl p-8 sm:p-12 shadow-2xl animate-fade-in max-w-lg mx-auto mt-10 border-t-4 border-t-indigo-500">
+                                <Briefcase className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
+                                <h2 className="text-2xl font-bold text-center text-white mb-2">Completa tu Perfil</h2>
+                                <p className="text-center text-slate-400 mb-8 text-sm">Personalizaremos tu experiencia basada en tu rol.</p>
+                                
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-2">¿Cuál es tu rol principal?</label>
+                                        <select value={studentInfo.role} onChange={e => setStudentInfo({...studentInfo, role: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-white outline-none focus:border-indigo-500 appearance-none">
+                                            <option value="" disabled>Selecciona una opción</option>
+                                            <option value="abogado">Abogado / Legal</option>
+                                            <option value="rrhh">Recursos Humanos / Talento</option>
+                                            <option value="lider">Líder / Supervisor de Área</option>
+                                            <option value="empleado">Colaborador General</option>
+                                        </select>
                                     </div>
-                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-2">Nivel de Experiencia Laboral</label>
+                                        <select value={studentInfo.experience} onChange={e => setStudentInfo({...studentInfo, experience: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-white outline-none focus:border-indigo-500 appearance-none">
+                                            <option value="" disabled>Selecciona una opción</option>
+                                            <option value="junior">0 - 2 años</option>
+                                            <option value="mid">3 - 5 años</option>
+                                            <option value="senior">Más de 5 años</option>
+                                        </select>
+                                    </div>
+                                    <button onClick={saveProfile} disabled={!studentInfo.role || !studentInfo.experience} className="w-full mt-4 py-4 bg-indigo-600 disabled:opacity-50 text-white font-bold rounded-xl hover:bg-indigo-500 transition-colors shadow-lg flex justify-center items-center">
+                                        Guardar y Comenzar <ChevronRight className="w-5 h-5 ml-2" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. INTRODUCCIÓN */}
+                        {view === 'intro' && (
+                            <div className="glass-panel rounded-3xl p-10 sm:p-16 text-center animate-fade-in shadow-2xl relative overflow-hidden">
+                                <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl"></div>
+                                <ShieldAlert className="w-20 h-20 text-blue-500 mx-auto mb-6 relative z-10" />
+                                <h1 className="text-4xl sm:text-5xl font-bold mb-4 font-serif text-white relative z-10">Auditoría Disciplinaria</h1>
+                                <p className="text-lg text-slate-400 mb-2 max-w-2xl mx-auto relative z-10">Hola, <span className="text-blue-400 font-bold">{studentInfo.name}</span>.</p>
+                                <p className="text-slate-400 mb-10 max-w-2xl mx-auto relative z-10">Como perfil <strong className="text-white uppercase">{studentInfo.role}</strong>, pondremos a prueba tu criterio sobre el debido proceso laboral mediante una serie de simulaciones interactivas.</p>
+                                <button onClick={() => { setView('assessment'); setSessionData({startTime: Date.now(), currentQStartTime: Date.now(), tipsUsed: 0}); }} className="px-12 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full font-bold shadow-[0_0_40px_rgba(59,130,246,0.5)] hover:shadow-[0_0_60px_rgba(59,130,246,0.7)] transition-all text-white text-xl relative z-10 transform hover:-translate-y-1">
+                                    Iniciar Evaluación
+                                </button>
+                            </div>
+                        )}
+
+                        {/* 4. EVALUACIÓN */}
+                        {view === 'assessment' && (
+                            <div className="animate-fade-in max-w-3xl mx-auto">
+                                <ProgressBar />
+                                <div className="flex justify-between items-center mb-6 text-sm text-slate-400 font-medium tracking-wide uppercase">
+                                    <span>Módulo {currentQIndex + 1} de {QUESTION_BANK.length}</span>
+                                    <span className="bg-slate-800 py-1 px-4 rounded-full border border-slate-700">Puntos: <strong className="text-blue-400 text-base ml-2">{score.toFixed(0)}</strong></span>
+                                </div>
+                                <div className="glass-panel rounded-3xl p-8 sm:p-12 shadow-2xl border-t-4 border-t-blue-500 relative">
                                     {renderCurrentInteraction()}
                                     
                                     {feedback && (
-                                        <div className={`mt-8 p-5 rounded-lg flex items-start space-x-4 animate-fade-in ${feedback.isCorrect ? 'bg-emerald-900/40 border border-emerald-500/50 text-emerald-300' : 'bg-red-900/40 border border-red-500/50 text-red-300'}`}>
-                                            {feedback.isCorrect ? <CheckCircle className="w-8 h-8 shrink-0 mt-0.5" /> : <XCircle className="w-8 h-8 shrink-0 mt-0.5" />}
+                                        <div className={`mt-10 p-6 rounded-2xl flex items-start space-x-4 animate-fade-in border ${feedback.isCorrect ? 'bg-emerald-900/30 border-emerald-500/30' : 'bg-red-900/30 border-red-500/30'}`}>
+                                            {feedback.isCorrect ? <CheckCircle className="w-10 h-10 text-emerald-400 shrink-0" /> : <XCircle className="w-10 h-10 text-red-400 shrink-0" />}
                                             <div>
-                                                <p className="font-bold text-lg mb-1">{feedback.isCorrect ? '¡Resolución Favorable!' : 'Fallo en Contra'}</p>
-                                                <p>{feedback.text}</p>
-                                                <div className="mt-2 text-sm opacity-80 animate-pulse">Procesando métricas IRT para la siguiente fase...</div>
+                                                <p className={`font-bold text-xl mb-2 ${feedback.isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>{feedback.isCorrect ? 'Veredicto: Correcto' : 'Veredicto: Incorrecto'}</p>
+                                                <p className="text-slate-200 leading-relaxed">{feedback.text}</p>
+                                                <div className="mt-4 flex items-center text-xs text-slate-500 animate-pulse font-mono uppercase tracking-widest">
+                                                    <Activity className="w-3 h-3 mr-2"/> Calculando IRT... Avanzando...
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -760,48 +676,41 @@
                             </div>
                         )}
 
-                        {/* 4. RESULTADOS Y ENCUESTA DE SATISFACCIÓN */}
+                        {/* 5. RESULTADOS Y ENCUESTA */}
                         {view === 'results' && (
-                            <div className="glass-panel rounded-2xl p-10 text-center animate-fade-in border-t-4 border-t-emerald-500 max-w-2xl mx-auto shadow-2xl">
-                                <CheckCircle className="w-24 h-24 text-emerald-500 mx-auto mb-6" />
-                                <h1 className="text-4xl font-bold text-white mb-2 font-serif">Expediente Cerrado</h1>
-                                <p className="text-slate-400 mb-8">Evaluación algorítmica completada con éxito.</p>
+                            <div className="glass-panel rounded-3xl p-10 sm:p-16 text-center animate-fade-in border-t-4 border-t-emerald-500 shadow-2xl">
+                                <CheckCircle className="w-24 h-24 text-emerald-500 mx-auto mb-6 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+                                <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 font-serif">Simulación Concluida</h1>
+                                <p className="text-slate-400 mb-10 text-lg">Has finalizado tu entrenamiento en debido proceso laboral.</p>
                                 
-                                <div className="bg-slate-800/80 rounded-xl p-6 mb-8 border border-slate-700">
-                                    <div className="text-5xl font-black text-blue-400 mb-4">{score.toFixed(0)} <span className="text-2xl text-slate-500">pts</span></div>
-                                    <div className="flex justify-around text-sm text-slate-300 border-t border-slate-700 pt-4 mt-4">
-                                        <div>Efectividad: <strong className="text-white">{((score / (QUESTION_BANK.length * 100)) * 100).toFixed(1)}%</strong></div>
-                                        <div>Pistas Usadas: <strong className="text-yellow-400">{sessionData.tipsUsed}</strong></div>
-                                        <div>Tiempo: <strong className="text-white">{Math.floor((Date.now() - sessionData.startTime)/1000)}s</strong></div>
+                                <div className="bg-slate-900/80 rounded-2xl p-8 mb-10 border border-slate-700 shadow-inner">
+                                    <div className="text-sm uppercase tracking-widest text-slate-500 mb-2">Puntuación Final</div>
+                                    <div className="text-6xl font-black text-blue-400 mb-6 drop-shadow-lg">{score.toFixed(0)}</div>
+                                    <div className="grid grid-cols-3 gap-4 text-sm text-slate-300 border-t border-slate-700 pt-6">
+                                        <div><div className="text-slate-500 mb-1">Efectividad</div><strong className="text-white text-xl">{((score / (QUESTION_BANK.length * 100)) * 100).toFixed(0)}%</strong></div>
+                                        <div><div className="text-slate-500 mb-1">Pistas Usadas</div><strong className="text-yellow-400 text-xl">{sessionData.tipsUsed}</strong></div>
+                                        <div><div className="text-slate-500 mb-1">Tiempo</div><strong className="text-white text-xl">{Math.floor((Date.now() - sessionData.startTime)/1000)}s</strong></div>
                                     </div>
                                 </div>
 
-                                {/* Encuesta de Satisfacción Estudiantil */}
-                                <div className="mb-10 p-6 bg-slate-900/50 rounded-lg border border-slate-700/50">
-                                    <h3 className="text-lg font-bold text-white mb-2">Encuesta de Satisfacción Pedagógica</h3>
-                                    <p className="text-sm text-slate-400 mb-4">¿Cómo calificarías la claridad y utilidad de esta evaluación?</p>
-                                    <div className="flex justify-center space-x-2">
+                                <div className="mb-10 p-8 bg-slate-800/40 rounded-2xl border border-slate-700/50">
+                                    <h3 className="text-xl font-bold text-white mb-2">Califica esta experiencia</h3>
+                                    <p className="text-sm text-slate-400 mb-6">¿Qué tan útiles fueron los escenarios presentados para tu rol de {studentInfo.role}?</p>
+                                    <div className="flex justify-center space-x-3">
                                         {[1, 2, 3, 4, 5].map((star) => (
-                                            <button 
-                                                key={star} 
-                                                onClick={() => setSatisfaction(star)}
-                                                className={`p-2 transition-transform transform hover:scale-125 focus:outline-none ${satisfaction >= star ? 'text-yellow-400' : 'text-slate-600'}`}
-                                            >
-                                                <Star className="w-10 h-10 fill-current" />
+                                            <button key={star} onClick={() => setSatisfaction(star)} className={`p-2 transition-all transform hover:scale-125 focus:outline-none ${satisfaction >= star ? 'text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 'text-slate-600'}`}>
+                                                <Star className="w-12 h-12 fill-current" />
                                             </button>
                                         ))}
                                     </div>
-                                    {satisfaction > 0 && <p className="text-emerald-400 mt-4 text-sm font-semibold animate-fade-in">¡Gracias por tu valoración!</p>}
+                                    {satisfaction > 0 && <p className="text-emerald-400 mt-6 font-bold animate-fade-in">¡Gracias por tu feedback! Tus respuestas ayudan a mejorar el modelo.</p>}
                                 </div>
 
-                                <button onClick={() => window.location.reload()} className="px-8 py-3 bg-slate-700 hover:bg-slate-600 rounded text-white font-semibold shadow-lg transition-colors">
-                                    Cerrar y Reiniciar
+                                <button onClick={() => window.location.reload()} className="px-10 py-4 bg-slate-700 hover:bg-slate-600 rounded-full text-white font-bold shadow-lg transition-colors">
+                                    Volver al Inicio
                                 </button>
                             </div>
                         )}
-
-                        {/* 5. DASHBOARD (Docente) */}
-                        {view === 'dashboard' && <DashboardView />}
                     </div>
                 </div>
             );
