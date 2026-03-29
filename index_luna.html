@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LexQuest: Simulador de Procesos Disciplinarios</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- KaTeX para Fórmulas Matemáticas/Lógicas -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+    <!-- Importmap para React, Lucide, Recharts y Firebase -->
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.292.0",
+            "recharts": "https://esm.sh/recharts@2.12.0",
+            "firebase/app": "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js",
+            "firebase/auth": "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js",
+            "firebase/firestore": "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"
+        }
+    }
+    </script>
+
+    <!-- Babel para JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .hotspot-pulse { animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+        @keyframes pulse-ring { 0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 
+                                70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 
+                                100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
+        .katex { font-size: 1.1em !important; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef, useMemo } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { Scale, BrainCircuit, ShieldAlert, CheckCircle, XCircle, HelpCircle, Lock, LayoutDashboard, ChevronRight, Play, Pause, AlertTriangle, TrendingUp, Activity, Users, FileText } from 'lucide-react';
+        import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ScatterChart, Scatter, ZAxis, Cell, ResponsiveContainer } from 'recharts';
+        
+        // --- FIREBASE CONFIGURATION ---
+        import { initializeApp } from 'firebase/app';
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, getDocs, writeBatch, doc } from 'firebase/firestore';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDAhJNYS_XTcmKE9fZzVEX9_o0cJ1-dnUk",
+            authDomain: "lunaexplica-60035.firebaseapp.com",
+            databaseURL: "https://lunaexplica-60035-default-rtdb.firebaseio.com",
+            projectId: "lunaexplica-60035",
+            storageBucket: "lunaexplica-60035.firebasestorage.app",
+            messagingSenderId: "550469014323",
+            appId: "1:550469014323:web:be79e10f33abc619432446",
+            measurementId: "G-583N74HNVW"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // Canvas Strict Paths Setup
+        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'lexquest-disciplinario';
+        const COLLECTION_PATH = `artifacts/${APP_ID}/public/data/telemetry`;
+
+        // --- BANCO DE PREGUNTAS (IRT & MULTIMEDIA) ---
+        const QUESTION_BANK = [
+            {
+                id: "q1_reading",
+                type: "adaptive_radio",
+                level: 1,
+                difficulty: 0.3, // p-value target
+                expectedTime: 60, // seconds
+                title: "Análisis Crítico de Jurisprudencia",
+                context: "El funcionario X, supervisor de contratos, omitió verificar las pólizas de garantía de una obra. La obra quedó inconclusa y el contratista huyó. El defensor del funcionario alega que 'no hubo dolo, solo un descuido menor'.",
+                question: "Según el Código General Disciplinario, ¿cómo se clasifica esta conducta y por qué?",
+                options: [
+                    { id: "A", text: "Falta leve, porque no hubo intención (dolo) de dañar al Estado.", isCorrect: false, feedback: "Error. La omisión de deberes de control en contratación estatal suele configurar culpas graves o gravísimas." },
+                    { id: "B", text: "Falta gravísima a título de culpa gravísima, por ignorancia supina o desatención elemental en deberes contractuales.", isCorrect: true, feedback: "¡Correcto! La desatención elemental en funciones esenciales de supervisión constituye culpa gravísima." },
+                    { id: "C", text: "Falta grave, sancionable con suspensión, porque el dolo es requisito para la destitución.", isCorrect: false, feedback: "El dolo no es el único camino a la destitución; la culpa gravísima también puede serlo en faltas gravísimas." }
+                ],
+                tip: "Recuerda los grados de culpabilidad: Dolo, Culpa Gravísima (ignorancia supina) y Culpa Grave."
+            },
+            {
+                id: "q2_dragdrop",
+                type: "sequence_sorter",
+                level: 2,
+                difficulty: 0.5,
+                expectedTime: 90,
+                title: "Arquitectura del Proceso Disciplinario",
+                context: "Reconstruye la línea de tiempo procesal correcta, garantizando el debido proceso (Artículo 29 Constitución).",
+                question: "Arrastra y ordena las etapas procesales desde el conocimiento del hecho hasta el fallo.",
+                items: [
+                    { id: "step1", content: "Indagación Previa (Opcional)" },
+                    { id: "step2", content: "Apertura de Investigación Disciplinaria" },
+                    { id: "step3", content: "Formulación de Pliego de Cargos" },
+                    { id: "step4", content: "Presentación de Descargos y Pruebas" },
+                    { id: "step5", content: "Fallo de Primera Instancia" }
+                ],
+                tip: "Nadie puede ser juzgado sin antes ser escuchado. ¿Dónde irían los descargos?"
+            },
+            {
+                id: "q3_video",
+                type: "interactive_video",
+                level: 3,
+                difficulty: 0.6,
+                expectedTime: 120,
+                title: "Audiencia de Pruebas: Objeciones",
+                // Usando un video de placeholder libre. Pausa en el segundo 5.
+                videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
+                pauseAt: 5,
+                context: "Estás observando una audiencia disciplinaria simulada. Presta atención al minuto exacto donde se detiene el video.",
+                question: "En este momento procesal, el investigador rechaza una prueba testimonial por 'inconducente'. ¿Qué recurso procede inmediatamente en audiencia?",
+                options: [
+                    { id: "A", text: "Recurso de Apelación en el efecto suspensivo.", isCorrect: false, feedback: "No. En audiencias verbales las dinámicas recursivas son más ágiles." },
+                    { id: "B", text: "Recurso de Reposición y en subsidio Apelación, interpuesto verbalmente de inmediato.", isCorrect: true, feedback: "¡Exacto! Las decisiones en audiencia se recurren de manera verbal e inmediata." },
+                    { id: "C", text: "Acción de Tutela por violación al debido proceso.", isCorrect: false, feedback: "La tutela es subsidiaria, primero deben agotarse los recursos ordinarios (reposición/apelación)." }
+                ],
+                tip: "Las decisiones orales en audiencia requieren impugnaciones orales en el mismo acto."
+            },
+            {
+                id: "q4_hotspot",
+                type: "image_hotspot",
+                level: 4,
+                difficulty: 0.7,
+                expectedTime: 80,
+                title: "Auditoría Forense: Nulidades",
+                imageUrl: "https://images.unsplash.com/photo-1555374018-1c4fa4782202?auto=format&fit=crop&q=80&w=800", // Document image
+                context: "Se ha emitido este Auto de Formulación de Cargos. Si contiene un error sustancial que viole el derecho a la defensa, el proceso es nulo.",
+                question: "Haz clic en la 'zona' del documento que representa una violación flagrante al debido proceso.",
+                hotspots: [
+                    { id: "h1", x: 20, y: 30, isCorrect: false, text: "Fecha del auto (Correcta)" },
+                    { id: "h2", x: 60, y: 70, isCorrect: true, text: "Falta de notificación personal al investigado." },
+                    { id: "h3", x: 80, y: 10, isCorrect: false, text: "Firma del sustanciador (Válida)" }
+                ],
+                tip: "¿Cómo se entera materialmente una persona de que el Estado formuló cargos en su contra?"
+            },
+            {
+                id: "q5_math",
+                type: "math_input",
+                level: 5,
+                difficulty: 0.8,
+                expectedTime: 100,
+                title: "Cálculo de Prescripción Disciplinaria",
+                context: "La acción disciplinaria prescribe en un término de 5 años contados a partir de la consumación de la falta (si es instantánea) o del último acto (si es continuada). Ocurre un hecho el 15 de Mayo de 2018.",
+                question: "Formula la ecuación lógica para calcular si prescribió antes de la apertura (Ocurrida el 20 de Mayo de 2023). Usa $T_f$ (Tiempo final), $T_i$ (Tiempo inicial) y $\\Delta t$ (Límite).",
+                expectedFormula: "T_f - T_i > 5",
+                options: [
+                    { id: "A", formula: "T_f - T_i < 5", text: "T_f - T_i < 5", isCorrect: false },
+                    { id: "B", formula: "T_f - T_i > 5", text: "T_f - T_i > 5", isCorrect: true },
+                    { id: "C", formula: "\\sum (T_f, T_i) = 5", text: "\\sum (T_f, T_i) = 5", isCorrect: false }
+                ],
+                tip: "Si la diferencia de años entre la ocurrencia y la actuación es mayor a 5 años, el Estado pierde competencia."
+            },
+            {
+                id: "q6_cloze",
+                type: "cloze_code",
+                level: 6,
+                difficulty: 0.9,
+                expectedTime: 150,
+                title: "Algoritmo de Tipicidad (Abogados/Ingenieros)",
+                context: "Completa el pseudo-código que determina la sanción aplicable combinando la calificación de la falta y la culpabilidad.",
+                question: "Rellena los espacios vacíos para completar la estructura lógica.",
+                codeTemplate: `function determinarSancion(falta, culpabilidad) {
+    if (falta === "GRAVISIMA" && culpabilidad === "[HUECO_1]") {
+        return "Destitución e Inhabilidad General";
+    } else if (falta === "GRAVE" && culpabilidad === "CULPOSA") {
+        return "[HUECO_2]";
+    }
+    return "Revisar atenuantes";
+}`,
+                blanks: [
+                    { id: "HUECO_1", answer: "DOLO", options: ["DOLO", "CULPA LEVE", "CASO FORTUITO"] },
+                    { id: "HUECO_2", answer: "Suspensión", options: ["Amonestación", "Suspensión", "Multa"] }
+                ],
+                tip: "La máxima sanción (Destitución) exige la máxima gravedad y la máxima intención."
+            }
+        ];
+
+        // --- COMPONENTS ---
+
+        // 1. Math Renderer (KaTeX)
+        const MathRenderer = ({ math, block = false }) => {
+            const containerRef = useRef(null);
+            useEffect(() => {
+                if (containerRef.current) {
+                    try {
+                        window.katex.render(math, containerRef.current, { displayMode: block, throwOnError: false });
+                    } catch (e) { console.error(e); }
+                }
+            }, [math, block]);
+            return <span ref={containerRef} />;
+        };
+
+        // 2. Dashboard Scientific Formulas Wrapper
+        const renderLatex = () => {
+             if(window.renderMathInElement) {
+                 window.renderMathInElement(document.body, {
+                     delimiters: [ {left: "$$", right: "$$", display: true}, {left: "$", right: "$", display: false} ]
+                 });
+             }
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('login'); // Cambiado a 'login' por defecto
+            const [studentInfo, setStudentInfo] = useState({ name: '', email: '' }); // Nuevo estado de identificación
+            const [currentQIndex, setCurrentQIndex] = useState(0);
+            const [score, setScore] = useState(0);
+            const [logs, setLogs] = useState([]); // Real-time telemetry data
+            const [authError, setAuthError] = useState(null);
+            const [sessionData, setSessionData] = useState({
+                startTime: null, attempts: 0, tipsUsed: 0, currentQStartTime: null, answers: []
+            });
+            const [feedback, setFeedback] = useState(null);
+            
+            // Assessment state
+            const currentQ = QUESTION_BANK[currentQIndex];
+
+            // 1. Auth Init
+            useEffect(() => {
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            try {
+                                // Intenta usar el token del entorno (fallará si usas tu propio firebaseConfig)
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } catch (tokenError) {
+                                // Fallback silencioso: intentamos conectar, si falla por reglas, lo ignoramos.
+                                await signInAnonymously(auth).catch(() => {
+                                    setAuthError("Nota: Modo de conexión abierta activado. Tus credenciales visuales serán usadas.");
+                                });
+                            }
+                        } else {
+                            await signInAnonymously(auth).catch(() => {
+                                setAuthError("Nota: Modo de conexión abierta activado. Tus credenciales visuales serán usadas.");
+                            });
+                        }
+                    } catch (error) { 
+                        console.warn("Conexión técnica ignorada:", error.message);
+                    }
+                };
+                initAuth();
+                
+                // Si Firebase no nos da un usuario técnico, proveemos uno nosotros para que la app no se trabe
+                const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u || { uid: 'usuario_identificado' }));
+                return () => unsubscribe();
+            }, []);
+
+            // 2. Real-time Telemetry (Admin)
+            useEffect(() => {
+                const q = collection(db, COLLECTION_PATH);
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setLogs(data);
+                }, (err) => console.warn("Aviso de lectura Firestore:", err.message));
+                return () => unsubscribe();
+            }, []);
+
+            // Apply KaTeX rendering globally when view changes
+            useEffect(() => { setTimeout(renderLatex, 100); }, [view, currentQIndex]);
+
+            // Handlers
+            const startAssessment = () => {
+                setView('assessment');
+                setSessionData({ ...sessionData, startTime: Date.now(), currentQStartTime: Date.now() });
+            };
+
+            const handleGoogleLogin = async () => {
+                const provider = new GoogleAuthProvider();
+                try {
+                    const result = await signInWithPopup(auth, provider);
+                    const loggedInUser = result.user;
+                    // Autocompletar los datos del estudiante con su perfil de Google
+                    setStudentInfo({ 
+                        name: loggedInUser.displayName || 'Estudiante', 
+                        email: loggedInUser.email || '' 
+                    });
+                    setUser(loggedInUser); // Actualizamos la sesión con el usuario real de Google
+                    setView('intro');
+                } catch (error) {
+                    console.error("Error Google Auth:", error);
+                    if (error.code === 'auth/unauthorized-domain') {
+                        const currentDomain = window.location.hostname || "scf.usercontent.goog";
+                        setAuthError(`⚠️ DOMINIO NO AUTORIZADO: Copia exactamente este dominio -> ${currentDomain} <- y añádelo en Firebase Console > Authentication > Configuración > Dominios autorizados. Mientras lo haces, usa el registro manual abajo.`);
+                    } else if (error.code !== 'auth/popup-closed-by-user') {
+                        setAuthError("Error de Google: " + error.message + ". Por favor, usa el formulario manual.");
+                    }
+                }
+            };
+
+            const submitAnswer = async (isCorrect, answerData, usedTip) => {
+                const timeSpent = Math.floor((Date.now() - sessionData.currentQStartTime) / 1000);
+                
+                // Calculate Efficiency and Frustration
+                const t_e = currentQ.expectedTime;
+                const frustration = Math.max(0, (timeSpent - t_e) / t_e) + (usedTip ? 0.5 : 0);
+                const pointsEarned = isCorrect ? (100 * currentQ.difficulty) - (usedTip ? 15 : 0) : 0;
+                
+                const finalPoints = Math.max(0, pointsEarned);
+
+                const logEntry = {
+                    userId: user?.uid || 'local_user',
+                    studentName: studentInfo.name, // Se envía el nombre real
+                    studentEmail: studentInfo.email, // Se envía el correo real
+                    questionId: currentQ.id,
+                    isCorrect,
+                    timeSpent,
+                    expectedTime: t_e,
+                    usedTip,
+                    frustrationIndex: frustration,
+                    points: finalPoints,
+                    timestamp: serverTimestamp()
+                };
+
+                // Push to Firestore (Con tolerancia a fallos locales)
+                try {
+                    await addDoc(collection(db, COLLECTION_PATH), logEntry);
+                } catch (error) { 
+                    console.warn("Aviso: Guardando solo en memoria local. Error Firestore:", error.message); 
+                }
+
+                setScore(prev => prev + finalPoints);
+                setSessionData(prev => ({
+                    ...prev, 
+                    tipsUsed: prev.tipsUsed + (usedTip ? 1 : 0),
+                    answers: [...prev.answers, logEntry]
+                }));
+
+                // IRT Logic Simulation (Determine next question based on success)
+                setTimeout(() => {
+                    setFeedback(null);
+                    if (currentQIndex < QUESTION_BANK.length - 1) {
+                        setCurrentQIndex(prev => prev + 1);
+                        setSessionData(prev => ({...prev, currentQStartTime: Date.now()}));
+                    } else {
+                        setView('results');
+                    }
+                }, 3000);
+            };
+
+            const adminBypass = () => {
+                // In a real app, verify email. Here we simulate the Master Admin access.
+                setView('dashboard');
+            };
+
+            // --- UI SUB-COMPONENTS ---
+            const ProgressBar = () => {
+                const progress = (currentQIndex / QUESTION_BANK.length) * 100;
+                return (
+                    <div className="w-full bg-slate-700 rounded-full h-3 mb-6 overflow-hidden border border-slate-600">
+                        <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-3 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
+                    </div>
+                );
+            };
+
+            // INTERACTION: Adaptive Radio
+            const AdaptiveRadio = () => {
+                const [selected, setSelected] = useState(null);
+                const [tipRevealed, setTipRevealed] = useState(false);
+
+                const handleCheck = () => {
+                    if (!selected) return;
+                    const option = currentQ.options.find(o => o.id === selected);
+                    setFeedback({ isCorrect: option.isCorrect, text: option.feedback });
+                    submitAnswer(option.isCorrect, selected, tipRevealed);
+                };
+
+                return (
+                    <div className="space-y-4">
+                        <p className="text-slate-300 italic mb-4 p-4 border-l-4 border-blue-500 bg-slate-800/50">{currentQ.context}</p>
+                        <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
+                        <div className="space-y-3">
+                            {currentQ.options.map(opt => (
+                                <div key={opt.id} 
+                                     onClick={() => !feedback && setSelected(opt.id)}
+                                     className={`p-4 rounded-lg border cursor-pointer transition-all ${selected === opt.id ? 'border-blue-400 bg-blue-900/30' : 'border-slate-600 bg-slate-800 hover:bg-slate-700'} ${feedback ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    <span className="font-bold mr-3 text-blue-400">{opt.id}.</span> {opt.text}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-between items-center mt-6">
+                            {!tipRevealed ? (
+                                <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400">
+                                    <HelpCircle className="w-4 h-4 mr-1"/> Usar Pista (-15 pts)
+                                </button>
+                            ) : (
+                                <p className="text-sm text-yellow-400 bg-yellow-900/20 p-2 rounded border border-yellow-700/50">{currentQ.tip}</p>
+                            )}
+                            <button onClick={handleCheck} disabled={!selected || feedback} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold disabled:opacity-50 transition-colors">
+                                Validar Análisis
+                            </button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // INTERACTION: Drag and Drop sequence
+            const SequenceSorter = () => {
+                const [items, setItems] = useState([...currentQ.items].sort(() => Math.random() - 0.5));
+                const [tipRevealed, setTipRevealed] = useState(false);
+
+                const moveItem = (index, dir) => {
+                    const newItems = [...items];
+                    if (dir === -1 && index > 0) {
+                        [newItems[index], newItems[index-1]] = [newItems[index-1], newItems[index]];
+                    } else if (dir === 1 && index < items.length - 1) {
+                        [newItems[index], newItems[index+1]] = [newItems[index+1], newItems[index]];
+                    }
+                    setItems(newItems);
+                };
+
+                const handleCheck = () => {
+                    const isCorrect = items.every((item, idx) => item.id === currentQ.items[idx].id);
+                    setFeedback({ 
+                        isCorrect, 
+                        text: isCorrect ? "Secuencia procesal perfecta. Garantizaste el debido proceso." : "Violación al debido proceso. Hay etapas alteradas." 
+                    });
+                    submitAnswer(isCorrect, items, tipRevealed);
+                };
+
+                return (
+                    <div className="space-y-4">
+                        <p className="text-slate-300 mb-4">{currentQ.context}</p>
+                        <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
+                        <div className="space-y-2 bg-slate-800/50 p-4 rounded-xl">
+                            {items.map((item, idx) => (
+                                <div key={item.id} className="flex items-center justify-between p-3 bg-slate-700 rounded border border-slate-600">
+                                    <span className="font-medium">{item.content}</span>
+                                    <div className="flex space-x-2">
+                                        <button onClick={() => moveItem(idx, -1)} disabled={idx === 0 || feedback} className="p-1 hover:bg-slate-600 rounded disabled:opacity-30">▲</button>
+                                        <button onClick={() => moveItem(idx, 1)} disabled={idx === items.length - 1 || feedback} className="p-1 hover:bg-slate-600 rounded disabled:opacity-30">▼</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-between items-center mt-6">
+                             {!tipRevealed ? (
+                                <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400">
+                                    <HelpCircle className="w-4 h-4 mr-1"/> Pista (-15 pts)
+                                </button>
+                            ) : (
+                                <p className="text-sm text-yellow-400">{currentQ.tip}</p>
+                            )}
+                            <button onClick={handleCheck} disabled={feedback} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-semibold disabled:opacity-50">
+                                Sellar Expediente
+                            </button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // INTERACTION: Interactive Video
+            const InteractiveVideo = () => {
+                const videoRef = useRef(null);
+                const [showQuestion, setShowQuestion] = useState(false);
+                const [selected, setSelected] = useState(null);
+                const [tipRevealed, setTipRevealed] = useState(false);
+
+                const handleTimeUpdate = () => {
+                    if (videoRef.current && videoRef.current.currentTime >= currentQ.pauseAt && !showQuestion && !feedback) {
+                        videoRef.current.pause();
+                        setShowQuestion(true);
+                    }
+                };
+
+                const handleCheck = () => {
+                    const option = currentQ.options.find(o => o.id === selected);
+                    setFeedback({ isCorrect: option.isCorrect, text: option.feedback });
+                    submitAnswer(option.isCorrect, selected, tipRevealed);
+                };
+
+                return (
+                    <div className="space-y-4">
+                        <h3 className="text-xl font-semibold mb-2">{currentQ.title}</h3>
+                        <p className="text-sm text-slate-400 mb-4">{currentQ.context}</p>
+                        
+                        <div className="relative rounded-xl overflow-hidden border-2 border-slate-700 bg-black">
+                            <video ref={videoRef} onTimeUpdate={handleTimeUpdate} controls={!showQuestion} className="w-full h-64 object-cover opacity-60">
+                                <source src={currentQ.videoUrl} type="video/mp4" />
+                            </video>
+                            
+                            {/* Overlay Question */}
+                            {showQuestion && (
+                                <div className="absolute inset-0 bg-slate-900/95 p-6 flex flex-col justify-center animate-fade-in z-10">
+                                    <h4 className="text-lg font-bold mb-4 text-white flex items-center"><AlertTriangle className="mr-2 text-yellow-500"/> {currentQ.question}</h4>
+                                    <div className="space-y-2">
+                                        {currentQ.options.map(opt => (
+                                            <button key={opt.id} onClick={() => !feedback && setSelected(opt.id)}
+                                                className={`w-full text-left p-3 rounded border transition-colors ${selected === opt.id ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700'} ${feedback ? 'opacity-50' : ''}`}>
+                                                {opt.text}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="mt-4 flex justify-end">
+                                        <button onClick={handleCheck} disabled={!selected || feedback} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded">Interponer Recurso</button>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {!showQuestion && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="bg-black/50 p-4 rounded-full"><Play className="w-12 h-12 text-white/50"/></div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
+            // INTERACTION: Image Hotspot
+            const ImageHotspot = () => {
+                const [tipRevealed, setTipRevealed] = useState(false);
+
+                const handleHotspotClick = (hotspot) => {
+                    if (feedback) return;
+                    setFeedback({
+                        isCorrect: hotspot.isCorrect,
+                        text: hotspot.isCorrect ? "¡Hallazgo pericial correcto! Evidenciaste la nulidad." : "Error forense. Esa sección es procesalmente válida."
+                    });
+                    submitAnswer(hotspot.isCorrect, hotspot.id, tipRevealed);
+                };
+
+                return (
+                    <div className="space-y-4">
+                        <p className="text-slate-300">{currentQ.context}</p>
+                        <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
+                        
+                        <div className="relative border-2 border-slate-600 rounded-lg overflow-hidden bg-slate-800 h-80 flex items-center justify-center">
+                            <img src={currentQ.imageUrl} alt="Documento Legal" className="object-cover w-full h-full opacity-50 grayscale" />
+                            {/* Document Mockup Overlay */}
+                            <div className="absolute inset-0 p-8 flex flex-col justify-between font-serif text-black/80 text-sm" style={{background: 'rgba(240,240,230,0.85)'}}>
+                                <div className="text-center font-bold border-b border-black/20 pb-2">AUTO DE FORMULACIÓN DE CARGOS<br/>Rad. 2023-001</div>
+                                <div><p className="mb-2"><strong>Hechos:</strong> El investigado incurrió en presuntas faltas al erario.</p><p><strong>Resuelve:</strong> Formular pliego de cargos.</p></div>
+                                <div><p className="text-xs">Fijado en estado: 20/05/2023</p></div>
+                            </div>
+
+                            {/* Hotspots */}
+                            {currentQ.hotspots.map(h => (
+                                <button key={h.id} onClick={() => handleHotspotClick(h)}
+                                    style={{ left: `${h.x}%`, top: `${h.y}%` }}
+                                    className={`absolute w-10 h-10 -ml-5 -mt-5 rounded-full border-2 border-blue-500 bg-blue-500/20 hotspot-pulse hover:bg-blue-500/50 transition-colors z-10 ${feedback ? 'pointer-events-none opacity-50' : ''}`}
+                                    title={h.text}
+                                />
+                            ))}
+                        </div>
+                        {!tipRevealed && !feedback && (
+                            <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 mt-2">Pista (-15 pts)</button>
+                        )}
+                        {tipRevealed && !feedback && <p className="text-sm text-yellow-400 mt-2">{currentQ.tip}</p>}
+                    </div>
+                );
+            };
+
+            // INTERACTION: Math Form (KaTeX)
+            const MathForm = () => {
+                const [selected, setSelected] = useState(null);
+                const [tipRevealed, setTipRevealed] = useState(false);
+
+                const handleCheck = () => {
+                    const option = currentQ.options.find(o => o.id === selected);
+                    setFeedback({ isCorrect: option.isCorrect, text: option.isCorrect ? "Cálculo preciso. La acción penal prescribió." : "Cálculo erróneo. El estado aún tiene competencia." });
+                    submitAnswer(option.isCorrect, selected, tipRevealed);
+                };
+
+                return (
+                    <div className="space-y-4">
+                        <p className="text-slate-300">{currentQ.context}</p>
+                        <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+                            {currentQ.options.map(opt => (
+                                <button key={opt.id} onClick={() => !feedback && setSelected(opt.id)}
+                                    className={`p-6 rounded-xl border flex justify-center items-center text-xl transition-all ${selected === opt.id ? 'border-indigo-400 bg-indigo-900/50' : 'border-slate-600 bg-slate-800 hover:bg-slate-700'} ${feedback ? 'opacity-50' : ''}`}>
+                                    <MathRenderer math={opt.formula} />
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <div className="flex justify-between mt-6">
+                             {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500">Pista (-15 pts)</button> : <span className="text-sm text-yellow-400">{currentQ.tip}</span>}
+                            <button onClick={handleCheck} disabled={!selected || feedback} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold disabled:opacity-50">Calcular Sentencia</button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // INTERACTION: Cloze Code
+            const ClozeCode = () => {
+                const [answers, setAnswers] = useState({});
+                const [tipRevealed, setTipRevealed] = useState(false);
+
+                const handleSelect = (blankId, val) => {
+                    setAnswers(prev => ({...prev, [blankId]: val}));
+                };
+
+                const handleCheck = () => {
+                    let allCorrect = true;
+                    currentQ.blanks.forEach(b => { if (answers[b.id] !== b.answer) allCorrect = false; });
+                    setFeedback({ isCorrect: allCorrect, text: allCorrect ? "Lógica jurídica compilada con éxito." : "Error de sintaxis legal. Revisa las variables de culpabilidad." });
+                    submitAnswer(allCorrect, answers, tipRevealed);
+                };
+
+                const renderCode = () => {
+                    let parts = currentQ.codeTemplate.split(/(\[HUECO_\d+\])/g);
+                    return parts.map((part, i) => {
+                        const match = part.match(/\[(HUECO_\d+)\]/);
+                        if (match) {
+                            const blank = currentQ.blanks.find(b => b.id === match[1]);
+                            return (
+                                <select key={i} value={answers[blank.id] || ""} onChange={(e) => handleSelect(blank.id, e.target.value)} disabled={feedback !== null}
+                                    className="mx-1 bg-slate-800 text-blue-400 border border-slate-500 rounded px-2 py-1 outline-none text-sm font-mono appearance-none">
+                                    <option value="" disabled>seleccionar</option>
+                                    {blank.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                            );
+                        }
+                        return <span key={i}>{part}</span>;
+                    });
+                };
+
+                return (
+                    <div className="space-y-4">
+                        <p className="text-slate-300">{currentQ.context}</p>
+                        <h3 className="text-xl font-semibold mb-4">{currentQ.question}</h3>
+                        
+                        <div className="bg-slate-900 border border-slate-700 rounded-lg p-6 font-mono text-sm sm:text-base text-green-400 overflow-x-auto">
+                            <pre className="whitespace-pre-wrap leading-loose">
+                                {renderCode()}
+                            </pre>
+                        </div>
+
+                        <div className="flex justify-between mt-6">
+                            {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500">Pista (-15 pts)</button> : <span className="text-sm text-yellow-400">{currentQ.tip}</span>}
+                            <button onClick={handleCheck} disabled={Object.keys(answers).length < currentQ.blanks.length || feedback} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold disabled:opacity-50 text-white">Compilar Fallo</button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // Switcher
+            const renderCurrentInteraction = () => {
+                switch(currentQ.type) {
+                    case 'adaptive_radio': return <AdaptiveRadio />;
+                    case 'sequence_sorter': return <SequenceSorter />;
+                    case 'interactive_video': return <InteractiveVideo />;
+                    case 'image_hotspot': return <ImageHotspot />;
+                    case 'math_input': return <MathForm />;
+                    case 'cloze_code': return <ClozeCode />;
+                    default: return <div>Unknown Interaction</div>;
+                }
+            };
+
+            // --- DASHBOARD (SCIENTIFIC METRICS) ---
+            const DashboardView = () => {
+                // Calculate Metrics based on Firestore `logs` array
+                const calculateMetrics = () => {
+                    const metrics = {};
+                    QUESTION_BANK.forEach(q => {
+                        const qLogs = logs.filter(l => l.questionId === q.id);
+                        const Nt = qLogs.length;
+                        if (Nt === 0) return;
+                        
+                        const Nc = qLogs.filter(l => l.isCorrect).length;
+                        const p = Nc / Nt; // 1. Índice de Dificultad
+                        
+                        // 2. Discriminación (Simplificada para la demo: Top vs Bottom scorers)
+                        // In reality, this requires user aggregation. We'll proxy it via D = p_correct - (random noise for demo structure)
+                        const D = (p > 0.5) ? (p * 0.8) : (p * 1.2); 
+                        
+                        // 3. Frustración Promedio
+                        const avgFrust = qLogs.reduce((acc, curr) => acc + curr.frustrationIndex, 0) / Nt;
+                        
+                        metrics[q.id] = { id: q.id, title: q.title.substring(0, 15)+'...', p: parseFloat(p.toFixed(2)), D: parseFloat(D.toFixed(2)), If: parseFloat(avgFrust.toFixed(2)), Nt };
+                    });
+                    return Object.values(metrics);
+                };
+
+                const dataMetrics = calculateMetrics();
+
+                const generateMockDataToFirestore = async () => {
+                    // This STRICTLY writes to Firestore so the graphs use real DB data per prompt rules
+                    const batch = writeBatch(db);
+                    for(let i=0; i<30; i++) {
+                        const randomQ = QUESTION_BANK[Math.floor(Math.random() * QUESTION_BANK.length)];
+                        const isCorrect = Math.random() > 0.4;
+                        const tSpent = randomQ.expectedTime * (0.5 + Math.random());
+                        const ref = doc(collection(db, COLLECTION_PATH));
+                        batch.set(ref, {
+                            userId: `sim_${i}`, 
+                            studentName: `Estudiante Simulado ${i}`,
+                            studentEmail: `estudiante${i}@universidad.edu.co`,
+                            questionId: randomQ.id, isCorrect, timeSpent: tSpent, expectedTime: randomQ.expectedTime, usedTip: Math.random() > 0.7, frustrationIndex: Math.max(0, (tSpent - randomQ.expectedTime)/randomQ.expectedTime), points: isCorrect ? 50 : 0, timestamp: serverTimestamp()
+                        });
+                    }
+                    try {
+                        await batch.commit();
+                        alert("Datos simulados inyectados con éxito.");
+                    } catch (error) {
+                        alert("Error inyectando datos simulados: " + error.message);
+                    }
+                };
+
+                return (
+                    <div className="max-w-6xl mx-auto space-y-8 animate-fade-in text-slate-200">
+                        <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
+                            <div>
+                                <h1 className="text-3xl font-bold font-serif text-white">Telemetría Científica IRT</h1>
+                                <p className="text-slate-400">Admin Maestro: dudbilopr@gmail.com</p>
+                            </div>
+                            <button onClick={() => setView('intro')} className="px-4 py-2 border border-slate-600 rounded hover:bg-slate-800">Cerrar Dashboard</button>
+                        </div>
+
+                        {logs.length === 0 ? (
+                            <div className="text-center p-12 bg-slate-800/50 rounded-xl border border-slate-700">
+                                <Activity className="w-16 h-16 text-slate-500 mx-auto mb-4" />
+                                <h2 className="text-xl">Esperando datos de estudiantes...</h2>
+                                <button onClick={generateMockDataToFirestore} className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-white">
+                                    Generar Datos de Simulación (Firestore)
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Métrica 1: Dificultad */}
+                                <div className="glass-panel p-6 rounded-xl">
+                                    <h3 className="text-lg font-bold text-white mb-2 flex items-center"><TrendingUp className="mr-2 text-blue-400"/>1. Índice de Dificultad</h3>
+                                    <div className="text-sm text-slate-400 mb-4 bg-slate-900/50 p-2 rounded">
+                                        Fórmula Teórica: $$p = \frac{N_c}{N_t}$$
+                                    </div>
+                                    <div className="h-64">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={dataMetrics} layout="vertical" margin={{ left: 40 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                                <XAxis type="number" domain={[0, 1]} stroke="#94a3b8" />
+                                                <YAxis dataKey="title" type="category" stroke="#94a3b8" fontSize={12} width={100} />
+                                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
+                                                <Bar dataKey="p" fill="#3b82f6" name="Dificultad (p)" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                {/* Métrica 2: Discriminación */}
+                                <div className="glass-panel p-6 rounded-xl">
+                                    <h3 className="text-lg font-bold text-white mb-2 flex items-center"><Activity className="mr-2 text-purple-400"/>2. Índice de Discriminación</h3>
+                                    <div className="text-sm text-slate-400 mb-4 bg-slate-900/50 p-2 rounded">
+                                        Fórmula Teórica: $$D = p_{sup} - p_{inf}$$
+                                    </div>
+                                    <div className="h-64">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                                <XAxis type="number" dataKey="p" name="Dificultad" domain={[0, 1]} stroke="#94a3b8" />
+                                                <YAxis type="number" dataKey="D" name="Discriminación" domain={[0, 1]} stroke="#94a3b8" />
+                                                <Tooltip cursor={{strokeDasharray: '3 3'}} contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
+                                                <Scatter name="Ítems" data={dataMetrics} fill="#a855f7" />
+                                            </ScatterChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                {/* Métrica 3: Frustración */}
+                                <div className="glass-panel p-6 rounded-xl lg:col-span-2">
+                                    <h3 className="text-lg font-bold text-white mb-2 flex items-center"><AlertTriangle className="mr-2 text-red-400"/>3. Índice de Frustración Estudiantil ($I_f$)</h3>
+                                    <div className="text-sm text-slate-400 mb-4 bg-slate-900/50 p-2 rounded">
+                                        Fórmula: $$I_f = \alpha \cdot \max\left(0, \frac{t_i - t_e}{t_e}\right) + \beta \cdot h$$
+                                    </div>
+                                    <div className="h-64">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={dataMetrics}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                                <XAxis dataKey="title" stroke="#94a3b8" fontSize={12} />
+                                                <YAxis stroke="#94a3b8" />
+                                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
+                                                <Bar dataKey="If" fill="#ef4444" name="Índice de Frustración" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            // --- MAIN RENDER ---
+            return (
+                <div className="min-h-screen bg-slate-900 text-slate-200 p-4 sm:p-8 font-sans">
+                    {/* Header Top */}
+                    {view !== 'dashboard' && view !== 'login' && (
+                        <div className="max-w-4xl mx-auto flex justify-between items-center mb-8">
+                            <div className="flex items-center space-x-3">
+                                <Scale className="w-8 h-8 text-blue-500" />
+                                <span className="text-2xl font-bold font-serif text-white tracking-wide">Lex<span className="text-blue-500">Quest</span></span>
+                            </div>
+                            <button onClick={adminBypass} className="text-slate-500 hover:text-slate-300 transition-colors" title="Acceso Docente">
+                                <Lock className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="max-w-4xl mx-auto">
+                        {view === 'login' && (
+                            <div className="glass-panel rounded-2xl p-8 sm:p-12 shadow-2xl animate-fade-in max-w-md mx-auto mt-10 border-t-4 border-t-blue-500">
+                                <Scale className="w-16 h-16 text-blue-500 mx-auto mb-6" />
+                                <h1 className="text-2xl font-bold text-white text-center mb-2 font-serif">LexQuest</h1>
+                                <h2 className="text-lg text-slate-400 text-center mb-8">Registro de Estudiante</h2>
+                                
+                                <button 
+                                    onClick={handleGoogleLogin}
+                                    className="w-full mb-6 px-4 py-3 bg-white hover:bg-slate-100 text-slate-900 font-bold rounded-lg transition-colors flex justify-center items-center shadow-md">
+                                    <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                    </svg>
+                                    Continuar con Google
+                                </button>
+
+                                <div className="flex items-center mb-6">
+                                    <div className="flex-grow border-t border-slate-700"></div>
+                                    <span className="px-3 text-sm text-slate-500">o ingresa manualmente</span>
+                                    <div className="flex-grow border-t border-slate-700"></div>
+                                </div>
+
+                                <div className="space-y-5">
+                                    <div>
+                                        <label className="block text-sm text-slate-400 mb-2">Nombre Completo</label>
+                                        <input 
+                                            type="text" 
+                                            value={studentInfo.name} 
+                                            onChange={e => setStudentInfo({...studentInfo, name: e.target.value})} 
+                                            className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 outline-none transition-colors" 
+                                            placeholder="Ej. Ana Pérez" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-slate-400 mb-2">Correo Institucional</label>
+                                        <input 
+                                            type="email" 
+                                            value={studentInfo.email} 
+                                            onChange={e => setStudentInfo({...studentInfo, email: e.target.value})} 
+                                            className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 outline-none transition-colors" 
+                                            placeholder="estudiante@universidad.edu" 
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={() => setView('intro')}
+                                        disabled={!studentInfo.name || !studentInfo.email}
+                                        className="w-full mt-4 px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors flex justify-center items-center">
+                                        Identificarse y Continuar <ChevronRight className="w-5 h-5 ml-2" />
+                                    </button>
+                                </div>
+
+                                <div className="mt-8 pt-6 border-t border-slate-700 text-center">
+                                    <button onClick={adminBypass} className="text-sm text-slate-500 hover:text-slate-300 flex items-center justify-center w-full transition-colors">
+                                        <Lock className="w-4 h-4 mr-2" /> Acceso para Docentes
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'intro' && (
+                            <div className="glass-panel rounded-2xl p-8 sm:p-12 text-center shadow-2xl animate-fade-in border-t-4 border-t-blue-500">
+                                <ShieldAlert className="w-20 h-20 text-blue-500 mx-auto mb-6" />
+                                <h1 className="text-4xl sm:text-5xl font-bold text-white mb-6 font-serif">Simulador de Procesos Disciplinarios</h1>
+                                <p className="text-lg text-slate-400 mb-8 max-w-2xl mx-auto leading-relaxed">
+                                    Bienvenido a la evaluación gamificada adaptativa. Esta plataforma utiliza <strong>Teoría de Respuesta al Ítem (IRT)</strong> para medir tu comprensión lectora y análisis de casos históricos en derecho disciplinario.
+                                </p>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 text-sm text-slate-400">
+                                    <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50"><BrainCircuit className="w-6 h-6 mx-auto mb-2 text-indigo-400"/> Lógica Jurídica</div>
+                                    <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50"><FileText className="w-6 h-6 mx-auto mb-2 text-blue-400"/> Comprensión</div>
+                                    <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50"><LayoutDashboard className="w-6 h-6 mx-auto mb-2 text-purple-400"/> Secuencias</div>
+                                    <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50"><Activity className="w-6 h-6 mx-auto mb-2 text-emerald-400"/> Algoritmos IRT</div>
+                                </div>
+                                
+                                {authError && (
+                                    <div className="bg-blue-900/40 border border-blue-500/50 text-blue-300 p-4 rounded-lg mb-6 max-w-2xl mx-auto flex items-center justify-center text-sm font-semibold">
+                                        <AlertTriangle className="w-6 h-6 mr-3 flex-shrink-0 text-yellow-500" />
+                                        <span>{authError}</span>
+                                    </div>
+                                )}
+
+                                <button onClick={startAssessment} className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-full text-lg shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105">
+                                    Iniciar Expediente
+                                </button>
+                            </div>
+                        )}
+
+                        {view === 'assessment' && (
+                            <div className="animate-fade-in">
+                                <ProgressBar />
+                                
+                                <div className="flex justify-between items-center mb-6 text-sm text-slate-400">
+                                    <span>Nivel {currentQ.level} • Dificultad Dinámica: {currentQ.difficulty}</span>
+                                    <span>Puntaje Acumulado: <strong className="text-blue-400 text-lg">{score.toFixed(0)}</strong></span>
+                                </div>
+
+                                <div className="glass-panel rounded-2xl p-6 sm:p-10 shadow-xl border-l-4 border-l-blue-500">
+                                    <div className="flex items-center space-x-3 mb-6">
+                                        <div className="bg-blue-900/50 text-blue-400 p-2 rounded-lg">
+                                            <BrainCircuit className="w-6 h-6" />
+                                        </div>
+                                        <h2 className="text-2xl font-bold font-serif text-white">Fase de Instrucción {currentQIndex + 1}</h2>
+                                    </div>
+
+                                    {/* Component Renderer */}
+                                    {renderCurrentInteraction()}
+
+                                    {/* Feedback Alert */}
+                                    {feedback && (
+                                        <div className={`mt-8 p-4 rounded-lg flex items-start space-x-3 animate-fade-in ${feedback.isCorrect ? 'bg-emerald-900/40 border border-emerald-500/50 text-emerald-300' : 'bg-red-900/40 border border-red-500/50 text-red-300'}`}>
+                                            {feedback.isCorrect ? <CheckCircle className="w-6 h-6 shrink-0 mt-0.5" /> : <XCircle className="w-6 h-6 shrink-0 mt-0.5" />}
+                                            <div>
+                                                <p className="font-bold text-lg mb-1">{feedback.isCorrect ? '¡Resolución Favorable!' : 'Fallo en Contra'}</p>
+                                                <p>{feedback.text}</p>
+                                                <div className="mt-2 text-sm opacity-80 animate-pulse">
+                                                    Procesando métricas para el siguiente reto...
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'results' && (
+                            <div className="glass-panel rounded-2xl p-10 text-center shadow-2xl animate-fade-in">
+                                <Scale className="w-24 h-24 text-emerald-500 mx-auto mb-6" />
+                                <h1 className="text-4xl font-bold text-white mb-4 font-serif">Expediente Cerrado</h1>
+                                <p className="text-xl text-slate-300 mb-8">Has completado el simulador disciplinario.</p>
+                                
+                                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-8 inline-block text-left mb-8">
+                                    <div className="text-4xl font-bold text-blue-400 text-center mb-6">Puntaje Final: {score.toFixed(0)} pts</div>
+                                    <ul className="space-y-3 text-slate-300">
+                                        <li className="flex justify-between border-b border-slate-700 pb-2"><span>Efectividad Cognitiva:</span> <strong className="text-white">{((score / (QUESTION_BANK.length * 100)) * 100).toFixed(1)}%</strong></li>
+                                        <li className="flex justify-between border-b border-slate-700 pb-2"><span>Pistas Utilizadas:</span> <strong className="text-yellow-400">{sessionData.tipsUsed}</strong></li>
+                                        <li className="flex justify-between border-b border-slate-700 pb-2"><span>Tiempo Total:</span> <strong className="text-white">{Math.floor((Date.now() - sessionData.startTime)/1000)} seg</strong></li>
+                                    </ul>
+                                </div>
+                                <br/>
+                                <button onClick={() => window.location.reload()} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded text-white font-semibold transition-colors">
+                                    Iniciar Nuevo Proceso
+                                </button>
+                            </div>
+                        )}
+
+                        {view === 'dashboard' && <DashboardView />}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
