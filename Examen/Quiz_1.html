@@ -28,9 +28,11 @@
         /* Barras de progreso animadas */
         .progress-bar-fill { transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
         
-        /* Efecto Step Activo */
-        .step-active { border-left: 4px solid #ea580c; background: #fff7ed; transition: all 0.3s ease; }
-        .step-pending { border-left: 4px solid #cbd5e1; background: #f8fafc; opacity: 0.9; }
+        /* Efecto Timeline Procedimental */
+        .step-container { border-left: 4px solid #e2e8f0; padding-left: 24px; position: relative; margin-bottom: 32px; }
+        .step-container::before { content: ''; position: absolute; left: -14px; top: 0; width: 24px; height: 24px; background: #fff; border: 4px solid #cbd5e1; border-radius: 50%; transition: all 0.3s; }
+        .step-active { border-left-color: #ea580c; }
+        .step-active::before { border-color: #ea580c; background: #ea580c; box-shadow: 0 0 0 4px #ffedd5; }
     </style>
 
     <!-- KaTeX cargado estáticamente -->
@@ -54,7 +56,7 @@
           ArrowUpRight, ArrowUpLeft, ArrowDownRight, ArrowDownLeft, MousePointer2,
           CheckCircle as CheckCircle2, XCircle, Info, Hand, PenTool, User, ChevronDown, LogIn, Mail, ChevronRight, ChevronLeft,
           Brain, BarChart3, Settings, Star, Scissors, MessageSquare, BookOpenCheck,
-          UserCircle, Building, Camera, Globe, FileText, ShieldCheck, ListChecks, Crosshair, Map, GitMerge, Move, Compass
+          UserCircle, Building, Camera, Globe, FileText, ShieldCheck, ListChecks, Crosshair, Map, GitMerge, Move, Compass, Focus
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         // Firebase (Gstatic)
@@ -88,7 +90,7 @@
         
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "quiz-coulomb-v3-didactico"; 
+        const appId = "quiz-coulomb-v4-procedimental"; 
 
         // --- 2. KATEX HOOK ---
         const useKaTeX = () => {
@@ -186,7 +188,7 @@
             const pointGeo = new THREE.SphereGeometry(0.2, 16, 16);
             const pointMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
             const point = new THREE.Mesh(pointGeo, pointMat);
-            point.position.set(4, 0, 0); // Axis Z (visually X here)
+            point.position.set(4, 0, 0); 
             scene.add(point);
 
             // Axis line
@@ -234,6 +236,7 @@
           );
         };
 
+        // Select for Math Equations
         const InlineSelect = ({ id, value, onChange, options, width="w-auto", isSubmitted, expected }) => {
           const [isOpen, setIsOpen] = useState(false);
           const dropdownRef = useRef(null);
@@ -246,14 +249,14 @@
             return () => document.removeEventListener("mousedown", handleClickOutside);
           }, []);
 
-          const isCorrect = value === expected;
+          const isCorrect = isSubmitted && value === expected;
+          const isWrong = isSubmitted && value !== expected;
+          
           let bgClass = "bg-white hover:bg-orange-50 border-slate-300";
           let textClass = "text-slate-800";
           
-          if (isSubmitted) {
-            bgClass = isCorrect ? "bg-emerald-50 border-emerald-500" : "bg-red-50 border-red-500";
-            textClass = isCorrect ? "text-emerald-800" : "text-red-800";
-          }
+          if (isCorrect) { bgClass = "bg-emerald-50 border-emerald-500"; textClass = "text-emerald-800"; }
+          if (isWrong) { bgClass = "bg-red-50 border-red-500"; textClass = "text-red-800"; }
 
           const selectedOption = options.find(o => o.val === value);
 
@@ -265,7 +268,7 @@
                   className={`w-full px-4 py-3 min-h-[46px] text-base font-bold border-2 ${bgClass} ${textClass} rounded-xl outline-none transition-all shadow-sm flex items-center justify-between cursor-pointer disabled:cursor-default`}
                 >
                   <span className="flex-grow text-center flex items-center justify-center overflow-hidden">
-                    {selectedOption ? <Latex text={selectedOption.label} /> : <span className="text-slate-400 font-normal text-sm whitespace-nowrap">-- Seleccionar --</span>}
+                    {selectedOption ? <Latex text={selectedOption.label} /> : <span className="text-slate-400 font-normal text-sm whitespace-nowrap">-- Seleccione --</span>}
                   </span>
                   {!isSubmitted && <ChevronDown size={18} className={`text-slate-400 flex-shrink-0 transition-transform ml-2 ${isOpen ? 'rotate-180' : ''}`} />}
                 </button>
@@ -282,59 +285,118 @@
                     ))}
                   </div>
                 )}
+                {isWrong && expected && (
+                   <div className="absolute -top-6 right-0 bg-white border border-slate-200 px-2 py-1 rounded shadow-md text-xs text-red-600 font-bold z-10">
+                      Era: <Latex text={options.find(o=>o.val===expected)?.label || ''}/>
+                   </div>
+                )}
               </div>
             </span>
           );
         };
 
-        // NEW: Componente DCL Interactivo (Diagrama de Cuerpo Libre)
-        const DCLSelector = ({ id, value, onChange, isSubmitted, expected, label }) => {
-            const directions = [
-                { val: 'N', icon: ArrowUp, desc: 'Norte (+y)' },
-                { val: 'NE', icon: ArrowUpRight, desc: 'Noreste (+x, +y)' },
-                { val: 'E', icon: ArrowRightIcon, desc: 'Este (+x)' },
-                { val: 'SE', icon: ArrowDownRight, desc: 'Sureste (+x, -y)' },
-                { val: 'S', icon: ArrowDown, desc: 'Sur (-y)' },
-                { val: 'SW', icon: ArrowDownLeft, desc: 'Suroeste (-x, -y)' },
-                { val: 'W', icon: ArrowLeft, desc: 'Oeste (-x)' },
-                { val: 'NW', icon: ArrowUpLeft, desc: 'Noroeste (-x, +y)' }
-            ];
-
-            const isCorrect = isSubmitted && value === expected;
-            const isWrong = isSubmitted && value !== expected;
+        const StyledInput = ({ id, placeholder, width="w-full", answers, handleInputChange, isSubmitted, expected }) => {
+            const isCorrect = isSubmitted && answers[id] === expected;
+            const isWrong = isSubmitted && answers[id] !== expected;
+            
+            let bgClass = "bg-white border-slate-300 focus:border-orange-500 focus:bg-orange-50";
+            if (isCorrect) bgClass = "bg-emerald-50 border-emerald-500 text-emerald-800";
+            if (isWrong) bgClass = "bg-red-50 border-red-500 text-red-800";
 
             return (
-                <div className={`p-4 rounded-2xl border-2 ${isCorrect ? 'border-emerald-500 bg-emerald-50' : isWrong ? 'border-red-500 bg-red-50' : 'border-slate-200 bg-white'} flex flex-col items-center justify-center relative`}>
-                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Compass size={14}/> {label}</p>
-                    <div className="grid grid-cols-3 gap-2">
-                        {directions.map((dir, idx) => {
-                            // Empty center
-                            if(idx === 4) {
-                                return (
-                                    <React.Fragment key="center_frag">
-                                        <div className="w-12 h-12 flex items-center justify-center"><div className="w-3 h-3 bg-slate-800 rounded-full"></div></div>
-                                        <button 
-                                            type="button" disabled={isSubmitted} onClick={() => onChange(id, dir.val)}
-                                            className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all border-2 ${value === dir.val ? 'bg-orange-500 text-white border-orange-600 scale-110 shadow-md' : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-orange-100 hover:text-orange-600'}`}
-                                            title={dir.desc}
-                                        ><dir.icon size={24} /></button>
-                                    </React.Fragment>
-                                );
-                            }
+              <div className="relative w-full">
+                <input 
+                  type="text" value={answers[id] || ''} onChange={(e) => handleInputChange(id, e.target.value)} 
+                  placeholder={placeholder} disabled={isSubmitted}
+                  className={`${width} px-4 py-3 text-base border-2 rounded-xl outline-none transition-colors font-medium shadow-sm ${bgClass}`}
+                />
+                {isWrong && expected && (
+                   <div className="absolute -top-6 right-0 bg-white border border-slate-200 px-2 py-1 rounded shadow-md text-xs text-red-600 font-bold z-10">
+                      Era: {expected}
+                   </div>
+                )}
+              </div>
+            )
+        };
+
+        // NEW: Componente DCL Interactivo Múltiple
+        const InteractiveDCL = ({ idPrefix, vectors, answers, onChange, isSubmitted, expectedMap }) => {
+            const [activeVec, setActiveVec] = useState(vectors[0].id);
+            const directions = [
+                { id: 'NW', icon: ArrowUpLeft, desc: 'Noroeste' },
+                { id: 'N', icon: ArrowUp, desc: 'Norte' },
+                { id: 'NE', icon: ArrowUpRight, desc: 'Noreste' },
+                { id: 'W', icon: ArrowLeft, desc: 'Oeste' },
+                { id: 'CENTER', icon: Crosshair, desc: 'Origen' },
+                { id: 'E', icon: ArrowRightIcon, desc: 'Este' },
+                { id: 'SW', icon: ArrowDownLeft, desc: 'Suroeste' },
+                { id: 'S', icon: ArrowDown, desc: 'Sur' },
+                { id: 'SE', icon: ArrowDownRight, desc: 'Sureste' }
+            ];
+
+            const handleGridClick = (dirId) => {
+                if (isSubmitted || dirId === 'CENTER') return;
+                onChange(`${idPrefix}_${activeVec}`, dirId);
+            };
+
+            return (
+                <div className="bg-slate-50 border-2 border-slate-200 p-6 rounded-2xl shadow-inner flex flex-col items-center">
+                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Compass size={16}/> Diagrama de Cuerpo Libre Espacial</p>
+                    
+                    {/* Selector de Vector a Dibujar */}
+                    <div className="flex flex-wrap justify-center gap-2 mb-6 w-full">
+                        {vectors.map(v => {
+                            const isSelected = activeVec === v.id;
+                            const hasValue = !!answers[`${idPrefix}_${v.id}`];
                             return (
                                 <button 
-                                    key={dir.val} type="button" disabled={isSubmitted} onClick={() => onChange(id, dir.val)}
-                                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all border-2 ${value === dir.val ? 'bg-orange-500 text-white border-orange-600 scale-110 shadow-md' : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-orange-100 hover:text-orange-600'}`}
-                                    title={dir.desc}
-                                ><dir.icon size={24} /></button>
+                                    key={v.id} type="button" disabled={isSubmitted} onClick={() => setActiveVec(v.id)}
+                                    className={`px-4 py-2 rounded-xl border-2 font-bold text-sm transition-all flex items-center gap-2 ${isSelected ? 'bg-orange-600 text-white border-orange-600 shadow-md scale-105' : (hasValue ? 'bg-orange-50 border-orange-300 text-orange-800' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100')}`}
+                                >
+                                    <Latex text={v.label}/>
+                                    {hasValue && <CheckCircle2 size={14} className={isSelected ? "text-orange-200" : "text-orange-500"}/>}
+                                </button>
+                            )
+                        })}
+                    </div>
+
+                    {/* Grid Cartesiana Interactiva */}
+                    <div className="grid grid-cols-3 gap-2 bg-white p-4 rounded-full shadow-lg border-4 border-slate-100 relative">
+                        {/* Ejes Visuales de Fondo */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="w-full h-0.5 bg-slate-200 absolute"></div>
+                            <div className="h-full w-0.5 bg-slate-200 absolute"></div>
+                        </div>
+
+                        {directions.map((dir, idx) => {
+                            // Encontrar qué vectores están en esta dirección
+                            const vectorsHere = vectors.filter(v => answers[`${idPrefix}_${v.id}`] === dir.id);
+                            
+                            if (dir.id === 'CENTER') {
+                                return <div key={dir.id} className="w-16 h-16 flex items-center justify-center z-10"><div className="w-4 h-4 bg-slate-800 rounded-full border-2 border-white shadow-sm"></div></div>;
+                            }
+
+                            return (
+                                <button 
+                                    key={dir.id} type="button" disabled={isSubmitted} onClick={() => handleGridClick(dir.id)}
+                                    className={`w-16 h-16 flex flex-col items-center justify-center rounded-2xl transition-all border-2 z-10 relative ${vectorsHere.length > 0 ? 'bg-orange-100 border-orange-400 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-orange-300 hover:bg-white text-slate-300 hover:text-orange-400'}`}
+                                >
+                                    {vectorsHere.length === 0 ? <dir.icon size={24}/> : (
+                                        <div className="flex flex-col items-center gap-1">
+                                            {vectorsHere.map(vh => (
+                                                <span key={vh.id} className="text-xs font-black text-orange-800 bg-white/80 px-1 rounded"><Latex text={vh.label}/></span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {isSubmitted && expectedMap && expectedMap[`${idPrefix}_${activeVec}`] === dir.id && answers[`${idPrefix}_${activeVec}`] !== dir.id && (
+                                         <div className="absolute -top-2 -right-2 bg-white rounded-full p-0.5 shadow-md border border-red-200 animate-bounce z-20">
+                                            <XCircle size={16} className="text-red-500"/>
+                                         </div>
+                                    )}
+                                </button>
                             );
                         })}
                     </div>
-                    {isWrong && expected && (
-                        <div className="absolute top-2 right-2 bg-white border border-red-200 px-2 py-1 rounded shadow-md text-xs text-red-600 font-bold">
-                            Era: {directions.find(d => d.val === expected)?.desc}
-                        </div>
-                    )}
                 </div>
             )
         }
@@ -368,8 +430,8 @@
         };
 
         const MisionBox = ({ title, points, children }) => (
-          <div className="mb-12 rounded-[2rem] border border-slate-300 bg-white shadow-lg relative">
-            <div className="bg-slate-900 text-white px-8 py-5 flex flex-wrap justify-between items-center border-b-4 border-orange-600 gap-4 rounded-t-[calc(2rem-1px)]">
+          <div className="mb-12 rounded-[2rem] border border-slate-300 bg-white shadow-lg relative overflow-hidden">
+            <div className="bg-slate-900 text-white px-8 py-5 flex flex-wrap justify-between items-center border-b-4 border-orange-600 gap-4">
               <h3 className="font-black text-2xl tracking-tight">{title}</h3>
               <span className="text-sm font-black bg-white/10 px-4 py-1.5 rounded-lg text-amber-400 border border-amber-400/30 shadow-inner">Valor: {points} pts</span>
             </div>
@@ -381,7 +443,7 @@
 
         // --- 5. SVG STATIC DIAGRAMS ---
         const SvgForceProblem = () => (
-          <svg viewBox="-1.5 -1.5 4 3" className="w-full h-full max-h-[300px] drop-shadow-md overflow-visible bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <svg viewBox="-1.5 -1.5 4 3" className="w-full h-full max-h-[300px] drop-shadow-md overflow-visible bg-white rounded-xl border border-slate-200 p-4">
             {/* Grid & Axis */}
             <line x1="-1.5" y1="0" x2="2.5" y2="0" stroke="#cbd5e1" strokeWidth="0.02" markerEnd="url(#arrow-force)"/>
             <line x1="0" y1="-1.5" x2="0" y2="1.5" stroke="#cbd5e1" strokeWidth="0.02" markerEnd="url(#arrow-force)"/>
@@ -410,7 +472,7 @@
         );
 
         const SvgCircleProblem = () => (
-          <svg viewBox="-2.5 -2.5 5 5" className="w-full h-full max-h-[350px] drop-shadow-md overflow-visible bg-slate-50 rounded-xl border border-slate-200 p-4">
+          <svg viewBox="-2.5 -2.5 5 5" className="w-full h-full max-h-[350px] drop-shadow-md overflow-visible bg-white rounded-xl border border-slate-200 p-4">
             {/* Axis */}
             <line x1="-2.5" y1="0" x2="2.5" y2="0" stroke="#94a3b8" strokeWidth="0.02" strokeDasharray="0.1"/>
             <line x1="0" y1="-2.5" x2="0" y2="2.5" stroke="#94a3b8" strokeWidth="0.02" strokeDasharray="0.1"/>
@@ -429,7 +491,7 @@
             <circle cx="2" cy="0" r="0.15" fill="white" stroke="#1e293b" strokeWidth="0.04"/>
             <text x="2.4" y="0.05" fontSize="0.2" fill="#1e293b" fontWeight="bold">-2q</text>
 
-            {/* +q at 30 deg from vertical (y-axis) in 2nd quad: x = -R*sin(30), y = R*cos(30) */}
+            {/* +q at 30 deg */}
             <g transform="rotate(30)">
                 <line x1="0" y1="0" x2="0" y2="2" stroke="#64748b" strokeWidth="0.02"/>
                 <circle cx="0" cy="2" r="0.15" fill="white" stroke="#1e293b" strokeWidth="0.04"/>
@@ -438,7 +500,7 @@
             <path d="M 0 1 A 1 1 0 0 1 -0.5 0.866" fill="none" stroke="#64748b" strokeWidth="0.02"/>
             <text x="-0.2" y="1.2" fontSize="0.15" fill="#64748b">30°</text>
 
-            {/* +2q at 30 deg from negative y-axis in 3rd quad: x = -R*sin(30), y = -R*cos(30) */}
+            {/* +2q at -30 deg */}
             <g transform="rotate(-30)">
                 <line x1="0" y1="0" x2="0" y2="-2" stroke="#64748b" strokeWidth="0.02"/>
                 <circle cx="0" cy="-2" r="0.15" fill="white" stroke="#1e293b" strokeWidth="0.04"/>
@@ -450,7 +512,7 @@
           </svg>
         );
 
-        // Histograma de Frecuencias (Data Science) ajustado a escala 5.0
+        // Histograma de Frecuencias (Data Science)
         const ScoreHistogram = ({ attempts }) => {
             const bins = [0, 0, 0, 0]; 
             attempts.forEach(a => {
@@ -479,7 +541,7 @@
         };
 
         // --- 6. MAIN APP COMPONENT ---
-        function App() {
+        export default function App() {
           useKaTeX();
           const [user, setUser] = useState(null);
           const [role, setRole] = useState(null); 
@@ -523,33 +585,26 @@
           const [survey, setSurvey] = useState({ platform: 0, graphics: 0, challenge: 0, comment: '' });
           const [hasRated, setHasRated] = useState(false);
 
-          // Real-time Views & Reviews Listener
+          // Listeners
           useEffect(() => {
               if(!user) return; 
-              
               const setupListeners = async () => {
                   try {
-                      // Usamos la colección de directorio para leer vistas seguras sin faltar a las reglas de write
                       const dirRef = collection(db, 'artifacts', appId, 'public', 'data', 'directory');
-                      onSnapshot(dirRef, (snap) => {
-                          setRealViews(snap.size || 0);
-                      }, (error) => console.log("Vistas:", error.message));
+                      onSnapshot(dirRef, (snap) => { setRealViews(snap.size || 0); }, (e) => console.log(e));
         
-                      // Ruta corregida y segura para reviews
                       const reviewsRef = collection(db, 'artifacts', appId, 'public', 'data', 'reviews'); 
                       onSnapshot(reviewsRef, (snap) => {
                           let sum = 0; let count = 0;
                           snap.forEach(doc => { 
                              const data = doc.data();
-                             // Promediamos las 3 estrellas de cada review
                              const avgReview = (data.platform + data.graphics + data.challenge) / 3;
                              if(!isNaN(avgReview)) { sum += avgReview; count++; }
                           });
                           if (count > 0) setRatingStats({ average: (sum/count).toFixed(1), count });
-                      }, (error) => console.log("Reviews:", error.message));
+                      }, (e) => console.log(e));
                   } catch(e) { console.log(e); }
               };
-              
               setupListeners();
           }, [user]);
 
@@ -558,7 +613,7 @@
             setAuthError("");
             const provider = new GoogleAuthProvider();
             try { await signInWithPopup(auth, provider); } 
-            catch (error) { setAuthError("Error de autenticación con Google. Revisa consola."); }
+            catch (error) { setAuthError("Error de autenticación con Google."); }
           };
 
           const handleEmailLogin = async (e) => {
@@ -627,9 +682,7 @@
               try {
                   const dirSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'directory'));
                   let allAttempts = [];
-                  let totalScore = 0;
-                  let totalTime = 0;
-                  let totalHints = 0;
+                  let totalScore = 0; let totalTime = 0; let totalHints = 0;
                   let s1 = 0, s2 = 0, s3 = 0;
 
                   for (const userDoc of dirSnap.docs) {
@@ -708,30 +761,44 @@
 
           const handleInputChange = (id, val) => setAnswers(prev => ({ ...prev, [id]: val }));
 
-          // OPCIONES TEORÍA ESCAPADAS CORRECTAMENTE
+          // OPCIONES TEORÍA
           const optsTeoria = useMemo(() => [
               {val: 'f_coulomb', label: '$\\vec{F} = k \\frac{q_1 q_2}{r^2} \\hat{r}$'},
               {val: 'cargas_tipos', label: '$\\text{Positiva y Negativa}$'},
-              {val: 'carga_def', label: '$\\text{Propiedad intrínseca de la materia}$'},
+              {val: 'carga_def', label: '$\\text{Propiedad intrínseca de la materia (interacción EM)}$'},
               {val: 'elec_tipos', label: '$\\text{Frotamiento, Contacto, Inducción}$'},
               {val: 'dipolo_def', label: '$\\text{Dos cargas de igual magnitud y signo opuesto separadas } d$'}
           ].sort(() => Math.random() - 0.5), []);
 
-          // OPCIONES PROCEDIMENTALES MATEMÁTICAS ESCAPADAS
+          // OPCIONES PROCEDIMENTALES MATEMÁTICAS 
+          // Hoja 2
           const optsDist2 = [ {val: '0.75', label: '$0.75$'}, {val: '1.25', label: '$1.25$'}, {val: '2.25', label: '$2.25$'}, {val: '3.25', label: '$3.25$'} ];
           const optsUnitarios13 = [ {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, {val: 'u3', label: '$\\frac{1.0 \\hat{i} + 0.5 \\hat{j}}{\\sqrt{1.25}}$'} ];
           const optsUnitarios23 = [ {val: 'u1', label: '$\\frac{0.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{1.25}}$'}, {val: 'u2', label: '$\\frac{-1.5 \\hat{i} + 1.0 \\hat{j}}{\\sqrt{3.25}}$'}, {val: 'u3', label: '$\\frac{-1.0 \\hat{i} - 1.0 \\hat{j}}{\\sqrt{2.00}}$'} ];
-          const optsMag = [ {val: '0.0150', label: '$0.0150$'}, {val: '0.0221', label: '$0.0221$'}, {val: '0.0234', label: '$0.0234$'}, {val: '0.0410', label: '$0.0410$'} ];
-          const optsSumX = [ {val: '-0.0079', label: '$-0.0079$'}, {val: '0.0079', label: '$0.0079$'}, {val: '0.0332', label: '$0.0332$'}, {val: '-0.0332', label: '$-0.0332$'} ];
-          const optsSumY = [ {val: '-0.0079', label: '$-0.0079$'}, {val: '0.0079', label: '$0.0079$'}, {val: '0.0332', label: '$0.0332$'}, {val: '-0.0332', label: '$-0.0332$'} ];
-          const optsTot = [ {val: '0.0250', label: '$0.0250$'}, {val: '0.0341', label: '$0.0341$'}, {val: '0.0410', label: '$0.0410$'} ];
           
-          const optsDist3 = [ {val: '5', label: '$5$'}, {val: '9', label: '$9$'}, {val: '16', label: '$16$'}, {val: '25', label: '$25$'} ];
+          const optsK = [ {val: 'k', label: '$9 \\times 10^9$'}, {val: 'e0', label: '$8.85 \\times 10^{-12}$'} ];
+          const optsQ1Q3 = [ {val: 'q13', label: '$|1.3\\mu\\text{C} \\cdot 2.5\\mu\\text{C}|$'}, {val: 'q23', label: '$|3.2\\mu\\text{C} \\cdot 2.5\\mu\\text{C}|$'} ];
+          const optsQ2Q3 = [ {val: 'q13', label: '$|1.3\\mu\\text{C} \\cdot 2.5\\mu\\text{C}|$'}, {val: 'q23', label: '$|3.2\\mu\\text{C} \\cdot 2.5\\mu\\text{C}|$'} ];
+
+          const optsMag = [ {val: '0.0150', label: '$0.0150$'}, {val: '0.0221', label: '$0.0221$'}, {val: '0.0234', label: '$0.0234$'}, {val: '0.0410', label: '$0.0410$'} ];
+          const optsSumX = [ {val: '-0.0080', label: '$-0.0080$'}, {val: '0.0080', label: '$0.0080$'}, {val: '0.0331', label: '$0.0331$'}, {val: '-0.0331', label: '$-0.0331$'} ];
+          const optsSumY = [ {val: '-0.0080', label: '$-0.0080$'}, {val: '0.0080', label: '$0.0080$'}, {val: '0.0331', label: '$0.0331$'}, {val: '-0.0331', label: '$-0.0331$'} ];
+          const optsTot = [ {val: '0.0250', label: '$0.0250$'}, {val: '0.0340', label: '$0.0340$'}, {val: '0.0410', label: '$0.0410$'} ];
+          
+          // Hoja 3
+          const optsDist3 = [ {val: 'R', label: '$R$'}, {val: '2R', label: '$2R$'}, {val: 'R/2', label: '$R/2$'} ];
           const optsBaseE0 = [ {val: '2160', label: '$2160$'}, {val: '4320', label: '$4320$'}, {val: '8640', label: '$8640$'}, {val: '11250', label: '$11250$'} ];
           const optsMagRel = [ {val: 'E_0/2', label: '$E_0/2$'}, {val: 'E_0', label: '$E_0$'}, {val: '2E_0', label: '$2E_0$'} ];
           const optsSumX3 = [ {val: '-11250', label: '$-11250$'}, {val: '0', label: '$0$'}, {val: '9742', label: '$9742$'}, {val: '14881', label: '$14881$'} ];
           const optsSumY3 = [ {val: '-11250', label: '$-11250$'}, {val: '0', label: '$0$'}, {val: '9742', label: '$9742$'}, {val: '14881', label: '$14881$'} ];
           const optsTot3 = [ {val: '9742', label: '$9742$'}, {val: '11250', label: '$11250$'}, {val: '14881', label: '$14881$'} ];
+
+          // DCL Vectors Configurations
+          const vecsP2 = [ {id: 'f1', label: '$\\vec{F}_{13}$'}, {id: 'f2', label: '$\\vec{F}_{23}$'}, {id: 'fnet', label: '$\\vec{F}_{\\text{neta}}$'} ];
+          const expectedDCLP2 = { 'f_dcl_f1': 'NE', 'f_dcl_f2': 'NW', 'f_dcl_fnet': 'NW' };
+
+          const vecsP3 = [ {id: 'e1', label: '$\\vec{E}_{+q}$'}, {id: 'e2', label: '$\\vec{E}_{+2q}$'}, {id: 'e3', label: '$\\vec{E}_{-2q}$'}, {id: 'enet', label: '$\\vec{E}_{\\text{neto}}$'} ];
+          const expectedDCLP3 = { 'c_dcl_e1': 'SW', 'c_dcl_e2': 'NW', 'c_dcl_e3': 'E', 'c_dcl_enet': 'NW' };
 
           const calculateScore = () => {
             let total = 0;
@@ -746,31 +813,37 @@
             check('t_d', 'elec_tipos', 0.2); 
             check('t_e', 'dipolo_def', 0.2);
 
-            // Hoja 2: Fuerza Neta (Max 2.0 -> 10 steps of 0.2)
-            const c2 = (id, exp, pts=0.2) => { if(answers[id] === exp) { s2+=pts; return pts;} return 0; }
-            c2('f_r1', '1.25'); 
-            c2('f_r2', '3.25');
-            c2('f_u1', 'u1');
-            c2('f_u2', 'u2');
-            c2('f_f1', '0.0234');
-            c2('f_f2', '0.0221');
-            c2('f_sumx', '-0.0079'); 
-            c2('f_sumy', '0.0332');
-            c2('f_mag', '0.0341');
-            c2('f_cuad', 'NW'); // Diagrama DCL NW
+            // Hoja 2: Fuerza Neta (Max 2.0 -> steps)
+            const c2 = (id, exp, pts=0.1) => { if(answers[id] === exp) { s2+=pts; return pts;} return 0; }
+            // DCL (0.3)
+            c2('f_dcl_f1', 'NE'); c2('f_dcl_f2', 'NW'); c2('f_dcl_fnet', 'NW');
+            // Distancias (0.2)
+            c2('f_r1', '1.25'); c2('f_r2', '3.25');
+            // Unitarios (0.2)
+            c2('f_u1', 'u1'); c2('f_u2', 'u2');
+            // Sustitucion (0.3)
+            c2('f_sub_k', 'k'); c2('f_sub_q', 'q13'); c2('f_sub_r', '1.25');
+            // Mag (0.2)
+            c2('f_f1', '0.0234'); c2('f_f2', '0.0221');
+            // Sup (0.4)
+            c2('f_sumx', '-0.0080', 0.2); c2('f_sumy', '0.0331', 0.2);
+            // Resultante (0.4)
+            c2('f_mag', '0.0340', 0.4);
 
-            // Hoja 3: Campo Circunferencia (Max 2.0 -> 10 steps of 0.2)
-            const c3 = (id, exp, pts=0.2) => { if(answers[id] === exp) { s3+=pts; return pts;} return 0; }
-            c3('c_r1', 'R');
-            c3('c_r2', '2R');
-            c3('c_r3', 'R');
-            c3('c_e0', '11250');
-            c3('c_e1_mag', 'E_0');
-            c3('c_e2_mag', 'E_0/2');
-            c3('c_e3_mag', '2E_0');
-            c3('c_sumx', '-11250');
-            c3('c_sumy', '9742');
-            c3('c_mag_tot', '14881');
+            // Hoja 3: Campo Circunferencia (Max 2.0 -> steps)
+            const c3 = (id, exp, pts=0.1) => { if(answers[id] === exp) { s3+=pts; return pts;} return 0; }
+            // DCL (0.4)
+            c3('c_dcl_e1', 'SW'); c3('c_dcl_e2', 'NW'); c3('c_dcl_e3', 'E'); c3('c_dcl_enet', 'NW');
+            // Distancias (0.3)
+            c3('c_r1', 'R'); c3('c_r2', 'R'); c3('c_r3', '2R');
+            // E0 (0.2)
+            c3('c_e0', '11250', 0.2);
+            // Mags Relativas (0.3)
+            c3('c_e1_mag', 'E_0'); c3('c_e2_mag', '2E_0'); c3('c_e3_mag', 'E_0/2');
+            // Sup (0.4)
+            c3('c_sumx', '-11250', 0.2); c3('c_sumy', '9742', 0.2);
+            // Resultante (0.4)
+            c3('c_mag_tot', '14881', 0.4);
 
             total = s1 + s2 + s3 - (usedTips.length * 0.05); // Penalización 0.05
             return { total: Math.max(Math.min(total, 5.0), 0).toFixed(2), details: { s1, s2, s3 } };
@@ -802,16 +875,16 @@
           // Mensaje Psicológico de Tiempo
           let timeMsg = "";
           if (finalTime > 0) {
-              if (finalTime < 180) timeMsg = "Has respondido en un tiempo récord (< 3 min). Si tu nota es baja, es un indicador de que contestaste al azar o con excesiva prisa. La física requiere pausa y análisis estructurado.";
-              else if (finalTime > 1800) timeMsg = "Has tomado un tiempo considerable (> 30 min). Esto refleja esfuerzo y dedicación, pero también indica que podrías estar dudando en conceptos base. ¡Sigue practicando para ganar fluidez!";
-              else timeMsg = "Tu tiempo de resolución está dentro del rango esperado para un procesamiento cognitivo adecuado. ¡Bien hecho!";
+              if (finalTime < 180) timeMsg = "Has respondido en un tiempo récord (< 3 min). Si tu nota es baja, es un indicador de que contestaste al azar o con impulsividad. La ingeniería requiere pausa y análisis metódico.";
+              else if (finalTime > 2400) timeMsg = "Has tomado un tiempo considerable (> 40 min). Esto refleja esfuerzo, pero también indica bloqueos cognitivos en conceptos base. ¡Estudia con cuaderno en mano para ganar agilidad!";
+              else timeMsg = "Tu ritmo de procesamiento es óptimo y metódico. Has interiorizado el esquema procedimental de resolución. ¡Bien hecho!";
           }
 
           // Insignia Dinámica
           let insignia = { title: "", icon: Brain, color: "" };
-          const s = parseFloat(scoreData.total);
-          if (s >= 4.5) insignia = { title: "Maestro de Coulomb", icon: Award, color: "text-amber-400" };
-          else if (s >= 3.5) insignia = { title: "Analista Vectorial", icon: Activity, color: "text-blue-400" };
+          const s = parseFloat(score);
+          if (s >= 4.5) insignia = { title: "Maestro Analítico de Coulomb", icon: Award, color: "text-amber-400" };
+          else if (s >= 3.5) insignia = { title: "Estratega Vectorial", icon: Activity, color: "text-blue-400" };
           else if (s >= 2.5) insignia = { title: "Aprendiz de Faraday", icon: Lightbulb, color: "text-emerald-400" };
           else insignia = { title: "Iniciado en Electroestática", icon: Target, color: "text-slate-400" };
 
@@ -1175,7 +1248,17 @@
                                       <div className="h-[300px] flex items-center justify-center p-4 bg-white border-2 border-slate-200 rounded-3xl shadow-sm">
                                           <SvgForceProblem />
                                       </div>
-                                      <PenaltyTipButton id="ptip_2" usedTips={usedTips} setUsedTips={setUsedTips} text="Recuerda:\\n $r = \\sqrt{x^2 + y^2}$.\\n $\\vec{u} = \\frac{\\Delta x \\hat{i} + \\Delta y \\hat{j}}{r}$.\\n La fuerza entre cargas del mismo signo es de repulsión." />
+                                      
+                                      <InteractiveDCL 
+                                        idPrefix="f_dcl" 
+                                        vectors={vecsP2} 
+                                        answers={answers} 
+                                        onChange={handleInputChange} 
+                                        isSubmitted={isSubmitted} 
+                                        expectedMap={expectedDCLP2} 
+                                      />
+                                      
+                                      <PenaltyTipButton id="ptip_2" usedTips={usedTips} setUsedTips={setUsedTips} penalty={0.05} text={"Recuerda:\\n $r = \\sqrt{x^2 + y^2}$.\\n $\\vec{u} = \\frac{\\Delta x \\hat{i} + \\Delta y \\hat{j}}{r}$.\\n La fuerza entre cargas del mismo signo es de repulsión."} />
                                   </div>
 
                                   {/* Columna 2: Los 10 Pasos */}
@@ -1183,59 +1266,75 @@
                                       <h4 className="font-black text-slate-800 text-lg border-b-2 border-slate-100 pb-2">Metodología de 10 Pasos</h4>
                                       
                                       <div className="space-y-4">
-                                          <div className={`p-4 rounded-xl border ${answers.f_r1 ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
-                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 1-2: Geometría</p>
+                                          <div className={`p-4 rounded-xl border ${answers.f_r1 ? 'step-active' : 'step-pending'}`}>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 2: Geometría</p>
                                               <div className="grid grid-cols-2 gap-4">
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Distancia <Latex text={"$(r_1)^2$"} /> [m²]</label>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"Distancia $(r_{13})^2$ [m²]"} /></label>
                                                      <InlineSelect id="f_r1" value={answers.f_r1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="1.25" width="w-full" options={optsDist2} />
                                                   </div>
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Distancia <Latex text={"$(r_2)^2$"} /> [m²]</label>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"Distancia $(r_{23})^2$ [m²]"} /></label>
                                                      <InlineSelect id="f_r2" value={answers.f_r2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="3.25" width="w-full" options={optsDist2} />
                                                   </div>
                                               </div>
                                           </div>
 
-                                          <div className={`p-4 rounded-xl border ${answers.f_u1 ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
-                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 3: Vectores Unitarios hacia <Latex text={"$q_3$"} /></p>
+                                          <div className={`p-4 rounded-xl border ${answers.f_u1 ? 'step-active' : 'step-pending'}`}>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2"><Latex text={"Paso 3: Vectores Unitarios hacia $q_3$"} /></p>
                                               <div className="grid grid-cols-1 gap-4">
-                                                  <InlineSelect id="f_u1" value={answers.f_u1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="u1" width="w-full" options={optsUnitarios13} />
-                                                  <InlineSelect id="f_u2" value={answers.f_u2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="u2" width="w-full" options={optsUnitarios23} />
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-slate-500 w-8"><Latex text={"$\\hat{u}_{13}=$"}/></span>
+                                                    <InlineSelect id="f_u1" value={answers.f_u1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="u1" width="flex-grow" options={optsUnitarios13} />
+                                                  </div>
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-slate-500 w-8"><Latex text={"$\\hat{u}_{23}=$"}/></span>
+                                                    <InlineSelect id="f_u2" value={answers.f_u2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="u2" width="flex-grow" options={optsUnitarios23} />
+                                                  </div>
                                               </div>
                                           </div>
 
-                                          <div className={`p-4 rounded-xl border ${answers.f_f1 ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
-                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 4-5: Magnitudes Individuales</p>
+                                          <div className={`p-4 rounded-xl border ${answers.f_sub_k ? 'step-active' : 'step-pending'}`}>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 4: Sustitución Didáctica (<Latex text={"$F_{13}$"}/>)</p>
+                                              <div className="flex flex-wrap items-center gap-2 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                                  <Latex text={"$|F_{13}| = $"} />
+                                                  <InlineSelect id="f_sub_k" value={answers.f_sub_k} onChange={handleInputChange} isSubmitted={isSubmitted} expected="k" options={optsK} />
+                                                  <Latex text={"$ \\cdot \\frac{ $"} />
+                                                  <InlineSelect id="f_sub_q" value={answers.f_sub_q} onChange={handleInputChange} isSubmitted={isSubmitted} expected="q13" options={optsQ1Q3} />
+                                                  <Latex text={"$ }{ $"} />
+                                                  <InlineSelect id="f_sub_r" value={answers.f_sub_r} onChange={handleInputChange} isSubmitted={isSubmitted} expected="1.25" options={optsDist2} />
+                                                  <Latex text={"$ }$"} />
+                                              </div>
+                                          </div>
+
+                                          <div className={`p-4 rounded-xl border ${answers.f_f1 ? 'step-active' : 'step-pending'}`}>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 5: Magnitudes Individuales</p>
                                               <div className="grid grid-cols-2 gap-4">
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Mag. <Latex text={"$|F_1|$"} /> (N)</label>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"Mag. $|F_{13}|$ (N)"} /></label>
                                                      <InlineSelect id="f_f1" value={answers.f_f1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0234" width="w-full" options={optsMag} />
                                                   </div>
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Mag. <Latex text={"$|F_2|$"} /> (N)</label>
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"Mag. $|F_{23}|$ (N)"} /></label>
                                                      <InlineSelect id="f_f2" value={answers.f_f2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0221" width="w-full" options={optsMag} />
                                                   </div>
                                               </div>
                                           </div>
 
-                                          <div className={`p-4 rounded-xl border ${answers.f_sumx ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
-                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 6-7: Superposición (Total X, Y)</p>
+                                          <div className={`p-4 rounded-xl border ${answers.f_sumx ? 'step-active' : 'step-pending'}`}>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 6-7: Superposición Vectorial</p>
                                               <div className="grid grid-cols-2 gap-4">
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum F_x$"} /> (N)</label>
-                                                      <InlineSelect id="f_sumx" value={answers.f_sumx} onChange={handleInputChange} isSubmitted={isSubmitted} expected="-0.0079" width="w-full" options={optsSumX} />
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum F_x$ (N)"} /></label>
+                                                      <InlineSelect id="f_sumx" value={answers.f_sumx} onChange={handleInputChange} isSubmitted={isSubmitted} expected="-0.0080" width="w-full" options={optsSumX} />
                                                   </div>
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum F_y$"} /> (N)</label>
-                                                      <InlineSelect id="f_sumy" value={answers.f_sumy} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0332" width="w-full" options={optsSumY} />
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum F_y$ (N)"} /></label>
+                                                      <InlineSelect id="f_sumy" value={answers.f_sumy} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0331" width="w-full" options={optsSumY} />
                                                   </div>
                                               </div>
                                           </div>
 
-                                          <div className={`p-4 rounded-xl border ${answers.f_mag ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
-                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 8-10: Resultante Final</p>
-                                              <div className="grid grid-cols-1 gap-4 mb-4">
-                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1">Magnitud Total <Latex text={"$|F_{\\text{neta}}|$"} /> (N)</label>
-                                                     <InlineSelect id="f_mag" value={answers.f_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0341" width="w-full" options={optsTot} />
+                                          <div className={`p-4 rounded-xl border ${answers.f_mag ? 'step-active' : 'step-pending'}`}>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 8-9: Resultante Final</p>
+                                              <div className="grid grid-cols-1 gap-4">
+                                                  <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"Magnitud Total $|F_{\\text{neta}}|$ (N)"} /></label>
+                                                     <InlineSelect id="f_mag" value={answers.f_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="0.0340" width="w-full" options={optsTot} />
                                                   </div>
-                                              </div>
-                                              <div>
-                                                  <DCLSelector id="f_cuad" label="DCL Cuadrante Resultante" value={answers.f_cuad} onChange={handleInputChange} isSubmitted={isSubmitted} expected="NW" />
                                               </div>
                                           </div>
                                       </div>
@@ -1261,39 +1360,49 @@
                                       <div className="h-[350px] flex items-center justify-center bg-white border-2 border-slate-200 rounded-3xl shadow-sm overflow-hidden p-2">
                                           <SvgCircleProblem />
                                       </div>
-                                      <PenaltyTipButton id="ptip_3" usedTips={usedTips} setUsedTips={setUsedTips} text={"Geometría Oculta:\\n La distancia desde cualquier carga en la circunferencia hasta el centro es $R$. El punto $P$ está a $R$ del centro. Calcula los vectores posición de cada carga para hallar la distancia real a $P$.\\n Usa $k \\cdot q / R^2 = E_0 = 11250$ N/C como base."} />
+                                      
+                                      <InteractiveDCL 
+                                        idPrefix="c_dcl" 
+                                        vectors={vecsP3} 
+                                        answers={answers} 
+                                        onChange={handleInputChange} 
+                                        isSubmitted={isSubmitted} 
+                                        expectedMap={expectedDCLP3} 
+                                      />
+
+                                      <PenaltyTipButton id="ptip_3" usedTips={usedTips} setUsedTips={setUsedTips} penalty={0.05} text={"Geometría Oculta:\\n La distancia desde cualquier carga en la circunferencia hasta el centro es $R$. El punto $P$ está a $R$ del centro. Calcula los vectores posición de cada carga para hallar la distancia real a $P$.\\n Usa $k \\cdot q / R^2 = E_0 = 11250$ N/C como base."} />
                                   </div>
 
                                   <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm flex flex-col justify-center space-y-6 h-max">
-                                      <h4 className="font-black text-slate-800 text-lg border-b-2 border-slate-100 pb-2">Metodología Analítica</h4>
+                                      <h4 className="font-black text-slate-800 text-lg border-b-2 border-slate-100 pb-2">Metodología Analítica (7 Pasos)</h4>
                                       
                                       <div className="space-y-4">
-                                          <div className={`p-4 rounded-xl border ${answers.c_r1 ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
-                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 1-2: Distancias Reales a P</p>
+                                          <div className={`p-4 rounded-xl border ${answers.c_r1 ? 'step-active' : 'step-pending'}`}>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 2: Distancias Reales a P</p>
                                               <div className="grid grid-cols-3 gap-4">
-                                                  <InlineSelect id="c_r1" value={answers.c_r1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="R" width="w-full" options={[{val:'R', label:'$R$'}, {val:'2R', label:'$2R$'}, {val:'R/2', label:'$R/2$'}]} />
-                                                  <InlineSelect id="c_r2" value={answers.c_r2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="2R" width="w-full" options={[{val:'R', label:'$R$'}, {val:'2R', label:'$2R$'}, {val:'R/2', label:'$R/2$'}]} />
-                                                  <InlineSelect id="c_r3" value={answers.c_r3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="R" width="w-full" options={[{val:'R', label:'$R$'}, {val:'2R', label:'$2R$'}, {val:'R/2', label:'$R/2$'}]} />
+                                                  <InlineSelect id="c_r1" value={answers.c_r1} onChange={handleInputChange} isSubmitted={isSubmitted} expected="R" width="w-full" options={optsDist3} />
+                                                  <InlineSelect id="c_r2" value={answers.c_r2} onChange={handleInputChange} isSubmitted={isSubmitted} expected="R" width="w-full" options={optsDist3} />
+                                                  <InlineSelect id="c_r3" value={answers.c_r3} onChange={handleInputChange} isSubmitted={isSubmitted} expected="2R" width="w-full" options={optsDist3} />
                                               </div>
                                           </div>
 
-                                          <div className={`p-4 rounded-xl border ${answers.c_e0 ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
-                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 4: Factor Base <Latex text={"$E_0 = k q / R^2$"} /></p>
-                                              <div><label className="text-sm font-bold text-slate-700 block mb-1">Valor de <Latex text={"$E_0$"} /> (N/C)</label>
+                                          <div className={`p-4 rounded-xl border ${answers.c_e0 ? 'step-active' : 'step-pending'}`}>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2"><Latex text={"Paso 4: Factor Base $E_0 = k q / R^2$"} /></p>
+                                              <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"Valor de $E_0$ (N/C)"} /></label>
                                                  <InlineSelect id="c_e0" value={answers.c_e0} onChange={handleInputChange} isSubmitted={isSubmitted} expected="11250" width="w-full" options={optsBaseE0} />
                                               </div>
                                           </div>
 
-                                          <div className={`p-4 rounded-xl border ${answers.c_e1_mag ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
-                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 5: Magnitudes (En función de <Latex text={"$E_0$"} />)</p>
+                                          <div className={`p-4 rounded-xl border ${answers.c_e1_mag ? 'step-active' : 'step-pending'}`}>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2"><Latex text={"Paso 5: Magnitudes (En función de $E_0$)"} /></p>
                                               <div className="grid grid-cols-3 gap-4">
                                                   <InlineSelect id="c_e1_mag" value={answers.c_e1_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_0" width="w-full" options={optsMagRel} />
-                                                  <InlineSelect id="c_e2_mag" value={answers.c_e2_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_0/2" width="w-full" options={optsMagRel} />
-                                                  <InlineSelect id="c_e3_mag" value={answers.c_e3_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="2E_0" width="w-full" options={optsMagRel} />
+                                                  <InlineSelect id="c_e2_mag" value={answers.c_e2_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="2E_0" width="w-full" options={optsMagRel} />
+                                                  <InlineSelect id="c_e3_mag" value={answers.c_e3_mag} onChange={handleInputChange} isSubmitted={isSubmitted} expected="E_0/2" width="w-full" options={optsMagRel} />
                                               </div>
                                           </div>
 
-                                          <div className={`p-4 rounded-xl border ${answers.c_sumx ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
+                                          <div className={`p-4 rounded-xl border ${answers.c_sumx ? 'step-active' : 'step-pending'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 6-7: Superposición Numérica (N/C)</p>
                                               <div className="grid grid-cols-2 gap-4">
                                                   <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$\\sum E_x$"} /></label>
@@ -1305,9 +1414,9 @@
                                               </div>
                                           </div>
 
-                                          <div className={`p-4 rounded-xl border ${answers.c_mag_tot ? 'step-active' : 'bg-slate-50 border-slate-200'}`}>
+                                          <div className={`p-4 rounded-xl border ${answers.c_mag_tot ? 'step-active' : 'step-pending'}`}>
                                               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 8: Magnitud Final</p>
-                                              <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$|\\vec{E}_{\\text{neto}}|$"} /> en P (N/C)</label>
+                                              <div><label className="text-sm font-bold text-slate-700 block mb-1"><Latex text={"$|\\vec{E}_{\\text{neto}}|$ en P (N/C)"} /></label>
                                                 <InlineSelect id="c_mag_tot" value={answers.c_mag_tot} onChange={handleInputChange} isSubmitted={isSubmitted} expected="14881" width="w-full" options={optsTot3} />
                                               </div>
                                           </div>
