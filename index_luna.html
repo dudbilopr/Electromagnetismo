@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LexQuest: Procesos Disciplinarios Laborales (Edición Colombia)</title>
+    <title>LunaAcademy: Procesos Disciplinarios Laborales</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -72,12 +72,13 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        const APP_ID = 'lexquest-disciplinario-v3';
+        // NUEVA NOMENCLATURA DE BASE DE DATOS PARA LUNA ACADEMY (ESCALABLE)
+        const APP_ID = 'lunaacademy-procesos-disciplinarios-v1'; 
         const COLLECTION_PATH = `artifacts/${APP_ID}/public/data/telemetry`;
         const SURVEYS_PATH = `artifacts/${APP_ID}/public/data/surveys`;
         const QUESTIONS_PATH = `artifacts/${APP_ID}/public/data/question_bank`;
         const USERS_PATH = `artifacts/${APP_ID}/public/data/users`;
-        const DOUBTS_PATH = `artifacts/${APP_ID}/public/data/doubts`; // NUEVA COLECCIÓN FORO
+        const DOUBTS_PATH = `artifacts/${APP_ID}/public/data/doubts`; 
 
         // --- BANCO DE PREGUNTAS BASE (AMPLIADO CON CLOZE TEXT Y TEMÁTICAS) ---
         const QUESTION_BANK = [
@@ -239,7 +240,7 @@
             const [authError, setAuthError] = useState(null);
             const [sessionData, setSessionData] = useState({ startTime: null, currentQStartTime: null, tipsUsed: 0, answers: [] });
             const [feedback, setFeedback] = useState(null);
-            const [markedQuestions, setMarkedQuestions] = useState([]); // NUEVO: Preguntas marcadas para después
+            const [markedQuestions, setMarkedQuestions] = useState([]); // Preguntas marcadas para después
             
             // Estado para el foro de la pregunta actual
             const [userDoubt, setUserDoubt] = useState("");
@@ -257,7 +258,7 @@
 
             // 1. AUTO-LOGIN Y AUTENTICACIÓN
             useEffect(() => {
-                const savedProfile = localStorage.getItem('lexQuest_userProfile');
+                const savedProfile = localStorage.getItem('lunaAcademy_userProfile');
                 if (savedProfile) {
                     setStudentInfo(JSON.parse(savedProfile));
                 }
@@ -322,7 +323,7 @@
 
             // --- MANEJADORES DE EVENTOS ---
             const handleManualLogin = () => {
-                localStorage.setItem('lexQuest_userProfile', JSON.stringify(studentInfo));
+                localStorage.setItem('lunaAcademy_userProfile', JSON.stringify(studentInfo));
                 setView('profile');
             };
 
@@ -333,7 +334,7 @@
                     const result = await signInWithPopup(auth, provider);
                     const newInfo = { ...studentInfo, name: result.user.displayName, email: result.user.email };
                     setStudentInfo(newInfo);
-                    localStorage.setItem('lexQuest_userProfile', JSON.stringify(newInfo));
+                    localStorage.setItem('lunaAcademy_userProfile', JSON.stringify(newInfo));
                     setUser(result.user);
                     setView('profile');
                 } catch (error) {
@@ -346,7 +347,7 @@
             };
 
             const saveProfile = () => {
-                localStorage.setItem('lexQuest_userProfile', JSON.stringify(studentInfo));
+                localStorage.setItem('lunaAcademy_userProfile', JSON.stringify(studentInfo));
                 setView('intro');
             };
 
@@ -380,7 +381,7 @@
                 setUserDoubt("");
             };
 
-            // NUEVO: Verificación automática de correo administrador maestro (Direct Access sin Clave)
+            // Verificación automática de correo administrador maestro (Direct Access sin Clave)
             const attemptAdminAccess = () => {
                 const activeEmail = studentInfo.email || (user && user.email) || "";
                 if (activeEmail.toLowerCase() === 'dudbilopr@gmail.com') {
@@ -392,7 +393,7 @@
                 }
             };
 
-            // Mantenemos la función legacy para no quitar código, aunque ya no se active el modal por attemptAdminAccess
+            // Mantenemos la función legacy para no quitar código
             const handleAdminLogin = () => {
                 if(adminAuth.password === 'admin123') {
                     setView('dashboard');
@@ -402,7 +403,7 @@
                 }
             };
 
-            // NUEVO: Marcar pregunta para después
+            // Marcar pregunta para después
             const markForLater = () => {
                 if (!markedQuestions.includes(currentQ.id)) {
                     setMarkedQuestions([...markedQuestions, currentQ.id]);
@@ -513,7 +514,7 @@
             };
 
             const logout = () => {
-                localStorage.removeItem('lexQuest_userProfile');
+                localStorage.removeItem('lunaAcademy_userProfile');
                 setStudentInfo({ name: '', email: '', role: '', experience: '', bio: '', academicLink: '', socialLink: '', specialty: '', university: '', learningGoal: false });
                 auth.signOut();
                 setView('login');
@@ -807,7 +808,7 @@
 
                         {logs.length > 0 ? (
                             <div className="space-y-8">
-                                {/* NUEVA SECCIÓN: ANÁLISIS DEL FORO */}
+                                {/* SECCIÓN: ANÁLISIS DEL FORO */}
                                 <h2 className="text-2xl font-bold text-white border-l-4 border-yellow-500 pl-3 mt-10">Análisis del Foro (Inquietudes en Tiempo Real)</h2>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                                     <div className="glass-panel p-6 rounded-xl overflow-x-auto">
@@ -945,7 +946,7 @@
                                             </div>
                                             <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
                                                 <strong className="text-purple-400 block mb-1">Hambleton & Swaminathan (1985)</strong>
-                                                <p className="text-xs">Pioneros en Tests Adaptativos Computarizados (CAT), fundamentando el algoritmo dinámico que LexQuest utiliza para evitar la frustración cognitiva.</p>
+                                                <p className="text-xs">Pioneros en Tests Adaptativos Computarizados (CAT), fundamentando el algoritmo dinámico que LunaAcademy utiliza para evitar la frustración cognitiva.</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1008,28 +1009,12 @@
             return (
                 <div className="flex-1 p-4 sm:p-8 font-sans">
                     
-                    {/* Ventana Modal Admin Login (Mantenido para no quitar código, pero inactivo por validación directa) */}
-                    {adminAuth.isChecking && (
-                        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur z-50 flex items-center justify-center">
-                            <div className="bg-slate-800 p-8 rounded-2xl border border-slate-600 max-w-sm w-full shadow-2xl">
-                                <h3 className="text-2xl font-bold text-white mb-4 flex items-center"><Lock className="w-6 h-6 mr-2 text-indigo-400"/> Portal Seguro</h3>
-                                <p className="text-sm text-slate-400 mb-4">Ingresa la credencial de administrador maestro para acceder al dashboard neurocognitivo.</p>
-                                <input type="password" value={adminAuth.password} onChange={e=>setAdminAuth({...adminAuth, password: e.target.value})} placeholder="Contraseña..." className="w-full bg-slate-900 border border-slate-700 p-3 rounded-lg text-white outline-none focus:border-indigo-500 mb-2"/>
-                                {adminAuth.error && <p className="text-red-400 text-xs mb-4">{adminAuth.error}</p>}
-                                <div className="flex justify-end space-x-3 mt-6">
-                                    <button onClick={()=>setAdminAuth({isChecking:false, password:'', error:''})} className="px-4 py-2 text-slate-400 hover:text-white">Cancelar</button>
-                                    <button onClick={handleAdminLogin} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg">Autorizar</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Header Top */}
                     {view !== 'dashboard' && view !== 'login' && view !== 'profile' && (
                         <div className="max-w-5xl mx-auto flex justify-between items-center mb-8 bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 backdrop-blur-md">
                             <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setView('intro')}>
                                 <Scale className="w-8 h-8 text-blue-500" />
-                                <span className="text-xl sm:text-2xl font-bold font-serif text-white tracking-wide">Lex<span className="text-blue-500">Quest</span></span>
+                                <span className="text-xl sm:text-2xl font-bold font-serif text-white tracking-wide">Luna<span className="text-blue-500">Academy</span></span>
                             </div>
                             <div className="flex items-center space-x-2 sm:space-x-4">
                                 <button onClick={() => setView('profile')} className="text-slate-300 hover:text-white transition-colors flex items-center bg-slate-700/50 p-2 sm:px-4 sm:py-2 rounded-full border border-slate-600" title="Mi Perfil">
@@ -1050,7 +1035,7 @@
                             <div className="glass-panel rounded-3xl p-8 sm:p-12 shadow-2xl animate-fade-in border-t-4 border-t-blue-500 max-w-md mx-auto mt-10 relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
                                 <Scale className="w-16 h-16 text-blue-500 mx-auto mb-6 drop-shadow-lg" />
-                                <h1 className="text-3xl font-bold text-center mb-2 font-serif text-white">LexQuest</h1>
+                                <h1 className="text-3xl font-bold text-center mb-2 font-serif text-white">LunaAcademy</h1>
                                 <p className="text-center text-slate-400 mb-8 text-sm">Plataforma de capacitación jurídica laboral</p>
 
                                 <button onClick={handleGoogleLogin} className="w-full mb-6 py-3 bg-white text-slate-900 font-bold rounded-xl flex justify-center items-center shadow-lg hover:bg-slate-100 transition-transform transform hover:scale-105">
@@ -1192,7 +1177,7 @@
                                         </div>
                                     )}
 
-                                    {/* NUEVO: Foro de Dudas en Vivo por Pregunta */}
+                                    {/* Foro de Dudas en Vivo por Pregunta */}
                                     <div className="mt-8 border-t border-slate-700 pt-6">
                                         <h4 className="text-sm font-bold text-slate-300 mb-3 flex items-center"><MessageSquare className="w-4 h-4 mr-2 text-yellow-500"/> Foro de Dudas (Anónimo)</h4>
                                         <div className="flex items-start space-x-2">
@@ -1234,7 +1219,7 @@
                                     <p className={`text-lg font-medium mb-2 ${getStudyRecommendation().class}`}>{getStudyRecommendation().text}</p>
                                 </div>
 
-                                {/* NUEVO: Resumen de Foro de Dudas */}
+                                {/* Resumen de Foro de Dudas */}
                                 <div className="glass-panel rounded-3xl p-8 border border-slate-700 bg-slate-800/40">
                                     <h3 className="text-xl font-bold text-white mb-4 flex items-center"><MessageCircle className="w-6 h-6 mr-2 text-yellow-500"/> Inquietudes Frecuentes (Foro Anónimo)</h3>
                                     <p className="text-sm text-slate-400 mb-6">Revisa lo que otros estudiantes han preguntado sobre los casos evaluados hoy. Los docentes analizan esto en tiempo real.</p>
