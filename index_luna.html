@@ -49,7 +49,7 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef, useMemo } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Scale, BrainCircuit, ShieldAlert, CheckCircle, XCircle, HelpCircle, Lock, LayoutDashboard, ChevronRight, AlertTriangle, TrendingUp, Activity, Copy, Star, Users, Briefcase, FileSignature, Info, User, Clock, BookOpen, Award, Link as LinkIcon, GraduationCap, Database, Brain } from 'lucide-react';
+        import { Scale, BrainCircuit, ShieldAlert, CheckCircle, XCircle, HelpCircle, Lock, LayoutDashboard, ChevronRight, AlertTriangle, TrendingUp, Activity, Copy, Star, Users, Briefcase, FileSignature, Info, User, Clock, BookOpen, Award, Link as LinkIcon, GraduationCap, Database, Brain, MessageCircle, MessageSquare } from 'lucide-react';
         import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ScatterChart, Scatter, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
         
         // --- FIREBASE INIT ---
@@ -77,6 +77,7 @@
         const SURVEYS_PATH = `artifacts/${APP_ID}/public/data/surveys`;
         const QUESTIONS_PATH = `artifacts/${APP_ID}/public/data/question_bank`;
         const USERS_PATH = `artifacts/${APP_ID}/public/data/users`;
+        const DOUBTS_PATH = `artifacts/${APP_ID}/public/data/doubts`; // NUEVA COLECCIÓN FORO
 
         // --- BANCO DE PREGUNTAS BASE (AMPLIADO CON CLOZE TEXT Y TEMÁTICAS) ---
         const QUESTION_BANK = [
@@ -234,10 +235,16 @@
             const [score, setScore] = useState(0);
             const [logs, setLogs] = useState([]);
             const [dbQuestions, setDbQuestions] = useState([]); // Preguntas desde Firebase
+            const [forumDoubts, setForumDoubts] = useState([]); // Inquietudes del foro
             const [authError, setAuthError] = useState(null);
             const [sessionData, setSessionData] = useState({ startTime: null, currentQStartTime: null, tipsUsed: 0, answers: [] });
             const [feedback, setFeedback] = useState(null);
+            const [markedQuestions, setMarkedQuestions] = useState([]); // NUEVO: Preguntas marcadas para después
             
+            // Estado para el foro de la pregunta actual
+            const [userDoubt, setUserDoubt] = useState("");
+            const [doubtSubmitted, setDoubtSubmitted] = useState(false);
+
             // Estado de la nueva encuesta
             const [surveyData, setSurveyData] = useState({ clarity: 0, relevance: 0, difficultyLevel: 0, comments: '', submitted: false });
             
@@ -283,12 +290,16 @@
                 return () => unsubscribe();
             }, []);
 
-            // 2. Escucha de Telemetría y Preguntas DB
+            // 2. Escucha de Telemetría, Preguntas DB y Foro de Dudas
             useEffect(() => {
                 // Fetch Logs
                 const qLogs = collection(db, COLLECTION_PATH);
                 const unsubLogs = onSnapshot(qLogs, (snap) => setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => {});
                 
+                // Fetch Doubts (Foro)
+                const dRef = collection(db, DOUBTS_PATH);
+                const unsubDoubts = onSnapshot(dRef, (snap) => setForumDoubts(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => {});
+
                 // Fetch Questions from Database
                 const fetchQuestions = async () => {
                     try {
@@ -300,8 +311,14 @@
                 };
                 fetchQuestions();
 
-                return () => unsubLogs();
+                return () => { unsubLogs(); unsubDoubts(); };
             }, []);
+
+            // Resetear foro local al cambiar de pregunta
+            useEffect(() => { 
+                setDoubtSubmitted(false); 
+                setUserDoubt(""); 
+            }, [currentQIndex]);
 
             // --- MANEJADORES DE EVENTOS ---
             const handleManualLogin = () => {
@@ -348,12 +365,59 @@
                 }
             };
 
+            const handleDoubtSubmit = async () => {
+                if(!userDoubt.trim()) return;
+                try {
+                    await addDoc(collection(db, DOUBTS_PATH), {
+                        qId: currentQ.id,
+                        theme: currentQ.theme,
+                        title: currentQ.title,
+                        doubt: userDoubt,
+                        timestamp: serverTimestamp()
+                    });
+                } catch(e) { console.warn("Duda guardada localmente"); }
+                setDoubtSubmitted(true);
+                setUserDoubt("");
+            };
+
+            // NUEVO: Verificación automática de correo administrador maestro (Direct Access sin Clave)
+            const attemptAdminAccess = () => {
+                const activeEmail = studentInfo.email || (user && user.email) || "";
+                if (activeEmail.toLowerCase() === 'dudbilopr@gmail.com') {
+                    // Si es el maestro, acceso directo sin contraseña (evita hackeos del modal)
+                    setView('dashboard');
+                } else {
+                    // Si es estudiante, le notificamos directamente
+                    alert("Acceso Denegado: Privilegios de Administrador Maestro requeridos para el análisis neurocognitivo.");
+                }
+            };
+
+            // Mantenemos la función legacy para no quitar código, aunque ya no se active el modal por attemptAdminAccess
             const handleAdminLogin = () => {
                 if(adminAuth.password === 'admin123') {
                     setView('dashboard');
                     setAdminAuth({isChecking: false, password: '', error: ''});
                 } else {
                     setAdminAuth({...adminAuth, error: 'Contraseña incorrecta'});
+                }
+            };
+
+            // NUEVO: Marcar pregunta para después
+            const markForLater = () => {
+                if (!markedQuestions.includes(currentQ.id)) {
+                    setMarkedQuestions([...markedQuestions, currentQ.id]);
+                }
+                
+                // Buscar siguiente pregunta sin responder
+                const answeredIds = sessionData.answers.map(a => a.qId);
+                const unasked = activeQuestionBank.findIndex((q, i) => !answeredIds.includes(q.id) && i !== currentQIndex);
+                
+                if(unasked !== -1) {
+                    setCurrentQIndex(unasked);
+                    setFeedback(null);
+                    setSessionData(prev => ({...prev, currentQStartTime: Date.now()}));
+                } else {
+                    alert("No hay más preguntas nuevas. Has marcado esta para revisar después. Selecciona una en el panel de navegación para continuar.");
                 }
             };
 
@@ -399,37 +463,51 @@
 
                 try { await addDoc(collection(db, COLLECTION_PATH), logEntry); } catch (e) { console.warn("Guardado local."); }
 
-                setScore(prev => prev + finalPoints);
-                setSessionData(prev => ({ 
-                    ...prev, 
-                    tipsUsed: prev.tipsUsed + (usedTip ? 1 : 0),
-                    answers: [...prev.answers, answerData]
-                }));
+                // Si ya había respondido esta antes, no sumar doble.
+                const alreadyAnswered = sessionData.answers.some(a => a.qId === currentQ.id);
+                
+                if (!alreadyAnswered) {
+                    setScore(prev => prev + finalPoints);
+                    setSessionData(prev => ({ 
+                        ...prev, 
+                        tipsUsed: prev.tipsUsed + (usedTip ? 1 : 0),
+                        answers: [...prev.answers, answerData]
+                    }));
+                }
+
+                // Quitar de marcadas si la responde
+                if (markedQuestions.includes(currentQ.id)) {
+                    setMarkedQuestions(markedQuestions.filter(id => id !== currentQ.id));
+                }
 
                 // Feedback visual en vivo
                 setFeedback({ isCorrect, timeSpent, expectedTime: t_e, neuroState });
 
                 setTimeout(() => {
                     setFeedback(null);
-                    const answeredCount = sessionData.answers.length + 1;
                     
-                    if (answeredCount < activeQuestionBank.length) {
-                        // LOGICA ADAPTATIVA: Buscar preguntas no respondidas y seleccionar aleatoriamente la más cercana al nivel adaptado.
-                        let nextQIndex = currentQIndex + 1;
-                        const unasked = activeQuestionBank.map((q, i) => ({q, i})).filter(item => !sessionData.answers.some(a => a.qId === item.q.id) && item.q.id !== currentQ.id);
+                    const answeredIds = [...sessionData.answers.map(a => a.qId)];
+                    if(!alreadyAnswered) answeredIds.push(currentQ.id);
 
-                        if (unasked.length > 0) {
-                            let targetDiff = currentQ.difficulty + (isCorrect ? 0.15 : -0.15);
-                            // Barajar ligeramente para evitar secuencias rígidas antes de ordenar por dificultad
-                            unasked.sort(() => Math.random() - 0.5); 
-                            unasked.sort((a, b) => Math.abs(a.q.difficulty - targetDiff) - Math.abs(b.q.difficulty - targetDiff));
-                            nextQIndex = unasked[0].i;
-                        }
+                    const unasked = activeQuestionBank.map((q, i) => ({q, i})).filter(item => !answeredIds.includes(item.q.id));
 
-                        setCurrentQIndex(nextQIndex);
+                    if (unasked.length > 0) {
+                        // LOGICA ADAPTATIVA IRT
+                        let targetDiff = currentQ.difficulty + (isCorrect ? 0.15 : -0.15);
+                        unasked.sort(() => Math.random() - 0.5); 
+                        unasked.sort((a, b) => Math.abs(a.q.difficulty - targetDiff) - Math.abs(b.q.difficulty - targetDiff));
+                        setCurrentQIndex(unasked[0].i);
                         setSessionData(prev => ({...prev, currentQStartTime: Date.now()}));
                     } else { 
-                        setView('results'); 
+                        // Verificamos si hay alguna marcada que no haya respondido (fallback)
+                        const markedAndUnanswered = markedQuestions.filter(id => !answeredIds.includes(id));
+                        if(markedAndUnanswered.length > 0) {
+                            const nextIdx = activeQuestionBank.findIndex(q => q.id === markedAndUnanswered[0]);
+                            setCurrentQIndex(nextIdx);
+                            setSessionData(prev => ({...prev, currentQStartTime: Date.now()}));
+                        } else {
+                            setView('results'); 
+                        }
                     }
                 }, 4000); 
             };
@@ -443,11 +521,27 @@
 
             // --- COMPONENTES INTERACTIVOS DE EVALUACIÓN ---
 
-            const ProgressBar = () => {
-                const progress = (sessionData.answers.length / activeQuestionBank.length) * 100;
+            const AssessmentNavBar = () => {
                 return (
-                    <div className="w-full bg-slate-700 rounded-full h-3 mb-6 overflow-hidden border border-slate-600">
-                        <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-3 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
+                    <div className="flex items-center space-x-2 mb-4 overflow-x-auto pb-2">
+                        {activeQuestionBank.map((q, idx) => {
+                            const isAnswered = sessionData.answers.some(a => a.qId === q.id);
+                            const isMarked = markedQuestions.includes(q.id);
+                            const isCurrent = currentQIndex === idx;
+                            let bg = "bg-slate-700 text-slate-300 border-transparent hover:bg-slate-600";
+                            
+                            if (isAnswered) bg = "bg-emerald-600 text-white border-emerald-400";
+                            else if (isMarked) bg = "bg-yellow-500 text-slate-900 border-yellow-300";
+                            
+                            if (isCurrent) bg += " ring-2 ring-white ring-offset-2 ring-offset-slate-900 transform scale-110";
+                            
+                            return (
+                                <button key={q.id} onClick={() => { setCurrentQIndex(idx); setFeedback(null); setSessionData(prev => ({...prev, currentQStartTime: Date.now()})); }} 
+                                    className={`flex-shrink-0 w-10 h-10 rounded-lg font-bold transition-all border-2 ${bg}`} title={q.theme}>
+                                    {idx + 1}
+                                </button>
+                            );
+                        })}
                     </div>
                 );
             };
@@ -479,11 +573,17 @@
                                 </div>
                             ))}
                         </div>
-                        <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-6 pt-4 border-t border-slate-700 gap-4">
                             {!tipRevealed ? (
                                 <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Consultar Pista Jurídica (-15 pts)</button>
-                            ) : (<p className="text-sm text-yellow-400 bg-yellow-900/20 p-3 rounded-lg border border-yellow-700/50 flex items-center"><Info className="w-5 h-5 mr-2 flex-shrink-0"/> {currentQ.tip}</p>)}
-                            <button onClick={handleCheck} disabled={!selected || feedback} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold disabled:opacity-50 transition-colors shadow-lg">Validar Análisis</button>
+                            ) : (<p className="text-sm text-yellow-400 bg-yellow-900/20 p-3 rounded-lg border border-yellow-700/50 flex items-center w-full sm:w-1/2"><Info className="w-5 h-5 mr-2 flex-shrink-0"/> {currentQ.tip}</p>)}
+                            
+                            <div className="flex space-x-2">
+                                <button onClick={markForLater} disabled={feedback} className="px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold text-yellow-400 transition-colors shadow-lg disabled:opacity-50" title="Saltar y revisar al final">
+                                    📌 Marcar
+                                </button>
+                                <button onClick={handleCheck} disabled={!selected || feedback} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold disabled:opacity-50 transition-colors shadow-lg text-white">Validar Análisis</button>
+                            </div>
                         </div>
                     </div>
                 );
@@ -519,9 +619,14 @@
                                 </div>
                             ))}
                         </div>
-                        <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
-                             {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Consultar Jurisprudencia (-15 pts)</button> : <p className="text-sm text-yellow-400 bg-yellow-900/20 p-3 rounded-lg flex items-center"><Info className="w-5 h-5 mr-2 flex-shrink-0"/>{currentQ.tip}</p>}
-                            <button onClick={handleCheck} disabled={feedback} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold disabled:opacity-50 shadow-lg">Sellar Expediente</button>
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-6 pt-4 border-t border-slate-700 gap-4">
+                             {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Consultar Jurisprudencia (-15 pts)</button> : <p className="text-sm text-yellow-400 bg-yellow-900/20 p-3 rounded-lg flex items-center w-full sm:w-1/2"><Info className="w-5 h-5 mr-2 flex-shrink-0"/>{currentQ.tip}</p>}
+                            <div className="flex space-x-2">
+                                <button onClick={markForLater} disabled={feedback} className="px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold text-yellow-400 transition-colors shadow-lg disabled:opacity-50" title="Saltar y revisar al final">
+                                    📌 Marcar
+                                </button>
+                                <button onClick={handleCheck} disabled={feedback} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold disabled:opacity-50 shadow-lg text-white">Sellar Expediente</button>
+                            </div>
                         </div>
                     </div>
                 );
@@ -562,9 +667,14 @@
                         <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 text-slate-200">
                             {renderText()}
                         </div>
-                        <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
-                            {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Pista (-15 pts)</button> : <span className="text-sm text-yellow-400 flex items-center"><Info className="w-5 h-5 mr-2"/>{currentQ.tip}</span>}
-                            <button onClick={handleCheck} disabled={Object.keys(answers).length < currentQ.blanks.length || feedback} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold disabled:opacity-50 shadow-lg">Completar Documento</button>
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-6 pt-4 border-t border-slate-700 gap-4">
+                            {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Pista (-15 pts)</button> : <span className="text-sm text-yellow-400 flex items-center w-full sm:w-1/2"><Info className="w-5 h-5 mr-2"/>{currentQ.tip}</span>}
+                            <div className="flex space-x-2">
+                                <button onClick={markForLater} disabled={feedback} className="px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold text-yellow-400 transition-colors shadow-lg disabled:opacity-50" title="Saltar y revisar al final">
+                                    📌 Marcar
+                                </button>
+                                <button onClick={handleCheck} disabled={Object.keys(answers).length < currentQ.blanks.length || feedback} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold disabled:opacity-50 shadow-lg text-white">Completar Documento</button>
+                            </div>
                         </div>
                     </div>
                 );
@@ -598,9 +708,14 @@
                                 />
                             ))}
                         </div>
-                        <div className="flex justify-between items-center pt-4">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-4 gap-4">
                             {!tipRevealed && !feedback && <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Consultar CST (-15 pts)</button>}
-                            {tipRevealed && !feedback && <p className="text-sm text-yellow-400 bg-yellow-900/20 p-2 rounded flex items-center"><Info className="w-5 h-5 mr-2"/>{currentQ.tip}</p>}
+                            {tipRevealed && !feedback && <p className="text-sm text-yellow-400 bg-yellow-900/20 p-2 rounded flex items-center w-full sm:w-1/2"><Info className="w-5 h-5 mr-2"/>{currentQ.tip}</p>}
+                            <div className="flex space-x-2">
+                                <button onClick={markForLater} disabled={feedback} className="px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold text-yellow-400 transition-colors shadow-lg disabled:opacity-50" title="Saltar y revisar al final">
+                                    📌 Marcar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 );
@@ -650,11 +765,10 @@
                 const { itemMetrics, neuroData } = calculateMetrics();
                 const COLORS = ['#ef4444', '#f59e0b', '#8b5cf6', '#10b981'];
 
-                // NUEVO: Generador de datos para Curva Característica del Ítem (CCI)
+                // Generador de datos para Curva Característica del Ítem (CCI)
                 const generateCCIData = () => {
                     const data = [];
                     for (let theta = -3; theta <= 3; theta += 0.5) {
-                        // Usando la función logística del modelo 2PL: P(θ) = 1 / (1 + e^(-a(θ - b)))
                         data.push({
                             theta,
                             'Ítem Fácil (b=-1.5, a=1.2)': parseFloat((1 / (1 + Math.exp(-1.2 * (theta - (-1.5))))).toFixed(3)),
@@ -693,6 +807,41 @@
 
                         {logs.length > 0 ? (
                             <div className="space-y-8">
+                                {/* NUEVA SECCIÓN: ANÁLISIS DEL FORO */}
+                                <h2 className="text-2xl font-bold text-white border-l-4 border-yellow-500 pl-3 mt-10">Análisis del Foro (Inquietudes en Tiempo Real)</h2>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                                    <div className="glass-panel p-6 rounded-xl overflow-x-auto">
+                                        <h3 className="text-lg font-bold mb-4 text-white">Últimas dudas consignadas</h3>
+                                        <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                                            {forumDoubts.map((d, i) => (
+                                                <div key={i} className="bg-slate-800/80 p-4 rounded-lg border border-slate-600">
+                                                    <div className="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
+                                                        <span className="text-xs text-yellow-400 font-bold uppercase">{d.theme}</span>
+                                                        <span className="text-xs text-slate-500">{d.timestamp?.toDate ? new Date(d.timestamp.toDate()).toLocaleDateString() : 'Reciente'}</span>
+                                                    </div>
+                                                    <span className="text-xs text-blue-300 font-semibold mb-1 block">Contexto: {d.title}</span>
+                                                    <p className="text-sm text-white italic">"{d.doubt}"</p>
+                                                </div>
+                                            ))}
+                                            {forumDoubts.length === 0 && <p className="text-slate-500">No hay inquietudes registradas.</p>}
+                                        </div>
+                                    </div>
+                                    <div className="glass-panel p-6 rounded-xl">
+                                         <h3 className="text-lg font-bold mb-4 text-white">Volumen de dudas por Tema</h3>
+                                         <div className="h-72">
+                                             <ResponsiveContainer width="100%" height="100%">
+                                                 <BarChart data={Object.entries(forumDoubts.reduce((acc, d) => { acc[d.theme] = (acc[d.theme] || 0) + 1; return acc; }, {})).map(([name, count]) => ({name, count}))}>
+                                                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                                     <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
+                                                     <YAxis stroke="#94a3b8" allowDecimals={false} />
+                                                     <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }} />
+                                                     <Bar dataKey="count" fill="#eab308" name="Nº Inquietudes" radius={[4, 4, 0, 0]} />
+                                                 </BarChart>
+                                             </ResponsiveContainer>
+                                         </div>
+                                    </div>
+                                </div>
+
                                 {/* SECCIÓN NEUROCOGNITIVA */}
                                 <h2 className="text-2xl font-bold text-white border-l-4 border-purple-500 pl-3">Perfilamiento Neurocognitivo</h2>
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -762,7 +911,7 @@
                                     </div>
                                 </div>
 
-                                {/* NUEVO: FUNDAMENTOS TEÓRICOS Y CCI (AGREGADO SIN BORRAR NADA) */}
+                                {/* FUNDAMENTOS TEÓRICOS Y CCI */}
                                 <h2 className="text-2xl font-bold text-white border-l-4 border-emerald-500 pl-3 mt-10">Análisis Científico de Respuesta al Ítem (Modelos IRT)</h2>
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                     <div className="glass-panel p-6 rounded-xl col-span-1 lg:col-span-2">
@@ -859,7 +1008,7 @@
             return (
                 <div className="flex-1 p-4 sm:p-8 font-sans">
                     
-                    {/* Ventana Modal Admin Login */}
+                    {/* Ventana Modal Admin Login (Mantenido para no quitar código, pero inactivo por validación directa) */}
                     {adminAuth.isChecking && (
                         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur z-50 flex items-center justify-center">
                             <div className="bg-slate-800 p-8 rounded-2xl border border-slate-600 max-w-sm w-full shadow-2xl">
@@ -887,7 +1036,7 @@
                                     <User className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline text-sm">{studentInfo.name.split(' ')[0] || 'Perfil'}</span>
                                 </button>
                                 <button onClick={logout} className="text-sm text-slate-400 hover:text-red-400 transition-colors hidden sm:block">Salir</button>
-                                <button onClick={() => setAdminAuth({...adminAuth, isChecking: true})} className="text-slate-500 hover:text-blue-400 transition-colors bg-slate-800 p-2 rounded-full" title="Portal Admin">
+                                <button onClick={attemptAdminAccess} className="text-slate-500 hover:text-blue-400 transition-colors bg-slate-800 p-2 rounded-full" title="Portal Admin">
                                     <LayoutDashboard className="w-5 h-5" />
                                 </button>
                             </div>
@@ -1004,23 +1153,24 @@
                                         ? "Bienvenido a tu entrenamiento libre. Pondremos a prueba tus conocimientos sobre el debido proceso laboral basándonos en el Código Sustantivo del Trabajo."
                                         : `Como perfil ${studentInfo.role.toUpperCase()}, pondremos a prueba tu criterio sobre el debido proceso laboral basándonos en la Jurisprudencia Constitucional Colombiana.`}
                                 </p>
-                                <button onClick={() => { setView('assessment'); setSessionData({startTime: Date.now(), currentQStartTime: Date.now(), tipsUsed: 0, answers: []}); setScore(0); setCurrentQIndex(0); }} className="px-12 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full font-bold shadow-[0_0_40px_rgba(59,130,246,0.5)] hover:shadow-[0_0_60px_rgba(59,130,246,0.7)] transition-all text-white text-xl relative z-10 transform hover:-translate-y-1">
+                                <button onClick={() => { setView('assessment'); setSessionData({startTime: Date.now(), currentQStartTime: Date.now(), tipsUsed: 0, answers: []}); setScore(0); setCurrentQIndex(0); setMarkedQuestions([]); }} className="px-12 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full font-bold shadow-[0_0_40px_rgba(59,130,246,0.5)] hover:shadow-[0_0_60px_rgba(59,130,246,0.7)] transition-all text-white text-xl relative z-10 transform hover:-translate-y-1">
                                     Iniciar Evaluación Legal
                                 </button>
                             </div>
                         )}
 
-                        {/* 4. EVALUACIÓN (Con Métricas e IRT Visual) */}
+                        {/* 4. EVALUACIÓN (Con Navegación Libre y Foro en Vivo) */}
                         {view === 'assessment' && (
                             <div className="animate-fade-in max-w-3xl mx-auto">
-                                <ProgressBar />
+                                <AssessmentNavBar />
                                 <div className="flex justify-between items-center mb-6 text-sm font-medium uppercase bg-slate-800/80 p-3 rounded-xl border border-slate-700">
                                     <div className="flex items-center text-indigo-400">
-                                        <Activity className="w-4 h-4 mr-2"/> Reto {sessionData.answers.length + 1} de {activeQuestionBank.length} 
+                                        <Activity className="w-4 h-4 mr-2"/> Reto {currentQIndex + 1} de {activeQuestionBank.length} 
                                         <span className="hidden sm:inline ml-2 text-slate-500">({currentQ.theme})</span>
                                     </div>
                                     <span className="text-slate-300">Puntos: <strong className="text-blue-400 text-base ml-2">{score.toFixed(0)}</strong></span>
                                 </div>
+                                
                                 <div className="glass-panel rounded-3xl p-8 sm:p-12 shadow-2xl border-t-4 border-t-blue-500 relative">
                                     {renderCurrentInteraction()}
                                     
@@ -1031,7 +1181,6 @@
                                                 <p className={`font-bold text-xl mb-2 ${feedback.isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>{feedback.isCorrect ? 'Fallo: Válido' : 'Fallo: Error de Proceso'}</p>
                                                 <p className="text-slate-200 leading-relaxed text-sm mb-4">{feedback.text}</p>
                                                 
-                                                {/* MÉTRICAS PARA EL USUARIO EN VIVO */}
                                                 <div className="bg-slate-900/50 rounded-lg p-3 grid grid-cols-2 gap-2 text-xs text-slate-400 font-mono">
                                                     <div className="flex items-center"><Clock className="w-3 h-3 mr-1 text-blue-400"/> Tiempo invertido: <strong className={`ml-1 ${feedback.timeSpent > feedback.expectedTime ? 'text-red-400' : 'text-white'}`}>{feedback.timeSpent}s</strong></div>
                                                     <div className="flex items-center"><TrendingUp className="w-3 h-3 mr-1 text-purple-400"/> Tiempo esperado: <span className="ml-1">{feedback.expectedTime}s</span></div>
@@ -1042,11 +1191,25 @@
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* NUEVO: Foro de Dudas en Vivo por Pregunta */}
+                                    <div className="mt-8 border-t border-slate-700 pt-6">
+                                        <h4 className="text-sm font-bold text-slate-300 mb-3 flex items-center"><MessageSquare className="w-4 h-4 mr-2 text-yellow-500"/> Foro de Dudas (Anónimo)</h4>
+                                        <div className="flex items-start space-x-2">
+                                            <textarea value={userDoubt} onChange={e=>setUserDoubt(e.target.value)} disabled={doubtSubmitted}
+                                                className="flex-1 bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-indigo-500 outline-none resize-none h-20 transition-colors" 
+                                                placeholder="¿Algo del caso no quedó claro? Deja tu inquietud aquí y será analizada por los docentes en tiempo real..."/>
+                                            <button onClick={handleDoubtSubmit} disabled={!userDoubt.trim() || doubtSubmitted} 
+                                                className="px-4 py-2 bg-yellow-600/90 hover:bg-yellow-500 text-slate-900 rounded-lg text-sm font-bold disabled:opacity-50 h-20 shadow-md transition-all">
+                                                {doubtSubmitted ? 'Registrado ✓' : 'Enviar Duda'}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* 5. RESULTADOS, ANÁLISIS POR PREGUNTA Y ENCUESTA MEJORADA */}
+                        {/* 5. RESULTADOS, ANÁLISIS POR PREGUNTA, FORO Y ENCUESTA */}
                         {view === 'results' && (
                             <div className="animate-fade-in max-w-4xl mx-auto space-y-6">
                                 {/* Resumen Principal */}
@@ -1069,6 +1232,26 @@
                                 <div className="glass-panel rounded-3xl p-8 border border-slate-700 bg-slate-800/50">
                                     <h3 className="text-xl font-bold text-white mb-4 flex items-center"><GraduationCap className="w-6 h-6 mr-2 text-indigo-400"/> Diagnóstico y Plan de Estudio</h3>
                                     <p className={`text-lg font-medium mb-2 ${getStudyRecommendation().class}`}>{getStudyRecommendation().text}</p>
+                                </div>
+
+                                {/* NUEVO: Resumen de Foro de Dudas */}
+                                <div className="glass-panel rounded-3xl p-8 border border-slate-700 bg-slate-800/40">
+                                    <h3 className="text-xl font-bold text-white mb-4 flex items-center"><MessageCircle className="w-6 h-6 mr-2 text-yellow-500"/> Inquietudes Frecuentes (Foro Anónimo)</h3>
+                                    <p className="text-sm text-slate-400 mb-6">Revisa lo que otros estudiantes han preguntado sobre los casos evaluados hoy. Los docentes analizan esto en tiempo real.</p>
+                                    <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
+                                        {forumDoubts.filter(d => sessionData.answers.some(a => a.qId === d.qId)).slice(0, 10).map((d, i) => (
+                                            <div key={i} className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-xs font-bold text-indigo-400 uppercase">{d.theme}</span>
+                                                    <span className="text-xs text-slate-500">Reciente</span>
+                                                </div>
+                                                <p className="text-sm text-slate-200 mt-1 italic">"{d.doubt}"</p>
+                                            </div>
+                                        ))}
+                                        {forumDoubts.filter(d => sessionData.answers.some(a => a.qId === d.qId)).length === 0 && 
+                                            <p className="text-slate-500 text-center py-4 bg-slate-900/30 rounded-lg">Aún no hay dudas registradas en el foro sobre estos módulos.</p>
+                                        }
+                                    </div>
                                 </div>
 
                                 {/* Tabla de Rendimiento por Ítem */}
