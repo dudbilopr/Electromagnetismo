@@ -47,15 +47,15 @@
     <div id="root" class="content-wrapper"></div>
 
     <script type="text/babel" data-type="module">
-        import React, { useState, useEffect, useRef } from 'react';
+        import React, { useState, useEffect, useRef, useMemo } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Scale, BrainCircuit, ShieldAlert, CheckCircle, XCircle, HelpCircle, Lock, LayoutDashboard, ChevronRight, AlertTriangle, TrendingUp, Activity, Copy, Star, Users, Briefcase, FileSignature, Info, User, Clock, BookOpen, Award, Link as LinkIcon, GraduationCap } from 'lucide-react';
-        import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ScatterChart, Scatter, ResponsiveContainer } from 'recharts';
+        import { Scale, BrainCircuit, ShieldAlert, CheckCircle, XCircle, HelpCircle, Lock, LayoutDashboard, ChevronRight, AlertTriangle, TrendingUp, Activity, Copy, Star, Users, Briefcase, FileSignature, Info, User, Clock, BookOpen, Award, Link as LinkIcon, GraduationCap, Database, Brain } from 'lucide-react';
+        import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ScatterChart, Scatter, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
         
         // --- FIREBASE INIT ---
         import { initializeApp } from 'firebase/app';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, writeBatch, doc, getDocs } from 'firebase/firestore';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDAhJNYS_XTcmKE9fZzVEX9_o0cJ1-dnUk",
@@ -72,14 +72,17 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        const APP_ID = 'lexquest-disciplinario-v2';
+        const APP_ID = 'lexquest-disciplinario-v3';
         const COLLECTION_PATH = `artifacts/${APP_ID}/public/data/telemetry`;
+        const SURVEYS_PATH = `artifacts/${APP_ID}/public/data/surveys`;
+        const QUESTIONS_PATH = `artifacts/${APP_ID}/public/data/question_bank`;
         const USERS_PATH = `artifacts/${APP_ID}/public/data/users`;
 
-        // --- BANCO DE PREGUNTAS (AMPLIADO CON JURISPRUDENCIA COLOMBIANA) ---
+        // --- BANCO DE PREGUNTAS BASE (AMPLIADO CON CLOZE TEXT Y TEMÁTICAS) ---
         const QUESTION_BANK = [
             {
                 id: "q1_concepto",
+                theme: "Conceptos Básicos",
                 type: "adaptive_radio",
                 level: 1,
                 difficulty: 0.3,
@@ -95,7 +98,26 @@
                 tip: "La clave está en los derechos constitucionales. Nadie puede ser juzgado sin ser escuchado."
             },
             {
+                id: "q11_cloze_acoso",
+                theme: "Conceptos Básicos",
+                type: "cloze_text",
+                level: 2,
+                difficulty: 0.45,
+                expectedTime: 60,
+                title: "Conceptos Fundamentales Laborales",
+                context: "Es esencial distinguir entre las acciones legítimas del empleador y las prácticas prohibidas por la ley.",
+                question: "Completa el siguiente párrafo conceptual seleccionando los términos legales correctos:",
+                codeTemplate: "La facultad del empleador de modificar las condiciones de trabajo (lugar, tiempo o modo) se denomina [HUECO_1]. Sin embargo, si un superior ejerce conductas reiteradas y demostrables orientadas a infundir miedo o inducir la renuncia, esto se clasifica como [HUECO_2], regulado en Colombia por la Ley [HUECO_3].",
+                blanks: [
+                    { id: "HUECO_1", answer: "Ius Variandi", options: ["Debido Proceso", "Ius Variandi", "Presunción de Inocencia", "Falta Gravísima"] },
+                    { id: "HUECO_2", answer: "Acoso Laboral", options: ["Sanción Disciplinaria", "Despido Justo", "Acoso Laboral", "Indagación Previa"] },
+                    { id: "HUECO_3", answer: "1010 de 2006", options: ["100 de 1993", "1010 de 2006", "789 de 2002"] }
+                ],
+                tip: "El 'Ius Variandi' es el derecho a variar condiciones. El acoso busca dañar o infundir miedo."
+            },
+            {
                 id: "q2_fundamentos",
+                theme: "Normatividad",
                 type: "adaptive_radio",
                 level: 2,
                 difficulty: 0.4,
@@ -112,6 +134,7 @@
             },
             {
                 id: "q3_secuencia",
+                theme: "Procedimiento",
                 type: "sequence_sorter",
                 level: 3,
                 difficulty: 0.6,
@@ -130,6 +153,7 @@
             },
             {
                 id: "q7_corte_constitucional",
+                theme: "Jurisprudencia",
                 type: "adaptive_radio",
                 level: 4,
                 difficulty: 0.75,
@@ -146,6 +170,7 @@
             },
             {
                 id: "q8_inmediatez",
+                theme: "Jurisprudencia",
                 type: "adaptive_radio",
                 level: 5,
                 difficulty: 0.8,
@@ -162,12 +187,13 @@
             },
             {
                 id: "q9_pruebas_ilicitas",
+                theme: "Pruebas",
                 type: "adaptive_radio",
                 level: 6,
                 difficulty: 0.85,
                 expectedTime: 85,
                 title: "Pruebas Ilícitas y Privacidad",
-                context: "Para probar que una ejecutiva de cuentas está filtrando clientes a la competencia, el área de TI de la empresa instala un software espía e intercepta las conversaciones de su WhatsApp personal sin orden judicial.",
+                context: "Para probar que una ejecutiva de cuentas está filtrando clientes a la competencia, el área de TI instala un software espía e intercepta las conversaciones de su WhatsApp personal sin orden judicial.",
                 question: "¿Es válida esta prueba para sustentar un despido con justa causa en diligencia de descargos?",
                 options: [
                     { id: "A", text: "Sí, siempre y cuando el Reglamento Interno advierta que la empresa puede vigilar las comunicaciones para proteger su patrimonio.", isCorrect: false, feedback: "Un reglamento interno jamás puede estar por encima de la Constitución Nacional." },
@@ -177,23 +203,8 @@
                 tip: "En Colombia (Art. 29 CN), es nula de pleno derecho la prueba obtenida con violación del debido proceso y la intimidad."
             },
             {
-                id: "q10_acoso_laboral",
-                type: "adaptive_radio",
-                level: 7,
-                difficulty: 0.9,
-                expectedTime: 70,
-                title: "Falsa Disciplina y Ley 1010 de 2006",
-                context: "Un jefe de área inicia procesos disciplinarios semanales contra un analista por situaciones nimias (ej. tener un lapicero fuera de lugar, ir al baño 5 minutos) buscando generar estrés para que el analista renuncie.",
-                question: "En el contexto laboral colombiano, utilizar la facultad disciplinaria de esta manera abusiva configura:",
-                options: [
-                    { id: "A", text: "Persecución laboral, una modalidad de Acoso Laboral regulada por la Ley 1010 de 2006.", isCorrect: true, feedback: "¡Excelente! La reiteración de procesos disciplinarios injustificados o desproporcionados es un indicio claro de acoso laboral." },
-                    { id: "B", text: "Ejercicio legítimo del Ius Variandi, ya que el jefe es el encargado de mantener la disciplina estricta.", isCorrect: false, feedback: "El Ius Variandi tiene límites constitucionales (dignidad humana)." },
-                    { id: "C", text: "Despido indirecto legalmente justificado.", isCorrect: false, feedback: "Si el empleado renuncia por esto, es un despido indirecto (culpa del empleador), lo cual es ilegal y genera indemnización." }
-                ],
-                tip: "Evalúa la intención sistemática de causar daño o inducir la renuncia mediante exigencias desproporcionadas."
-            },
-            {
                 id: "q4_sanciones",
+                theme: "Sanciones",
                 type: "image_hotspot",
                 level: 8,
                 difficulty: 0.7,
@@ -208,38 +219,6 @@
                     { id: "h3", x: 75, y: 15, isCorrect: false, text: "Multa equivalente a la 5ta parte de un día por retraso." }
                 ],
                 tip: "Las leyes laborales prohíben suspensiones mayores a 8 días por la primera vez que se comete una falta."
-            },
-            {
-                id: "q5_hojavida",
-                type: "adaptive_radio",
-                level: 9,
-                difficulty: 0.5,
-                expectedTime: 40,
-                title: "Impacto en la Hoja de Vida",
-                context: "Juan fue sancionado con 2 días de suspensión. Está preocupado por su futuro laboral al buscar trabajo en otra empresa.",
-                question: "¿Los procesos disciplinarios quedan registrados en la hoja de vida pública del trabajador?",
-                options: [
-                    { id: "A", text: "Sí, aparecen como antecedentes penales y disciplinarios en la Procuraduría o Policía.", isCorrect: false, feedback: "Falso. La Procuraduría aplica para funcionarios públicos, no para empleados de empresas privadas." },
-                    { id: "B", text: "No, pero quedan consignados permanentemente en el expediente laboral interno de la empresa privada que lo sancionó.", isCorrect: true, feedback: "¡Correcto! Es un registro netamente interno de la compañía." },
-                    { id: "C", text: "No, el Ministerio del Trabajo ordena borrar las sanciones a los 30 días.", isCorrect: false, feedback: "Incorrecto. Permanecen en el expediente interno como historial del trabajador." }
-                ],
-                tip: "El sector privado maneja expedientes internos, no bases de datos nacionales públicas."
-            },
-            {
-                id: "q6_terminacion",
-                type: "adaptive_radio",
-                level: 10,
-                difficulty: 0.8,
-                expectedTime: 60,
-                title: "El Límite: Terminación del Contrato",
-                context: "María cree que la empresa debe hacerle 3 memorandos escritos antes de poder despedirla por justa causa.",
-                question: "¿Después de cuántos procesos disciplinarios el empleador puede terminar el contrato (Art 62. CST)?",
-                options: [
-                    { id: "A", text: "Obligatoriamente después de 3 llamados de atención documentados (Ley de los 3 strikes).", isCorrect: false, feedback: "Mito común. La ley laboral no exige un número exacto de faltas previas." },
-                    { id: "B", text: "Depende de la gravedad: Una sola falta calificada convencionalmente como 'grave' puede ser suficiente para el despido.", isCorrect: true, feedback: "¡Correcto! No es un tema de cantidad. Hay faltas de tal magnitud que en la primera ocurrencia ameritan despido justificado." },
-                    { id: "C", text: "Solo cuando un juez laboral lo autorice expresamente.", isCorrect: false, feedback: "El empleador tiene la potestad de despedir si se prueba la justa causa, sin pedir permiso previo al juez (salvo fueros especiales)." }
-                ],
-                tip: "Hurtar patrimonio de la empresa es una falta gravísima que no requiere 'avisos previos' para el despido."
             }
         ];
 
@@ -254,12 +233,20 @@
             const [currentQIndex, setCurrentQIndex] = useState(0);
             const [score, setScore] = useState(0);
             const [logs, setLogs] = useState([]);
+            const [dbQuestions, setDbQuestions] = useState([]); // Preguntas desde Firebase
             const [authError, setAuthError] = useState(null);
             const [sessionData, setSessionData] = useState({ startTime: null, currentQStartTime: null, tipsUsed: 0, answers: [] });
             const [feedback, setFeedback] = useState(null);
-            const [satisfaction, setSatisfaction] = useState(0);
             
-            const currentQ = QUESTION_BANK[currentQIndex];
+            // Estado de la nueva encuesta
+            const [surveyData, setSurveyData] = useState({ clarity: 0, relevance: 0, difficultyLevel: 0, comments: '', submitted: false });
+            
+            // Estado para Admin
+            const [adminAuth, setAdminAuth] = useState({ isChecking: false, password: '', error: '' });
+
+            // El banco activo será el de la base de datos si existe, si no el local.
+            const activeQuestionBank = dbQuestions.length > 0 ? dbQuestions : QUESTION_BANK;
+            const currentQ = activeQuestionBank[currentQIndex];
 
             // 1. AUTO-LOGIN Y AUTENTICACIÓN
             useEffect(() => {
@@ -296,13 +283,24 @@
                 return () => unsubscribe();
             }, []);
 
-            // 2. Escucha de Telemetría
+            // 2. Escucha de Telemetría y Preguntas DB
             useEffect(() => {
-                const qRef = collection(db, COLLECTION_PATH);
-                const unsubscribe = onSnapshot(qRef, (snap) => {
-                    setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                }, (err) => console.warn("Telemetría en modo memoria temporal."));
-                return () => unsubscribe();
+                // Fetch Logs
+                const qLogs = collection(db, COLLECTION_PATH);
+                const unsubLogs = onSnapshot(qLogs, (snap) => setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() }))), () => {});
+                
+                // Fetch Questions from Database
+                const fetchQuestions = async () => {
+                    try {
+                        const snap = await getDocs(collection(db, QUESTIONS_PATH));
+                        if (!snap.empty) {
+                            setDbQuestions(snap.docs.map(doc => doc.data()));
+                        }
+                    } catch(e) { console.warn("Usando banco de preguntas local."); }
+                };
+                fetchQuestions();
+
+                return () => unsubLogs();
             }, []);
 
             // --- MANEJADORES DE EVENTOS ---
@@ -335,6 +333,30 @@
                 setView('intro');
             };
 
+            const submitSurvey = async () => {
+                try {
+                    await addDoc(collection(db, SURVEYS_PATH), {
+                        ...surveyData,
+                        studentName: studentInfo.name,
+                        studentRole: studentInfo.role,
+                        score: score,
+                        timestamp: serverTimestamp()
+                    });
+                    setSurveyData({...surveyData, submitted: true});
+                } catch (e) {
+                    setSurveyData({...surveyData, submitted: true}); // Simular éxito si bloquea FB
+                }
+            };
+
+            const handleAdminLogin = () => {
+                if(adminAuth.password === 'admin123') {
+                    setView('dashboard');
+                    setAdminAuth({isChecking: false, password: '', error: ''});
+                } else {
+                    setAdminAuth({...adminAuth, error: 'Contraseña incorrecta'});
+                }
+            };
+
             // MOTOR ADAPTATIVO IRT
             const submitAnswer = async (isCorrect, usedTip = false) => {
                 const timeSpent = Math.floor((Date.now() - sessionData.currentQStartTime) / 1000);
@@ -343,24 +365,34 @@
                 const pointsEarned = isCorrect ? (100 * currentQ.difficulty) - (usedTip ? 15 : 0) : 0;
                 const finalPoints = Math.max(0, pointsEarned);
 
+                // Cálculo neurocognitivo básico
+                let neuroState = "Normal";
+                if(timeSpent < (t_e * 0.3) && !isCorrect) neuroState = "Impulsividad";
+                else if (timeSpent > (t_e * 1.5) && isCorrect) neuroState = "Duda / Hesitación";
+                else if (timeSpent > (t_e * 1.5) && !isCorrect) neuroState = "Sobrecarga Cognitiva";
+                else if (timeSpent <= t_e && isCorrect) neuroState = "Estado de Flujo";
+
                 const answerData = {
                     qId: currentQ.id,
                     title: currentQ.title,
                     isCorrect,
                     timeSpent,
                     points: finalPoints,
-                    difficulty: currentQ.difficulty
+                    difficulty: currentQ.difficulty,
+                    neuroState
                 };
 
                 const logEntry = {
                     studentName: studentInfo.name || 'Anónimo',
                     studentRole: studentInfo.role || 'Estudiante Libre',
                     questionId: currentQ.id,
+                    theme: currentQ.theme || "General",
                     isCorrect,
                     timeSpent,
                     expectedTime: t_e,
                     usedTip,
                     frustrationIndex: frustration,
+                    neuroState,
                     points: finalPoints,
                     timestamp: serverTimestamp()
                 };
@@ -374,21 +406,22 @@
                     answers: [...prev.answers, answerData]
                 }));
 
-                // Inyectamos el tiempo en el feedback para mostrarlo
-                setFeedback(prev => ({ ...prev, timeSpent, expectedTime: t_e }));
+                // Feedback visual en vivo
+                setFeedback({ isCorrect, timeSpent, expectedTime: t_e, neuroState });
 
                 setTimeout(() => {
                     setFeedback(null);
                     const answeredCount = sessionData.answers.length + 1;
                     
-                    if (answeredCount < QUESTION_BANK.length) {
-                        // LOGICA ADAPTATIVA IRT
+                    if (answeredCount < activeQuestionBank.length) {
+                        // LOGICA ADAPTATIVA: Buscar preguntas no respondidas y seleccionar aleatoriamente la más cercana al nivel adaptado.
                         let nextQIndex = currentQIndex + 1;
-                        const unasked = QUESTION_BANK.map((q, i) => ({q, i})).filter(item => !sessionData.answers.some(a => a.qId === item.q.id) && item.q.id !== currentQ.id);
+                        const unasked = activeQuestionBank.map((q, i) => ({q, i})).filter(item => !sessionData.answers.some(a => a.qId === item.q.id) && item.q.id !== currentQ.id);
 
                         if (unasked.length > 0) {
-                            // Si acierta, buscamos una pregunta más difícil (+0.15). Si falla, una más fácil (-0.15)
                             let targetDiff = currentQ.difficulty + (isCorrect ? 0.15 : -0.15);
+                            // Barajar ligeramente para evitar secuencias rígidas antes de ordenar por dificultad
+                            unasked.sort(() => Math.random() - 0.5); 
                             unasked.sort((a, b) => Math.abs(a.q.difficulty - targetDiff) - Math.abs(b.q.difficulty - targetDiff));
                             nextQIndex = unasked[0].i;
                         }
@@ -398,10 +431,9 @@
                     } else { 
                         setView('results'); 
                     }
-                }, 4500); // Dar tiempo para leer el feedback legal y las métricas
+                }, 4000); 
             };
 
-            const adminBypass = () => setView('dashboard');
             const logout = () => {
                 localStorage.removeItem('lexQuest_userProfile');
                 setStudentInfo({ name: '', email: '', role: '', experience: '', bio: '', academicLink: '', socialLink: '', specialty: '', university: '', learningGoal: false });
@@ -412,7 +444,7 @@
             // --- COMPONENTES INTERACTIVOS DE EVALUACIÓN ---
 
             const ProgressBar = () => {
-                const progress = (sessionData.answers.length / QUESTION_BANK.length) * 100;
+                const progress = (sessionData.answers.length / activeQuestionBank.length) * 100;
                 return (
                     <div className="w-full bg-slate-700 rounded-full h-3 mb-6 overflow-hidden border border-slate-600">
                         <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-3 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
@@ -423,8 +455,12 @@
             const AdaptiveRadio = () => {
                 const [selected, setSelected] = useState(null);
                 const [tipRevealed, setTipRevealed] = useState(false);
+                
+                // Mezcla aleatoria de opciones al montar la pregunta
+                const shuffledOptions = useMemo(() => [...currentQ.options].sort(() => Math.random() - 0.5), [currentQ.id]);
+
                 const handleCheck = () => {
-                    const option = currentQ.options.find(o => o.id === selected);
+                    const option = shuffledOptions.find(o => o.id === selected);
                     setFeedback({ isCorrect: option.isCorrect, text: option.feedback });
                     submitAnswer(option.isCorrect, tipRevealed);
                 };
@@ -433,9 +469,9 @@
                         <p className="text-slate-300 italic mb-4 p-4 border-l-4 border-blue-500 bg-slate-800/50">{currentQ.context}</p>
                         <h3 className="text-xl font-semibold mb-4 text-white">{currentQ.question}</h3>
                         <div className="space-y-3">
-                            {currentQ.options.map(opt => (
+                            {shuffledOptions.map(opt => (
                                 <div key={opt.id} onClick={() => !feedback && setSelected(opt.id)}
-                                     className={`p-4 rounded-lg border cursor-pointer transition-all flex items-start ${selected === opt.id ? 'border-blue-400 bg-blue-900/30' : 'border-slate-600 bg-slate-800 hover:bg-slate-700'} ${feedback ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                     className={`p-4 rounded-lg border cursor-pointer transition-all flex items-start ${selected === opt.id ? 'border-blue-400 bg-blue-900/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'border-slate-600 bg-slate-800 hover:bg-slate-700'} ${feedback ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                     <div className={`w-6 h-6 rounded-full border-2 mr-4 flex-shrink-0 flex items-center justify-center ${selected === opt.id ? 'border-blue-400' : 'border-slate-500'}`}>
                                         {selected === opt.id && <div className="w-3 h-3 bg-blue-400 rounded-full"></div>}
                                     </div>
@@ -473,7 +509,7 @@
                         <h3 className="text-xl font-semibold mb-4 text-white">{currentQ.question}</h3>
                         <div className="space-y-3 bg-slate-900/50 p-5 rounded-xl border border-slate-700">
                             {items.map((item, idx) => (
-                                <div key={item.id} className="flex items-center p-3 bg-slate-800 rounded-lg border border-slate-600 shadow-sm">
+                                <div key={item.id} className="flex items-center p-3 bg-slate-800 rounded-lg border border-slate-600 shadow-sm cursor-move">
                                     <div className="font-bold text-slate-500 mr-4 w-6 text-center">{idx + 1}</div>
                                     <span className="font-medium flex-grow text-slate-200">{item.content}</span>
                                     <div className="flex space-x-2">
@@ -486,6 +522,49 @@
                         <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
                              {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Consultar Jurisprudencia (-15 pts)</button> : <p className="text-sm text-yellow-400 bg-yellow-900/20 p-3 rounded-lg flex items-center"><Info className="w-5 h-5 mr-2 flex-shrink-0"/>{currentQ.tip}</p>}
                             <button onClick={handleCheck} disabled={feedback} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold disabled:opacity-50 shadow-lg">Sellar Expediente</button>
+                        </div>
+                    </div>
+                );
+            };
+
+            const ClozeText = () => {
+                const [answers, setAnswers] = useState({});
+                const [tipRevealed, setTipRevealed] = useState(false);
+                const handleSelect = (blankId, val) => setAnswers(prev => ({...prev, [blankId]: val}));
+                const handleCheck = () => {
+                    let allCorrect = true;
+                    currentQ.blanks.forEach(b => { if (answers[b.id] !== b.answer) allCorrect = false; });
+                    setFeedback({ isCorrect: allCorrect, text: allCorrect ? "Integración conceptual perfecta." : "Existen errores de concordancia legal en los conceptos seleccionados." });
+                    submitAnswer(allCorrect, tipRevealed);
+                };
+
+                const renderText = () => {
+                    let parts = currentQ.codeTemplate.split(/(\[HUECO_\d+\])/g);
+                    return parts.map((part, i) => {
+                        const match = part.match(/\[(HUECO_\d+)\]/);
+                        if (match) {
+                            const blank = currentQ.blanks.find(b => b.id === match[1]);
+                            return (
+                                <select key={i} value={answers[blank.id] || ""} onChange={(e) => handleSelect(blank.id, e.target.value)} disabled={feedback !== null}
+                                    className="mx-2 bg-slate-800 text-blue-300 border-b-2 border-blue-500 px-2 py-1 outline-none text-base font-bold appearance-none cursor-pointer hover:bg-slate-700 transition-colors">
+                                    <option value="" disabled>___ Seleccionar ___</option>
+                                    {blank.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                            );
+                        }
+                        return <span key={i} className="leading-loose text-lg">{part}</span>;
+                    });
+                };
+                return (
+                    <div className="space-y-4">
+                        <p className="text-slate-300 bg-slate-800/50 p-4 border-l-4 border-indigo-500 italic">{currentQ.context}</p>
+                        <h3 className="text-xl font-semibold mb-4 text-white">{currentQ.question}</h3>
+                        <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 text-slate-200">
+                            {renderText()}
+                        </div>
+                        <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
+                            {!tipRevealed ? <button onClick={() => setTipRevealed(true)} className="text-sm text-yellow-500 flex items-center hover:text-yellow-400"><HelpCircle className="w-4 h-4 mr-1"/> Pista (-15 pts)</button> : <span className="text-sm text-yellow-400 flex items-center"><Info className="w-5 h-5 mr-2"/>{currentQ.tip}</span>}
+                            <button onClick={handleCheck} disabled={Object.keys(answers).length < currentQ.blanks.length || feedback} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold disabled:opacity-50 shadow-lg">Completar Documento</button>
                         </div>
                     </div>
                 );
@@ -528,19 +607,23 @@
             };
 
             const renderCurrentInteraction = () => {
+                if(!currentQ) return <div className="text-center p-10"><Activity className="animate-spin mx-auto w-10 h-10"/></div>;
                 switch(currentQ.type) {
                     case 'adaptive_radio': return <AdaptiveRadio />;
                     case 'sequence_sorter': return <SequenceSorter />;
                     case 'image_hotspot': return <ImageHotspot />;
+                    case 'cloze_text': return <ClozeText />;
                     default: return <div>Interacción en Construcción</div>;
                 }
             };
 
-            // --- PANEL ESTADÍSTICO DETALLADO (DOCENTE) ---
+            // --- PANEL ESTADÍSTICO DETALLADO Y NEUROCOGNITIVO (ADMIN) ---
             const DashboardView = () => {
                 const calculateMetrics = () => {
                     const metrics = {};
-                    QUESTION_BANK.forEach(q => {
+                    let neuroCounts = { "Impulsividad": 0, "Duda / Hesitación": 0, "Sobrecarga Cognitiva": 0, "Estado de Flujo": 0, "Normal": 0 };
+                    
+                    activeQuestionBank.forEach(q => {
                         const qLogs = logs.filter(l => l.questionId === q.id);
                         const Nt = qLogs.length;
                         if (Nt === 0) return;
@@ -549,36 +632,95 @@
                         const D = parseFloat(((p > 0.5) ? (p * 0.8) : (p * 1.2)).toFixed(2));
                         const avgFrust = parseFloat((qLogs.reduce((acc, curr) => acc + curr.frustrationIndex, 0) / Nt).toFixed(2));
                         
+                        qLogs.forEach(l => { if(l.neuroState && neuroCounts[l.neuroState] !== undefined) neuroCounts[l.neuroState]++; });
+
                         let diagnostico = "";
                         if (p < 0.3) diagnostico = "Muy difícil / Confusa";
                         else if (p > 0.8) diagnostico = "Muy fácil / Consolidación";
                         else if (D > 0.4) diagnostico = "Excelente discriminación";
                         else diagnostico = "Discriminación estándar";
 
-                        metrics[q.id] = { id: q.id, title: q.title, p, D, If: avgFrust, Nt, diagnostico };
+                        metrics[q.id] = { id: q.id, title: q.title, theme: q.theme, p, D, If: avgFrust, Nt, diagnostico };
                     });
-                    return Object.values(metrics);
+                    
+                    const neuroData = Object.keys(neuroCounts).filter(k => k !== "Normal" && neuroCounts[k] > 0).map(k => ({ name: k, value: neuroCounts[k] }));
+                    return { itemMetrics: Object.values(metrics), neuroData };
                 };
-                const dataMetrics = calculateMetrics();
+                
+                const { itemMetrics, neuroData } = calculateMetrics();
+                const COLORS = ['#ef4444', '#f59e0b', '#8b5cf6', '#10b981'];
+
+                const syncQuestionsToDB = async () => {
+                    if(confirm("¿Sincronizar Banco de Preguntas Local hacia la Base de Datos Firebase? Esto permite aleatoriedad desde la nube.")) {
+                        const batch = writeBatch(db);
+                        QUESTION_BANK.forEach(q => {
+                            const docRef = doc(collection(db, QUESTIONS_PATH), q.id);
+                            batch.set(docRef, q);
+                        });
+                        try { await batch.commit(); alert("Sincronización completada exitosamente."); } 
+                        catch(e) { alert("Error al sincronizar: " + e.message); }
+                    }
+                };
 
                 return (
-                    <div className="max-w-6xl mx-auto space-y-8 text-slate-200 animate-fade-in">
+                    <div className="max-w-7xl mx-auto space-y-8 text-slate-200 animate-fade-in pb-10">
                         <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
                             <div>
-                                <h1 className="text-3xl font-bold font-serif text-white">Análisis Completo Respuesta al Ítem (IRT)</h1>
-                                <p className="text-slate-400">Panel de Administración y Psicométrica</p>
+                                <h1 className="text-3xl font-bold font-serif text-white flex items-center"><Brain className="w-8 h-8 mr-3 text-indigo-400"/> Portal de Administración y Neuroanalítica</h1>
+                                <p className="text-slate-400 mt-1">Dashboard integral para medir el desempeño cognitivo y estadístico de los estudiantes.</p>
                             </div>
-                            <button onClick={() => setView('intro')} className="px-4 py-2 bg-slate-800 border border-slate-600 rounded hover:bg-slate-700 text-sm flex items-center"><ChevronRight className="w-4 h-4 mr-1 rotate-180"/> Volver a la App</button>
+                            <div className="flex items-center space-x-3">
+                                <button onClick={syncQuestionsToDB} className="px-4 py-2 bg-indigo-600/20 text-indigo-300 border border-indigo-500/50 rounded hover:bg-indigo-600/40 text-sm flex items-center transition-colors"><Database className="w-4 h-4 mr-2"/> Sincronizar JSON a DB</button>
+                                <button onClick={() => setView('intro')} className="px-4 py-2 bg-slate-800 border border-slate-600 rounded hover:bg-slate-700 text-sm flex items-center"><ChevronRight className="w-4 h-4 mr-1 rotate-180"/> Salir</button>
+                            </div>
                         </div>
 
                         {logs.length > 0 ? (
                             <div className="space-y-8">
+                                {/* SECCIÓN NEUROCOGNITIVA */}
+                                <h2 className="text-2xl font-bold text-white border-l-4 border-purple-500 pl-3">Perfilamiento Neurocognitivo</h2>
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div className="glass-panel p-6 rounded-xl col-span-1">
+                                        <h3 className="text-lg font-bold mb-4 text-white">Estados Mentales Registrados</h3>
+                                        <p className="text-xs text-slate-400 mb-2">Clasificación basada en cruce de Tiempo de Respuesta vs Efectividad.</p>
+                                        <div className="h-64 flex justify-center">
+                                            {neuroData.length > 0 ? (
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Pie data={neuroData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                                            {neuroData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                                        </Pie>
+                                                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} />
+                                                        <Legend verticalAlign="bottom" height={36}/>
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            ) : <div className="flex items-center justify-center h-full text-slate-500">Métricas en construcción...</div>}
+                                        </div>
+                                    </div>
+                                    <div className="glass-panel p-6 rounded-xl col-span-2">
+                                        <h3 className="text-lg font-bold mb-4 text-white">Análisis de Frustración por Tema</h3>
+                                        <div className="h-64">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={itemMetrics}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                                    <XAxis dataKey="theme" stroke="#94a3b8" fontSize={11} tick={{fill: '#94a3b8'}} />
+                                                    <YAxis stroke="#94a3b8" />
+                                                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }} />
+                                                    <Bar dataKey="If" fill="#ef4444" name="Índice de Frustración (If)" radius={[4, 4, 0, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* SECCIÓN IRT CLÁSICA */}
+                                <h2 className="text-2xl font-bold text-white border-l-4 border-blue-500 pl-3 mt-10">Teoría de Respuesta al Ítem (IRT)</h2>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                     <div className="glass-panel p-6 rounded-xl">
                                         <h3 className="text-lg font-bold mb-4 text-white">Dificultad vs Pregunta</h3>
-                                        <div className="h-64">
+                                        <div className="h-72">
                                             <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={dataMetrics} layout="vertical" margin={{ left: 20 }}>
+                                                <BarChart data={itemMetrics} layout="vertical" margin={{ left: 20 }}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                                                     <XAxis type="number" domain={[0, 1]} stroke="#94a3b8" />
                                                     <YAxis dataKey="title" type="category" stroke="#94a3b8" fontSize={10} width={120} />
@@ -590,14 +732,14 @@
                                     </div>
                                     <div className="glass-panel p-6 rounded-xl">
                                         <h3 className="text-lg font-bold mb-4 text-white">Mapa de Discriminación ($D$)</h3>
-                                        <div className="h-64">
+                                        <div className="h-72">
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                                                     <XAxis type="number" dataKey="p" name="Dificultad" domain={[0, 1]} stroke="#94a3b8" />
                                                     <YAxis type="number" dataKey="D" name="Discriminación" domain={[0, 1]} stroke="#94a3b8" />
                                                     <Tooltip cursor={{strokeDasharray: '3 3'}} contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569' }} />
-                                                    <Scatter name="Ítems" data={dataMetrics} fill="#a855f7" />
+                                                    <Scatter name="Ítems" data={itemMetrics} fill="#a855f7" />
                                                 </ScatterChart>
                                             </ResponsiveContainer>
                                         </div>
@@ -606,25 +748,23 @@
 
                                 {/* TABLA DETALLADA DE DIAGNÓSTICO */}
                                 <div className="glass-panel p-6 rounded-xl overflow-x-auto">
-                                    <h3 className="text-xl font-bold mb-4 text-white flex items-center"><FileSignature className="mr-2"/> Tabla Analítica de Ítems (10 Módulos)</h3>
+                                    <h3 className="text-xl font-bold mb-4 text-white flex items-center"><FileSignature className="mr-2"/> Matriz de Diagnóstico de Banco de Preguntas</h3>
                                     <table className="w-full text-left text-sm text-slate-300">
-                                        <thead className="text-xs text-slate-400 uppercase bg-slate-800/50">
+                                        <thead className="text-xs text-slate-400 uppercase bg-slate-800/80">
                                             <tr>
                                                 <th className="px-4 py-3 rounded-tl-lg">Módulo / Tema</th>
                                                 <th className="px-4 py-3 text-center">Intentos</th>
-                                                <th className="px-4 py-3 text-center">Dificultad (p)</th>
-                                                <th className="px-4 py-3 text-center">Discriminación</th>
+                                                <th className="px-4 py-3 text-center">Dificultad</th>
                                                 <th className="px-4 py-3 text-center">Frustración</th>
-                                                <th className="px-4 py-3 rounded-tr-lg">Diagnóstico del Sistema</th>
+                                                <th className="px-4 py-3 rounded-tr-lg">Estado Pedagógico</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {dataMetrics.map((row, i) => (
-                                                <tr key={i} className="border-b border-slate-700 hover:bg-slate-800/30 transition-colors">
-                                                    <td className="px-4 py-3 font-medium text-white truncate max-w-xs" title={row.title}>{row.title}</td>
+                                            {itemMetrics.map((row, i) => (
+                                                <tr key={i} className="border-b border-slate-700/50 hover:bg-slate-800/30 transition-colors">
+                                                    <td className="px-4 py-3 font-medium text-white">{row.theme}: <span className="font-normal text-slate-400">{row.title}</span></td>
                                                     <td className="px-4 py-3 text-center">{row.Nt}</td>
                                                     <td className="px-4 py-3 text-center text-blue-400 font-bold">{row.p}</td>
-                                                    <td className="px-4 py-3 text-center text-purple-400">{row.D}</td>
                                                     <td className="px-4 py-3 text-center text-red-400">{row.If}</td>
                                                     <td className="px-4 py-3">
                                                         <span className={`px-2 py-1 rounded text-xs font-semibold ${row.p < 0.4 ? 'bg-red-900/50 text-red-300' : row.p > 0.7 ? 'bg-emerald-900/50 text-emerald-300' : 'bg-blue-900/50 text-blue-300'}`}>
@@ -640,7 +780,7 @@
                         ) : (
                             <div className="text-center py-20 text-slate-500 bg-slate-800/30 rounded-xl border border-dashed border-slate-600">
                                 <Activity className="w-12 h-12 mx-auto mb-4 text-slate-600 animate-pulse" />
-                                Esperando datos reales de estudiantes en Firebase para generar el análisis IRT...
+                                Esperando telemetría de estudiantes para generar el análisis IRT y Neurocognitivo...
                             </div>
                         )}
                     </div>
@@ -651,17 +791,34 @@
 
             // --- CÁLCULO DE RECOMENDACIÓN FINAL ---
             const getStudyRecommendation = () => {
-                const totalPoints = QUESTION_BANK.reduce((acc, q) => acc + (100 * q.difficulty), 0);
+                const totalPoints = activeQuestionBank.reduce((acc, q) => acc + (100 * q.difficulty), 0);
                 const percentage = (score / totalPoints) * 100;
 
                 if (percentage >= 85) return { text: "Excelente criterio jurídico. Tienes un perfil avanzado en derecho laboral disciplinario.", class: "text-emerald-400" };
-                if (percentage >= 60) return { text: "Buen desempeño, pero recomendamos repasar el Principio de Inmediatez y la jurisprudencia de la Corte Constitucional (Sentencia C-593/14).", class: "text-yellow-400" };
+                if (percentage >= 60) return { text: "Buen desempeño, pero recomendamos repasar la jurisprudencia de la Corte Constitucional y conceptos de Acoso Laboral.", class: "text-yellow-400" };
                 return { text: "Necesitas profundizar en el debido proceso. Te recomendamos aplicar el 'Método de Estudio de Casos Reales' y leer el Código Sustantivo del Trabajo (Arts. 111 a 115).", class: "text-red-400" };
             };
 
             // --- RENDERIZADO PRINCIPAL ---
             return (
                 <div className="flex-1 p-4 sm:p-8 font-sans">
+                    
+                    {/* Ventana Modal Admin Login */}
+                    {adminAuth.isChecking && (
+                        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur z-50 flex items-center justify-center">
+                            <div className="bg-slate-800 p-8 rounded-2xl border border-slate-600 max-w-sm w-full shadow-2xl">
+                                <h3 className="text-2xl font-bold text-white mb-4 flex items-center"><Lock className="w-6 h-6 mr-2 text-indigo-400"/> Portal Seguro</h3>
+                                <p className="text-sm text-slate-400 mb-4">Ingresa la credencial de administrador maestro para acceder al dashboard neurocognitivo.</p>
+                                <input type="password" value={adminAuth.password} onChange={e=>setAdminAuth({...adminAuth, password: e.target.value})} placeholder="Contraseña..." className="w-full bg-slate-900 border border-slate-700 p-3 rounded-lg text-white outline-none focus:border-indigo-500 mb-2"/>
+                                {adminAuth.error && <p className="text-red-400 text-xs mb-4">{adminAuth.error}</p>}
+                                <div className="flex justify-end space-x-3 mt-6">
+                                    <button onClick={()=>setAdminAuth({isChecking:false, password:'', error:''})} className="px-4 py-2 text-slate-400 hover:text-white">Cancelar</button>
+                                    <button onClick={handleAdminLogin} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg">Autorizar</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Header Top */}
                     {view !== 'dashboard' && view !== 'login' && view !== 'profile' && (
                         <div className="max-w-5xl mx-auto flex justify-between items-center mb-8 bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 backdrop-blur-md">
@@ -674,7 +831,7 @@
                                     <User className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline text-sm">{studentInfo.name.split(' ')[0] || 'Perfil'}</span>
                                 </button>
                                 <button onClick={logout} className="text-sm text-slate-400 hover:text-red-400 transition-colors hidden sm:block">Salir</button>
-                                <button onClick={adminBypass} className="text-slate-500 hover:text-blue-400 transition-colors bg-slate-800 p-2 rounded-full" title="Panel Estadístico Docente">
+                                <button onClick={() => setAdminAuth({...adminAuth, isChecking: true})} className="text-slate-500 hover:text-blue-400 transition-colors bg-slate-800 p-2 rounded-full" title="Portal Admin">
                                     <LayoutDashboard className="w-5 h-5" />
                                 </button>
                             </div>
@@ -710,14 +867,14 @@
                             </div>
                         )}
 
-                        {/* 2. COMPLETAR PERFIL MEJORADO */}
+                        {/* 2. COMPLETAR PERFIL */}
                         {view === 'profile' && (
                             <div className="glass-panel rounded-3xl p-8 sm:p-12 shadow-2xl animate-fade-in max-w-3xl mx-auto mt-6 border-t-4 border-t-indigo-500">
                                 <div className="flex items-center justify-center mb-6">
                                     <User className="w-10 h-10 text-indigo-500 mr-3" />
                                     <h2 className="text-3xl font-bold text-white">Configuración de Perfil</h2>
                                 </div>
-                                <p className="text-center text-slate-400 mb-8 text-sm">Configura tu perfil para personalizar la analítica y recomendaciones del sistema.</p>
+                                <p className="text-center text-slate-400 mb-8 text-sm">Configura tu perfil para personalizar la analítica neurocognitiva y recomendaciones del sistema.</p>
                                 
                                 <div className="mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700 flex items-center">
                                     <input type="checkbox" id="learningGoal" checked={studentInfo.learningGoal} onChange={e => setStudentInfo({...studentInfo, learningGoal: e.target.checked})} className="w-5 h-5 rounded border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-slate-700 mr-3" />
@@ -803,8 +960,8 @@
                                 <ProgressBar />
                                 <div className="flex justify-between items-center mb-6 text-sm font-medium uppercase bg-slate-800/80 p-3 rounded-xl border border-slate-700">
                                     <div className="flex items-center text-indigo-400">
-                                        <Activity className="w-4 h-4 mr-2"/> Reto {sessionData.answers.length + 1} de {QUESTION_BANK.length} 
-                                        <span className="hidden sm:inline ml-2 text-slate-500">(Dificultad adaptativa: {currentQ.difficulty})</span>
+                                        <Activity className="w-4 h-4 mr-2"/> Reto {sessionData.answers.length + 1} de {activeQuestionBank.length} 
+                                        <span className="hidden sm:inline ml-2 text-slate-500">({currentQ.theme})</span>
                                     </div>
                                     <span className="text-slate-300">Puntos: <strong className="text-blue-400 text-base ml-2">{score.toFixed(0)}</strong></span>
                                 </div>
@@ -815,15 +972,15 @@
                                         <div className={`mt-10 p-6 rounded-2xl flex items-start space-x-4 animate-fade-in border ${feedback.isCorrect ? 'bg-emerald-900/30 border-emerald-500/30' : 'bg-red-900/30 border-red-500/30'}`}>
                                             {feedback.isCorrect ? <CheckCircle className="w-10 h-10 text-emerald-400 shrink-0" /> : <XCircle className="w-10 h-10 text-red-400 shrink-0" />}
                                             <div className="flex-1">
-                                                <p className={`font-bold text-xl mb-2 ${feedback.isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>{feedback.isCorrect ? 'Fallo: Procedimiento Válido' : 'Fallo: Violación al Debido Proceso'}</p>
+                                                <p className={`font-bold text-xl mb-2 ${feedback.isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>{feedback.isCorrect ? 'Fallo: Válido' : 'Fallo: Error de Proceso'}</p>
                                                 <p className="text-slate-200 leading-relaxed text-sm mb-4">{feedback.text}</p>
                                                 
                                                 {/* MÉTRICAS PARA EL USUARIO EN VIVO */}
                                                 <div className="bg-slate-900/50 rounded-lg p-3 grid grid-cols-2 gap-2 text-xs text-slate-400 font-mono">
-                                                    <div className="flex items-center"><Clock className="w-3 h-3 mr-1 text-blue-400"/> Tiempo invertido: <strong className="ml-1 text-white">{feedback.timeSpent}s</strong></div>
+                                                    <div className="flex items-center"><Clock className="w-3 h-3 mr-1 text-blue-400"/> Tiempo invertido: <strong className={`ml-1 ${feedback.timeSpent > feedback.expectedTime ? 'text-red-400' : 'text-white'}`}>{feedback.timeSpent}s</strong></div>
                                                     <div className="flex items-center"><TrendingUp className="w-3 h-3 mr-1 text-purple-400"/> Tiempo esperado: <span className="ml-1">{feedback.expectedTime}s</span></div>
                                                     <div className="col-span-2 flex items-center border-t border-slate-700 pt-2 mt-1">
-                                                        <Activity className="w-3 h-3 mr-1 text-indigo-400"/> Motor IRT: {feedback.isCorrect ? 'Buscando reto de mayor complejidad...' : 'Ajustando nivel de consolidación...'}
+                                                        <BrainCircuit className="w-3 h-3 mr-1 text-indigo-400"/> Estado Cognitivo: {feedback.neuroState}. {feedback.isCorrect ? 'Avanzando nivel...' : 'Ajustando consolidación...'}
                                                     </div>
                                                 </div>
                                             </div>
@@ -833,19 +990,19 @@
                             </div>
                         )}
 
-                        {/* 5. RESULTADOS, ANÁLISIS POR PREGUNTA Y ENCUESTA */}
+                        {/* 5. RESULTADOS, ANÁLISIS POR PREGUNTA Y ENCUESTA MEJORADA */}
                         {view === 'results' && (
                             <div className="animate-fade-in max-w-4xl mx-auto space-y-6">
                                 {/* Resumen Principal */}
                                 <div className="glass-panel rounded-3xl p-10 text-center border-t-4 border-t-emerald-500 shadow-2xl">
                                     <CheckCircle className="w-20 h-20 text-emerald-500 mx-auto mb-4 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
                                     <h1 className="text-4xl font-bold text-white mb-2 font-serif">Simulación Concluida</h1>
-                                    <p className="text-slate-400 mb-8">Análisis de rendimiento completado.</p>
+                                    <p className="text-slate-400 mb-8">Análisis neurocognitivo y de rendimiento completado.</p>
                                     
                                     <div className="bg-slate-900/80 rounded-2xl p-8 border border-slate-700 shadow-inner">
                                         <div className="text-6xl font-black text-blue-400 mb-6 drop-shadow-lg">{score.toFixed(0)} <span className="text-xl text-slate-500 font-normal">pts</span></div>
                                         <div className="grid grid-cols-3 gap-4 text-sm text-slate-300 border-t border-slate-700 pt-6">
-                                            <div><div className="text-slate-500 mb-1">Efectividad Global</div><strong className="text-white text-xl">{((score / (QUESTION_BANK.reduce((a,b)=>a+(100*b.difficulty),0))) * 100).toFixed(0)}%</strong></div>
+                                            <div><div className="text-slate-500 mb-1">Efectividad Global</div><strong className="text-white text-xl">{((score / (activeQuestionBank.reduce((a,b)=>a+(100*b.difficulty),0))) * 100).toFixed(0)}%</strong></div>
                                             <div><div className="text-slate-500 mb-1">Pistas Legales</div><strong className="text-yellow-400 text-xl">{sessionData.tipsUsed}</strong></div>
                                             <div><div className="text-slate-500 mb-1">Tiempo Total</div><strong className="text-white text-xl">{Math.floor((Date.now() - sessionData.startTime)/1000)}s</strong></div>
                                         </div>
@@ -860,14 +1017,14 @@
 
                                 {/* Tabla de Rendimiento por Ítem */}
                                 <div className="glass-panel rounded-3xl p-8 overflow-x-auto">
-                                    <h3 className="text-xl font-bold text-white mb-6 flex items-center"><Activity className="w-6 h-6 mr-2 text-blue-400"/> Tu Rendimiento por Módulo</h3>
+                                    <h3 className="text-xl font-bold text-white mb-6 flex items-center"><Activity className="w-6 h-6 mr-2 text-blue-400"/> Tu Rendimiento Detallado</h3>
                                     <table className="w-full text-left text-sm text-slate-300">
                                         <thead className="text-xs uppercase bg-slate-800/80 text-slate-400">
                                             <tr>
                                                 <th className="px-4 py-3 rounded-tl-lg">Módulo Evaluado</th>
                                                 <th className="px-4 py-3 text-center">Resultado</th>
-                                                <th className="px-4 py-3 text-center">Tiempo Usado</th>
-                                                <th className="px-4 py-3 text-center rounded-tr-lg">Dificultad (IRT)</th>
+                                                <th className="px-4 py-3 text-center">Tiempo</th>
+                                                <th className="px-4 py-3 text-center rounded-tr-lg">Estado Cognitivo</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -878,30 +1035,81 @@
                                                         {ans.isCorrect ? <span className="text-emerald-400 flex items-center justify-center font-bold"><CheckCircle className="w-4 h-4 mr-1"/> Correcto</span> : <span className="text-red-400 flex items-center justify-center font-bold"><XCircle className="w-4 h-4 mr-1"/> Incorrecto</span>}
                                                     </td>
                                                     <td className="px-4 py-4 text-center font-mono">{ans.timeSpent}s</td>
-                                                    <td className="px-4 py-4 text-center text-blue-300">{ans.difficulty}</td>
+                                                    <td className="px-4 py-4 text-center text-indigo-300">{ans.neuroState}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
 
-                                {/* Encuesta */}
-                                <div className="glass-panel rounded-3xl p-8 text-center bg-slate-800/40">
-                                    <h3 className="text-xl font-bold text-white mb-2">Califica esta experiencia</h3>
-                                    <p className="text-sm text-slate-400 mb-6">¿Qué tan útiles fueron los escenarios jurídicos para tu aprendizaje?</p>
-                                    <div className="flex justify-center space-x-3">
-                                        {[1, 2, 3, 4, 5].map((star) => (
-                                            <button key={star} onClick={() => setSatisfaction(star)} className={`p-2 transition-all transform hover:scale-125 focus:outline-none ${satisfaction >= star ? 'text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 'text-slate-600'}`}>
-                                                <Star className="w-10 h-10 fill-current" />
-                                            </button>
-                                        ))}
-                                    </div>
-                                    {satisfaction > 0 && <p className="text-emerald-400 mt-4 font-bold animate-fade-in">¡Gracias por tu feedback! Ayudas a mejorar la cultura legal.</p>}
-                                </div>
+                                {/* ENCUESTA DE SATISFACCIÓN MULTIDIMENSIONAL */}
+                                {!surveyData.submitted ? (
+                                    <div className="glass-panel rounded-3xl p-10 bg-slate-800/60 border border-slate-600">
+                                        <h3 className="text-2xl font-bold text-white mb-2 text-center">Encuesta de Calidad Pedagógica</h3>
+                                        <p className="text-sm text-slate-400 mb-8 text-center">Ayúdanos a mejorar evaluando las siguientes dimensiones de tu experiencia de aprendizaje.</p>
+                                        
+                                        <div className="space-y-6 max-w-2xl mx-auto">
+                                            {/* Claridad */}
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                                                <div className="mb-2 sm:mb-0">
+                                                    <div className="font-bold text-white">Claridad de los Casos</div>
+                                                    <div className="text-xs text-slate-400">¿Las preguntas y el contexto fueron fáciles de entender?</div>
+                                                </div>
+                                                <div className="flex space-x-1">
+                                                    {[1,2,3,4,5].map(star => (
+                                                        <button key={`clarity-${star}`} onClick={() => setSurveyData({...surveyData, clarity: star})} className={`p-1 focus:outline-none transition-transform hover:scale-110 ${surveyData.clarity >= star ? 'text-yellow-400' : 'text-slate-600'}`}><Star className="w-8 h-8 fill-current" /></button>
+                                                    ))}
+                                                </div>
+                                            </div>
 
-                                <div className="text-center pb-10">
+                                            {/* Relevancia */}
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                                                <div className="mb-2 sm:mb-0">
+                                                    <div className="font-bold text-white">Relevancia Laboral</div>
+                                                    <div className="text-xs text-slate-400">¿Sientes que lo aprendido es aplicable en un entorno real?</div>
+                                                </div>
+                                                <div className="flex space-x-1">
+                                                    {[1,2,3,4,5].map(star => (
+                                                        <button key={`rel-${star}`} onClick={() => setSurveyData({...surveyData, relevance: star})} className={`p-1 focus:outline-none transition-transform hover:scale-110 ${surveyData.relevance >= star ? 'text-yellow-400' : 'text-slate-600'}`}><Star className="w-8 h-8 fill-current" /></button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Dificultad Percibida */}
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                                                <div className="mb-2 sm:mb-0">
+                                                    <div className="font-bold text-white">Reto Cognitivo</div>
+                                                    <div className="text-xs text-slate-400">¿Qué tan exigente sentiste la evaluación adaptativa?</div>
+                                                </div>
+                                                <div className="flex space-x-1">
+                                                    {[1,2,3,4,5].map(star => (
+                                                        <button key={`diff-${star}`} onClick={() => setSurveyData({...surveyData, difficultyLevel: star})} className={`p-1 focus:outline-none transition-transform hover:scale-110 ${surveyData.difficultyLevel >= star ? 'text-red-400' : 'text-slate-600'}`}><Star className="w-8 h-8 fill-current" /></button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Comentarios */}
+                                            <div className="pt-2">
+                                                <label className="block text-sm font-bold text-white mb-2">Comentarios o Sugerencias (Opcional)</label>
+                                                <textarea value={surveyData.comments} onChange={e => setSurveyData({...surveyData, comments: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 outline-none focus:border-indigo-500 h-24 resize-none" placeholder="Cuéntanos qué te gustó más o qué podríamos mejorar..."></textarea>
+                                            </div>
+
+                                            <button onClick={submitSurvey} disabled={!surveyData.clarity || !surveyData.relevance || !surveyData.difficultyLevel} className="w-full py-4 bg-indigo-600 disabled:opacity-50 text-white font-bold rounded-xl hover:bg-indigo-500 transition-colors shadow-lg">
+                                                Enviar Evaluación
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="glass-panel rounded-3xl p-10 text-center bg-slate-800/40 border border-emerald-500/30">
+                                        <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-4"/>
+                                        <h3 className="text-2xl font-bold text-white mb-2">¡Gracias por tu feedback!</h3>
+                                        <p className="text-slate-400">Tus respuestas nos ayudan a mejorar el modelo de aprendizaje de LunaAcademy.</p>
+                                    </div>
+                                )}
+
+                                <div className="text-center pb-10 mt-6">
                                     <button onClick={() => window.location.reload()} className="px-10 py-4 bg-slate-700 hover:bg-slate-600 rounded-full text-white font-bold shadow-lg transition-colors">
-                                        Cerrar y Reiniciar
+                                        Cerrar y Reiniciar Plataforma
                                     </button>
                                 </div>
                             </div>
@@ -913,13 +1121,13 @@
 
         const root = createRoot(document.getElementById('root'));
         
-        // Render de la app principal y el footer de LunaAcademy
+        // Render de la app principal y el footer
         root.render(
             <>
                 <App />
-                <div className="text-center text-slate-500 text-xs py-6 mt-auto border-t border-slate-800/50 bg-slate-900/80">
+                <div className="text-center text-slate-500 text-xs py-6 mt-auto border-t border-slate-800/50 bg-slate-900/90 w-full">
                     <p>© {new Date().getFullYear()} Todos los derechos reservados.</p>
-                    <p className="mt-1">Un quiz interactivo de <strong className="text-blue-400 font-bold">LunaAcademy</strong>, tu plataforma de e-learning.</p>
+                    <p className="mt-1">Un módulo de entrenamiento adaptativo impulsado por <strong className="text-blue-400 font-bold tracking-wider">LunaAcademy</strong>.</p>
                 </div>
             </>
         );
