@@ -650,6 +650,22 @@
                 const { itemMetrics, neuroData } = calculateMetrics();
                 const COLORS = ['#ef4444', '#f59e0b', '#8b5cf6', '#10b981'];
 
+                // NUEVO: Generador de datos para Curva Característica del Ítem (CCI)
+                const generateCCIData = () => {
+                    const data = [];
+                    for (let theta = -3; theta <= 3; theta += 0.5) {
+                        // Usando la función logística del modelo 2PL: P(θ) = 1 / (1 + e^(-a(θ - b)))
+                        data.push({
+                            theta,
+                            'Ítem Fácil (b=-1.5, a=1.2)': parseFloat((1 / (1 + Math.exp(-1.2 * (theta - (-1.5))))).toFixed(3)),
+                            'Ítem Medio (b=0, a=1.0)': parseFloat((1 / (1 + Math.exp(-1.0 * (theta - 0)))).toFixed(3)),
+                            'Ítem Difícil (b=1.5, a=1.5)': parseFloat((1 / (1 + Math.exp(-1.5 * (theta - 1.5)))).toFixed(3))
+                        });
+                    }
+                    return data;
+                };
+                const cciData = generateCCIData();
+
                 const syncQuestionsToDB = async () => {
                     if(confirm("¿Sincronizar Banco de Preguntas Local hacia la Base de Datos Firebase? Esto permite aleatoriedad desde la nube.")) {
                         const batch = writeBatch(db);
@@ -746,8 +762,48 @@
                                     </div>
                                 </div>
 
+                                {/* NUEVO: FUNDAMENTOS TEÓRICOS Y CCI (AGREGADO SIN BORRAR NADA) */}
+                                <h2 className="text-2xl font-bold text-white border-l-4 border-emerald-500 pl-3 mt-10">Análisis Científico de Respuesta al Ítem (Modelos IRT)</h2>
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div className="glass-panel p-6 rounded-xl col-span-1 lg:col-span-2">
+                                        <h3 className="text-lg font-bold mb-2 text-white flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-emerald-400"/> Curvas Características del Ítem (CCI)</h3>
+                                        <p className="text-xs text-slate-400 mb-6">Modelo logístico 2PL: Probabilidad de acierto $P(\theta)$ en función del rasgo latente o habilidad del estudiante ($\theta$).</p>
+                                        <div className="h-72">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={cciData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                                    <XAxis dataKey="theta" stroke="#94a3b8" name="Habilidad (θ)" tickFormatter={(val) => `θ=${val}`} />
+                                                    <YAxis stroke="#94a3b8" domain={[0, 1]} name="Probabilidad P(θ)" />
+                                                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', color: '#fff' }} />
+                                                    <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                                                    <Line type="monotone" dataKey="Ítem Fácil (b=-1.5, a=1.2)" stroke="#10b981" strokeWidth={3} dot={false} />
+                                                    <Line type="monotone" dataKey="Ítem Medio (b=0, a=1.0)" stroke="#3b82f6" strokeWidth={3} dot={false} />
+                                                    <Line type="monotone" dataKey="Ítem Difícil (b=1.5, a=1.5)" stroke="#ef4444" strokeWidth={3} dot={false} />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+                                    <div className="glass-panel p-6 rounded-xl flex flex-col justify-center">
+                                        <h3 className="text-lg font-bold mb-4 text-white flex items-center"><BookOpen className="w-5 h-5 mr-2 text-emerald-400"/> Fundamento Académico</h3>
+                                        <div className="space-y-4 text-sm text-slate-300 overflow-y-auto pr-2" style={{ maxHeight: '280px' }}>
+                                            <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                                                <strong className="text-emerald-400 block mb-1">Georg Rasch (1960)</strong>
+                                                <p className="text-xs">Autor del Modelo de 1 Parámetro (1PL). Determinó que la probabilidad de éxito depende de la diferencia entre la habilidad del sujeto ($\theta$) y la dificultad del ítem ($b$).</p>
+                                            </div>
+                                            <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                                                <strong className="text-blue-400 block mb-1">F. Lord (1952) / A. Birnbaum (1968)</strong>
+                                                <p className="text-xs">Expandieron la teoría a modelos 2PL y 3PL introduciendo el parámetro de discriminación ($a$) (pendiente de la curva) y la pseudo-adivinación ($c$) para opciones múltiples.</p>
+                                            </div>
+                                            <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                                                <strong className="text-purple-400 block mb-1">Hambleton & Swaminathan (1985)</strong>
+                                                <p className="text-xs">Pioneros en Tests Adaptativos Computarizados (CAT), fundamentando el algoritmo dinámico que LexQuest utiliza para evitar la frustración cognitiva.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* TABLA DETALLADA DE DIAGNÓSTICO */}
-                                <div className="glass-panel p-6 rounded-xl overflow-x-auto">
+                                <div className="glass-panel p-6 rounded-xl overflow-x-auto mt-8">
                                     <h3 className="text-xl font-bold mb-4 text-white flex items-center"><FileSignature className="mr-2"/> Matriz de Diagnóstico de Banco de Preguntas</h3>
                                     <table className="w-full text-left text-sm text-slate-300">
                                         <thead className="text-xs text-slate-400 uppercase bg-slate-800/80">
