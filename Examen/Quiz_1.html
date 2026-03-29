@@ -56,7 +56,8 @@
           ArrowUpRight, ArrowUpLeft, ArrowDownRight, ArrowDownLeft, MousePointer2,
           CheckCircle as CheckCircle2, XCircle, Info, Hand, PenTool, User, ChevronDown, LogIn, Mail, ChevronRight, ChevronLeft,
           Brain, BarChart3, Settings, Star, Scissors, MessageSquare, BookOpenCheck,
-          UserCircle, Building, Camera, Globe, FileText, ShieldCheck, ListChecks, Crosshair, Map, GitMerge, Move, Compass, Focus, TrendingDown
+          UserCircle, Building, Camera, Globe, FileText, ShieldCheck, ListChecks, Crosshair, Map, GitMerge, Move, Compass, Focus, TrendingDown,
+          PieChart, Zap, Layers, Network
         } from 'https://esm.sh/lucide-react@0.292.0';
         
         // Firebase (Gstatic)
@@ -90,7 +91,7 @@
         
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "quiz-coulomb-v5-master"; 
+        const appId = "quiz-coulomb-v6-psychometrics"; 
 
         // --- 2. KATEX HOOK ---
         const useKaTeX = () => {
@@ -570,6 +571,35 @@
           </svg>
         );
 
+        // SVG Scatter Plot for Time vs Score correlation
+        const ScatterPlot = ({ data }) => {
+            // data array of objects { time, score }
+            if (!data || data.length === 0) return <div className="text-slate-400 text-sm">Insuficientes datos para correlación</div>;
+            
+            const maxTime = Math.max(...data.map(d => d.time), 3600); // Base max 1 hour
+            
+            // Map values to SVG coordinates (100x100)
+            const pts = data.map(d => ({
+                cx: (d.time / maxTime) * 90 + 5, // 5 to 95
+                cy: 95 - (d.score / 5.0) * 90,   // Inverted Y
+            }));
+
+            return (
+                <svg viewBox="0 0 100 100" className="w-full h-40 mt-4 overflow-visible">
+                    {/* Axes */}
+                    <line x1="5" y1="95" x2="95" y2="95" stroke="#94a3b8" strokeWidth="0.5"/>
+                    <line x1="5" y1="5" x2="5" y2="95" stroke="#94a3b8" strokeWidth="0.5"/>
+                    <text x="50" y="105" fontSize="4" fill="#64748b" textAnchor="middle">Tiempo (s)</text>
+                    <text x="-50" y="-1" fontSize="4" fill="#64748b" textAnchor="middle" transform="rotate(-90)">Nota</text>
+                    
+                    {/* Points */}
+                    {pts.map((pt, i) => (
+                        <circle key={i} cx={pt.cx} cy={pt.cy} r="1.5" fill="#ea580c" opacity="0.6"/>
+                    ))}
+                </svg>
+            )
+        };
+
         // Histograma de Frecuencias (Data Science) ajustado a escala 5.0
         const ScoreHistogram = ({ attempts }) => {
             const bins = [0, 0, 0, 0]; 
@@ -626,6 +656,7 @@
           const [timeElapsed, setTimeElapsed] = useState(0);
           const [finalTime, setFinalTime] = useState(0);
           const [usedTips, setUsedTips] = useState([]);
+          const [hesitationCount, setHesitationCount] = useState(0); // NUEVO TELEMETRÍA
           
           const [examConfig, setExamConfig] = useState(JSON.stringify({ 
               titulo: "Evaluación: Ley de Coulomb", 
@@ -635,7 +666,13 @@
           }, null, 2));
 
           // Dashboard Real State & Real-time Views
-          const [metrics, setMetrics] = useState({ views: 0, avgScore: 0, avgTime: 0, attempts: [], questionMetrics: [], frustrationIndex: 0, retention: 0 });
+          const [metrics, setMetrics] = useState({ 
+              views: 0, avgScore: 0, avgTime: 0, attempts: [], 
+              questionMetrics: [], frustrationIndex: 0, 
+              irt: { p1: 0, d1: 0, p2: 0, d2: 0, p3: 0, d3: 0 },
+              clusters: { engaged: 0, struggling: 0, guessing: 0 },
+              scatterData: []
+          });
           const [realViews, setRealViews] = useState(0);
           
           // Reviews
@@ -740,8 +777,11 @@
               try {
                   const dirSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'directory'));
                   let allAttempts = [];
-                  let totalScore = 0; let totalTime = 0; let totalHints = 0;
+                  let totalScore = 0; let totalTime = 0; let totalHints = 0; let totalHesitation = 0;
                   let s1 = 0, s2 = 0, s3 = 0;
+                  
+                  // Clusters
+                  let engaged = 0, struggling = 0, guessing = 0;
 
                   for (const userDoc of dirSnap.docs) {
                       const uid = userDoc.id;
@@ -751,28 +791,55 @@
                       attSnap.forEach(doc => {
                           const data = doc.data();
                           allAttempts.push({
-                              id: doc.id, agent: email, score: data.score, time: data.time, hints: data.hints || 0,
+                              id: doc.id, agent: email, score: data.score, time: data.time, hints: data.hints || 0, hesitation: data.hesitation || 0,
+                              details: data.details || {s1: data.score*0.4, s2: data.score*0.3, s3: data.score*0.3},
                               date: data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : 'Reciente',
                               timestamp: data.timestamp ? data.timestamp.toMillis() : 0
                           });
-                          totalScore += parseFloat(data.score); totalTime += data.time; totalHints += (data.hints || 0);
+                          totalScore += parseFloat(data.score); totalTime += data.time; 
+                          totalHints += (data.hints || 0); totalHesitation += (data.hesitation || 0);
+                          
                           s1 += data.details?.s1 || (data.score * 0.4); s2 += data.details?.s2 || (data.score * 0.3); s3 += data.details?.s3 || (data.score * 0.3);
+                      
+                          // EWS Classification
+                          if(data.score >= 3.0) engaged++;
+                          else if (data.time < 300) guessing++;
+                          else struggling++;
                       });
                   }
 
-                  allAttempts.sort((a,b) => b.timestamp - a.timestamp);
+                  allAttempts.sort((a,b) => b.score - a.score); // Sorted by score for IRT
                   const count = allAttempts.length || 1;
                   const aScore = totalScore / count; const aTime = totalTime / count;
                   const frustration = count > 0 ? Math.min((aTime / 600) * (1 + totalHints/count) / Math.max(aScore, 0.1), 10).toFixed(1) : 0;
+                  
+                  // IRT Calculation
+                  const top27Idx = Math.max(1, Math.floor(count * 0.27));
+                  const topGroup = allAttempts.slice(0, top27Idx);
+                  const botGroup = allAttempts.slice(count - top27Idx);
+                  
+                  const calcP = (sum, max) => (sum / count / max).toFixed(2);
+                  const calcD = (top, bot, max) => {
+                      const avgT = top.reduce((acc, curr) => acc + (curr.details?.s1 || 0), 0) / top27Idx;
+                      const avgB = bot.reduce((acc, curr) => acc + (curr.details?.s1 || 0), 0) / top27Idx;
+                      return ((avgT - avgB)/max).toFixed(2);
+                  };
 
                   setMetrics({
                       views: dirSnap.size, avgScore: aScore.toFixed(2), avgTime: Math.floor(aTime),
                       frustrationIndex: frustration, attempts: allAttempts.slice(0, 50), 
                       questionMetrics: [
-                          { id: 'Q1', title: 'Hoja 1: Teoría', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.2), status: (s1/count)>1.0 ? 'optimal' : 'review' },
+                          { id: 'Q1', title: 'Hoja 1: Teoría', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.3), status: (s1/count)>1.5 ? 'optimal' : 'review' },
                           { id: 'Q2', title: 'Hoja 2: Fuerza Neta', avgScore: (s2/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s2/count)>1.0 ? 'optimal' : 'critical' },
-                          { id: 'Q3', title: 'Hoja 3: Campo P', avgScore: (s3/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s3/count)>1.0 ? 'optimal' : 'critical' }
-                      ]
+                          { id: 'Q3', title: 'Hoja 3: Campo P', avgScore: (s3/count).toFixed(2), avgTime: Math.floor(aTime * 0.3), status: (s3/count)>1.0 ? 'optimal' : 'critical' }
+                      ],
+                      irt: {
+                          p1: calcP(s1, 1.3), d1: calcD(topGroup, botGroup, 1.3),
+                          p2: calcP(s2, 1.85), d2: calcD(topGroup, botGroup, 1.85),
+                          p3: calcP(s3, 1.85), d3: calcD(topGroup, botGroup, 1.85),
+                      },
+                      clusters: { engaged, struggling, guessing },
+                      scatterData: allAttempts.map(a => ({time: a.time, score: a.score}))
                   });
               } catch(e) { console.error("Error al cargar dashboard:", e); }
           };
@@ -812,14 +879,21 @@
             setIsSubmitted(false);
             setAnswers({});
             setUsedTips([]);
+            setHesitationCount(0);
             setHasRated(false);
             setSurvey({ platform: 0, graphics: 0, challenge: 0, comment: '' });
             setView('exam');
           };
 
-          const handleInputChange = (id, val) => setAnswers(prev => ({ ...prev, [id]: val }));
+          // Handle input with Telemetry (Hesitation tracking)
+          const handleInputChange = (id, val) => {
+              if (answers[id] !== undefined && answers[id] !== val) {
+                  setHesitationCount(prev => prev + 1);
+              }
+              setAnswers(prev => ({ ...prev, [id]: val }));
+          };
 
-          // OPCIONES TEORÍA
+          // OPCIONES TEORÍA Y SUPERPOSICIÓN ESCAPADAS CORRECTAMENTE
           const optsTeoria = useMemo(() => [
               {val: 'f_coulomb', label: '$\\vec{F} = k \\frac{q_1 q_2}{r^2} \\hat{r}$'},
               {val: 'cargas_tipos', label: '$\\text{Positiva y Negativa}$'},
@@ -874,7 +948,6 @@
           const optsTot3 = [ {val: '9742', label: '$9742$'}, {val: '11250', label: '$11250$'}, {val: '14881', label: '$14881$'} ];
 
           // DCL Draw Data (Vectores Reales en el Plano)
-          // X,Y son visuales, origin = 0,0. dx, dy multiplicados por constante para visualización.
           const dclVectorsP2 = [ {id: 'f1', label: '$\\vec{F}_{13}$'}, {id: 'f2', label: '$\\vec{F}_{23}$'}, {id: 'fnet', label: '$\\vec{F}_{\\text{neta}}$'} ];
           const dclDrawP2 = [
               { id: 'v_f13', dx: 25, dy: -50, color: '#3b82f6', weight: 3 },  // NE
@@ -926,7 +999,7 @@
             check3('c_mag_tot', '14881', 0.1); // 0.1
             check3('c_concl', 'ok', 0.35); // Conclusión 0.35 -> Total = 1.85
 
-            total = s1 + s2 + s3 - (usedTips.length * 0.05); // Penalización 0.05
+            total = s1 + s2 + s3 - (usedTips.length * 0.05); 
             return { total: Math.max(Math.min(total, 5.0), 0).toFixed(2), details: { s1, s2, s3 } };
           };
 
@@ -943,23 +1016,28 @@
             if (user && !user.isAnonymous) {
               try {
                 const userRef = collection(db, 'artifacts', appId, 'users', user.uid, 'eval_attempts');
-                await addDoc(userRef, { score: result.total, maxScore: 5.0, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
+                await addDoc(userRef, { score: result.total, maxScore: 5.0, time: timeElapsed, hints: usedTips.length, hesitation: hesitationCount, details: result.details, timestamp: serverTimestamp() });
                 
                 const globalRef = collection(db, 'artifacts', appId, 'public', 'data', 'global_attempts');
-                await addDoc(globalRef, { email: user.email, score: result.total, time: timeElapsed, hints: usedTips.length, details: result.details, timestamp: serverTimestamp() });
+                await addDoc(globalRef, { email: user.email, score: result.total, time: timeElapsed, hints: usedTips.length, hesitation: hesitationCount, details: result.details, timestamp: serverTimestamp() });
               } catch (e) { console.error("Error guardando intento:", e); }
             }
           };
 
           const formatTime = (sec) => sec != null ? `${Math.floor(sec / 60)}m ${(sec % 60).toString().padStart(2, '0')}s` : '0m 00s';
 
-          // Mensaje Psicológico de Tiempo
+          // Mensaje Psicológico de Tiempo e Índice de Duda
           let timeMsg = "";
           if (finalTime > 0) {
-              if (finalTime < 180) timeMsg = "Has respondido en un tiempo récord (< 3 min). Si tu nota es baja, es un indicador de que contestaste al azar o con impulsividad. La ingeniería requiere pausa y análisis metódico.";
+              if (finalTime < 180) timeMsg = "Has respondido en un tiempo récord (< 3 min). Tu impulsividad es alta. La ingeniería requiere pausa y análisis metódico.";
               else if (finalTime > 2400) timeMsg = "Has tomado un tiempo considerable (> 40 min). Esto refleja esfuerzo, pero también indica bloqueos cognitivos en conceptos base. ¡Estudia con cuaderno en mano para ganar agilidad!";
-              else timeMsg = "Tu ritmo de procesamiento es óptimo y metódico. Has interiorizado el esquema procedimental de resolución. ¡Bien hecho!";
+              else timeMsg = "Tu ritmo de procesamiento temporal es óptimo y metódico. Has interiorizado el esquema procedimental de resolución.";
           }
+          
+          let doubtMsg = "";
+          if (hesitationCount > 20) doubtMsg = `El Índice de Duda (Telemetría) registra ${hesitationCount} cambios de decisión antes de enviar. Hay mucha inseguridad en la metacognición.`;
+          else if (hesitationCount > 5) doubtMsg = `Índice de Duda normal (${hesitationCount} rectificaciones). Demuestras capacidad reflexiva y de corrección en vivo.`;
+          else doubtMsg = `Índice de Duda bajo (${hesitationCount}). Eres muy certero(a) en tus decisiones, confías plenamente en tus cálculos.`;
 
           // Insignia Dinámica
           let insignia = { title: "", icon: Brain, color: "" };
@@ -1220,7 +1298,7 @@
                           <button onClick={() => setView('profile')} className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-6 rounded-xl transition-colors">Completar mi Perfil Universitario</button>
                       </div>
                   ) : (
-                      <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">¡Hola {profile.displayName.split(' ')[0]}! Bienvenido a tu prueba procedimental de Electromagnetismo. Esta evaluación exige desarrollo analítico paso a paso. La calificación es sobre 5.0. <strong>Nota vital:</strong> Tu tiempo y uso de asistencias cognitivas serán medidos para determinar tu perfil de aprendizaje. Ten a mano lápiz, papel y calculadora.</p>
+                      <p className="text-slate-600 text-lg mb-10 leading-relaxed font-medium">¡Hola {profile.displayName.split(' ')[0]}! Bienvenido a tu prueba procedimental de Electromagnetismo. Esta evaluación exige desarrollo analítico paso a paso. La calificación es sobre 5.0. <strong>Nota vital:</strong> Tu tiempo y uso de asistencias cognitivas serán medidos para determinar tu perfil de aprendizaje mediante telemetría. Ten a mano lápiz, papel y calculadora.</p>
                   )}
                   
                   <div className="flex flex-wrap items-center justify-center gap-6 mb-12 text-base font-bold text-slate-600">
@@ -1659,17 +1737,18 @@
                   {/* Pedagogical Feedback */}
                   <div className={`p-8 rounded-3xl border-2 ${score >= 4.0 ? 'bg-emerald-900/40 border-emerald-500/50 text-emerald-100' : score >= 3.0 ? 'bg-blue-900/40 border-blue-500/50 text-blue-100' : 'bg-red-900/40 border-red-500/50 text-red-100'}`}>
                     <h3 className="font-black text-2xl mb-4 flex items-center gap-3">
-                      <BrainCircuit size={28}/> Análisis Cognitivo
+                      <BrainCircuit size={28}/> Análisis Cognitivo Detallado
                     </h3>
                     <p className="leading-relaxed text-lg font-medium mb-4">
-                      {score >= 4.0 ? "¡Excelente! Tu dominio teórico y tu capacidad para calcular fuerzas vectoriales y campos en el espacio es sólida. Tienes un pensamiento altamente procedimental." : 
-                       score >= 3.0 ? "Buen trabajo analítico. Entiendes el diagrama, pero necesitas afianzar la formulación matemática y la superposición para evitar perder puntos en problemas 2D." : 
-                       "Anomalía detectada. El sistema detecta fallos en la estructura conceptual procedimental y en el manejo de vectores. ¡Vuelve a intentarlo, la perseverancia y el orden son la clave de la física!"}
+                      {score >= 4.0 ? "¡Excelente! Tu dominio teórico y tu capacidad para estructurar procedimientos matemáticos en el espacio es sólida. Entiendes las simetrías y los diagramas de cuerpo libre perfectamente." : 
+                       score >= 3.0 ? "Buen trabajo procedimental. Entiendes el diagrama de cuerpo libre, pero la telemetría sugiere que necesitas afianzar la descomposición vectorial (uso de unitarios y sumatorias) para no perder puntos en cálculo puro." : 
+                       "Anomalía detectada. El sistema IRT (Item Response Theory) detecta fallos desde la estructura conceptual base (DCL) y en la sustitución de las distancias relativas. ¡La perseverancia y el orden son la clave de la física!"}
                     </p>
-                    <p className="text-sm font-bold opacity-80 border-t border-current pt-4 flex flex-col gap-2">
-                        <span><Timer size={16} className="inline mr-2 -mt-1"/>{timeMsg}</span>
-                        {usedTips.length > 0 && <span><AlertTriangle size={16} className="inline mr-2 -mt-1"/>Penalización por {usedTips.length} pista(s) táctica(s) solicitada(s) aplicada (-{usedTips.length * 0.05} pts).</span>}
-                    </p>
+                    <div className="text-sm font-bold opacity-80 border-t border-current pt-4 flex flex-col gap-3 text-left">
+                        <span className="flex items-start gap-2"><Timer size={18} className="shrink-0"/>{timeMsg}</span>
+                        <span className="flex items-start gap-2"><Compass size={18} className="shrink-0"/>{doubtMsg}</span>
+                        {usedTips.length > 0 && <span className="flex items-start gap-2"><AlertTriangle size={18} className="shrink-0"/>Penalización por {usedTips.length} asistencia(s) cognitiva(s) aplicada (-{usedTips.length * 0.05} pts).</span>}
+                    </div>
                   </div>
 
                   {/* IMPORTANCIA DE LOS APUNTES */}
@@ -1760,6 +1839,7 @@
             <p className="text-slate-500 font-bold text-lg">Analíticas reales calculadas directamente desde Firestore (Escala 5.0).</p>
           </div>
 
+          {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:shadow-lg transition-shadow">
               <div className="flex justify-between items-start mb-4">
@@ -1796,11 +1876,99 @@
             </div>
           </div>
 
+          {/* ADVANCED DATA SCIENCE SECTION */}
+          <MisionBox title="Analítica Avanzada: Psicometría y Data Science" points="PRO">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  
+                  {/* Teoria de Respuesta al Item (IRT) */}
+                  <div className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-200 shadow-inner">
+                      <div className="flex items-center gap-3 mb-6">
+                          <Network className="text-blue-600" size={28} />
+                          <div>
+                              <h4 className="font-black text-slate-800 text-xl">Teoría de Respuesta al Ítem (IRT)</h4>
+                              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Modelos de Rasch & Lord</p>
+                          </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                              <thead>
+                                  <tr className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-slate-300">
+                                      <th className="py-2">Módulo Evaluado</th>
+                                      <th className="py-2 text-center" title="Índice de Dificultad (p = Aciertos / Total)">Dif. ($p$)</th>
+                                      <th className="py-2 text-center" title="Índice de Discriminación (Top 27% - Bottom 27%)">Discrim. ($D$)</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="text-sm font-bold text-slate-700">
+                                  <tr className="border-b border-slate-100">
+                                      <td className="py-3 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> Hoja 1: Teoría</td>
+                                      <td className="py-3 text-center">{metrics.irt?.p1}</td>
+                                      <td className="py-3 text-center text-emerald-600">{metrics.irt?.d1}</td>
+                                  </tr>
+                                  <tr className="border-b border-slate-100">
+                                      <td className="py-3 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div> Hoja 2: Fuerza Neta</td>
+                                      <td className="py-3 text-center">{metrics.irt?.p2}</td>
+                                      <td className="py-3 text-center text-blue-600">{metrics.irt?.d2}</td>
+                                  </tr>
+                                  <tr>
+                                      <td className="py-3 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-violet-500"></div> Hoja 3: C. Anillo</td>
+                                      <td className="py-3 text-center">{metrics.irt?.p3}</td>
+                                      <td className="py-3 text-center text-violet-600">{metrics.irt?.d3}</td>
+                                  </tr>
+                              </tbody>
+                          </table>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-4 leading-relaxed">
+                          * Un $p$ cercano a 1.0 indica un ítem muy fácil. Un $D$ alto ($> 0.3$) indica que la hoja discrimina correctamente entre los estudiantes de alto y bajo rendimiento.
+                      </p>
+                  </div>
+
+                  {/* Early Warning System & Scatter */}
+                  <div className="flex flex-col gap-6">
+                      <div className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-200 shadow-inner">
+                          <div className="flex items-center gap-3 mb-4">
+                              <PieChart className="text-orange-600" size={28} />
+                              <div>
+                                  <h4 className="font-black text-slate-800 text-xl">Sistema de Alerta Temprana (EWS)</h4>
+                                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">K-Means Clustering</p>
+                              </div>
+                          </div>
+                          <div className="flex flex-wrap gap-4">
+                              <div className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex-1 text-center">
+                                  <div className="text-2xl font-black text-emerald-600">{metrics.clusters?.engaged}</div>
+                                  <div className="text-[10px] font-bold text-slate-500 uppercase">Óptimos</div>
+                              </div>
+                              <div className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex-1 text-center">
+                                  <div className="text-2xl font-black text-amber-600">{metrics.clusters?.guessing}</div>
+                                  <div className="text-[10px] font-bold text-slate-500 uppercase">Adivinando</div>
+                              </div>
+                              <div className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex-1 text-center">
+                                  <div className="text-2xl font-black text-red-600">{metrics.clusters?.struggling}</div>
+                                  <div className="text-[10px] font-bold text-slate-500 uppercase">Bloqueados</div>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div className="bg-slate-900 p-6 rounded-2xl shadow-inner text-white flex-grow flex flex-col justify-between">
+                          <h4 className="font-black text-blue-400 text-sm uppercase tracking-widest mb-2">Correlación: Tiempo vs. Nota</h4>
+                          <div className="w-full">
+                              {metrics.scatterData && metrics.scatterData.length > 0 ? (
+                                  <ScatterPlot data={metrics.scatterData} />
+                              ) : (
+                                  <div className="h-40 flex items-center justify-center text-slate-500 text-sm font-bold">Esperando recolección de datos...</div>
+                              )}
+                          </div>
+                      </div>
+                  </div>
+
+              </div>
+          </MisionBox>
+
+          {/* Legacy Metrics */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-8 py-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                <h3 className="font-black text-slate-800 text-xl">Métricas por Nivel Simuladas</h3>
-                <span className="text-xs text-slate-500 font-black uppercase tracking-widest bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">Identificación Cuellos de botella</span>
+                <h3 className="font-black text-slate-800 text-xl">Mapeo de Competencias (Rendimiento)</h3>
+                <span className="text-xs text-slate-500 font-black uppercase tracking-widest bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">Identificación de Brechas</span>
               </div>
               <div className="p-6 border-b border-slate-100 bg-white">
                  <h4 className="font-bold text-slate-700 mb-2 uppercase text-sm tracking-widest">Campana de Notas (Frecuencia)</h4>
@@ -1841,7 +2009,7 @@
               <div className="px-8 py-6 border-b border-slate-200 bg-slate-50">
                 <h3 className="font-black text-slate-800 text-xl">Últimos Entregados (Real)</h3>
               </div>
-              <div className="p-0 flex-grow bg-white overflow-y-auto max-h-[600px] custom-scrollbar">
+              <div className="p-0 flex-grow bg-white overflow-y-auto max-h-[850px] custom-scrollbar">
                 {metrics.attempts.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 font-bold">No hay evaluaciones registradas en Firestore.</div>
                 ) : (
@@ -1855,6 +2023,11 @@
                         <span>{a.date}</span>
                         <span className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200"><Timer size={14}/> {formatTime(a.time)}</span>
                       </div>
+                      {a.hesitation > 0 && (
+                          <div className="mt-3 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md inline-block">
+                              Índice de Duda: {a.hesitation} cambios
+                          </div>
+                      )}
                     </div>
                   ))
                 )}
