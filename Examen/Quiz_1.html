@@ -90,7 +90,7 @@
         
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "quiz-coulomb-v4-procedimental"; 
+        const appId = "quiz-coulomb-v5-master"; 
 
         // --- 2. KATEX HOOK ---
         const useKaTeX = () => {
@@ -145,7 +145,7 @@
           return <span ref={containerRef} className={className} dangerouslySetInnerHTML={{__html: text}} />;
         };
 
-        // 3D Ring Simulator
+        // 3D Ring Simulator for Q3
         const ThreeRingCanvas = () => {
           const mountRef = useRef(null);
           const isLoaded = useThreeJS();
@@ -318,30 +318,24 @@
             )
         };
 
-        // Componente DCL Interactivo Múltiple
-        const InteractiveDCL = ({ idPrefix, vectors, answers, onChange, isSubmitted, expectedMap }) => {
+        // Componente DCL Interactivo Real (Nivel Producción)
+        const RealDCL = ({ idPrefix, vectors, drawData, answers, onChange, isSubmitted, expectedMap }) => {
             const [activeVec, setActiveVec] = useState(vectors[0].id);
-            const directions = [
-                { id: 'NW', icon: ArrowUpLeft, desc: 'Noroeste' },
-                { id: 'N', icon: ArrowUp, desc: 'Norte' },
-                { id: 'NE', icon: ArrowUpRight, desc: 'Noreste' },
-                { id: 'W', icon: ArrowLeft, desc: 'Oeste' },
-                { id: 'CENTER', icon: Crosshair, desc: 'Origen' },
-                { id: 'E', icon: ArrowRightIcon, desc: 'Este' },
-                { id: 'SW', icon: ArrowDownLeft, desc: 'Suroeste' },
-                { id: 'S', icon: ArrowDown, desc: 'Sur' },
-                { id: 'SE', icon: ArrowDownRight, desc: 'Sureste' }
-            ];
 
-            const handleGridClick = (dirId) => {
-                if (isSubmitted || dirId === 'CENTER') return;
-                onChange(`${idPrefix}_${activeVec}`, dirId);
+            const handleZoneClick = (zoneId) => {
+                if (isSubmitted) return;
+                onChange(`${idPrefix}_${activeVec}`, zoneId);
+                const currIdx = vectors.findIndex(v => v.id === activeVec);
+                if (currIdx < vectors.length - 1) setActiveVec(vectors[currIdx + 1].id);
             };
 
             return (
-                <div className="bg-slate-50 border-2 border-slate-200 p-6 rounded-2xl shadow-inner flex flex-col items-center">
-                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Compass size={16}/> Diagrama de Cuerpo Libre Espacial</p>
-                    
+                <div className="bg-slate-50 border-2 border-slate-200 p-6 rounded-2xl shadow-inner flex flex-col items-center w-full">
+                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <Compass size={16}/> Diagrama de Cuerpo Libre Exacto
+                    </p>
+                    <p className="text-[11px] text-slate-500 mb-4 text-center max-w-sm font-bold">Selecciona una etiqueta matemática y asígnala al nodo de su vector correspondiente en el plano.</p>
+
                     <div className="flex flex-wrap justify-center gap-2 mb-6 w-full">
                         {vectors.map(v => {
                             const isSelected = activeVec === v.id;
@@ -358,39 +352,57 @@
                         })}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 bg-white p-4 rounded-full shadow-lg border-4 border-slate-100 relative">
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-full h-0.5 bg-slate-200 absolute"></div>
-                            <div className="h-full w-0.5 bg-slate-200 absolute"></div>
-                        </div>
-
-                        {directions.map((dir, idx) => {
-                            const vectorsHere = vectors.filter(v => answers[`${idPrefix}_${v.id}`] === dir.id);
+                    <div className="relative w-full max-w-[280px] aspect-square bg-white rounded-3xl shadow-lg border-4 border-slate-100 overflow-visible p-4">
+                        <svg viewBox="-100 -100 200 200" className="w-full h-full overflow-visible">
+                            <defs>
+                                <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/></marker>
+                                <marker id="arrow-orange" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ea580c"/></marker>
+                            </defs>
                             
-                            if (dir.id === 'CENTER') {
-                                return <div key={dir.id} className="w-16 h-16 flex items-center justify-center z-10"><div className="w-4 h-4 bg-slate-800 rounded-full border-2 border-white shadow-sm"></div></div>;
-                            }
+                            {/* Ejes Cartesianos */}
+                            <line x1="-100" y1="0" x2="100" y2="0" stroke="#e2e8f0" strokeWidth="2" />
+                            <line x1="0" y1="-100" x2="0" y2="100" stroke="#e2e8f0" strokeWidth="2" />
+                            <circle cx="0" cy="0" r="4" fill="#94a3b8" />
 
-                            return (
-                                <button 
-                                    key={dir.id} type="button" disabled={isSubmitted} onClick={() => handleGridClick(dir.id)}
-                                    className={`w-16 h-16 flex flex-col items-center justify-center rounded-2xl transition-all border-2 z-10 relative ${vectorsHere.length > 0 ? 'bg-orange-100 border-orange-400 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-orange-300 hover:bg-white text-slate-300 hover:text-orange-400'}`}
-                                >
-                                    {vectorsHere.length === 0 ? <dir.icon size={24}/> : (
-                                        <div className="flex flex-col items-center gap-1">
-                                            {vectorsHere.map(vh => (
-                                                <span key={vh.id} className="text-xs font-black text-orange-800 bg-white/80 px-1 rounded"><Latex text={vh.label}/></span>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {isSubmitted && expectedMap && expectedMap[`${idPrefix}_${activeVec}`] === dir.id && answers[`${idPrefix}_${activeVec}`] !== dir.id && (
-                                         <div className="absolute -top-2 -right-2 bg-white rounded-full p-0.5 shadow-md border border-red-200 animate-bounce z-20">
-                                            <XCircle size={16} className="text-red-500"/>
-                                         </div>
-                                    )}
-                                </button>
-                            );
-                        })}
+                            {drawData.map(vec => {
+                                const assignedLabels = vectors.filter(v => answers[`${idPrefix}_${v.id}`] === vec.id);
+                                const markerUrl = vec.color === '#ea580c' ? 'url(#arrow-orange)' : 'url(#arrow-blue)';
+                                
+                                return (
+                                    <g key={vec.id}>
+                                        <line 
+                                            x1="0" y1="0" x2={vec.dx} y2={vec.dy} 
+                                            stroke={vec.color} strokeWidth={vec.weight || 3} 
+                                            strokeDasharray={vec.isDashed ? "5,5" : "none"}
+                                            markerEnd={markerUrl}
+                                        />
+                                        <foreignObject x={vec.dx - 18} y={vec.dy - 18} width="36" height="36" className="overflow-visible">
+                                            <div 
+                                                onClick={() => handleZoneClick(vec.id)}
+                                                className={`w-9 h-9 rounded-full border-[3px] flex items-center justify-center cursor-pointer transition-all ${assignedLabels.length > 0 ? 'bg-orange-50 border-orange-500 shadow-lg scale-110' : 'bg-white border-slate-300 hover:border-orange-400 hover:bg-orange-50 hover:scale-110 shadow-sm'}`}
+                                            >
+                                                {assignedLabels.length > 0 ? (
+                                                    <span className="text-[10px] font-black text-orange-700 leading-none pointer-events-none">
+                                                        <Latex text={assignedLabels[0].label} />
+                                                    </span>
+                                                ) : (
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300 pointer-events-none"></div>
+                                                )}
+                                            </div>
+                                        </foreignObject>
+                                        
+                                        {/* Feedback visual si se equivoca */}
+                                        {isSubmitted && Object.entries(expectedMap).some(([k, v]) => v === vec.id && answers[k] !== vec.id) && (
+                                            <foreignObject x={vec.dx + 12} y={vec.dy - 24} width="20" height="20" className="pointer-events-none">
+                                                <div className="bg-white rounded-full p-0.5 shadow-md border border-red-200 animate-bounce">
+                                                    <XCircle size={14} className="text-red-500"/>
+                                                </div>
+                                            </foreignObject>
+                                        )}
+                                    </g>
+                                )
+                            })}
+                        </svg>
                     </div>
                 </div>
             )
@@ -631,33 +643,26 @@
           const [survey, setSurvey] = useState({ platform: 0, graphics: 0, challenge: 0, comment: '' });
           const [hasRated, setHasRated] = useState(false);
 
-          // Real-time Views & Reviews Listener
+          // Listeners
           useEffect(() => {
               if(!user) return; 
-              
               const setupListeners = async () => {
                   try {
-                      // Usamos la colección de directorio para leer vistas seguras sin faltar a las reglas de write
                       const dirRef = collection(db, 'artifacts', appId, 'public', 'data', 'directory');
-                      onSnapshot(dirRef, (snap) => {
-                          setRealViews(snap.size || 0);
-                      }, (error) => console.log("Vistas:", error.message));
+                      onSnapshot(dirRef, (snap) => { setRealViews(snap.size || 0); }, (e) => console.log(e));
         
-                      // Ruta corregida y segura para reviews
                       const reviewsRef = collection(db, 'artifacts', appId, 'public', 'data', 'reviews'); 
                       onSnapshot(reviewsRef, (snap) => {
                           let sum = 0; let count = 0;
                           snap.forEach(doc => { 
                              const data = doc.data();
-                             // Promediamos las 3 estrellas de cada review
                              const avgReview = (data.platform + data.graphics + data.challenge) / 3;
                              if(!isNaN(avgReview)) { sum += avgReview; count++; }
                           });
                           if (count > 0) setRatingStats({ average: (sum/count).toFixed(1), count });
-                      }, (error) => console.log("Reviews:", error.message));
+                      }, (e) => console.log(e));
                   } catch(e) { console.log(e); }
               };
-              
               setupListeners();
           }, [user]);
 
@@ -735,9 +740,7 @@
               try {
                   const dirSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'directory'));
                   let allAttempts = [];
-                  let totalScore = 0;
-                  let totalTime = 0;
-                  let totalHints = 0;
+                  let totalScore = 0; let totalTime = 0; let totalHints = 0;
                   let s1 = 0, s2 = 0, s3 = 0;
 
                   for (const userDoc of dirSnap.docs) {
@@ -766,9 +769,9 @@
                       views: dirSnap.size, avgScore: aScore.toFixed(2), avgTime: Math.floor(aTime),
                       frustrationIndex: frustration, attempts: allAttempts.slice(0, 50), 
                       questionMetrics: [
-                          { id: 'Q1', title: 'Hoja 1: Teoría', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.3), status: (s1/count)>0.8 ? 'optimal' : 'review' },
+                          { id: 'Q1', title: 'Hoja 1: Teoría', avgScore: (s1/count).toFixed(2), avgTime: Math.floor(aTime * 0.2), status: (s1/count)>1.0 ? 'optimal' : 'review' },
                           { id: 'Q2', title: 'Hoja 2: Fuerza Neta', avgScore: (s2/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s2/count)>1.0 ? 'optimal' : 'critical' },
-                          { id: 'Q3', title: 'Hoja 3: Campo P', avgScore: (s3/count).toFixed(2), avgTime: Math.floor(aTime * 0.3), status: (s3/count)>1.0 ? 'optimal' : 'critical' }
+                          { id: 'Q3', title: 'Hoja 3: Campo P', avgScore: (s3/count).toFixed(2), avgTime: Math.floor(aTime * 0.4), status: (s3/count)>1.0 ? 'optimal' : 'critical' }
                       ]
                   });
               } catch(e) { console.error("Error al cargar dashboard:", e); }
@@ -790,7 +793,7 @@
               try {
                   const reviewsRef = collection(db, 'artifacts', appId, 'public', 'data', 'reviews');
                   await addDoc(reviewsRef, { ...survey, userId: user.uid, timestamp: serverTimestamp() });
-              } catch (e) { console.error("Error submitting review", e); }
+              } catch (e) { console.error(e); }
           }
 
           useEffect(() => {
@@ -816,7 +819,7 @@
 
           const handleInputChange = (id, val) => setAnswers(prev => ({ ...prev, [id]: val }));
 
-          // OPCIONES TEORÍA Y SUPERPOSICIÓN ESCAPADAS CORRECTAMENTE
+          // OPCIONES TEORÍA
           const optsTeoria = useMemo(() => [
               {val: 'f_coulomb', label: '$\\vec{F} = k \\frac{q_1 q_2}{r^2} \\hat{r}$'},
               {val: 'cargas_tipos', label: '$\\text{Positiva y Negativa}$'},
@@ -870,12 +873,24 @@
           const optsSumY3 = [ {val: '-11250', label: '$-11250$'}, {val: '0', label: '$0$'}, {val: '9742', label: '$9742$'}, {val: '14881', label: '$14881$'} ];
           const optsTot3 = [ {val: '9742', label: '$9742$'}, {val: '11250', label: '$11250$'}, {val: '14881', label: '$14881$'} ];
 
-          // DCL Vectors Configurations
-          const vecsP2 = [ {id: 'f1', label: '$\\vec{F}_{13}$'}, {id: 'f2', label: '$\\vec{F}_{23}$'}, {id: 'fnet', label: '$\\vec{F}_{\\text{neta}}$'} ];
-          const expectedDCLP2 = { 'f_dcl_f1': 'NE', 'f_dcl_f2': 'NW', 'f_dcl_fnet': 'NW' };
+          // DCL Draw Data (Vectores Reales en el Plano)
+          // X,Y son visuales, origin = 0,0. dx, dy multiplicados por constante para visualización.
+          const dclVectorsP2 = [ {id: 'f1', label: '$\\vec{F}_{13}$'}, {id: 'f2', label: '$\\vec{F}_{23}$'}, {id: 'fnet', label: '$\\vec{F}_{\\text{neta}}$'} ];
+          const dclDrawP2 = [
+              { id: 'v_f13', dx: 25, dy: -50, color: '#3b82f6', weight: 3 },  // NE
+              { id: 'v_f23', dx: -45, dy: -30, color: '#3b82f6', weight: 3 }, // NW
+              { id: 'v_fnet', dx: -20, dy: -80, color: '#ea580c', isDashed: true, weight: 4 } // NW Steeper
+          ];
+          const expectedDCLP2 = { 'f_dcl_f1': 'v_f13', 'f_dcl_f2': 'v_f23', 'f_dcl_fnet': 'v_fnet' };
 
-          const vecsP3 = [ {id: 'e1', label: '$\\vec{E}_{+q}$'}, {id: 'e2', label: '$\\vec{E}_{+2q}$'}, {id: 'e3', label: '$\\vec{E}_{-2q}$'}, {id: 'enet', label: '$\\vec{E}_{\\text{neto}}$'} ];
-          const expectedDCLP3 = { 'c_dcl_e1': 'SW', 'c_dcl_e2': 'NW', 'c_dcl_e3': 'E', 'c_dcl_enet': 'NW' };
+          const dclVectorsP3 = [ {id: 'e1', label: '$\\vec{E}_{+q}$'}, {id: 'e2', label: '$\\vec{E}_{+2q}$'}, {id: 'e3', label: '$\\vec{E}_{-2q}$'}, {id: 'enet', label: '$\\vec{E}_{\\text{neto}}$'} ];
+          const dclDrawP3 = [
+              { id: 'v_e3', dx: 45, dy: 0, color: '#3b82f6', weight: 3 }, // E
+              { id: 'v_e1', dx: -30, dy: 50, color: '#3b82f6', weight: 3 }, // SW
+              { id: 'v_e2', dx: -60, dy: -100, color: '#3b82f6', weight: 3 }, // NW
+              { id: 'v_enet', dx: -45, dy: -50, color: '#ea580c', isDashed: true, weight: 4 } // NW
+          ];
+          const expectedDCLP3 = { 'c_dcl_e1': 'v_e1', 'c_dcl_e2': 'v_e2', 'c_dcl_e3': 'v_e3', 'c_dcl_enet': 'v_enet' };
 
           const calculateScore = () => {
             let total = 0;
@@ -884,21 +899,15 @@
             const check1 = (id, exp, pts) => { if(answers[id] === exp) { s1+=pts; return pts;} return 0; }
             
             // Hoja 1: Teoría Ampliada (Max 1.30)
-            check1('t_a', 'f_coulomb', 0.1); 
-            check1('t_b', 'cargas_tipos', 0.1); 
-            check1('t_c', 'carga_def', 0.1); 
-            check1('t_d', 'elec_tipos', 0.1); 
-            check1('t_e', 'dipolo_def', 0.1);
-            check1('t_prop1', '2f', 0.1);
-            check1('t_prop2', 'f_4', 0.1);
-            check1('t_graphF', 'inv_sq', 0.1);
-            check1('t_graphE', 'inv_sq', 0.1);
-            check1('t_sup', 'sup_correcta', 0.2);
-            check1('t_eq', 'medio', 0.2);
+            check1('t_a', 'f_coulomb', 0.1); check1('t_b', 'cargas_tipos', 0.1); check1('t_c', 'carga_def', 0.1); 
+            check1('t_d', 'elec_tipos', 0.1); check1('t_e', 'dipolo_def', 0.1);
+            check1('t_prop1', '2f', 0.1); check1('t_prop2', 'f_4', 0.1);
+            check1('t_graphF', 'inv_sq', 0.1); check1('t_graphE', 'inv_sq', 0.1);
+            check1('t_sup', 'sup_correcta', 0.2); check1('t_eq', 'medio', 0.2);
 
             // Hoja 2: Fuerza Neta (Max 1.85 -> steps)
             const check2 = (id, exp, pts=0.1) => { if(answers[id] === exp) { s2+=pts; return pts;} return 0; }
-            check2('f_dcl_f1', 'NE'); check2('f_dcl_f2', 'NW'); check2('f_dcl_fnet', 'NW'); // 0.3
+            check2('f_dcl_f1', 'v_f13'); check2('f_dcl_f2', 'v_f23'); check2('f_dcl_fnet', 'v_fnet'); // 0.3
             check2('f_r1', '1.25'); check2('f_r2', '3.25'); // 0.2
             check2('f_u1', 'u1'); check2('f_u2', 'u2'); // 0.2
             check2('f_sub_k', 'k', 0.05); check2('f_sub_q', 'q13', 0.05); check2('f_sub_r', '1.25', 0.05); // 0.15
@@ -909,7 +918,7 @@
 
             // Hoja 3: Campo Circunferencia (Max 1.85 -> steps)
             const check3 = (id, exp, pts=0.1) => { if(answers[id] === exp) { s3+=pts; return pts;} return 0; }
-            check3('c_dcl_e1', 'SW'); check3('c_dcl_e2', 'NW'); check3('c_dcl_e3', 'E'); check3('c_dcl_enet', 'NW'); // 0.4
+            check3('c_dcl_e1', 'v_e1'); check3('c_dcl_e2', 'v_e2'); check3('c_dcl_e3', 'v_e3'); check3('c_dcl_enet', 'v_enet'); // 0.4
             check3('c_r1', 'R'); check3('c_r2', 'R'); check3('c_r3', '2R'); // 0.3
             check3('c_e0', '11250', 0.1); // 0.1
             check3('c_e1_mag', 'E_0'); check3('c_e2_mag', '2E_0'); check3('c_e3_mag', 'E_0/2'); // 0.3
@@ -1326,11 +1335,11 @@
                                   </div>
                                   <div className="space-y-6 flex flex-col justify-between">
                                       <div>
-                                         <label className="block text-sm font-bold text-slate-700 mb-2">Comportamiento Gráfico Fuerza vs Distancia (<Latex text={"$F$ vs $r$"} />) <span className="text-red-500">[0.10]</span></label>
+                                         <label className="block text-sm font-bold text-slate-700 mb-2"><Latex text={"Comportamiento Gráfico Fuerza vs Distancia ($F$ vs $r$)"} /> <span className="text-red-500">[0.10]</span></label>
                                          <CurveSelector id="t_graphF" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="inv_sq" />
                                       </div>
                                       <div>
-                                         <label className="block text-sm font-bold text-slate-700 mb-2">Comportamiento Gráfico Campo vs Distancia (<Latex text={"$E$ vs $r$"} />) <span className="text-red-500">[0.10]</span></label>
+                                         <label className="block text-sm font-bold text-slate-700 mb-2"><Latex text={"Comportamiento Gráfico Campo vs Distancia ($E$ vs $r$)"} /> <span className="text-red-500">[0.10]</span></label>
                                          <CurveSelector id="t_graphE" answers={answers} handleInputChange={handleInputChange} isSubmitted={isSubmitted} expected="inv_sq" />
                                       </div>
                                   </div>
@@ -1374,9 +1383,10 @@
                                           <SvgForceProblem />
                                       </div>
                                       
-                                      <InteractiveDCL 
+                                      <RealDCL 
                                         idPrefix="f_dcl" 
-                                        vectors={vecsP2} 
+                                        vectors={dclVectorsP2} 
+                                        drawData={dclDrawP2}
                                         answers={answers} 
                                         onChange={handleInputChange} 
                                         isSubmitted={isSubmitted} 
@@ -1418,7 +1428,7 @@
                                           </div>
 
                                           <div className={`p-4 rounded-xl border step-container ${answers.f_sub_k ? 'step-active' : 'step-pending'}`}>
-                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Paso 4: Sustitución Didáctica (<Latex text={"$F_{13}$"}/>)</p>
+                                              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2"><Latex text={"Paso 4: Sustitución Didáctica ($F_{13}$)"}/></p>
                                               <div className="flex flex-wrap items-center justify-center gap-2 bg-white p-4 rounded-xl border-2 border-slate-200 shadow-sm text-lg">
                                                   <Latex text={"$|F_{13}| = $"} />
                                                   <InlineSelect id="f_sub_k" value={answers.f_sub_k} onChange={handleInputChange} isSubmitted={isSubmitted} expected="k" options={optsK} />
@@ -1495,9 +1505,10 @@
                                           <SvgCircleProblem />
                                       </div>
                                       
-                                      <InteractiveDCL 
+                                      <RealDCL 
                                         idPrefix="c_dcl" 
-                                        vectors={vecsP3} 
+                                        vectors={dclVectorsP3} 
+                                        drawData={dclDrawP3}
                                         answers={answers} 
                                         onChange={handleInputChange} 
                                         isSubmitted={isSubmitted} 
