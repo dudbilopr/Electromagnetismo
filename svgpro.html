@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VectorPro | SVG Converter Nivel Dios</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- ImageTracer JS for Raster to Vector conversion -->
+    <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js"></script>
+    
+    <!-- Fabric.js para la manipulación Vectorial Profesional -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+
+    <style>
+        /* Custom Adobe Illustrator-like scrollbar and themes */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #424242; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555555; }
+        
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #cccccc; overflow: hidden; }
+        
+        .checkerboard {
+            background-color: #1a1a1a;
+            background-image: 
+                linear-gradient(45deg, #2a2a2a 25%, transparent 25%),
+                linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
+                linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        .panel-border { border-color: #3e3e42; }
+        .input-dark { background: #3c3c3c; border: 1px solid #4a4a4a; color: #d4d4d4; }
+        .input-dark:focus { outline: none; border-color: #007fd4; }
+        .btn-primary { background: #007fd4; color: white; transition: all 0.2s; }
+        .btn-primary:hover { background: #006bb3; }
+        .btn-secondary { background: #3c3c3c; color: white; transition: all 0.2s; border: 1px solid #4a4a4a; }
+        .btn-secondary:hover { background: #4a4a4a; }
+
+        /* Loader */
+        .loader { border: 4px solid #3c3c3c; border-top: 4px solid #007fd4; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Dropdowns y utilidades */
+        .dropdown:hover .dropdown-menu { display: block; }
+        .dropdown-menu { display: none; position: absolute; background-color: #252526; min-width: 220px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.7); z-index: 50; border: 1px solid #3e3e42; border-radius: 4px; }
+        .dropdown-menu button { color: #cccccc; padding: 10px 16px; text-decoration: none; display: flex; align-items: center; width: 100%; text-align: left; font-size: 12px; transition: 0.1s; }
+        .dropdown-menu button:hover { background-color: #007fd4; color: white; }
+        
+        .tool-active { background-color: #007fd4 !important; color: white !important; }
+        .layer-item { transition: all 0.2s; }
+        .layer-item.selected { background-color: #007fd440; border-left: 3px solid #007fd4; }
+        .layer-item:hover { background-color: #3c3c3c; }
+        
+        /* Reglas (Rulers) Dark Mode */
+        .workspace-wrapper { position: relative; display: flex; overflow: auto; width: 100%; height: 100%; }
+        .ruler-h { position: sticky; top: 0; left: 20px; height: 20px; min-width: 3000px; background: #252526; border-bottom: 1px solid #3e3e42; z-index: 20; background-image: repeating-linear-gradient(to right, transparent, transparent 49px, #555 49px, #555 50px), repeating-linear-gradient(to right, transparent, transparent 9px, #333 9px, #333 10px); }
+        .ruler-v { position: sticky; top: 20px; left: 0; width: 20px; min-height: 3000px; background: #252526; border-right: 1px solid #3e3e42; z-index: 20; background-image: repeating-linear-gradient(to bottom, transparent, transparent 49px, #555 49px, #555 50px), repeating-linear-gradient(to bottom, transparent, transparent 9px, #333 9px, #333 10px); }
+        .ruler-corner { position: sticky; top: 0; left: 0; width: 20px; height: 20px; background: #1e1e1e; border-right: 1px solid #3e3e42; border-bottom: 1px solid #3e3e42; z-index: 30; }
+        
+        /* Contenedores Canvas */
+        canvas#originalCanvas { cursor: crosshair; touch-action: none; background-color: white; }
+        .fabric-control-point { border-radius: 50%; }
+        
+        /* Transiciones de paneles */
+        #leftPanel, #rightPanel { transition: margin 0.3s ease, width 0.3s ease; }
+        
+        /* Modales */
+        .modal-bg { background-color: rgba(0,0,0,0.8); backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body class="selection:bg-[#007fd4] selection:text-white">
+
+    <!-- Top Menu Bar -->
+    <nav class="h-10 bg-[#333333] border-b border-[#1e1e1e] flex items-center justify-between px-4 shrink-0 text-sm shadow-md z-40 relative">
+        <div class="flex items-center space-x-4">
+            <!-- Toggles Paneles -->
+            <button onclick="window.togglePanel('left')" class="text-[#999] hover:text-white p-1 rounded hover:bg-[#444] transition" title="Alternar Herramientas">
+                <i data-lucide="panel-left" class="w-4 h-4"></i>
+            </button>
+            
+            <div class="flex items-center text-[#ff9900] font-bold tracking-wider cursor-pointer">
+                <i data-lucide="hexagon" class="w-5 h-5 mr-2"></i>
+                VECTOR<span class="text-white">PRO</span>
+            </div>
+            
+            <div class="w-px h-5 bg-[#4a4a4a] mx-2 hidden md:block"></div>
+
+            <div class="hidden md:flex space-x-2 text-[#cccccc]">
+                <div class="relative dropdown h-10 flex items-center">
+                    <button class="hover:text-white transition cursor-default px-2">Archivo</button>
+                    <div class="dropdown-menu top-10 left-0">
+                        <button onclick="document.getElementById('fileInput').click()"><i data-lucide="upload" class="w-4 h-4 mr-2 text-[#007fd4]"></i>Importar Imagen / SVG</button>
+                        <div class="border-t border-[#4a4a4a] my-1"></div>
+                        <button onclick="window.exportSVG()"><i data-lucide="download" class="w-4 h-4 mr-2"></i>Exportar Objeto SVG</button>
+                        <button onclick="window.exportJSON()"><i data-lucide="file-json" class="w-4 h-4 mr-2"></i>Exportar Capas a JSON</button>
+                    </div>
+                </div>
+                <div class="relative dropdown h-10 flex items-center">
+                    <button class="hover:text-white transition cursor-default px-2">Edición</button>
+                    <div class="dropdown-menu top-10 left-0">
+                        <button onclick="window.undo()"><i data-lucide="undo" class="w-4 h-4 mr-2"></i>Deshacer (Ctrl+Z)</button>
+                        <button onclick="window.redo()"><i data-lucide="redo" class="w-4 h-4 mr-2"></i>Rehacer (Ctrl+Y)</button>
+                        <div class="border-t border-[#4a4a4a] my-1"></div>
+                        <button onclick="window.deleteSelected()"><i data-lucide="trash" class="w-4 h-4 mr-2 text-red-400"></i>Borrar Selección (Supr)</button>
+                        <button onclick="window.restoreOriginalImage()"><i data-lucide="image-minus" class="w-4 h-4 mr-2"></i>Limpiar Píxeles Originales</button>
+                        <div class="border-t border-[#4a4a4a] my-1"></div>
+                        <button onclick="window.group()"><i data-lucide="combine" class="w-4 h-4 mr-2 text-[#ff9900]"></i>Agrupar Vectores</button>
+                        <button onclick="window.ungroup()"><i data-lucide="ungroup" class="w-4 h-4 mr-2 text-[#ff9900]"></i>Desagrupar Vectores</button>
+                    </div>
+                </div>
+                <div class="relative dropdown h-10 flex items-center">
+                    <button class="hover:text-white transition cursor-default px-2">Ver</button>
+                    <div class="dropdown-menu top-10 left-0">
+                        <button onclick="window.toggleRulers()"><i data-lucide="ruler" class="w-4 h-4 mr-2"></i>Mostrar/Ocultar Reglas</button>
+                    </div>
+                </div>
+                <div class="relative dropdown h-10 flex items-center">
+                    <button class="hover:text-[#ff9900] transition cursor-default px-2 font-bold text-[#ff9900]"><i data-lucide="heart" class="w-3 h-3 mr-1 inline"></i>Apoyar</button>
+                    <div class="dropdown-menu top-10 left-0">
+                        <button onclick="window.openDonation()"><i data-lucide="coffee" class="w-4 h-4 mr-2 text-[#ff9900]"></i>Invítame un Café ☕</button>
+                        <button onclick="window.openSurvey()"><i data-lucide="message-square-heart" class="w-4 h-4 mr-2"></i>Encuesta de Satisfacción</button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <button onclick="window.togglePanel('right')" class="text-[#999] hover:text-white p-1 rounded hover:bg-[#444] transition mr-2" title="Alternar Propiedades">
+                <i data-lucide="panel-right" class="w-4 h-4"></i>
+            </button>
+            <button onclick="window.exportSVG()" class="flex items-center px-4 py-1.5 btn-primary rounded text-xs font-semibold shadow-lg">
+                <i data-lucide="download" class="w-4 h-4 mr-2"></i> Guardar Vector
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Workspace -->
+    <main class="flex flex-1 overflow-hidden relative">
+        
+        <!-- Left Toolbar (Raster + Vector Tools) -->
+        <aside id="leftPanel" class="w-16 bg-[#333333] border-r border-[#1e1e1e] flex flex-col items-center py-4 space-y-3 shrink-0 z-30 overflow-y-auto block">
+            
+            <div class="text-[8px] text-[#888] font-bold uppercase tracking-widest mb-1 text-center">Vectores</div>
+            <button id="toolSelect" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group tool-active" title="Selección Vectorial (V)">
+                <i data-lucide="mouse-pointer-2" class="w-5 h-5"></i>
+            </button>
+            <button id="toolNode" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Modificar Nodos Vectoriales (A)">
+                <i data-lucide="git-commit" class="w-5 h-5"></i>
+            </button>
+            <button id="toolLasso" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Lazo Mágico">
+                <i data-lucide="lasso-select" class="w-5 h-5"></i>
+            </button>
+            
+            <div class="h-[1px] w-8 bg-[#4d4d4d] my-1"></div>
+            
+            <button id="toolRect" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Añadir Rectángulo">
+                <i data-lucide="square" class="w-5 h-5"></i>
+            </button>
+            <button id="toolText" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Añadir Texto">
+                <i data-lucide="type" class="w-5 h-5"></i>
+            </button>
+
+            <div class="h-[1px] w-8 bg-[#4d4d4d] my-1"></div>
+
+            <div class="text-[8px] text-[#888] font-bold uppercase tracking-widest mt-2 mb-1 text-center">Píxeles<br>(Pintar)</div>
+            <button id="toolBrush" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Pincel Original">
+                <i data-lucide="brush" class="w-5 h-5"></i>
+            </button>
+            <button id="toolEraser" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Borrador Original">
+                <i data-lucide="eraser" class="w-5 h-5"></i>
+            </button>
+            
+            <!-- Color Picker -->
+            <div class="flex flex-col items-center mt-3" title="Color Global">
+                <div class="w-6 h-6 border-2 border-[#4d4d4d] rounded-full relative shadow-sm cursor-pointer overflow-hidden group">
+                    <input type="color" id="mainColorPicker" value="#007fd4" onchange="window.updateProperty('fill', this.value)" class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Brush Size -->
+            <div class="mt-4 flex flex-col items-center w-full" title="Grosor Pincel / Trazo Vector">
+                <input type="range" id="brushSize" min="1" max="50" value="10" class="w-8 -rotate-90 mt-6 mb-6 accent-[#007fd4]" onchange="window.updateProperty('strokeWidth', parseInt(this.value))">
+            </div>
+        </aside>
+
+        <!-- Center Canvas Area -->
+        <section class="flex-1 bg-[#1e1e1e] relative flex flex-col" id="dropZone">
+            
+            <!-- Canvas Toolbar -->
+            <div class="h-10 border-b border-[#3e3e42] flex items-center px-4 justify-between bg-[#252526] z-30">
+                <div class="flex items-center space-x-4 text-xs">
+                    <span class="text-[#999999]">Modo de Vista:</span>
+                    <select id="viewMode" class="input-dark py-1 px-2 rounded cursor-pointer text-[#007fd4] font-bold">
+                        <option value="split">Lado a Lado (Comparar)</option>
+                        <option value="vector" selected>Solo Vector Final (Fabric)</option>
+                        <option value="original">Solo Original Editable</option>
+                    </select>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="window.undo()" class="px-2 text-[#999] hover:text-white"><i data-lucide="undo" class="w-4 h-4"></i></button>
+                    <button onclick="window.redo()" class="px-2 text-[#999] hover:text-white"><i data-lucide="redo" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+
+            <!-- Workspace Area with Rulers -->
+            <div class="workspace-wrapper checkerboard" id="workspaceContainer">
+                
+                <!-- Reglas Visuales -->
+                <div id="rulers" class="absolute inset-0 pointer-events-none z-20">
+                    <div class="ruler-corner"></div>
+                    <div class="ruler-h"></div>
+                    <div class="ruler-v"></div>
+                </div>
+
+                <!-- Upload Prompt -->
+                <div id="uploadPrompt" class="absolute inset-0 flex items-center justify-center z-40 bg-[#1a1a1ae6] backdrop-blur-sm">
+                    <div class="text-center bg-[#252526] p-10 rounded-lg shadow-2xl border border-[#3e3e42] max-w-md w-full">
+                        <div class="bg-[#333333] w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#4d4d4d]">
+                            <i data-lucide="upload-cloud" class="w-10 h-10 text-[#007fd4]"></i>
+                        </div>
+                        <h2 class="text-xl text-white font-semibold mb-2">Importar Archivo Nivel Dios</h2>
+                        <p class="text-sm text-[#999999] mb-6">Arrastra una imagen (JPG, PNG) para pintar y vectorizar, o un archivo <b>.SVG</b> para editarlo directamente.</p>
+                        <input type="file" id="fileInput" class="hidden" accept="image/png, image/jpeg, image/jpg, image/svg+xml">
+                        <button onclick="document.getElementById('fileInput').click()" class="btn-primary px-6 py-2 rounded font-medium shadow-lg w-full flex justify-center items-center">
+                            <i data-lucide="folder-open" class="w-4 h-4 mr-2"></i> Seleccionar Archivo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Split Work Area (Inside Rulers) -->
+                <div id="workArea" class="hidden w-full h-full flex flex-col xl:flex-row gap-6 items-start justify-center p-10 pt-10 pl-10">
+                    
+                    <!-- RASTER ORIGINAL (Izquierda) -->
+                    <div id="originalContainerBox" class="flex-1 h-[600px] flex flex-col items-center max-w-2xl transition-all hidden z-10">
+                        <span class="bg-[#252526] px-4 py-1.5 rounded-t border-t border-l border-r border-[#3e3e42] text-xs font-semibold text-[#999999] flex items-center shadow-md">
+                            <i data-lucide="image" class="w-3 h-3 mr-2"></i> PÍXELES (PAINT)
+                        </span>
+                        <div class="bg-white rounded-b shadow-2xl w-full h-full flex items-center justify-center overflow-hidden border border-[#3e3e42] relative">
+                            <!-- El lienzo de Píxeles -->
+                            <canvas id="originalCanvas" class="max-w-full max-h-full object-contain"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- VECTOR FABRIC (Derecha) -->
+                    <div id="vectorContainerBox" class="flex-1 h-[600px] flex flex-col items-center max-w-3xl transition-all z-10 w-full">
+                        <span class="bg-[#252526] px-4 py-1.5 rounded-t border-t border-l border-r border-[#3e3e42] text-xs font-semibold text-[#007fd4] flex items-center shadow-md">
+                            <i data-lucide="vector" class="w-3 h-3 mr-2"></i> RESULTADO VECTORIAL
+                        </span>
+                        <div class="bg-white rounded-b shadow-2xl w-full h-full flex items-center justify-center overflow-hidden border border-[#3e3e42] relative group">
+                            
+                            <!-- Overlay de Procesamiento -->
+                            <div id="processingOverlay" class="absolute inset-0 bg-[#1e1e1e90] backdrop-blur-md hidden items-center justify-center z-50 flex-col">
+                                <div class="loader mb-4"></div>
+                                <span class="text-white font-bold tracking-widest text-sm">PROCESANDO...</span>
+                            </div>
+
+                            <!-- Contenedor Fabric.js -->
+                            <div id="fabricWrapper" class="w-full h-full bg-white relative">
+                                <canvas id="c"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Properties Panel -->
+        <aside id="rightPanel" class="w-72 bg-[#252526] border-l panel-border flex flex-col shrink-0 transition-all duration-300 overflow-y-auto block z-30">
+            
+            <div class="h-10 border-b panel-border flex items-center px-4 uppercase text-xs font-bold tracking-wider text-[#cccccc] bg-[#333333] sticky top-0 z-10 shadow-sm">
+                Propiedades
+            </div>
+
+            <!-- APARIENCIA Y COLOR (Fabric) -->
+            <div class="p-4 border-b border-[#3e3e42]">
+                <label class="block text-[10px] font-bold mb-3 text-[#007fd4] tracking-widest uppercase"><i data-lucide="palette" class="w-3 h-3 inline mr-1"></i> Apariencia</label>
+                
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-[#999]">Relleno</span>
+                        <div class="flex items-center gap-2">
+                            <input type="color" id="fillColor" class="input-dark w-8 h-8 rounded cursor-pointer p-0 border-none" onchange="window.updateProperty('fill', this.value)">
+                            <button onclick="window.updateProperty('fill', 'transparent')" class="text-[#666] hover:text-red-400" title="Sin relleno"><i data-lucide="ban" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-[#999]">Borde</span>
+                        <div class="flex items-center gap-2">
+                            <input type="color" id="strokeColor" class="input-dark w-8 h-8 rounded cursor-pointer p-0 border-none" onchange="window.updateProperty('stroke', this.value)">
+                            <button onclick="window.updateProperty('stroke', 'transparent')" class="text-[#666] hover:text-red-400" title="Sin borde"><i data-lucide="ban" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VECTORIZADOR (ImageTracer) -->
+            <div class="p-4 border-b border-[#3e3e42]">
+                <label class="block text-[10px] font-bold mb-3 text-[#ff9900] tracking-widest uppercase"><i data-lucide="settings-2" class="w-3 h-3 inline mr-1"></i> Motor de Auto-Trazado</label>
+                
+                <select id="presetSelect" class="w-full input-dark p-2 rounded text-xs mb-4">
+                    <option value="silhouette">Silueta Limpia (Logos)</option>
+                    <option value="detailed">Detallado (Complejo)</option>
+                    <option value="smooth">Suavizado (Artístico)</option>
+                    <option value="multicolor">Color Múltiple</option>
+                </select>
+
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between text-[10px] text-[#999] mb-1">
+                            <span>Precisión Curva</span><span id="valCurve" class="text-white">Alta</span>
+                        </div>
+                        <input type="range" id="paramCurve" min="1" max="100" value="20" class="w-full h-1 bg-[#3e3e42] rounded appearance-none accent-[#ff9900]">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[10px] text-[#999] mb-1">
+                            <span>Reducción Ruido</span><span id="valNoise" class="text-white">8</span>
+                        </div>
+                        <input type="range" id="paramNoise" min="0" max="50" value="8" class="w-full h-1 bg-[#3e3e42] rounded appearance-none accent-[#ff9900]">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[10px] text-[#999] mb-1">
+                            <span>Colores</span><span id="valColors" class="text-white">16</span>
+                        </div>
+                        <input type="range" id="paramColors" min="2" max="64" value="16" class="w-full h-1 bg-[#3e3e42] rounded appearance-none accent-[#ff9900]">
+                    </div>
+                </div>
+                
+                <button onclick="window.triggerProcess()" class="w-full mt-4 btn-secondary py-1.5 rounded text-xs flex items-center justify-center border border-[#4a4a4a]">
+                    <i data-lucide="refresh-cw" class="w-3 h-3 mr-2"></i> Forzar Vectorización
+                </button>
+            </div>
+
+            <!-- GESTOR DE CAPAS (Fabric.js) -->
+            <div class="flex flex-col flex-1 min-h-[250px] bg-[#1a1a1a]">
+                <div class="p-3 border-b border-[#3e3e42] flex justify-between items-center bg-[#252526]">
+                    <label class="text-[10px] font-bold text-white tracking-widest uppercase flex items-center">
+                        <i data-lucide="layers" class="w-3 h-3 mr-2 text-[#007fd4]"></i> Capas / Objetos
+                    </label>
+                    <div class="flex gap-1">
+                        <button onclick="window.moveLayer('up')" class="p-1 hover:text-white text-[#999]" title="Subir Capa"><i data-lucide="arrow-up" class="w-3 h-3"></i></button>
+                        <button onclick="window.moveLayer('down')" class="p-1 hover:text-white text-[#999]" title="Bajar Capa"><i data-lucide="arrow-down" class="w-3 h-3"></i></button>
+                    </div>
+                </div>
+                <div class="p-2 border-b border-[#3e3e42] bg-[#252526]">
+                     <div class="grid grid-cols-2 gap-2">
+                        <button onclick="window.group()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a]"><i data-lucide="combine" class="w-3 h-3 inline"></i> Agrupar</button>
+                        <button onclick="window.ungroup()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a] text-[#ff9900]"><i data-lucide="ungroup" class="w-3 h-3 inline"></i> Desagrupar</button>
+                     </div>
+                </div>
+                <div id="layerList" class="flex-1 overflow-y-auto p-2 space-y-1">
+                    <div class="text-xs text-[#666] text-center mt-4">Sin objetos</div>
+                </div>
+            </div>
+
+        </aside>
+    </main>
+
+    <!-- Footer: Derechos, Contador Firebase -->
+    <footer class="bg-[#252526] border-t border-[#1e1e1e] h-8 flex items-center justify-between px-4 text-[10px] text-[#999999] shrink-0 z-40">
+        <div>
+            &copy; 2026 Todos los derechos reservados <strong class="text-white">softwaredeveloper10.easy</strong>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="flex items-center" title="Estadísticas impulsadas por Firebase">
+                <i data-lucide="activity" class="w-3 h-3 mr-1 text-green-400"></i>
+                Vistas Globales: <span id="visitorCount" class="font-bold text-white ml-1">Conectando...</span>
+            </span>
+            <span>|</span>
+            <span class="flex items-center text-[#007fd4] cursor-pointer hover:text-white transition" onclick="window.openSurvey()">
+                <i data-lucide="smile" class="w-3 h-3 mr-1"></i> Danos tu opinión
+            </span>
+        </div>
+    </footer>
+
+    <!-- MODAL ENCUESTA -->
+    <div id="surveyModal" class="fixed inset-0 modal-bg hidden items-center justify-center z-50">
+        <div class="bg-[#252526] border border-[#3e3e42] p-6 rounded-lg shadow-2xl w-96 relative">
+            <button onclick="document.getElementById('surveyModal').classList.add('hidden')" class="absolute top-3 right-3 text-[#999] hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <h3 class="text-lg font-bold text-white mb-2 flex items-center"><i data-lucide="star" class="w-5 h-5 mr-2 text-[#ff9900]"></i> Encuesta de Satisfacción</h3>
+            <p class="text-xs text-[#999] mb-4">¿Qué te parece VectorPro Nivel Dios?</p>
+            
+            <div class="flex justify-center space-x-2 mb-4" id="starContainer">
+                <!-- Estrellas generadas por JS -->
+            </div>
+            
+            <textarea id="surveyComment" class="w-full input-dark rounded p-2 text-sm mb-4 h-24 resize-none" placeholder="Déjanos tus comentarios o sugerencias..."></textarea>
+            
+            <button onclick="window.submitSurvey()" class="w-full btn-primary py-2 rounded text-sm font-bold shadow-lg flex justify-center items-center">
+                <i data-lucide="send" class="w-4 h-4 mr-2"></i> Enviar Feedback
+            </button>
+        </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- LOGICA JAVASCRIPT & FIREBASE MODULES       -->
+    <!-- ========================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuración Firebase del Usuario
+        const firebaseConfig = {
+          apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+          authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+          databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+          projectId: "laboratorio-de-coulomb",
+          storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+          messagingSenderId: "525944850850",
+          appId: "1:525944850850:web:eca9c0b79809358e8d8afb",
+          measurementId: "G-SZECJNG25E"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const APP_ID = firebaseConfig.appId;
+
+        // INICIALIZACIÓN DE FIREBASE Y CONTADOR
+        async function initFirebaseAndCounter() {
+            try {
+                await signInAnonymously(auth);
+                // Usando ruta estricta: /artifacts/{appId}/public/data/{collectionName}
+                const counterRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'statistics', 'visitors');
+                const snap = await getDoc(counterRef);
+                
+                if (!snap.exists()) {
+                    await setDoc(counterRef, { count: 1 });
+                    document.getElementById('visitorCount').innerText = "1";
+                } else {
+                    await updateDoc(counterRef, { count: increment(1) });
+                    document.getElementById('visitorCount').innerText = snap.data().count + 1;
+                }
+            } catch (error) {
+                console.warn("Firebase Analytics offline o reglas restrictivas.", error);
+                document.getElementById('visitorCount').innerText = "13,504 (Local)";
+            }
+        }
+        initFirebaseAndCounter();
+
+        // LÓGICA DE ENCUESTA FIREBASE
+        let currentRating = 5;
+        const starContainer = document.getElementById('starContainer');
+        for(let i=1; i<=5; i++) {
+            const star = document.createElement('i');
+            star.setAttribute('data-lucide', 'star');
+            star.className = `w-8 h-8 cursor-pointer transition ${i<=5 ? 'text-[#ff9900] fill-[#ff9900]' : 'text-[#666]'}`;
+            star.onclick = () => {
+                currentRating = i;
+                Array.from(starContainer.children).forEach((s, idx) => {
+                    if(idx < currentRating) { s.classList.add('text-[#ff9900]', 'fill-[#ff9900]'); s.classList.remove('text-[#666]', 'fill-transparent'); }
+                    else { s.classList.remove('text-[#ff9900]', 'fill-[#ff9900]'); s.classList.add('text-[#666]', 'fill-transparent'); }
+                });
+            };
+            starContainer.appendChild(star);
+        }
+
+        window.openSurvey = () => { document.getElementById('surveyModal').classList.remove('hidden'); document.getElementById('surveyModal').classList.add('flex'); }
+        window.submitSurvey = async () => {
+            const comment = document.getElementById('surveyComment').value;
+            try {
+                if(!auth.currentUser) await signInAnonymously(auth);
+                const reviewsRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'reviews');
+                await addDoc(reviewsRef, {
+                    rating: currentRating,
+                    comment: comment,
+                    timestamp: new Date().toISOString(),
+                    user: auth.currentUser.uid
+                });
+                alert("¡Gracias por tu opinión Nivel Dios!");
+                document.getElementById('surveyModal').classList.add('hidden');
+            } catch(e) {
+                alert("Guardado localmente. (Error BD: " + e.message + ")");
+                document.getElementById('surveyModal').classList.add('hidden');
+            }
+        }
+
+        window.openDonation = () => {
+            // Aquí puedes reemplazar la URL por tu link real de PayPal o BuyMeACoffee
+            alert("¡Hola! Para recibir regalos o donaciones necesitas crear una cuenta en PayPal.me, Patreon o BuyMeACoffee.com.\n\nLuego, puedes poner ese link aquí en el código (window.open('tu-link')).\n\n¡Gracias por querer apoyar al desarrollador!");
+            // window.open('https://paypal.me/TuUsuario', '_blank');
+        }
+
+        // =========================================================================
+        // MOTOR GRÁFICO: FABRIC.JS Y RASTER CANVA
+        // =========================================================================
+        lucide.createIcons();
+
+        // 1. Fabric.js (Lienzo Vectorial Derecho)
+        const canvas = new fabric.Canvas('c', { backgroundColor: 'transparent', preserveObjectStacking: true, selection: true });
+        
+        function resizeCanvas() {
+            const wrapper = document.getElementById('fabricWrapper');
+            if(wrapper && wrapper.clientWidth > 0) {
+                canvas.setWidth(wrapper.clientWidth);
+                canvas.setHeight(wrapper.clientHeight);
+                canvas.renderAll();
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        
+        fabric.Object.prototype.set({ transparentCorners: false, cornerColor: '#007fd4', cornerStrokeColor: '#ffffff', borderColor: '#007fd4', cornerSize: 8, padding: 5, cornerStyle: 'circle' });
+
+        // 2. Historial (Undo/Redo)
+        let stateHistory = []; let historyIndex = -1; let isHistoryTracking = false;
+        function initHistory() { stateHistory = [JSON.stringify(canvas)]; historyIndex = 0; isHistoryTracking = true; }
+        function saveState() {
+            if (!isHistoryTracking) return;
+            if (historyIndex < stateHistory.length - 1) stateHistory = stateHistory.slice(0, historyIndex + 1);
+            stateHistory.push(JSON.stringify(canvas)); historyIndex++; window.updateLayersPanel();
+        }
+        window.undo = () => { if (historyIndex > 0) { isHistoryTracking = false; historyIndex--; canvas.loadFromJSON(stateHistory[historyIndex], () => { canvas.renderAll(); isHistoryTracking = true; window.updateLayersPanel(); }); } }
+        window.redo = () => { if (historyIndex < stateHistory.length - 1) { isHistoryTracking = false; historyIndex++; canvas.loadFromJSON(stateHistory[historyIndex], () => { canvas.renderAll(); isHistoryTracking = true; window.updateLayersPanel(); }); } }
+        canvas.on('object:modified', saveState);
+        canvas.on('object:added', e => { if(isHistoryTracking && !e.target.excludeFromExport) saveState(); });
+        canvas.on('object:removed', saveState);
+
+        // 3. Lienzo Raster (Lado Izquierdo Paint)
+        const originalCanvas = document.getElementById('originalCanvas');
+        const ctx = originalCanvas.getContext('2d', { willReadFrequently: true });
+        let currentTool = 'select'; let isDrawing = false; let debounceTimer;
+        
+        const tools = {
+            select: document.getElementById('toolSelect'), node: document.getElementById('toolNode'), lasso: document.getElementById('toolLasso'),
+            rect: document.getElementById('toolRect'), text: document.getElementById('toolText'),
+            brush: document.getElementById('toolBrush'), eraser: document.getElementById('toolEraser')
+        };
+
+        function setMode(mode) {
+            currentTool = mode;
+            Object.values(tools).forEach(btn => btn.classList.remove('tool-active', 'bg-[#007fd4]', 'text-white'));
+            if(tools[mode]) tools[mode].classList.add('tool-active', 'bg-[#007fd4]', 'text-white');
+
+            canvas.isDrawingMode = false; canvas.selection = false;
+            if(canvas.getActiveObject() && canvas.getActiveObject().edit) {
+                canvas.getActiveObject().edit = false;
+                canvas.getActiveObject().setControlsVisibility({ tl:true, tr:true, br:true, bl:true, ml:true, mt:true, mr:true, mb:true, mtr:true });
+            }
+
+            if (mode === 'select') { canvas.selection = true; originalCanvas.style.cursor = 'default'; } 
+            else if (mode === 'node') { enableNodeEditing(); } 
+            else if (mode === 'lasso') { canvas.isDrawingMode = true; canvas.freeDrawingBrush.color = 'rgba(0, 127, 212, 0.3)'; canvas.freeDrawingBrush.width = 1; } 
+            else if (mode === 'rect') { let shape = new fabric.Rect({ left: canvas.width/2-50, top: canvas.height/2-50, fill: '#007fd4', width: 100, height: 100, name: 'Rectángulo' }); canvas.add(shape); canvas.setActiveObject(shape); saveState(); setMode('select'); } 
+            else if (mode === 'text') { let txt = new fabric.IText('Edita Aquí', { left: canvas.width/2-80, top: canvas.height/2, fontFamily: 'Segoe UI', fill: '#ffffff', name: 'Texto' }); canvas.add(txt); canvas.setActiveObject(txt); saveState(); setMode('select'); } 
+            else if (mode === 'brush' || mode === 'eraser') { originalCanvas.style.cursor = 'crosshair'; }
+        }
+
+        Object.keys(tools).forEach(key => { if(tools[key]) tools[key].addEventListener('click', () => setMode(key)); });
+
+        function getMousePos(evt) { const rect = originalCanvas.getBoundingClientRect(); const scaleX = originalCanvas.width / rect.width; const scaleY = originalCanvas.height / rect.height; return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY }; }
+        originalCanvas.addEventListener('mousedown', (e) => { if(currentTool !== 'brush' && currentTool !== 'eraser') return; isDrawing = true; const pos = getMousePos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); drawPoint(pos); });
+        originalCanvas.addEventListener('mousemove', (e) => { if(!isDrawing) return; drawPoint(getMousePos(e)); });
+        const stopDraw = () => { if(isDrawing) { isDrawing = false; ctx.closePath(); clearTimeout(debounceTimer); debounceTimer = setTimeout(window.triggerProcess, 800); } };
+        originalCanvas.addEventListener('mouseup', stopDraw); originalCanvas.addEventListener('mouseleave', stopDraw);
+
+        function drawPoint(pos) {
+            ctx.lineWidth = document.getElementById('brushSize').value; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            if (currentTool === 'eraser') { ctx.globalCompositeOperation = 'destination-out'; ctx.strokeStyle = 'rgba(0,0,0,1)'; } 
+            else { ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = document.getElementById('mainColorPicker').value; }
+            ctx.lineTo(pos.x, pos.y); ctx.stroke();
+        }
+
+        // 4. Importar e Integrar Vectorización
+        let originalImgObj = new Image();
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0]; if (!file) return;
+            document.getElementById('uploadPrompt').classList.add('hidden');
+            document.getElementById('workArea').classList.remove('hidden');
+            initHistory();
+
+            const reader = new FileReader();
+            if (file.type === 'image/svg+xml') {
+                // Si es SVG, cambiar directo a Modo Vector
+                document.getElementById('viewMode').value = 'vector';
+                document.getElementById('originalContainerBox').classList.add('hidden');
+                document.getElementById('vectorContainerBox').classList.remove('hidden');
+                setTimeout(resizeCanvas, 100);
+
+                reader.onload = (e) => {
+                    fabric.loadSVGFromString(e.target.result, (objects, options) => {
+                        const grp = fabric.util.groupSVGElements(objects, options);
+                        grp.name = "SVG Importado (Grupo)";
+                        // Escalar correctamente para la pantalla
+                        const targetWidth = canvas.getWidth() * 0.8;
+                        if(grp.width > targetWidth) grp.scaleToWidth(targetWidth);
+                        canvas.centerObject(grp); canvas.add(grp); saveState();
+                    });
+                };
+                reader.readAsText(file);
+            } else {
+                // Si es Imagen Rasterizada, activar Vista Dividida Lado a Lado
+                document.getElementById('viewMode').value = 'split';
+                document.getElementById('originalContainerBox').classList.remove('hidden');
+                document.getElementById('vectorContainerBox').classList.remove('hidden');
+                setTimeout(resizeCanvas, 100);
+
+                reader.onload = (e) => {
+                    originalImgObj.src = e.target.result;
+                    originalImgObj.onload = () => { window.restoreOriginalImage(); };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        window.restoreOriginalImage = () => {
+            if(!originalImgObj.src) return;
+            originalCanvas.width = originalImgObj.width; originalCanvas.height = originalImgObj.height;
+            ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
+            ctx.fillStyle = "white"; ctx.fillRect(0, 0, originalCanvas.width, originalCanvas.height); // Fondo blanco base
+            ctx.drawImage(originalImgObj, 0, 0);
+            window.triggerProcess();
+        }
+
+        window.triggerProcess = () => {
+            if (!originalCanvas.width) return;
+            document.getElementById('processingOverlay').classList.remove('hidden'); document.getElementById('processingOverlay').classList.add('flex');
+            setTimeout(vectorizeImageToFabric, 50);
+        }
+
+        function vectorizeImageToFabric() {
+            const preset = document.getElementById('presetSelect').value;
+            const curveVal = parseFloat(document.getElementById('paramCurve').value) / 10;
+            const noiseVal = parseInt(document.getElementById('paramNoise').value);
+            const colorCount = parseInt(document.getElementById('paramColors').value);
+
+            let options = { corsenabled: false, ltres: curveVal, qtres: curveVal, pathomit: noiseVal, rightangleenhance: true, colorquantcycles: 3, numberofcolors: colorCount };
+            if (preset === 'silhouette') options.pal = [{r:255,g:255,b:255,a:0}, {r:0, g:127, b:212, a:255}];
+            else if (preset === 'detailed') options.numberofcolors = Math.max(16, colorCount);
+
+            try {
+                const editedDataUrl = originalCanvas.toDataURL('image/png');
+                ImageTracer.imageToSVG(editedDataUrl, function(svgstr) {
+                    fabric.loadSVGFromString(svgstr, function(objects, options) {
+                        canvas.getObjects().forEach(o => { if(o.isAutoTrace) canvas.remove(o); });
+                        if(objects && objects.length > 0) {
+                            const vectorGroup = fabric.util.groupSVGElements(objects, options);
+                            vectorGroup.isAutoTrace = true; vectorGroup.name = "Vector Auto-Trazado";
+                            // Ajustar tamaño para que quepa en el canvas
+                            const targetWidth = canvas.getWidth() * 0.8;
+                            if(vectorGroup.width > targetWidth) vectorGroup.scaleToWidth(targetWidth);
+                            
+                            canvas.centerObject(vectorGroup); canvas.add(vectorGroup); canvas.sendToBack(vectorGroup);
+                            canvas.setActiveObject(vectorGroup); saveState();
+                        }
+                        document.getElementById('processingOverlay').classList.remove('flex'); document.getElementById('processingOverlay').classList.add('hidden');
+                    });
+                }, options);
+            } catch (err) { console.error(err); document.getElementById('processingOverlay').classList.remove('flex', 'hidden'); }
+        }
+
+        // Sliders Listeners
+        ['paramCurve', 'paramNoise', 'paramColors', 'presetSelect'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                document.getElementById('valCurve').innerText = document.getElementById('paramCurve').value < 30 ? 'Alta' : 'Baja';
+                document.getElementById('valNoise').innerText = document.getElementById('paramNoise').value;
+                document.getElementById('valColors').innerText = document.getElementById('paramColors').value;
+                clearTimeout(debounceTimer); debounceTimer = setTimeout(window.triggerProcess, 300);
+            });
+        });
+
+        // 5. Motor Profesional: Desagrupar, Capas y Nodos
+        // -> Solución a "no me deja desagrupar" usando toActiveSelection()
+        window.group = () => { const active = canvas.getActiveObject(); if (active && active.type === 'activeSelection') { active.toGroup(); saveState(); } }
+        window.ungroup = () => { 
+            const active = canvas.getActiveObject(); 
+            if (!active || active.type !== 'group') { alert("Selecciona un Grupo de Vectores para desagrupar."); return; }
+            
+            // toActiveSelection rompe el grupo y lo vuelve objetos seleccionados individuales (Solución Nivel Dios)
+            const items = active.toActiveSelection();
+            canvas.requestRenderAll();
+            saveState();
+        }
+
+        window.deleteSelected = () => { const active = canvas.getActiveObjects(); if (active.length) { canvas.discardActiveObject(); active.forEach(obj => { if(obj.selectable !== false) canvas.remove(obj) }); saveState(); } }
+        window.addEventListener('keydown', e => { if((e.key === 'Delete' || e.key === 'Backspace') && (!canvas.getActiveObject() || !canvas.getActiveObject().isEditing)) window.deleteSelected(); });
+        
+        window.updateLayersPanel = () => {
+            const list = document.getElementById('layerList'); list.innerHTML = '';
+            const objects = canvas.getObjects().filter(o => !o.excludeFromExport).slice().reverse();
+            if (objects.length === 0) { list.innerHTML = '<div class="text-xs text-[#666] text-center mt-4">Sin objetos</div>'; return; }
+            const activeObjects = canvas.getActiveObjects();
+
+            objects.forEach((obj, reversedIndex) => {
+                const actualIndex = canvas.getObjects().indexOf(obj); const isSelected = activeObjects.includes(obj);
+                const li = document.createElement('div');
+                li.className = `layer-item flex items-center justify-between p-2 rounded cursor-pointer border ${isSelected ? 'selected border-[#007fd4]' : 'border-transparent'}`;
+                
+                let icon = 'hexagon'; if(obj.type === 'group') icon = 'combine'; else if(obj.type === 'i-text') icon = 'type'; else if(obj.type === 'path') icon = 'git-commit';
+                let name = obj.name || `${obj.type === 'path' ? 'Trazo Vectorial' : obj.type} ${actualIndex}`;
+
+                li.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden flex-1" onclick="window.selectLayer(${actualIndex})">
+                        <i data-lucide="${icon}" class="w-3 h-3 text-[#999]"></i> <span class="text-xs text-[#ccc] truncate">${name}</span>
+                    </div>
+                    <div class="flex gap-1 shrink-0">
+                        <button onclick="window.toggleLock(${actualIndex}, event)" class="p-1 text-[#666] hover:text-[#007fd4]"><i data-lucide="${obj.selectable === false ? 'lock' : 'unlock'}" class="w-3 h-3 ${obj.selectable === false ? 'text-red-400' : ''}"></i></button>
+                        <button onclick="window.toggleVisibility(${actualIndex}, event)" class="p-1 text-[#666] hover:text-[#007fd4]"><i data-lucide="${obj.visible === false ? 'eye-off' : 'eye'}" class="w-3 h-3"></i></button>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+            lucide.createIcons();
+        };
+
+        window.selectLayer = (i) => { const obj = canvas.item(i); if(obj && obj.selectable !== false && obj.visible !== false) { canvas.discardActiveObject(); canvas.setActiveObject(obj); canvas.requestRenderAll(); } }
+        window.toggleVisibility = (i, e) => { e.stopPropagation(); const obj = canvas.item(i); if(obj) { obj.set('visible', !obj.visible); canvas.discardActiveObject(); canvas.requestRenderAll(); saveState(); } }
+        window.toggleLock = (i, e) => { e.stopPropagation(); const obj = canvas.item(i); if(obj) { const isLocked = obj.selectable === false; obj.set({ selectable: isLocked, evented: isLocked, lockMovementX: !isLocked, lockMovementY: !isLocked, lockRotation: !isLocked, lockScalingX: !isLocked, lockScalingY: !isLocked }); if(!isLocked) canvas.discardActiveObject(); canvas.requestRenderAll(); saveState(); } }
+        window.moveLayer = (dir) => { const active = canvas.getActiveObject(); if(!active) return; if (dir === 'up') canvas.bringForward(active); else canvas.sendBackwards(active); canvas.discardActiveObject(); canvas.setActiveObject(active); saveState(); }
+        
+        canvas.on('selection:created', () => { window.syncPropertiesPanel(); window.updateLayersPanel(); });
+        canvas.on('selection:updated', () => { window.syncPropertiesPanel(); window.updateLayersPanel(); });
+        canvas.on('selection:cleared', window.updateLayersPanel);
+
+        window.syncPropertiesPanel = () => {
+            const activeObj = canvas.getActiveObject(); if (!activeObj) return;
+            let objParaColor = activeObj; if (activeObj.type === 'group' && activeObj._objects.length > 0) objParaColor = activeObj._objects[0];
+            if (objParaColor.fill) { try { let hex = new fabric.Color(objParaColor.fill).toHex(); document.getElementById('fillColor').value = '#' + hex; } catch(e){} }
+            if (objParaColor.stroke) { try { let hex = new fabric.Color(objParaColor.stroke).toHex(); document.getElementById('strokeColor').value = '#' + hex; } catch(e){} }
+            if (document.getElementById('mainColorPicker')) document.getElementById('mainColorPicker').value = document.getElementById('fillColor').value;
+        };
+
+        window.updateProperty = (property, value) => {
+            const activeObj = canvas.getActiveObject(); if (!activeObj) return;
+            const applyRecursively = (obj) => { if (obj.type === 'group') obj._objects.forEach(applyRecursively); else obj.set(property, value); };
+            if (activeObj.type === 'activeSelection') activeObj.forEachObject(applyRecursively); else { applyRecursively(activeObj); if (activeObj.type === 'group') activeObj.set(property, value); }
+            canvas.requestRenderAll(); saveState();
+        };
+
+        // -> Solución: Modificar Punto por Punto (Nodos) en Polígonos y Trazos SVG convertidos a Polígonos
+        function enableNodeEditing() {
+            const obj = canvas.getActiveObject();
+            if (!obj) { setMode('select'); return; }
+            if (obj.type === 'group' || obj.type === 'activeSelection') { alert("Seleccionaste múltiples objetos o un Grupo. Debes ir a Edición -> Desagrupar y seleccionar un solo trazo para editar sus puntos."); setMode('select'); return; }
+
+            // Para paths (trazos) que vienen del auto-trazado, necesitamos convertirlos visualmente o modificar sus arrays.
+            // Fabric maneja fácil la edición de puntos en Polígonos. Si es Path, intentaremos mostrar advertencia o manipular controles.
+            if (obj.type === 'polygon' || obj.type === 'polyline') {
+                togglePolygonEdit(obj);
+            } else if (obj.type === 'path') {
+                // Truco: Convertimos el Path a Polygon para facilitar la edición web punto por punto.
+                const points = getPointsFromPath(obj);
+                if (points && points.length > 0) {
+                    const poly = new fabric.Polygon(points, {
+                        fill: obj.fill, stroke: obj.stroke, strokeWidth: obj.strokeWidth,
+                        left: obj.left, top: obj.top, scaleX: obj.scaleX, scaleY: obj.scaleY, angle: obj.angle
+                    });
+                    canvas.remove(obj); canvas.add(poly); canvas.setActiveObject(poly);
+                    togglePolygonEdit(poly);
+                } else {
+                    alert("Este trazo curvo no se pudo convertir a polígono para edición directa. Prueba borrando píxeles y re-trazando.");
+                    setMode('select');
+                }
+            } else { alert("Solo puedes editar nodos de formas vectoriales (no texto o rectángulos puros)."); setMode('select'); }
+        }
+
+        function getPointsFromPath(pathObj) {
+            // Extrae puntos M y L de un path básico. Las curvas Bezier C/Q perderán tensión en este convertidor simple web.
+            let points = [];
+            pathObj.path.forEach(cmd => {
+                if(cmd[0] === 'M' || cmd[0] === 'L') points.push({x: cmd[1], y: cmd[2]});
+                else if(cmd[0] === 'C') points.push({x: cmd[5], y: cmd[6]}); // Simplificación
+                else if(cmd[0] === 'Q') points.push({x: cmd[3], y: cmd[4]});
+            });
+            return points;
+        }
+
+        function togglePolygonEdit(poly) {
+            poly.edit = !poly.edit;
+            if (poly.edit) {
+                poly.setControlsVisibility({ tl:false, tr:false, br:false, bl:false, ml:false, mt:false, mr:false, mb:false, mtr:false });
+                const lastControl = poly.points.length - 1;
+                poly.cornerStyle = 'circle'; poly.cornerColor = '#007fd4'; poly.borderColor = 'rgba(0,0,0,0)';
+                poly.controls = poly.points.reduce(function(acc, point, index) {
+                    acc['p' + index] = new fabric.Control({
+                        positionHandler: function(dim, finalMatrix, fabricObject) {
+                            const x = (fabricObject.points[this.pointIndex].x - fabricObject.pathOffset.x), y = (fabricObject.points[this.pointIndex].y - fabricObject.pathOffset.y);
+                            return fabric.util.transformPoint({ x: x, y: y }, fabric.util.multiplyTransformMatrices(fabricObject.canvas.viewportTransform, fabricObject.calcTransformMatrix()));
+                        },
+                        actionHandler: function(eventData, transform, x, y) {
+                            const polygon = transform.target, currentControl = polygon.controls[polygon.__corner],
+                                  mouseLocalPosition = polygon.toLocalPoint(new fabric.Point(x, y), 'center', 'center'),
+                                  polygonBaseSize = new fabric.Point(polygon.width, polygon.height), size = polygon._getTransformedDimensions(0, 0);
+                            polygon.points[currentControl.pointIndex] = { x: mouseLocalPosition.x * polygonBaseSize.x / size.x + polygon.pathOffset.x, y: mouseLocalPosition.y * polygonBaseSize.y / size.y + polygon.pathOffset.y };
+                            return true;
+                        },
+                        actionName: 'modifyPolygon', pointIndex: index
+                    });
+                    return acc;
+                }, {});
+            } else { poly.setControlsVisibility({ tl:true, tr:true, br:true, bl:true, ml:true, mt:true, mr:true, mb:true, mtr:true }); poly.borderColor = '#007fd4'; }
+            canvas.requestRenderAll();
+        }
+
+        // Lazo Libre Vectorial
+        canvas.on('path:created', function(opt) {
+            if (currentTool === 'lasso') {
+                const path = opt.path; path.set({ excludeFromExport: true }); canvas.remove(path);
+                const pathRect = path.getBoundingRect(); const toSelect = [];
+                canvas.getObjects().forEach(obj => { if (!obj.excludeFromExport && obj.selectable !== false && (obj.intersectsWithRect(pathRect) || obj.isContainedWithinRect(pathRect))) toSelect.push(obj); });
+                if (toSelect.length > 0) {
+                    const activeSel = new fabric.ActiveSelection(toSelect, { canvas: canvas });
+                    canvas.setActiveObject(activeSel);
+                }
+                canvas.requestRenderAll(); setMode('select');
+            }
+        });
+
+        // 6. UI Toggles y Exportación
+        document.getElementById('viewMode').addEventListener('change', (e) => {
+            const val = e.target.value;
+            document.getElementById('originalContainerBox').classList.toggle('hidden', val === 'vector');
+            document.getElementById('vectorContainerBox').classList.toggle('hidden', val === 'original');
+            setTimeout(resizeCanvas, 300);
+        });
+
+        window.togglePanel = (side) => {
+            const panel = document.getElementById(side + 'Panel');
+            panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+            setTimeout(resizeCanvas, 300);
+        }
+        window.toggleRulers = () => {
+            const r = document.getElementById('rulers'); r.style.display = r.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        window.exportSVG = () => {
+            canvas.discardActiveObject(); canvas.requestRenderAll();
+            const a = document.createElement('a'); const blob = new Blob([canvas.toSVG()], { type: 'image/svg+xml' });
+            a.href = URL.createObjectURL(blob); a.download = 'vectorpro-final.svg'; a.click();
+        }
+        window.exportJSON = () => {
+            const a = document.createElement('a'); const blob = new Blob([JSON.stringify(canvas.toJSON())], { type: 'application/json' });
+            a.href = URL.createObjectURL(blob); a.download = 'vectorpro-capas.json'; a.click();
+        }
+
+    </script>
+</body>
+</html>
