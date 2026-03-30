@@ -157,14 +157,24 @@
             <button id="toolNode" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Modificar Nodos Vectoriales (A)">
                 <i data-lucide="git-commit" class="w-5 h-5"></i>
             </button>
+            <button id="toolVectorBrush" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Trazo Vector Libre y Limpio (Auto-Curvas)">
+                <i data-lucide="pen-tool" class="w-5 h-5"></i>
+            </button>
             <button id="toolLasso" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Lazo Mágico">
                 <i data-lucide="lasso-select" class="w-5 h-5"></i>
             </button>
             
             <div class="h-[1px] w-8 bg-[#4d4d4d] my-1"></div>
             
+            <!-- Shapes -->
             <button id="toolRect" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Añadir Rectángulo">
                 <i data-lucide="square" class="w-5 h-5"></i>
+            </button>
+            <button id="toolCircle" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Añadir Círculo">
+                <i data-lucide="circle" class="w-5 h-5"></i>
+            </button>
+            <button id="toolTriangle" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Añadir Triángulo">
+                <i data-lucide="triangle" class="w-5 h-5"></i>
             </button>
             <button id="toolText" class="tool-btn p-2 text-[#999999] hover:text-white rounded transition relative group" title="Añadir Texto">
                 <i data-lucide="type" class="w-5 h-5"></i>
@@ -183,13 +193,13 @@
             <!-- Color Picker -->
             <div class="flex flex-col items-center mt-3" title="Color Global">
                 <div class="w-6 h-6 border-2 border-[#4d4d4d] rounded-full relative shadow-sm cursor-pointer overflow-hidden group">
-                    <input type="color" id="mainColorPicker" value="#007fd4" onchange="window.updateProperty('fill', this.value)" class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer">
+                    <input type="color" id="mainColorPicker" value="#007fd4" class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer">
                 </div>
             </div>
 
             <!-- Brush Size -->
             <div class="mt-4 flex flex-col items-center w-full" title="Grosor Pincel / Trazo Vector">
-                <input type="range" id="brushSize" min="1" max="50" value="10" class="w-8 -rotate-90 mt-6 mb-6 accent-[#007fd4]" onchange="window.updateProperty('strokeWidth', parseInt(this.value))">
+                <input type="range" id="brushSize" min="1" max="50" value="5" class="w-8 -rotate-90 mt-6 mb-6 accent-[#007fd4]">
             </div>
         </aside>
 
@@ -304,6 +314,17 @@
                 </div>
             </div>
 
+            <!-- TRAZOS Y AUTO-CURVAS -->
+            <div class="p-4 border-b border-[#3e3e42]">
+                <label class="block text-[10px] font-bold mb-3 text-[#007fd4] tracking-widest uppercase"><i data-lucide="pen-tool" class="w-3 h-3 inline mr-1"></i> Trazos Libres y Curvas</label>
+                <div>
+                    <div class="flex justify-between text-[10px] text-[#999] mb-1">
+                        <span title="Mejora y limpia los puntos del trazo libre">Nivel de Suavizado</span><span id="valSmooth" class="text-white">Media (4)</span>
+                    </div>
+                    <input type="range" id="paramSmooth" min="0" max="20" value="4" class="w-full h-1 bg-[#3e3e42] rounded appearance-none accent-[#007fd4]">
+                </div>
+            </div>
+
             <!-- VECTORIZADOR (ImageTracer) -->
             <div class="p-4 border-b border-[#3e3e42]">
                 <label class="block text-[10px] font-bold mb-3 text-[#ff9900] tracking-widest uppercase"><i data-lucide="settings-2" class="w-3 h-3 inline mr-1"></i> Motor de Auto-Trazado</label>
@@ -356,6 +377,7 @@
                      <div class="grid grid-cols-2 gap-2">
                         <button onclick="window.group()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a]"><i data-lucide="combine" class="w-3 h-3 inline"></i> Agrupar</button>
                         <button onclick="window.ungroup()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a] text-[#ff9900]"><i data-lucide="ungroup" class="w-3 h-3 inline"></i> Desagrupar</button>
+                        <button onclick="window.smoothSelectedPath()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a] text-[#007fd4] col-span-2 mt-1" title="Limpia puntos innecesarios y suaviza el objeto seleccionado"><i data-lucide="activity" class="w-3 h-3 inline"></i> Optimizar Puntas y Curvas</button>
                      </div>
                 </div>
                 <div id="layerList" class="flex-1 overflow-y-auto p-2 space-y-1">
@@ -433,7 +455,6 @@
         async function initFirebaseAndCounter() {
             try {
                 await signInAnonymously(auth);
-                // Usando ruta estricta: /artifacts/{appId}/public/data/{collectionName}
                 const counterRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'statistics', 'visitors');
                 const snap = await getDoc(counterRef);
                 
@@ -489,9 +510,7 @@
         }
 
         window.openDonation = () => {
-            // Aquí puedes reemplazar la URL por tu link real de PayPal o BuyMeACoffee
             alert("¡Hola! Para recibir regalos o donaciones necesitas crear una cuenta en PayPal.me, Patreon o BuyMeACoffee.com.\n\nLuego, puedes poner ese link aquí en el código (window.open('tu-link')).\n\n¡Gracias por querer apoyar al desarrollador!");
-            // window.open('https://paypal.me/TuUsuario', '_blank');
         }
 
         // =========================================================================
@@ -535,7 +554,8 @@
         
         const tools = {
             select: document.getElementById('toolSelect'), node: document.getElementById('toolNode'), lasso: document.getElementById('toolLasso'),
-            rect: document.getElementById('toolRect'), text: document.getElementById('toolText'),
+            vectorBrush: document.getElementById('toolVectorBrush'), // Herramienta nueva de Trazo Libre
+            rect: document.getElementById('toolRect'), circle: document.getElementById('toolCircle'), triangle: document.getElementById('toolTriangle'), text: document.getElementById('toolText'),
             brush: document.getElementById('toolBrush'), eraser: document.getElementById('toolEraser')
         };
 
@@ -552,14 +572,25 @@
 
             if (mode === 'select') { canvas.selection = true; originalCanvas.style.cursor = 'default'; } 
             else if (mode === 'node') { enableNodeEditing(); } 
-            else if (mode === 'lasso') { canvas.isDrawingMode = true; canvas.freeDrawingBrush.color = 'rgba(0, 127, 212, 0.3)'; canvas.freeDrawingBrush.width = 1; } 
-            else if (mode === 'rect') { let shape = new fabric.Rect({ left: canvas.width/2-50, top: canvas.height/2-50, fill: '#007fd4', width: 100, height: 100, name: 'Rectángulo' }); canvas.add(shape); canvas.setActiveObject(shape); saveState(); setMode('select'); } 
+            else if (mode === 'vectorBrush') { 
+                canvas.isDrawingMode = true; 
+                canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+                canvas.freeDrawingBrush.color = document.getElementById('mainColorPicker').value;
+                canvas.freeDrawingBrush.width = parseInt(document.getElementById('brushSize').value) || 5;
+                // Aplica el nivel de suavizado del slider automáticamente al dibujar
+                canvas.freeDrawingBrush.decimate = parseFloat(document.getElementById('paramSmooth').value) || 4; 
+            }
+            else if (mode === 'lasso') { canvas.isDrawingMode = true; canvas.freeDrawingBrush = new fabric.PencilBrush(canvas); canvas.freeDrawingBrush.color = 'rgba(0, 127, 212, 0.3)'; canvas.freeDrawingBrush.width = 1; canvas.freeDrawingBrush.decimate = 0;} 
+            else if (mode === 'rect') { let shape = new fabric.Rect({ left: canvas.width/2-50, top: canvas.height/2-50, fill: document.getElementById('mainColorPicker').value, width: 100, height: 100, name: 'Rectángulo' }); canvas.add(shape); canvas.setActiveObject(shape); saveState(); setMode('select'); } 
+            else if (mode === 'circle') { let shape = new fabric.Circle({ left: canvas.width/2-50, top: canvas.height/2-50, fill: document.getElementById('mainColorPicker').value, radius: 50, name: 'Círculo' }); canvas.add(shape); canvas.setActiveObject(shape); saveState(); setMode('select'); } 
+            else if (mode === 'triangle') { let shape = new fabric.Triangle({ left: canvas.width/2-50, top: canvas.height/2-50, fill: document.getElementById('mainColorPicker').value, width: 100, height: 100, name: 'Triángulo' }); canvas.add(shape); canvas.setActiveObject(shape); saveState(); setMode('select'); } 
             else if (mode === 'text') { let txt = new fabric.IText('Edita Aquí', { left: canvas.width/2-80, top: canvas.height/2, fontFamily: 'Segoe UI', fill: '#ffffff', name: 'Texto' }); canvas.add(txt); canvas.setActiveObject(txt); saveState(); setMode('select'); } 
             else if (mode === 'brush' || mode === 'eraser') { originalCanvas.style.cursor = 'crosshair'; }
         }
 
         Object.keys(tools).forEach(key => { if(tools[key]) tools[key].addEventListener('click', () => setMode(key)); });
 
+        // Paint en Original
         function getMousePos(evt) { const rect = originalCanvas.getBoundingClientRect(); const scaleX = originalCanvas.width / rect.width; const scaleY = originalCanvas.height / rect.height; return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY }; }
         originalCanvas.addEventListener('mousedown', (e) => { if(currentTool !== 'brush' && currentTool !== 'eraser') return; isDrawing = true; const pos = getMousePos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); drawPoint(pos); });
         originalCanvas.addEventListener('mousemove', (e) => { if(!isDrawing) return; drawPoint(getMousePos(e)); });
@@ -583,7 +614,6 @@
 
             const reader = new FileReader();
             if (file.type === 'image/svg+xml') {
-                // Si es SVG, cambiar directo a Modo Vector
                 document.getElementById('viewMode').value = 'vector';
                 document.getElementById('originalContainerBox').classList.add('hidden');
                 document.getElementById('vectorContainerBox').classList.remove('hidden');
@@ -593,7 +623,6 @@
                     fabric.loadSVGFromString(e.target.result, (objects, options) => {
                         const grp = fabric.util.groupSVGElements(objects, options);
                         grp.name = "SVG Importado (Grupo)";
-                        // Escalar correctamente para la pantalla
                         const targetWidth = canvas.getWidth() * 0.8;
                         if(grp.width > targetWidth) grp.scaleToWidth(targetWidth);
                         canvas.centerObject(grp); canvas.add(grp); saveState();
@@ -601,7 +630,6 @@
                 };
                 reader.readAsText(file);
             } else {
-                // Si es Imagen Rasterizada, activar Vista Dividida Lado a Lado
                 document.getElementById('viewMode').value = 'split';
                 document.getElementById('originalContainerBox').classList.remove('hidden');
                 document.getElementById('vectorContainerBox').classList.remove('hidden');
@@ -619,7 +647,7 @@
             if(!originalImgObj.src) return;
             originalCanvas.width = originalImgObj.width; originalCanvas.height = originalImgObj.height;
             ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
-            ctx.fillStyle = "white"; ctx.fillRect(0, 0, originalCanvas.width, originalCanvas.height); // Fondo blanco base
+            ctx.fillStyle = "white"; ctx.fillRect(0, 0, originalCanvas.width, originalCanvas.height);
             ctx.drawImage(originalImgObj, 0, 0);
             window.triggerProcess();
         }
@@ -648,7 +676,6 @@
                         if(objects && objects.length > 0) {
                             const vectorGroup = fabric.util.groupSVGElements(objects, options);
                             vectorGroup.isAutoTrace = true; vectorGroup.name = "Vector Auto-Trazado";
-                            // Ajustar tamaño para que quepa en el canvas
                             const targetWidth = canvas.getWidth() * 0.8;
                             if(vectorGroup.width > targetWidth) vectorGroup.scaleToWidth(targetWidth);
                             
@@ -671,17 +698,30 @@
             });
         });
 
+        // Evento Nivel de Suavizado de Puntas y Curvas
+        document.getElementById('paramSmooth').addEventListener('input', (e) => {
+            const val = e.target.value;
+            document.getElementById('valSmooth').innerText = val < 2 ? `Crudo (${val})` : (val < 8 ? `Media (${val})` : `Limpio (${val})`);
+            if(canvas.freeDrawingBrush && currentTool === 'vectorBrush') canvas.freeDrawingBrush.decimate = parseFloat(val);
+        });
+
+        window.updateProperty = (property, value) => {
+            // Sincronizar UI de Fabric y UI de Paint Tools
+            if(property === 'fill' || property === 'stroke') { document.getElementById('mainColorPicker').value = value; }
+            if(property === 'strokeWidth' && currentTool === 'vectorBrush' && canvas.freeDrawingBrush) { canvas.freeDrawingBrush.width = value; }
+
+            const activeObj = canvas.getActiveObject(); if (!activeObj) return;
+            const applyRecursively = (obj) => { if (obj.type === 'group') obj._objects.forEach(applyRecursively); else obj.set(property, value); };
+            if (activeObj.type === 'activeSelection') activeObj.forEachObject(applyRecursively); else { applyRecursively(activeObj); if (activeObj.type === 'group') activeObj.set(property, value); }
+            canvas.requestRenderAll(); saveState();
+        };
+
         // 5. Motor Profesional: Desagrupar, Capas y Nodos
-        // -> Solución a "no me deja desagrupar" usando toActiveSelection()
         window.group = () => { const active = canvas.getActiveObject(); if (active && active.type === 'activeSelection') { active.toGroup(); saveState(); } }
         window.ungroup = () => { 
             const active = canvas.getActiveObject(); 
             if (!active || active.type !== 'group') { alert("Selecciona un Grupo de Vectores para desagrupar."); return; }
-            
-            // toActiveSelection rompe el grupo y lo vuelve objetos seleccionados individuales (Solución Nivel Dios)
-            const items = active.toActiveSelection();
-            canvas.requestRenderAll();
-            saveState();
+            const items = active.toActiveSelection(); canvas.requestRenderAll(); saveState();
         }
 
         window.deleteSelected = () => { const active = canvas.getActiveObjects(); if (active.length) { canvas.discardActiveObject(); active.forEach(obj => { if(obj.selectable !== false) canvas.remove(obj) }); saveState(); } }
@@ -729,143 +769,105 @@
             let objParaColor = activeObj; if (activeObj.type === 'group' && activeObj._objects.length > 0) objParaColor = activeObj._objects[0];
             if (objParaColor.fill) { try { let hex = new fabric.Color(objParaColor.fill).toHex(); document.getElementById('fillColor').value = '#' + hex; } catch(e){} }
             if (objParaColor.stroke) { try { let hex = new fabric.Color(objParaColor.stroke).toHex(); document.getElementById('strokeColor').value = '#' + hex; } catch(e){} }
-            if (document.getElementById('mainColorPicker')) document.getElementById('mainColorPicker').value = document.getElementById('fillColor').value;
         };
 
-        window.updateProperty = (property, value) => {
-            const activeObj = canvas.getActiveObject(); if (!activeObj) return;
-            const applyRecursively = (obj) => { if (obj.type === 'group') obj._objects.forEach(applyRecursively); else obj.set(property, value); };
-            if (activeObj.type === 'activeSelection') activeObj.forEachObject(applyRecursively); else { applyRecursively(activeObj); if (activeObj.type === 'group') activeObj.set(property, value); }
-            canvas.requestRenderAll(); saveState();
+        // MEJORA DE PUNTAS Y CURVAS (Simplificación)
+        window.smoothSelectedPath = () => {
+            const obj = canvas.getActiveObject();
+            if (!obj || (obj.type !== 'path' && obj.type !== 'polygon' && obj.type !== 'polyline')) {
+                alert("Selecciona un trazo individual (desagrupado) para poder suavizar sus curvas y puntas."); return;
+            }
+            
+            let points = [];
+            if (obj.type === 'path') { points = getPointsFromPath(obj); } 
+            else { points = obj.points.map(p => ({ x: p.x, y: p.y })); }
+            
+            if (points.length < 3) return;
+
+            // Algoritmo de Simplificación de Fabric basado en el nivel del Slider
+            const tolerance = parseFloat(document.getElementById('paramSmooth').value) || 4;
+            const simplifiedPoints = fabric.util.simplify(points, tolerance);
+
+            const poly = new fabric.Polygon(simplifiedPoints, {
+                fill: obj.fill, stroke: obj.stroke, strokeWidth: obj.strokeWidth,
+                left: obj.left, top: obj.top, scaleX: obj.scaleX, scaleY: obj.scaleY, angle: obj.angle, name: "Trazo Suavizado"
+            });
+            
+            canvas.remove(obj); canvas.add(poly); canvas.setActiveObject(poly); saveState();
         };
 
-        // -> Solución: Modificar Punto por Punto (Nodos) en Polígonos y Trazos SVG convertidos a Polígonos
+        // MATEMÁTICA Y EDICIÓN DE NODOS
         function enableNodeEditing() {
             const obj = canvas.getActiveObject();
             if (!obj) { setMode('select'); return; }
             if (obj.type === 'group' || obj.type === 'activeSelection') { alert("Seleccionaste múltiples objetos o un Grupo. Debes ir a Edición -> Desagrupar y seleccionar un solo trazo para editar sus puntos."); setMode('select'); return; }
 
-            // Para paths (trazos) que vienen del auto-trazado, necesitamos convertirlos visualmente o modificar sus arrays.
-            // Fabric maneja fácil la edición de puntos en Polígonos. Si es Path, intentaremos mostrar advertencia o manipular controles.
             if (obj.type === 'polygon' || obj.type === 'polyline') {
                 togglePolygonEdit(obj);
             } else if (obj.type === 'path') {
-                // Truco: Convertimos el Path a Polygon para facilitar la edición web punto por punto.
                 const points = getPointsFromPath(obj);
                 if (points && points.length > 0) {
-                    const poly = new fabric.Polygon(points, {
-                        fill: obj.fill, stroke: obj.stroke, strokeWidth: obj.strokeWidth,
-                        left: obj.left, top: obj.top, scaleX: obj.scaleX, scaleY: obj.scaleY, angle: obj.angle
-                    });
-                    canvas.remove(obj); canvas.add(poly); canvas.setActiveObject(poly);
-                    togglePolygonEdit(poly);
-                } else {
-                    alert("Este trazo curvo no se pudo convertir a polígono para edición directa. Prueba borrando píxeles y re-trazando.");
-                    setMode('select');
-                }
-            } else { alert("Solo puedes editar nodos de formas vectoriales (no texto o rectángulos puros)."); setMode('select'); }
+                    const poly = new fabric.Polygon(points, { fill: obj.fill, stroke: obj.stroke, strokeWidth: obj.strokeWidth, left: obj.left, top: obj.top, scaleX: obj.scaleX, scaleY: obj.scaleY, angle: obj.angle, name: obj.name });
+                    canvas.remove(obj); canvas.add(poly); canvas.setActiveObject(poly); togglePolygonEdit(poly);
+                } else { alert("Este trazo curvo no se pudo convertir para edición directa."); setMode('select'); }
+            } else { alert("Solo puedes editar nodos de formas vectoriales (no texto o rectángulos simples)."); setMode('select'); }
         }
 
         function getPointsFromPath(pathObj) {
-            // Extrae puntos M y L de un path básico. Las curvas Bezier C/Q perderán tensión en este convertidor simple web.
             let points = [];
             pathObj.path.forEach(cmd => {
                 if(cmd[0] === 'M' || cmd[0] === 'L') points.push({x: cmd[1], y: cmd[2]});
-                else if(cmd[0] === 'C') points.push({x: cmd[5], y: cmd[6]}); // Simplificación
+                else if(cmd[0] === 'C') points.push({x: cmd[5], y: cmd[6]}); 
                 else if(cmd[0] === 'Q') points.push({x: cmd[3], y: cmd[4]});
             });
             return points;
         }
 
-        // ==========================================
-        // FUNCIONES MATEMÁTICAS PARA EDICIÓN DE NODOS
-        // ==========================================
         function polygonPositionHandler(dim, finalMatrix, fabricObject) {
-            const x = (fabricObject.points[this.pointIndex].x - fabricObject.pathOffset.x),
-                  y = (fabricObject.points[this.pointIndex].y - fabricObject.pathOffset.y);
-            return fabric.util.transformPoint(
-                { x: x, y: y },
-                fabric.util.multiplyTransformMatrices(fabricObject.canvas.viewportTransform, fabricObject.calcTransformMatrix())
-            );
+            const x = (fabricObject.points[this.pointIndex].x - fabricObject.pathOffset.x), y = (fabricObject.points[this.pointIndex].y - fabricObject.pathOffset.y);
+            return fabric.util.transformPoint({ x: x, y: y }, fabric.util.multiplyTransformMatrices(fabricObject.canvas.viewportTransform, fabricObject.calcTransformMatrix()));
         }
 
         function getObjectSizeWithStroke(object) {
-            const stroke = new fabric.Point(
-                object.strokeUniform ? 1 / object.scaleX : 1,
-                object.strokeUniform ? 1 / object.scaleY : 1
-            ).multiply(object.strokeWidth || 0);
+            const stroke = new fabric.Point(object.strokeUniform ? 1 / object.scaleX : 1, object.strokeUniform ? 1 / object.scaleY : 1).multiply(object.strokeWidth || 0);
             return new fabric.Point(object.width + stroke.x, object.height + stroke.y);
         }
 
         function polygonActionHandler(eventData, transform, x, y) {
-            const polygon = transform.target,
-                  currentControl = polygon.controls[polygon.__corner],
-                  mouseLocalPosition = polygon.toLocalPoint(new fabric.Point(x, y), 'center', 'center'),
-                  polygonBaseSize = getObjectSizeWithStroke(polygon),
-                  size = polygon._getTransformedDimensions(0, 0),
-                  finalPointPosition = {
-                      x: mouseLocalPosition.x * polygonBaseSize.x / size.x + polygon.pathOffset.x,
-                      y: mouseLocalPosition.y * polygonBaseSize.y / size.y + polygon.pathOffset.y
-                  };
-            polygon.points[currentControl.pointIndex] = finalPointPosition;
-            return true;
+            const polygon = transform.target, currentControl = polygon.controls[polygon.__corner], mouseLocalPosition = polygon.toLocalPoint(new fabric.Point(x, y), 'center', 'center'), polygonBaseSize = getObjectSizeWithStroke(polygon), size = polygon._getTransformedDimensions(0, 0), finalPointPosition = { x: mouseLocalPosition.x * polygonBaseSize.x / size.x + polygon.pathOffset.x, y: mouseLocalPosition.y * polygonBaseSize.y / size.y + polygon.pathOffset.y };
+            polygon.points[currentControl.pointIndex] = finalPointPosition; return true;
         }
 
         function anchorWrapper(anchorIndex, fn) {
             return function(eventData, transform, x, y) {
-                const fabricObject = transform.target,
-                      absolutePoint = fabric.util.transformPoint({
-                          x: (fabricObject.points[anchorIndex].x - fabricObject.pathOffset.x),
-                          y: (fabricObject.points[anchorIndex].y - fabricObject.pathOffset.y),
-                      }, fabricObject.calcTransformMatrix()),
-                      actionPerformed = fn(eventData, transform, x, y),
-                      newDim = fabricObject._setPositionDimensions({}),
-                      polygonBaseSize = getObjectSizeWithStroke(fabricObject),
-                      newX = (fabricObject.points[anchorIndex].x - fabricObject.pathOffset.x) / polygonBaseSize.x,
-                      newY = (fabricObject.points[anchorIndex].y - fabricObject.pathOffset.y) / polygonBaseSize.y;
-                fabricObject.setPositionByOrigin(absolutePoint, newX + 0.5, newY + 0.5);
-                return actionPerformed;
+                const fabricObject = transform.target, absolutePoint = fabric.util.transformPoint({ x: (fabricObject.points[anchorIndex].x - fabricObject.pathOffset.x), y: (fabricObject.points[anchorIndex].y - fabricObject.pathOffset.y) }, fabricObject.calcTransformMatrix()), actionPerformed = fn(eventData, transform, x, y), newDim = fabricObject._setPositionDimensions({}), polygonBaseSize = getObjectSizeWithStroke(fabricObject), newX = (fabricObject.points[anchorIndex].x - fabricObject.pathOffset.x) / polygonBaseSize.x, newY = (fabricObject.points[anchorIndex].y - fabricObject.pathOffset.y) / polygonBaseSize.y;
+                fabricObject.setPositionByOrigin(absolutePoint, newX + 0.5, newY + 0.5); return actionPerformed;
             }
         }
 
         function togglePolygonEdit(poly) {
             poly.edit = !poly.edit;
             if (poly.edit) {
-                poly.objectCaching = false; // CRÍTICO: Apaga la caché para que el SVG mute en tiempo real
-                poly.setControlsVisibility({ tl:false, tr:false, br:false, bl:false, ml:false, mt:false, mr:false, mb:false, mtr:false });
-                const lastControl = poly.points.length - 1;
-                poly.cornerStyle = 'circle'; poly.cornerColor = '#007fd4'; poly.borderColor = 'rgba(0,0,0,0)';
-                
+                poly.objectCaching = false; poly.setControlsVisibility({ tl:false, tr:false, br:false, bl:false, ml:false, mt:false, mr:false, mb:false, mtr:false });
+                const lastControl = poly.points.length - 1; poly.cornerStyle = 'circle'; poly.cornerColor = '#007fd4'; poly.borderColor = 'rgba(0,0,0,0)';
                 poly.controls = poly.points.reduce(function(acc, point, index) {
-                    acc['p' + index] = new fabric.Control({
-                        positionHandler: polygonPositionHandler,
-                        actionHandler: anchorWrapper(index > 0 ? index - 1 : lastControl, polygonActionHandler),
-                        actionName: 'modifyPolygon',
-                        pointIndex: index
-                    });
+                    acc['p' + index] = new fabric.Control({ positionHandler: polygonPositionHandler, actionHandler: anchorWrapper(index > 0 ? index - 1 : lastControl, polygonActionHandler), actionName: 'modifyPolygon', pointIndex: index });
                     return acc;
                 }, {});
-            } else { 
-                poly.objectCaching = true; // Restaura la caché al salir del modo edición
-                poly.setControlsVisibility({ tl:true, tr:true, br:true, bl:true, ml:true, mt:true, mr:true, mb:true, mtr:true }); 
-                poly.borderColor = '#007fd4'; 
-                saveState(); // Guarda el SVG modificado en el historial (Deshacer/Rehacer)
-            }
-            poly.set({ dirty: true });
-            canvas.requestRenderAll();
+            } else { poly.objectCaching = true; poly.setControlsVisibility({ tl:true, tr:true, br:true, bl:true, ml:true, mt:true, mr:true, mb:true, mtr:true }); poly.borderColor = '#007fd4'; saveState(); }
+            poly.set({ dirty: true }); canvas.requestRenderAll();
         }
 
-        // Lazo Libre Vectorial
+        // Lazo y Brush Libre Customizado
         canvas.on('path:created', function(opt) {
             if (currentTool === 'lasso') {
                 const path = opt.path; path.set({ excludeFromExport: true }); canvas.remove(path);
                 const pathRect = path.getBoundingRect(); const toSelect = [];
                 canvas.getObjects().forEach(obj => { if (!obj.excludeFromExport && obj.selectable !== false && (obj.intersectsWithRect(pathRect) || obj.isContainedWithinRect(pathRect))) toSelect.push(obj); });
-                if (toSelect.length > 0) {
-                    const activeSel = new fabric.ActiveSelection(toSelect, { canvas: canvas });
-                    canvas.setActiveObject(activeSel);
-                }
+                if (toSelect.length > 0) canvas.setActiveObject(new fabric.ActiveSelection(toSelect, { canvas: canvas }));
                 canvas.requestRenderAll(); setMode('select');
+            } else if (currentTool === 'vectorBrush') {
+                opt.path.set({ name: 'Trazo Libre' }); saveState();
             }
         });
 
@@ -877,24 +879,11 @@
             setTimeout(resizeCanvas, 300);
         });
 
-        window.togglePanel = (side) => {
-            const panel = document.getElementById(side + 'Panel');
-            panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
-            setTimeout(resizeCanvas, 300);
-        }
-        window.toggleRulers = () => {
-            const r = document.getElementById('rulers'); r.style.display = r.style.display === 'none' ? 'block' : 'none';
-        }
+        window.togglePanel = (side) => { const panel = document.getElementById(side + 'Panel'); panel.style.display = panel.style.display === 'none' ? 'flex' : 'none'; setTimeout(resizeCanvas, 300); }
+        window.toggleRulers = () => { const r = document.getElementById('rulers'); r.style.display = r.style.display === 'none' ? 'block' : 'none'; }
         
-        window.exportSVG = () => {
-            canvas.discardActiveObject(); canvas.requestRenderAll();
-            const a = document.createElement('a'); const blob = new Blob([canvas.toSVG()], { type: 'image/svg+xml' });
-            a.href = URL.createObjectURL(blob); a.download = 'vectorpro-final.svg'; a.click();
-        }
-        window.exportJSON = () => {
-            const a = document.createElement('a'); const blob = new Blob([JSON.stringify(canvas.toJSON())], { type: 'application/json' });
-            a.href = URL.createObjectURL(blob); a.download = 'vectorpro-capas.json'; a.click();
-        }
+        window.exportSVG = () => { canvas.discardActiveObject(); canvas.requestRenderAll(); const a = document.createElement('a'); const blob = new Blob([canvas.toSVG()], { type: 'image/svg+xml' }); a.href = URL.createObjectURL(blob); a.download = 'vectorpro-final.svg'; a.click(); }
+        window.exportJSON = () => { const a = document.createElement('a'); const blob = new Blob([JSON.stringify(canvas.toJSON())], { type: 'application/json' }); a.href = URL.createObjectURL(blob); a.download = 'vectorpro-capas.json'; a.click(); }
 
     </script>
 </body>
