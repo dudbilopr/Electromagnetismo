@@ -115,6 +115,7 @@
                         <div class="border-t border-[#4a4a4a] my-1"></div>
                         <button onclick="window.group()"><i data-lucide="combine" class="w-4 h-4 mr-2 text-[#ff9900]"></i>Agrupar Vectores</button>
                         <button onclick="window.ungroup()"><i data-lucide="ungroup" class="w-4 h-4 mr-2 text-[#ff9900]"></i>Desagrupar Vectores</button>
+                        <button onclick="window.splitCompoundPath()"><i data-lucide="scissors" class="w-4 h-4 mr-2 text-red-400"></i>Partir / Cortar Objeto</button>
                     </div>
                 </div>
                 <div class="relative dropdown h-10 flex items-center">
@@ -375,8 +376,9 @@
                 </div>
                 <div class="p-2 border-b border-[#3e3e42] bg-[#252526]">
                      <div class="grid grid-cols-2 gap-2">
-                        <button onclick="window.group()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a]"><i data-lucide="combine" class="w-3 h-3 inline"></i> Agrupar</button>
-                        <button onclick="window.ungroup()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a] text-[#ff9900]"><i data-lucide="ungroup" class="w-3 h-3 inline"></i> Desagrupar</button>
+                        <button onclick="window.group()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a]" title="Agrupar"><i data-lucide="combine" class="w-3 h-3 inline"></i> Agrupar</button>
+                        <button onclick="window.ungroup()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a] text-[#ff9900]" title="Desagrupar"><i data-lucide="ungroup" class="w-3 h-3 inline"></i> Desagrupar</button>
+                        <button onclick="window.splitCompoundPath()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a] text-red-400 col-span-2 mt-1" title="Corta un trazo compuesto separándolo en objetos individuales (Ideal para separar letras o partes del mismo color)"><i data-lucide="scissors" class="w-3 h-3 inline"></i> Partir / Cortar Objeto</button>
                         <button onclick="window.smoothSelectedPath()" class="btn-secondary text-[10px] py-1 rounded border border-[#4a4a4a] text-[#007fd4] col-span-2 mt-1" title="Limpia puntos innecesarios y suaviza el objeto seleccionado"><i data-lucide="activity" class="w-3 h-3 inline"></i> Optimizar Puntas y Curvas</button>
                      </div>
                 </div>
@@ -724,6 +726,58 @@
             const items = active.toActiveSelection(); canvas.requestRenderAll(); saveState();
         }
 
+        // FUNCION PARA PARTIR UN OBJETO (NUEVO)
+        window.splitCompoundPath = () => {
+            const active = canvas.getActiveObject();
+            if (!active || active.type !== 'path') {
+                alert("Selecciona un solo 'Trazo Vectorial' múltiple (Path) para partirlo. (Si seleccionaste un grupo, primero usa 'Desagrupar').");
+                return;
+            }
+
+            const pathStrings = [];
+            let currentString = "";
+            
+            // Extraer comandos para separar partes desconectadas (M indica mover el cursor a un nuevo subtrazo)
+            active.path.forEach(cmd => {
+                if ((cmd[0] === 'M' || cmd[0] === 'm') && currentString.trim() !== "") {
+                    pathStrings.push(currentString.trim());
+                    currentString = "";
+                }
+                currentString += cmd.join(" ") + " ";
+            });
+            if (currentString.trim() !== "") pathStrings.push(currentString.trim());
+
+            if (pathStrings.length <= 1) {
+                alert("Este trazo es una pieza continua matemática. No hay fragmentos separados en este objeto para partir.");
+                return;
+            }
+
+            const newObjects = [];
+            const transformMatrix = active.calcTransformMatrix();
+
+            pathStrings.forEach(pathStr => {
+                const newPath = new fabric.Path(pathStr, {
+                    fill: active.fill,
+                    stroke: active.stroke,
+                    strokeWidth: active.strokeWidth,
+                    opacity: active.opacity,
+                    name: "Fragmento Cortado"
+                });
+                
+                // Aplicamos la matriz para que no pierda su posición original
+                fabric.util.applyTransformToObject(newPath, transformMatrix);
+                newObjects.push(newPath);
+            });
+
+            canvas.remove(active);
+            newObjects.forEach(obj => canvas.add(obj));
+            
+            const sel = new fabric.ActiveSelection(newObjects, { canvas: canvas });
+            canvas.setActiveObject(sel);
+            canvas.requestRenderAll();
+            saveState();
+        };
+
         window.deleteSelected = () => { const active = canvas.getActiveObjects(); if (active.length) { canvas.discardActiveObject(); active.forEach(obj => { if(obj.selectable !== false) canvas.remove(obj) }); saveState(); } }
         window.addEventListener('keydown', e => { if((e.key === 'Delete' || e.key === 'Backspace') && (!canvas.getActiveObject() || !canvas.getActiveObject().isEditing)) window.deleteSelected(); });
         
@@ -796,7 +850,7 @@
             canvas.remove(obj); canvas.add(poly); canvas.setActiveObject(poly); saveState();
         };
 
-        // MATEMÁTICA Y EDICIÓN DE NODOS
+        // MATEMÁTICA Y EDICIÓN DE NODOS CON RECALCULO DE SVG DIRECTO
         function enableNodeEditing() {
             const obj = canvas.getActiveObject();
             if (!obj) { setMode('select'); return; }
