@@ -124,7 +124,7 @@
         #super-toolbar {
             position: absolute; top: 70px; right: 10px; z-index: 200;
             background: rgba(15, 23, 42, 0.95); border: 1px solid #3b82f6;
-            padding: 12px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            padding: 0 12px 12px 12px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
             display: none; flex-direction: column; gap: 8px; backdrop-filter: blur(10px);
             width: 240px; max-height: 80vh; overflow-y: auto;
         }
@@ -203,6 +203,78 @@
         .theme-brutal .panel-style { background: #ffffff; border: 4px solid #000; border-radius: 0px; box-shadow: 8px 8px 0px #000; color: #000; }
         .theme-cyber { background: #09090b; color: #22c55e; background-image: linear-gradient(rgba(34, 197, 94, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 197, 94, 0.1) 1px, transparent 1px); background-size: 20px 20px; }
         .theme-cyber .panel-style { background: rgba(0,0,0,0.8); border: 1px solid #22c55e; border-radius: 0; box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); }
+
+        /* =====================================================================
+           NUEVOS ESTILOS: CAPAS, PINCEL, BORRADOR, DESHACER, TOOLBAR MOVIBLE
+           ===================================================================== */
+
+        /* Barra de arrastre del toolbar */
+        #toolbar-drag-handle {
+            cursor: grab; padding: 10px 0 6px 0; text-align: center; 
+            border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 6px;
+            position: sticky; top: 0; z-index: 10;
+            background: rgba(15, 23, 42, 0.98); border-radius: 12px 12px 0 0;
+        }
+        #toolbar-drag-handle:active { cursor: grabbing; }
+        #toolbar-drag-handle .drag-dots {
+            display: flex; justify-content: center; gap: 3px; opacity: 0.4;
+        }
+        #toolbar-drag-handle .drag-dots span {
+            width: 4px; height: 4px; background: #94a3b8; border-radius: 50%;
+        }
+
+        /* Canvas de dibujo libre */
+        #drawing-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 55; pointer-events: none; 
+        }
+        body.edit-mode.tool-brush #drawing-canvas,
+        body.edit-mode.tool-eraser #drawing-canvas { pointer-events: all; }
+        body.edit-mode.tool-brush #drawing-canvas { cursor: crosshair; }
+        body.edit-mode.tool-eraser #drawing-canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23ff6b6b' stroke-width='2'/%3E%3Cline x1='6' y1='6' x2='18' y2='18' stroke='%23ff6b6b' stroke-width='2'/%3E%3C/svg%3E") 12 12, auto; }
+
+        /* Botones de deshacer/rehacer flotantes */
+        #undo-redo-bar {
+            display: none; position: absolute; bottom: 230px; left: 50%; transform: translateX(-50%);
+            z-index: 190; background: rgba(15,23,42,0.92); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 30px; padding: 4px 8px; backdrop-filter: blur(12px);
+            gap: 4px; align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        body.edit-mode #undo-redo-bar { display: flex; }
+        .undo-redo-btn {
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+            color: #cbd5e1; width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .undo-redo-btn:hover:not(:disabled) { background: rgba(59,130,246,0.3); color: white; border-color: #3b82f6; }
+        .undo-redo-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+        .undo-redo-count {
+            font-size: 0.55rem; color: #64748b; min-width: 30px; text-align: center;
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* Indicador de capa en seleccion */
+        .layer-badge {
+            position: absolute; top: -18px; right: -5px; background: #7c3aed;
+            color: white; font-size: 0.5rem; padding: 1px 5px; border-radius: 8px;
+            font-weight: 700; pointer-events: none; white-space: nowrap;
+            font-family: 'Fira Code', monospace; z-index: 9999;
+        }
+
+        /* Configuración del pincel en toolbar */
+        .brush-config { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .brush-size-preview {
+            width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .brush-dot {
+            border-radius: 50%; background: currentColor; transition: all 0.15s;
+        }
+
+        /* Separador visual */
+        .toolbar-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0; }
     </style>
 </head>
 <body class="bg-black tool-move" onclick="handleBodyClick(event)">
@@ -247,16 +319,49 @@
 
         <!-- PANEL DE SUPER-EDICIÓN FLOTANTE -->
         <div id="super-toolbar">
-            <div class="toolbar-title">🛠️ Herramientas</div>
+
+            <!-- BARRA DE ARRASTRE PARA MOVER EL TOOLBAR -->
+            <div id="toolbar-drag-handle">
+                <div class="drag-dots"><span></span><span></span><span></span><span></span><span></span></div>
+                <div class="toolbar-title" style="border-bottom:none; padding-bottom:0; margin-bottom:0;">🛠️ Herramientas</div>
+            </div>
             
-            <div class="flex gap-1 justify-between mb-1">
+            <div class="flex gap-1 justify-between mb-1" style="flex-wrap: wrap;">
                 <button class="tool-btn active" onclick="setTool('move')" id="btn-tool-move" title="Mover Objetos"><i data-lucide="mouse-pointer-2" class="w-4 h-4"></i></button>
                 <button class="tool-btn" onclick="setTool('text')" id="btn-tool-text" title="Editar Texto/LaTeX"><i data-lucide="type" class="w-4 h-4"></i></button>
                 <button class="tool-btn" onclick="setTool('graphics')" id="btn-tool-graphics" title="Editar Gráficos/Vectores"><i data-lucide="shapes" class="w-4 h-4"></i></button>
+                <button class="tool-btn" onclick="setTool('brush')" id="btn-tool-brush" title="Pincel Libre"><i data-lucide="pen-tool" class="w-4 h-4"></i></button>
+                <button class="tool-btn" onclick="setTool('eraser')" id="btn-tool-eraser" title="Borrador"><i data-lucide="eraser" class="w-4 h-4"></i></button>
             </div>
             
             <div class="text-[0.55rem] text-center text-gray-400 mb-2 leading-tight" id="tool-hint">
                 Shift+Clic para selec. múltiple.<br>Usa flechas teclado para mover.<br>Usa 'Suprimir' para borrar.
+            </div>
+
+            <!-- CONFIGURACIÓN DEL PINCEL (visible solo con brush/eraser) -->
+            <div id="brush-settings" style="display:none;">
+                <div class="toolbar-title">🖌️ Pincel / Borrador</div>
+                <div class="toolbar-row mb-1">
+                    <span>Color:</span>
+                    <input type="color" class="color-picker" id="brush-color" value="#fbbf24">
+                </div>
+                <div class="toolbar-row mb-1">
+                    <span>Grosor:</span>
+                    <div class="brush-config">
+                        <input type="range" id="brush-size" min="1" max="30" value="3" class="w-[70px]" oninput="updateBrushPreview()">
+                        <div class="brush-size-preview" style="color: var(--brush-preview-color, #fbbf24);">
+                            <div class="brush-dot" id="brush-dot-preview" style="width:3px;height:3px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="toolbar-row mb-1">
+                    <span>Opacidad:</span>
+                    <input type="range" id="brush-opacity" min="10" max="100" value="100" class="w-[100px]">
+                </div>
+                <button class="btn-action w-full bg-red-900 hover:bg-red-700 mt-1" onclick="clearAllDrawing()">
+                    <i data-lucide="trash-2" class="w-3 h-3"></i> Borrar todo el dibujo
+                </button>
+                <div class="toolbar-divider"></div>
             </div>
 
             <!-- Controles de Alineación -->
@@ -265,6 +370,23 @@
                 <button class="align-btn" onclick="alignSelected('left')" title="Alinear Izquierda"><i data-lucide="align-left" class="w-4 h-4"></i></button>
                 <button class="align-btn" onclick="alignSelected('center')" title="Centrar Horizontal"><i data-lucide="align-center" class="w-4 h-4"></i></button>
                 <button class="align-btn" onclick="alignSelected('right')" title="Alinear Derecha"><i data-lucide="align-right" class="w-4 h-4"></i></button>
+            </div>
+
+            <!-- NUEVO: CONTROLES DE CAPAS -->
+            <div class="toolbar-title mt-2">📚 Capas (Z-Index)</div>
+            <div class="shape-btn-grid">
+                <button class="btn-action" onclick="changeLayer('front', event)" title="Traer al frente total">
+                    <i data-lucide="chevrons-up" class="w-3 h-3"></i> Al Frente
+                </button>
+                <button class="btn-action" onclick="changeLayer('forward', event)" title="Subir una capa">
+                    <i data-lucide="chevron-up" class="w-3 h-3"></i> Adelante
+                </button>
+                <button class="btn-action" onclick="changeLayer('backward', event)" title="Bajar una capa">
+                    <i data-lucide="chevron-down" class="w-3 h-3"></i> Atrás
+                </button>
+                <button class="btn-action" onclick="changeLayer('back', event)" title="Enviar al fondo total">
+                    <i data-lucide="chevrons-down" class="w-3 h-3"></i> Al Fondo
+                </button>
             </div>
 
             <div class="toolbar-title mt-2">🎨 Estilos</div>
@@ -324,10 +446,24 @@
             </div>
         </div>
 
+        <!-- BARRA FLOTANTE DE DESHACER / REHACER -->
+        <div id="undo-redo-bar">
+            <button class="undo-redo-btn" id="btn-undo" onclick="undoAction()" disabled title="Deshacer (Ctrl+Z)">
+                <i data-lucide="undo-2" class="w-4 h-4"></i>
+            </button>
+            <span class="undo-redo-count" id="undo-count">0/0</span>
+            <button class="undo-redo-btn" id="btn-redo" onclick="redoAction()" disabled title="Rehacer (Ctrl+Y)">
+                <i data-lucide="redo-2" class="w-4 h-4"></i>
+            </button>
+        </div>
+
         <div id="watermark" class="watermark editable-item">MATHEMATICS.10EASY</div>
 
         <!-- LIENZO MATEMÁTICO PRINCIPAL -->
         <div id="math-canvas">
+
+            <!-- CANVAS DE DIBUJO LIBRE (superpuesto) -->
+            <canvas id="drawing-canvas"></canvas>
             
             <div id="step-0" class="math-step panel-style p-6">
                 <h2 class="font-bold text-sm mb-2 opacity-80 uppercase tracking-widest text-center editable-item">TEMA: Determinantes 3x3</h2>
@@ -619,6 +755,7 @@
             if(type === 'square') html = `<div id="${shapeId}" class="editable-item custom-shape shape-square" style="top:20%; left:50%;"></div>`;
             if(type === 'brace') html = `<div id="${shapeId}" class="editable-item custom-shape shape-brace" style="top:20%; left:50%;"></div>`;
             stepEl.insertAdjacentHTML('beforeend', html);
+            pushUndoState('Añadir forma');
         }
 
         // =================================================================
@@ -628,9 +765,13 @@
             const canvasClone = document.getElementById('math-canvas').cloneNode(true);
             canvasClone.querySelectorAll('.math-step').forEach(el => el.classList.remove('active'));
             canvasClone.querySelectorAll('.selected-item').forEach(el => el.classList.remove('selected-item'));
+            // Eliminar el canvas de dibujo del clon para no guardar el elemento DOM
+            const drawCanvasClone = canvasClone.querySelector('#drawing-canvas');
+            if(drawCanvasClone) drawCanvasClone.remove();
             return {
                 script: scriptData, vectors: VECTORS, totalSteps: totalSteps, config: USER_CONFIG,
                 canvasHTML: canvasClone.innerHTML,
+                drawingStrokes: drawingStrokes, // NUEVO: guardar trazos de dibujo
                 colors: {
                     p1: document.documentElement.style.getPropertyValue('--color-paso1') || '#4ade80',
                     p2: document.documentElement.style.getPropertyValue('--color-paso2') || '#ec4899',
@@ -642,13 +783,18 @@
 
         function applyProjectData(data) {
             scriptData = data.script; VECTORS = data.vectors; totalSteps = data.totalSteps; USER_CONFIG = data.config;
+            // Preservar el canvas de dibujo
+            const drawCanvas = document.getElementById('drawing-canvas');
             document.getElementById('math-canvas').innerHTML = data.canvasHTML;
+            document.getElementById('math-canvas').prepend(drawCanvas);
             if(data.colors) {
                 document.documentElement.style.setProperty('--color-paso1', data.colors.p1);
                 document.documentElement.style.setProperty('--color-paso2', data.colors.p2);
                 document.documentElement.style.setProperty('--color-paso3', data.colors.p3);
                 document.documentElement.style.setProperty('--font-principal', data.colors.font);
             }
+            // NUEVO: restaurar trazos de dibujo
+            if(data.drawingStrokes) { drawingStrokes = data.drawingStrokes; redrawAllStrokes(); }
             neonActive = !data.neon; toggleNeon({stopPropagation:()=>{}});
             renderSVGs(); resetApp(); selectedNodes = []; activeSvgPoint = null;
         }
@@ -690,6 +836,8 @@
             }
             renderSVGs(); document.getElementById('step-0').classList.add('active');
             lucide.createIcons(); initDrag(); initDoubleClickHandler(); initKeyboardControls();
+            initDrawingCanvas();   // NUEVO
+            initToolbarDrag();     // NUEVO
         };
 
         // =================================================================
@@ -698,15 +846,23 @@
         function setTool(toolName) {
             currentTool = toolName;
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-tool-' + toolName).classList.add('active');
-            document.body.classList.remove('tool-move', 'tool-text', 'tool-graphics');
+            const toolBtn = document.getElementById('btn-tool-' + toolName);
+            if(toolBtn) toolBtn.classList.add('active');
+            document.body.classList.remove('tool-move', 'tool-text', 'tool-graphics', 'tool-brush', 'tool-eraser');
             document.body.classList.add('tool-' + toolName);
 
             const hint = document.getElementById('tool-hint');
             if(toolName === 'move') hint.innerHTML = "Shift+Clic para selec. múltiple.<br>Usa flechas teclado para mover.<br>Usa 'Suprimir' para borrar.";
             if(toolName === 'text') hint.innerText = "Doble clic en un texto/ecuación para editar.";
             if(toolName === 'graphics') hint.innerText = "Selecciona puntos de flecha y usa teclado para precisión.";
+            if(toolName === 'brush') hint.innerText = "Dibuja libremente sobre el lienzo. Ajusta color, grosor y opacidad.";
+            if(toolName === 'eraser') hint.innerText = "Pasa el borrador sobre los trazos para eliminarlos.";
             
+            // Mostrar/ocultar config del pincel
+            const brushSettings = document.getElementById('brush-settings');
+            if(toolName === 'brush' || toolName === 'eraser') { brushSettings.style.display = 'block'; }
+            else { brushSettings.style.display = 'none'; }
+
             clearSelection();
         }
 
@@ -718,8 +874,9 @@
                 document.body.classList.add('tool-' + currentTool);
                 btn.innerHTML = `<i data-lucide="settings-2" class="w-4 h-4 mr-1"></i> Modo Edición: ON`;
                 btn.classList.add('bg-red-500', 'border-red-400', 'text-white');
+                resizeDrawingCanvas(); // NUEVO: ajustar canvas al entrar
             } else {
-                document.body.classList.remove('tool-move', 'tool-text', 'tool-graphics');
+                document.body.classList.remove('tool-move', 'tool-text', 'tool-graphics', 'tool-brush', 'tool-eraser');
                 btn.innerHTML = `<i data-lucide="settings-2" class="w-4 h-4 mr-1"></i> Modo Edición: OFF`;
                 btn.classList.remove('bg-red-500', 'border-red-400', 'text-white');
                 clearSelection(); 
@@ -741,12 +898,14 @@
                         let currentTex = el.getAttribute('data-tex') || "";
                         let newTex = prompt("📝 MOTOR LATEX INTERNO\nEdita el código de tu ecuación:", currentTex);
                         if(newTex !== null && newTex.trim() !== "") {
+                            pushUndoState('Editar LaTeX');
                             el.setAttribute('data-tex', newTex); katex.render(newTex, el, { displayMode: true, throwOnError: false });
                         }
                     } else {
                         let currentText = el.innerText;
                         let newText = prompt("📝 MOTOR DE TEXTO\nEdita el contenido:", currentText);
                         if(newText !== null && newText.trim() !== "") {
+                            pushUndoState('Editar texto');
                             el.innerText = newText; if(window.lucide) lucide.createIcons(); 
                         }
                     }
@@ -757,21 +916,20 @@
         // =================================================================
         // DRAG & DROP, SELECCIÓN MÚLTIPLE Y ALINEACIÓN
         // =================================================================
-        // Se definieron las variables al principio del script
         let isDragging = false;
         let dragInfo = null;       
         let elemStartPos = []; 
         let startPos = {x:0, y:0};
 
         function clearSelection() {
-            selectedNodes.forEach(n => n.classList.remove('selected-item'));
+            selectedNodes.forEach(n => { n.classList.remove('selected-item'); const badge = n.querySelector('.layer-badge'); if(badge) badge.remove(); });
             selectedNodes = [];
             if(activeSvgPoint) { activeSvgPoint.elem.classList.remove('active-pt'); activeSvgPoint = null; }
         }
 
         function alignSelected(type) {
             if(selectedNodes.length < 2) { alert("Selecciona al menos 2 elementos (Mantén presionado 'Shift' y haz clic en ellos)."); return; }
-            
+            pushUndoState('Alinear elementos');
             const rects = selectedNodes.map(n => {
                 const r = n.getBoundingClientRect();
                 return { node: n, left: r.left, right: r.right, width: r.width, centerX: r.left + r.width/2 };
@@ -816,6 +974,8 @@
 
             const startDrag = (e) => {
                 if(!isEditMode) return;
+                // No interferir con brush/eraser
+                if(currentTool === 'brush' || currentTool === 'eraser') return;
                 
                 if(currentTool === 'graphics' && e.target.classList.contains('ctrl-pt')) {
                     isDragging = true;
@@ -849,16 +1009,19 @@
                     if (e.shiftKey || e.ctrlKey || e.metaKey) {
                         if (selectedNodes.includes(clickedNode)) {
                             clickedNode.classList.remove('selected-item');
+                            const badge = clickedNode.querySelector('.layer-badge'); if(badge) badge.remove();
                             selectedNodes = selectedNodes.filter(n => n !== clickedNode);
                         } else {
                             clickedNode.classList.add('selected-item');
                             selectedNodes.push(clickedNode);
+                            showLayerBadge(clickedNode);
                         }
                     } else {
                         if (!selectedNodes.includes(clickedNode)) {
-                            selectedNodes.forEach(n => n.classList.remove('selected-item'));
+                            selectedNodes.forEach(n => { n.classList.remove('selected-item'); const badge = n.querySelector('.layer-badge'); if(badge) badge.remove(); });
                             selectedNodes = [clickedNode];
                             clickedNode.classList.add('selected-item');
+                            showLayerBadge(clickedNode);
                         }
                     }
 
@@ -898,7 +1061,18 @@
                 }
             };
 
-            const endDrag = () => { isDragging = false; dragInfo = null; elemStartPos = []; };
+            const endDrag = () => {
+                if(isDragging && elemStartPos.length > 0 && currentTool === 'move') {
+                    // Guardar estado si hubo movimiento real
+                    const pos = elemStartPos[0];
+                    const style = window.getComputedStyle(pos.node);
+                    const matrix = new WebKitCSSMatrix(style.transform);
+                    if(Math.abs(matrix.m41 - pos.x) > 1 || Math.abs(matrix.m42 - pos.y) > 1) {
+                        pushUndoState('Mover elemento');
+                    }
+                }
+                isDragging = false; dragInfo = null; elemStartPos = [];
+            };
 
             window.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', endDrag);
             window.addEventListener('touchstart', startDrag, {passive: false}); window.addEventListener('touchmove', doDrag, {passive: false}); window.addEventListener('touchend', endDrag);
@@ -910,9 +1084,14 @@
                 
                 if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
+                // NUEVO: Ctrl+Z deshacer, Ctrl+Y / Ctrl+Shift+Z rehacer
+                if((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoAction(); return; }
+                if((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redoAction(); return; }
+
                 if(e.key === 'Delete' || e.key === 'Backspace') {
                     if(currentTool === 'move' && selectedNodes.length > 0) {
                         e.preventDefault();
+                        pushUndoState('Borrar elementos');
                         selectedNodes.forEach(node => {
                             if(node.classList.contains('custom-shape') || node.id.startsWith('latex-dynamic') || node.innerText.includes('NUEVO PASO')) {
                                 node.remove();
@@ -1001,6 +1180,7 @@
         function addNewStep(e) {
             e.stopPropagation();
             if(currentStep < 0) { alert("Avanza al paso 0 para añadir uno nuevo."); return; }
+            pushUndoState('Añadir paso');
 
             const newIndex = currentStep + 1;
             for(let i = totalSteps - 1; i >= newIndex; i--) {
@@ -1146,8 +1326,365 @@
         const themeNames = ['<i data-lucide="palette" class="w-4 h-4 mr-1"></i> Cristal', '<i data-lucide="zap" class="w-4 h-4 mr-1"></i> Brutalismo', '<i data-lucide="terminal" class="w-4 h-4 mr-1"></i> Cyberpunk'];
         let currentThemeIdx = 0;
 
-        function cycleFormat(e) { e.stopPropagation(); const c = document.getElementById('app-container'); c.classList.remove(formats[currentFormatIdx]); currentFormatIdx = (currentFormatIdx + 1) % formats.length; c.classList.add(formats[currentFormatIdx]); document.getElementById('btn-format').innerHTML = formatNames[currentFormatIdx]; if(window.lucide) lucide.createIcons(); }
+        function cycleFormat(e) { e.stopPropagation(); const c = document.getElementById('app-container'); c.classList.remove(formats[currentFormatIdx]); currentFormatIdx = (currentFormatIdx + 1) % formats.length; c.classList.add(formats[currentFormatIdx]); document.getElementById('btn-format').innerHTML = formatNames[currentFormatIdx]; if(window.lucide) lucide.createIcons(); resizeDrawingCanvas(); }
         function cycleTheme(e) { e.stopPropagation(); const c = document.getElementById('app-container'); c.classList.remove(themes[currentThemeIdx]); currentThemeIdx = (currentThemeIdx + 1) % themes.length; c.classList.add(themes[currentThemeIdx]); document.getElementById('btn-theme').innerHTML = themeNames[currentThemeIdx]; if(window.lucide) lucide.createIcons(); }
+
+
+        /* =====================================================================
+           NUEVO SISTEMA: CAPAS (Z-INDEX) PARA OBJETOS
+           ===================================================================== */
+        let layerCounter = 50; // Contador base de z-index
+
+        function showLayerBadge(node) {
+            // Remover badge anterior si existe
+            const old = node.querySelector('.layer-badge'); if(old) old.remove();
+            const z = window.getComputedStyle(node).zIndex;
+            const badge = document.createElement('span');
+            badge.className = 'layer-badge';
+            badge.textContent = 'z:' + (z === 'auto' ? '—' : z);
+            node.appendChild(badge);
+        }
+
+        function changeLayer(action, e) {
+            if(e) e.stopPropagation();
+            if(selectedNodes.length === 0) { alert("Selecciona al menos 1 elemento para cambiar su capa."); return; }
+            pushUndoState('Cambiar capa');
+
+            selectedNodes.forEach(node => {
+                let currentZ = parseInt(window.getComputedStyle(node).zIndex) || 50;
+
+                switch(action) {
+                    case 'front':
+                        layerCounter += 10;
+                        node.style.zIndex = layerCounter;
+                        break;
+                    case 'forward':
+                        node.style.zIndex = currentZ + 1;
+                        break;
+                    case 'backward':
+                        node.style.zIndex = Math.max(1, currentZ - 1);
+                        break;
+                    case 'back':
+                        node.style.zIndex = 1;
+                        break;
+                }
+                showLayerBadge(node);
+            });
+        }
+
+
+        /* =====================================================================
+           NUEVO SISTEMA: PINCEL DE ESCRITURA LIBRE Y BORRADOR
+           ===================================================================== */
+        let drawingStrokes = [];   // Array de trazos: [{points, color, size, opacity}]
+        let currentStroke = null;
+        let isDrawing = false;
+        let drawCtx = null;
+
+        function initDrawingCanvas() {
+            const canvas = document.getElementById('drawing-canvas');
+            drawCtx = canvas.getContext('2d');
+            resizeDrawingCanvas();
+
+            const getPos = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mathCanvas = document.getElementById('math-canvas');
+                const scrollTop = mathCanvas.scrollTop;
+                if(e.touches) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top + scrollTop };
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top + scrollTop };
+            };
+
+            canvas.addEventListener('mousedown', (e) => { if(currentTool === 'brush' || currentTool === 'eraser') startDrawing(e, getPos(e)); });
+            canvas.addEventListener('mousemove', (e) => { if(isDrawing) continueDrawing(getPos(e)); });
+            canvas.addEventListener('mouseup', () => { stopDrawing(); });
+            canvas.addEventListener('mouseleave', () => { stopDrawing(); });
+            canvas.addEventListener('touchstart', (e) => { if(currentTool === 'brush' || currentTool === 'eraser') { e.preventDefault(); startDrawing(e, getPos(e)); } }, {passive:false});
+            canvas.addEventListener('touchmove', (e) => { if(isDrawing) { e.preventDefault(); continueDrawing(getPos(e)); } }, {passive:false});
+            canvas.addEventListener('touchend', () => { stopDrawing(); });
+
+            // Redimensionar al hacer scroll
+            document.getElementById('math-canvas').addEventListener('scroll', () => { redrawAllStrokes(); });
+
+            window.addEventListener('resize', () => { resizeDrawingCanvas(); });
+        }
+
+        function resizeDrawingCanvas() {
+            const canvas = document.getElementById('drawing-canvas');
+            const mathCanvas = document.getElementById('math-canvas');
+            canvas.width = mathCanvas.scrollWidth || mathCanvas.clientWidth;
+            canvas.height = Math.max(mathCanvas.scrollHeight, mathCanvas.clientHeight, 2000);
+            redrawAllStrokes();
+        }
+
+        function startDrawing(e, pos) {
+            isDrawing = true;
+            if(currentTool === 'brush') {
+                const color = document.getElementById('brush-color').value;
+                const size = parseInt(document.getElementById('brush-size').value);
+                const opacity = parseInt(document.getElementById('brush-opacity').value) / 100;
+                currentStroke = { points: [pos], color, size, opacity };
+            } else if(currentTool === 'eraser') {
+                eraseAt(pos);
+            }
+        }
+
+        function continueDrawing(pos) {
+            if(currentTool === 'brush' && currentStroke) {
+                currentStroke.points.push(pos);
+                drawStrokeSegment(currentStroke, currentStroke.points.length - 2);
+            } else if(currentTool === 'eraser') {
+                eraseAt(pos);
+            }
+        }
+
+        function stopDrawing() {
+            if(currentTool === 'brush' && currentStroke && currentStroke.points.length > 1) {
+                pushUndoState('Dibujar trazo');
+                drawingStrokes.push(currentStroke);
+            }
+            currentStroke = null;
+            isDrawing = false;
+        }
+
+        function drawStrokeSegment(stroke, fromIdx) {
+            if(!drawCtx || fromIdx < 0 || fromIdx >= stroke.points.length - 1) return;
+            const mathCanvas = document.getElementById('math-canvas');
+            const scrollTop = mathCanvas.scrollTop;
+
+            drawCtx.save();
+            drawCtx.globalAlpha = stroke.opacity;
+            drawCtx.strokeStyle = stroke.color;
+            drawCtx.lineWidth = stroke.size;
+            drawCtx.lineCap = 'round';
+            drawCtx.lineJoin = 'round';
+
+            drawCtx.beginPath();
+            drawCtx.moveTo(stroke.points[fromIdx].x, stroke.points[fromIdx].y - scrollTop);
+            drawCtx.lineTo(stroke.points[fromIdx + 1].x, stroke.points[fromIdx + 1].y - scrollTop);
+            drawCtx.stroke();
+            drawCtx.restore();
+        }
+
+        function redrawAllStrokes() {
+            if(!drawCtx) return;
+            const canvas = document.getElementById('drawing-canvas');
+            drawCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const mathCanvas = document.getElementById('math-canvas');
+            const scrollTop = mathCanvas.scrollTop;
+
+            drawingStrokes.forEach(stroke => {
+                if(stroke.points.length < 2) return;
+                drawCtx.save();
+                drawCtx.globalAlpha = stroke.opacity;
+                drawCtx.strokeStyle = stroke.color;
+                drawCtx.lineWidth = stroke.size;
+                drawCtx.lineCap = 'round';
+                drawCtx.lineJoin = 'round';
+                drawCtx.beginPath();
+                drawCtx.moveTo(stroke.points[0].x, stroke.points[0].y - scrollTop);
+                for(let i = 1; i < stroke.points.length; i++) {
+                    drawCtx.lineTo(stroke.points[i].x, stroke.points[i].y - scrollTop);
+                }
+                drawCtx.stroke();
+                drawCtx.restore();
+            });
+
+            // También redibujar el trazo actual si estamos dibujando
+            if(currentStroke && currentStroke.points.length > 1) {
+                drawCtx.save();
+                drawCtx.globalAlpha = currentStroke.opacity;
+                drawCtx.strokeStyle = currentStroke.color;
+                drawCtx.lineWidth = currentStroke.size;
+                drawCtx.lineCap = 'round';
+                drawCtx.lineJoin = 'round';
+                drawCtx.beginPath();
+                drawCtx.moveTo(currentStroke.points[0].x, currentStroke.points[0].y - scrollTop);
+                for(let i = 1; i < currentStroke.points.length; i++) {
+                    drawCtx.lineTo(currentStroke.points[i].x, currentStroke.points[i].y - scrollTop);
+                }
+                drawCtx.stroke();
+                drawCtx.restore();
+            }
+        }
+
+        function eraseAt(pos) {
+            const eraserSize = parseInt(document.getElementById('brush-size').value) * 3;
+            let erased = false;
+            drawingStrokes = drawingStrokes.filter(stroke => {
+                for(let i = 0; i < stroke.points.length; i++) {
+                    const dx = stroke.points[i].x - pos.x;
+                    const dy = stroke.points[i].y - pos.y;
+                    if(Math.sqrt(dx*dx + dy*dy) < eraserSize) {
+                        erased = true;
+                        return false; // Eliminar todo el trazo
+                    }
+                }
+                return true;
+            });
+            if(erased) {
+                pushUndoState('Borrar trazo');
+                redrawAllStrokes();
+            }
+        }
+
+        function clearAllDrawing() {
+            if(drawingStrokes.length === 0) return;
+            pushUndoState('Borrar todos los trazos');
+            drawingStrokes = [];
+            redrawAllStrokes();
+        }
+
+        function updateBrushPreview() {
+            const size = parseInt(document.getElementById('brush-size').value);
+            const dot = document.getElementById('brush-dot-preview');
+            const displaySize = Math.max(2, Math.min(size, 24));
+            dot.style.width = displaySize + 'px';
+            dot.style.height = displaySize + 'px';
+            const color = document.getElementById('brush-color').value;
+            dot.style.background = color;
+            dot.parentElement.style.color = color;
+        }
+
+
+        /* =====================================================================
+           NUEVO SISTEMA: DESHACER / REHACER (UNDO / REDO)
+           ===================================================================== */
+        let undoStack = [];
+        let redoStack = [];
+        const MAX_UNDO = 40;
+
+        function captureState() {
+            const canvasClone = document.getElementById('math-canvas').cloneNode(true);
+            const dc = canvasClone.querySelector('#drawing-canvas'); if(dc) dc.remove();
+            return {
+                canvasHTML: canvasClone.innerHTML,
+                drawingStrokes: JSON.parse(JSON.stringify(drawingStrokes)),
+                vectors: JSON.parse(JSON.stringify(VECTORS)),
+                scriptData: JSON.parse(JSON.stringify(scriptData)),
+                totalSteps: totalSteps,
+                currentStep: currentStep
+            };
+        }
+
+        function pushUndoState(label) {
+            const state = captureState();
+            state.label = label || 'Acción';
+            undoStack.push(state);
+            if(undoStack.length > MAX_UNDO) undoStack.shift();
+            redoStack = []; // Limpiar redo al hacer nueva acción
+            updateUndoRedoUI();
+        }
+
+        function undoAction() {
+            if(undoStack.length === 0) return;
+            // Guardar estado actual en redo
+            const currentState = captureState();
+            currentState.label = 'Rehacer';
+            redoStack.push(currentState);
+
+            const prev = undoStack.pop();
+            restoreState(prev);
+            updateUndoRedoUI();
+        }
+
+        function redoAction() {
+            if(redoStack.length === 0) return;
+            // Guardar estado actual en undo
+            const currentState = captureState();
+            currentState.label = 'Deshacer';
+            undoStack.push(currentState);
+
+            const next = redoStack.pop();
+            restoreState(next);
+            updateUndoRedoUI();
+        }
+
+        function restoreState(state) {
+            const drawCanvas = document.getElementById('drawing-canvas');
+            const mathCanvas = document.getElementById('math-canvas');
+            mathCanvas.innerHTML = state.canvasHTML;
+            mathCanvas.prepend(drawCanvas);
+
+            drawingStrokes = state.drawingStrokes;
+            VECTORS = state.vectors;
+            scriptData = state.scriptData;
+            totalSteps = state.totalSteps;
+            currentStep = state.currentStep;
+
+            renderSVGs();
+            redrawAllStrokes();
+            if(currentStep >= 0) updateUI();
+            selectedNodes = [];
+            activeSvgPoint = null;
+        }
+
+        function updateUndoRedoUI() {
+            const btnUndo = document.getElementById('btn-undo');
+            const btnRedo = document.getElementById('btn-redo');
+            const countEl = document.getElementById('undo-count');
+            btnUndo.disabled = undoStack.length === 0;
+            btnRedo.disabled = redoStack.length === 0;
+            countEl.textContent = undoStack.length + '/' + redoStack.length;
+        }
+
+
+        /* =====================================================================
+           NUEVO SISTEMA: TOOLBAR MOVIBLE (DRAGGABLE)
+           ===================================================================== */
+        function initToolbarDrag() {
+            const toolbar = document.getElementById('super-toolbar');
+            const handle = document.getElementById('toolbar-drag-handle');
+            let tbDragging = false;
+            let tbStartX = 0, tbStartY = 0;
+            let tbOffsetX = 0, tbOffsetY = 0;
+
+            const getPos = (e) => e.touches ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : { x: e.clientX, y: e.clientY };
+
+            handle.addEventListener('mousedown', startTbDrag);
+            handle.addEventListener('touchstart', startTbDrag, {passive: false});
+
+            function startTbDrag(e) {
+                e.preventDefault(); e.stopPropagation();
+                tbDragging = true;
+                const pos = getPos(e);
+                const rect = toolbar.getBoundingClientRect();
+                tbOffsetX = pos.x - rect.left;
+                tbOffsetY = pos.y - rect.top;
+                handle.style.cursor = 'grabbing';
+            }
+
+            function doTbDrag(e) {
+                if(!tbDragging) return;
+                e.preventDefault();
+                const pos = getPos(e);
+                const appRect = document.getElementById('app-container').getBoundingClientRect();
+                
+                let newLeft = pos.x - appRect.left - tbOffsetX;
+                let newTop = pos.y - appRect.top - tbOffsetY;
+
+                // Limitar al contenedor
+                newLeft = Math.max(0, Math.min(newLeft, appRect.width - toolbar.offsetWidth));
+                newTop = Math.max(0, Math.min(newTop, appRect.height - toolbar.offsetHeight));
+
+                toolbar.style.left = newLeft + 'px';
+                toolbar.style.top = newTop + 'px';
+                toolbar.style.right = 'auto'; // Desactivar el right original
+            }
+
+            function endTbDrag() {
+                if(tbDragging) {
+                    tbDragging = false;
+                    handle.style.cursor = 'grab';
+                }
+            }
+
+            window.addEventListener('mousemove', doTbDrag);
+            window.addEventListener('mouseup', endTbDrag);
+            window.addEventListener('touchmove', doTbDrag, {passive: false});
+            window.addEventListener('touchend', endTbDrag);
+        }
+
     </script>
 </body>
 </html>
