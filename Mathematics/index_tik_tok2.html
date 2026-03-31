@@ -58,6 +58,15 @@
         }
         #math-canvas::-webkit-scrollbar { display: none; }
         #math-canvas { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        #zoom-wrapper {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform-origin: top center;
+            transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
 
         .math-step {
             width: 95%; max-width: 500px; margin-bottom: var(--espacio-entre-pasos);
@@ -93,8 +102,8 @@
         .strike-c2 { top: -5px; bottom: -5px; left: 50%; transform: translateX(-50%); width: 50px; }
         .strike-c3 { top: -5px; bottom: -5px; right: -10px; width: 50px; }
 
-        .svg-connector { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); width: 300px; height: 80px; z-index: 5; pointer-events: none; overflow: visible; }
-        .svg-path { fill: none; stroke-width: 2.5; stroke-dasharray: 6 6; animation: flowDash 1s linear infinite; stroke-linecap: round; }
+        .svg-connector { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); width: 300px; height: 80px; z-index: 5; pointer-events: auto; overflow: visible; }
+        .svg-path { fill: none; stroke-width: 2.5; stroke-dasharray: 6 6; animation: flowDash 1s linear infinite; stroke-linecap: round; pointer-events: none; transition: stroke-width 0.2s;}
         @keyframes flowDash { to { stroke-dashoffset: -12; } }
 
         .editable-item { transition: outline 0.2s; position: relative; z-index: 50; }
@@ -114,25 +123,40 @@
         body.edit-mode.tool-graphics .svg-connector { pointer-events: none; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); }
         body.edit-mode.tool-graphics .p-cell[class*="pivot-circle"] { cursor: ns-resize; }
         body.edit-mode.tool-graphics .custom-shape { cursor: ns-resize; outline: 1px dashed rgba(255,255,255,0.5); }
+        body.edit-mode.tool-graphics .custom-text { cursor: ns-resize; outline: 1px dashed rgba(255,255,255,0.5); }
+        body.edit-mode.tool-graphics .svg-path { pointer-events: stroke; cursor: move; }
+        body.edit-mode.tool-graphics .svg-path:hover { stroke-width: 5; filter: drop-shadow(0 0 5px rgba(255,255,255,0.5)); }
 
         .custom-shape { position: absolute; z-index: 45; --shape-scale: 1; transform: scale(var(--shape-scale)); transition: transform 0.1s; }
         .shape-circle { border: 2px solid #fcd34d; border-radius: 50%; width: 40px; height: 40px; background: rgba(252, 211, 77, 0.1); }
         .shape-square { border: 2px solid #fcd34d; border-radius: 4px; width: 40px; height: 40px; background: rgba(252, 211, 77, 0.1); }
         .shape-brace { width: 20px; height: 60px; border-left: 2px solid #fcd34d; border-top: 2px solid #fcd34d; border-bottom: 2px solid #fcd34d; border-radius: 8px 0 0 8px; }
 
-        /* --- PANEL DE SUPER-EDICIÓN FLOTANTE (ESTUDIO PRO) --- */
+        /* NUEVO: Estilos para elementos de texto libre, soporta saltos de línea automáticos */
+        .custom-text {
+            position: absolute; z-index: 46; white-space: pre-wrap; word-wrap: break-word;
+            min-width: 20px; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            font-weight: 600; text-align: center;
+        }
+
         #super-toolbar {
-            position: absolute; top: 70px; right: 10px; z-index: 200;
+            position: absolute; top: 70px; right: 10px; z-index: 600; 
             background: rgba(15, 23, 42, 0.95); border: 1px solid #3b82f6;
             padding: 0 12px 12px 12px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
             display: none; flex-direction: column; gap: 8px; backdrop-filter: blur(10px);
-            width: 240px; max-height: 80vh; overflow-y: auto;
+            width: 250px; max-height: 80vh; overflow-y: auto;
+            resize: both; overflow: auto; min-width: 200px; min-height: 50px; max-width: 95vw;
         }
         body.edit-mode #super-toolbar { display: flex; }
         #super-toolbar::-webkit-scrollbar { width: 4px; }
         #super-toolbar::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 4px; }
 
-        .toolbar-title { color: #60a5fa; font-size: 0.75rem; text-transform: uppercase; font-weight: 900; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; margin-bottom: 5px; letter-spacing: 1px;}
+        #super-toolbar.minimized {
+            height: 40px !important; min-height: 40px !important; overflow: hidden !important; resize: none !important;
+            padding-bottom: 0 !important;
+        }
+
+        .toolbar-title { color: #60a5fa; font-size: 0.75rem; text-transform: uppercase; font-weight: 900; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; margin-bottom: 5px; letter-spacing: 1px; display: flex; align-items: center; justify-content: center;}
         .toolbar-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: white;}
         .toolbar-input { background: #1e293b; border: 1px solid #475569; color: white; border-radius: 4px; padding: 4px; width: 100px; font-size: 0.7rem;}
         .color-picker { width: 30px; height: 25px; border: none; padding: 0; cursor: pointer; background: none; border-radius: 4px;}
@@ -160,7 +184,7 @@
 
         /* --- REDISEÑO DEL TELEPROMPTER --- */
         #teleprompter-container { 
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 220px; z-index: 50; 
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 220px; z-index: 500; 
             display: flex; flex-direction: column; padding: 1.5rem; 
             background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255,255,255,0.1); box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
@@ -176,21 +200,34 @@
         .pro-btn-secondary { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); box-shadow: none; color: #cbd5e1; padding: 8px;}
         .pro-btn-secondary:hover { background: rgba(255,255,255,0.1); color: white; }
 
-        #settings-panel { position: absolute; top: 15px; left: 0; width: 100%; display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; z-index: 100; transition: opacity 0.3s; padding: 0 10px; }
-        .btn-setting { background: rgba(0,0,0,0.7); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 6px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; cursor: pointer; backdrop-filter: blur(5px); display: flex; align-items: center;}
-        .btn-setting.start-rec { background: #ef4444; border-color: #f87171; animation: pulseRed 2s infinite; }
-        .btn-setting.edit-btn { background: #3b82f6; border-color: #60a5fa; color: white;}
-        @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        /* --- PANEL DE AJUSTES SUPERIOR (NUEVO DISEÑO AGRUPADO) --- */
+        #settings-panel {
+            position: absolute; top: 15px; left: 0; width: 100%; display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; z-index: 100; transition: opacity 0.3s; padding: 0 10px;
+        }
+        .settings-group {
+            display: flex; align-items: center; gap: 6px; background: rgba(15, 23, 42, 0.7); padding: 5px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .btn-setting {
+            background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 15px; font-size: 0.7rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; transition: all 0.2s; white-space: nowrap;
+        }
+        .btn-setting:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); transform: translateY(-1px); }
+        .btn-setting.start-rec { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); color: #fca5a5; animation: pulseRed 2s infinite; }
+        .btn-setting.start-rec:hover { background: rgba(239, 68, 68, 0.4); color: white; }
+        .btn-setting.edit-btn { background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.5); color: #93c5fd; }
+        .btn-setting.edit-btn:hover { background: rgba(59, 130, 246, 0.4); color: white; }
+
+        @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        
         .watermark { position: absolute; top: 20px; width: 100%; text-align: center; font-size: 0.8rem; letter-spacing: 2px; z-index: 20; font-weight: 800; opacity: 0; transition: opacity 0.5s; pointer-events: none;}
 
-        /* MODAL DE LOGIN */
-        #auth-modal {
+        /* MODALES */
+        #auth-modal, #editor-modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
-            z-index: 9999; display: none; justify-content: center; align-items: center;
+            z-index: 10000; display: none; justify-content: center; align-items: center;
         }
         .modal-content {
             background: #1e293b; padding: 25px; border-radius: 15px; border: 1px solid #3b82f6;
-            width: 300px; display: flex; flex-direction: column; gap: 15px; color: white;
+            width: 300px; max-width: 90vw; display: flex; flex-direction: column; gap: 15px; color: white;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
         }
         .modal-input { background: #0f172a; border: 1px solid #475569; padding: 10px; border-radius: 8px; color: white; outline: none; }
@@ -204,26 +241,38 @@
         .theme-cyber { background: #09090b; color: #22c55e; background-image: linear-gradient(rgba(34, 197, 94, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 197, 94, 0.1) 1px, transparent 1px); background-size: 20px 20px; }
         .theme-cyber .panel-style { background: rgba(0,0,0,0.8); border: 1px solid #22c55e; border-radius: 0; box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); }
 
-        /* =====================================================================
-           NUEVOS ESTILOS: CAPAS, PINCEL, BORRADOR, DESHACER, TOOLBAR MOVIBLE
-           ===================================================================== */
-
-        /* Barra de arrastre del toolbar */
         #toolbar-drag-handle {
-            cursor: grab; padding: 10px 0 6px 0; text-align: center; 
+            cursor: grab; padding: 8px; text-align: center; 
             border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 6px;
             position: sticky; top: 0; z-index: 10;
             background: rgba(15, 23, 42, 0.98); border-radius: 12px 12px 0 0;
+            display: flex; justify-content: space-between; align-items: center;
         }
         #toolbar-drag-handle:active { cursor: grabbing; }
-        #toolbar-drag-handle .drag-dots {
-            display: flex; justify-content: center; gap: 3px; opacity: 0.4;
-        }
-        #toolbar-drag-handle .drag-dots span {
-            width: 4px; height: 4px; background: #94a3b8; border-radius: 50%;
+        #toolbar-drag-handle .drag-dots { display: flex; gap: 3px; opacity: 0.4; }
+        #toolbar-drag-handle .drag-dots span { width: 4px; height: 4px; background: #94a3b8; border-radius: 50%; }
+
+        .window-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px; border-radius: 4px; transition: all 0.2s;}
+        .window-btn:hover { background: rgba(255,255,255,0.1); color: white;}
+        .window-btn.btn-close:hover { background: rgba(239, 68, 68, 0.8); color: white;}
+
+        #btn-reopen-toolbar {
+            display: none; position: absolute; top: 80px; right: 10px; z-index: 600;
+            background: #3b82f6; color: white; padding: 8px 12px; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; font-weight: bold; font-size: 0.75rem;
+            align-items: center; gap: 5px;
         }
 
-        /* Canvas de dibujo libre */
+        #zoom-controls-panel {
+            display: none; position: absolute; bottom: 250px; right: 10px; z-index: 550;
+            background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px; padding: 6px; flex-direction: column; gap: 6px;
+            backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        body.edit-mode #zoom-controls-panel { display: flex; }
+        .zoom-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;}
+        .zoom-btn:hover { background: #3b82f6; color: white; border-color: #60a5fa;}
+
         #drawing-canvas {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 55; pointer-events: none; 
@@ -233,7 +282,6 @@
         body.edit-mode.tool-brush #drawing-canvas { cursor: crosshair; }
         body.edit-mode.tool-eraser #drawing-canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23ff6b6b' stroke-width='2'/%3E%3Cline x1='6' y1='6' x2='18' y2='18' stroke='%23ff6b6b' stroke-width='2'/%3E%3C/svg%3E") 12 12, auto; }
 
-        /* Botones de deshacer/rehacer flotantes */
         #undo-redo-bar {
             display: none; position: absolute; bottom: 230px; left: 50%; transform: translateX(-50%);
             z-index: 190; background: rgba(15,23,42,0.92); border: 1px solid rgba(255,255,255,0.15);
@@ -255,7 +303,6 @@
             font-family: 'Fira Code', monospace;
         }
 
-        /* Indicador de capa en seleccion */
         .layer-badge {
             position: absolute; top: -18px; right: -5px; background: #7c3aed;
             color: white; font-size: 0.5rem; padding: 1px 5px; border-radius: 8px;
@@ -263,7 +310,6 @@
             font-family: 'Fira Code', monospace; z-index: 9999;
         }
 
-        /* Configuración del pincel en toolbar */
         .brush-config { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .brush-size-preview {
             width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2);
@@ -273,7 +319,6 @@
             border-radius: 50%; background: currentColor; transition: all 0.15s;
         }
 
-        /* Separador visual */
         .toolbar-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0; }
     </style>
 </head>
@@ -303,27 +348,56 @@
         </div>
     </div>
 
+    <!-- MODAL EDITOR DE TEXTO/LATEX CON SOPORTE PARA SALTOS DE LÍNEA -->
+    <div id="editor-modal">
+        <div class="modal-content" style="width: 400px;">
+            <h3 class="text-center font-bold text-lg text-blue-400" id="editor-modal-title">Editar</h3>
+            <textarea id="editor-textarea" class="modal-input" style="height: 150px; resize: vertical; font-family: 'Fira Code', monospace; font-size: 0.85rem;" placeholder="Escribe aquí... (Presiona Enter para saltos de línea)"></textarea>
+            <div class="flex gap-2">
+                <button class="btn-action bg-gray-600 flex-1" onclick="closeEditorModal()">Cancelar</button>
+                <button class="btn-action bg-blue-600 flex-1" onclick="saveEditorModal()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTÓN PARA REABRIR EL PANEL DE HERRAMIENTAS SI FUE CERRADO -->
+    <div id="btn-reopen-toolbar" onclick="reopenToolbar()">
+        <i data-lucide="settings" class="w-4 h-4"></i> Mostrar Herramientas
+    </div>
+
     <div id="app-container" class="format-tiktok theme-glass">
         
+        <!-- REDISEÑO: PANEL SUPERIOR AGRUPADO Y ESTÉTICO -->
         <div id="settings-panel">
-            <button class="btn-setting" onclick="cycleFormat(event)" id="btn-format"><i data-lucide="smartphone" class="w-4 h-4 mr-1"></i> TikTok</button>
-            <button class="btn-setting" onclick="cycleTheme(event)" id="btn-theme"><i data-lucide="palette" class="w-4 h-4 mr-1"></i> Glassmorfismo</button>
-            <button class="btn-setting edit-btn" onclick="toggleEditMode(event)" id="btn-edit"><i data-lucide="settings-2" class="w-4 h-4 mr-1"></i> Modo Edición: OFF</button>
+            <div class="settings-group">
+                <button class="btn-setting" onclick="cycleFormat(event)" id="btn-format"><i data-lucide="smartphone" class="w-4 h-4 mr-1"></i> TikTok</button>
+                <button class="btn-setting" onclick="cycleTheme(event)" id="btn-theme"><i data-lucide="palette" class="w-4 h-4 mr-1"></i> Glassmorfismo</button>
+            </div>
             
-            <a href="https://paypal.me/dudbilopr/5" target="_blank" class="btn-setting" style="background: #ea580c; border-color: #f97316; text-decoration: none;">
-                <i data-lucide="coffee" class="w-4 h-4 mr-1"></i> Invítame un café
-            </a>
-
-            <button class="btn-setting start-rec" onclick="startRecording(event)"><i data-lucide="video" class="w-4 h-4 mr-1"></i> Grabar</button>
+            <div class="settings-group">
+                <button class="btn-setting edit-btn" onclick="toggleEditMode(event)" id="btn-edit"><i data-lucide="settings-2" class="w-4 h-4 mr-1"></i> Modo Edición: OFF</button>
+            </div>
+            
+            <div class="settings-group">
+                <a href="https://paypal.me/dudbilopr/5" target="_blank" class="btn-setting" style="color: #fb923c; border-color: #ea580c; text-decoration: none;">
+                    <i data-lucide="coffee" class="w-4 h-4 mr-1"></i> Invitar Café
+                </a>
+                <button class="btn-setting start-rec" onclick="startRecording(event)"><i data-lucide="video" class="w-4 h-4 mr-1"></i> Grabar</button>
+            </div>
         </div>
 
         <!-- PANEL DE SUPER-EDICIÓN FLOTANTE -->
         <div id="super-toolbar">
 
-            <!-- BARRA DE ARRASTRE PARA MOVER EL TOOLBAR -->
+            <!-- BARRA DE ARRASTRE Y CONTROLES DE VENTANA -->
             <div id="toolbar-drag-handle">
-                <div class="drag-dots"><span></span><span></span><span></span><span></span><span></span></div>
-                <div class="toolbar-title" style="border-bottom:none; padding-bottom:0; margin-bottom:0;">🛠️ Herramientas</div>
+                <div class="drag-dots"><span></span><span></span><span></span><span></span></div>
+                <div class="toolbar-title" style="border-bottom:none; padding-bottom:0; margin-bottom:0;"><i data-lucide="sliders-horizontal" class="inline w-3 h-3 mr-1"></i> Ajustes</div>
+                <div class="flex gap-1">
+                    <button class="window-btn" onclick="minimizeToolbar()" title="Minimizar"><i data-lucide="minus" class="w-3 h-3"></i></button>
+                    <button class="window-btn" onclick="maximizeToolbar()" title="Restaurar Tamaño"><i data-lucide="square" class="w-3 h-3"></i></button>
+                    <button class="window-btn btn-close" onclick="closeToolbar()" title="Cerrar"><i data-lucide="x" class="w-3 h-3"></i></button>
+                </div>
             </div>
             
             <div class="flex gap-1 justify-between mb-1" style="flex-wrap: wrap;">
@@ -340,7 +414,7 @@
 
             <!-- CONFIGURACIÓN DEL PINCEL (visible solo con brush/eraser) -->
             <div id="brush-settings" style="display:none;">
-                <div class="toolbar-title">🖌️ Pincel / Borrador</div>
+                <div class="toolbar-title"><i data-lucide="paintbrush" class="inline w-3 h-3 mr-1"></i> Pincel / Borrador</div>
                 <div class="toolbar-row mb-1">
                     <span>Color:</span>
                     <input type="color" class="color-picker" id="brush-color" value="#fbbf24">
@@ -365,7 +439,7 @@
             </div>
 
             <!-- Controles de Alineación -->
-            <div class="toolbar-title mt-2">📏 Alinear</div>
+            <div class="toolbar-title mt-2"><i data-lucide="align-center" class="inline w-3 h-3 mr-1"></i> Alinear</div>
             <div class="flex justify-between gap-1">
                 <button class="align-btn" onclick="alignSelected('left')" title="Alinear Izquierda"><i data-lucide="align-left" class="w-4 h-4"></i></button>
                 <button class="align-btn" onclick="alignSelected('center')" title="Centrar Horizontal"><i data-lucide="align-center" class="w-4 h-4"></i></button>
@@ -373,7 +447,7 @@
             </div>
 
             <!-- NUEVO: CONTROLES DE CAPAS -->
-            <div class="toolbar-title mt-2">📚 Capas (Z-Index)</div>
+            <div class="toolbar-title mt-2"><i data-lucide="layers" class="inline w-3 h-3 mr-1"></i> Capas (Z-Index)</div>
             <div class="shape-btn-grid">
                 <button class="btn-action" onclick="changeLayer('front', event)" title="Traer al frente total">
                     <i data-lucide="chevrons-up" class="w-3 h-3"></i> Al Frente
@@ -389,7 +463,7 @@
                 </button>
             </div>
 
-            <div class="toolbar-title mt-2">🎨 Estilos</div>
+            <div class="toolbar-title mt-2"><i data-lucide="palette" class="inline w-3 h-3 mr-1"></i> Estilos</div>
             <div class="toolbar-row">
                 <span>Efecto Neón:</span>
                 <button class="btn-action w-[60px]" onclick="toggleNeon(event)" id="btn-neon">OFF</button>
@@ -408,21 +482,22 @@
                 <span>P3:</span> <input type="color" class="color-picker" value="#3b82f6" onchange="updateColor('--color-paso3', this.value, 'svg3')">
             </div>
 
-            <div class="toolbar-title mt-2">💠 Añadir Formas</div>
+            <div class="toolbar-title mt-2"><i data-lucide="shapes" class="inline w-3 h-3 mr-1"></i> Añadir Elementos</div>
             <div class="shape-btn-grid">
+                <button class="btn-action" onclick="addTextElement(event)"><i data-lucide="type" class="w-3 h-3"></i> Texto</button>
                 <button class="btn-action" onclick="addShape('circle', event)"><i data-lucide="circle" class="w-3 h-3"></i> Círculo</button>
                 <button class="btn-action" onclick="addShape('square', event)"><i data-lucide="square" class="w-3 h-3"></i> Cuadrado</button>
                 <button class="btn-action" onclick="addShape('brace', event)"><i data-lucide="parentheses" class="w-3 h-3"></i> Llave</button>
                 <button class="btn-action btn-add-step col-span-2" onclick="addNewStep(event)"><i data-lucide="list-plus" class="w-4 h-4"></i> Nuevo Paso</button>
             </div>
 
-            <div class="toolbar-title mt-2">💾 PC / Local</div>
+            <div class="toolbar-title mt-2"><i data-lucide="hard-drive" class="inline w-3 h-3 mr-1"></i> PC / Local</div>
             <div class="shape-btn-grid">
                 <button class="btn-action bg-blue-800" onclick="exportProjectLocal(event)"><i data-lucide="download" class="w-3 h-3"></i> Guardar JSON</button>
                 <button class="btn-action bg-purple-800" onclick="document.getElementById('json-upload').click()"><i data-lucide="upload" class="w-3 h-3"></i> Cargar JSON</button>
             </div>
 
-            <div class="toolbar-title mt-2 text-green-400">☁️ Nube Firebase</div>
+            <div class="toolbar-title mt-2 text-green-400"><i data-lucide="cloud" class="inline w-3 h-3 mr-1"></i> Nube Firebase</div>
             
             <button id="btn-login-modal" class="btn-action bg-gray-700 hover:bg-gray-600 text-white w-full" onclick="document.getElementById('auth-modal').style.display='flex'">
                 <i data-lucide="log-in" class="w-3 h-3"></i> Conectar Admin
@@ -446,6 +521,14 @@
             </div>
         </div>
 
+        <!-- PANEL DE ZOOM (Optimizar Edición) -->
+        <div id="zoom-controls-panel">
+            <button class="zoom-btn" onclick="setAppZoom(0.1)" title="Acercar"><i data-lucide="zoom-in" class="w-4 h-4"></i></button>
+            <span id="zoom-level-text" class="text-xs text-white text-center font-mono">100%</span>
+            <button class="zoom-btn" onclick="setAppZoom(-0.1)" title="Alejar"><i data-lucide="zoom-out" class="w-4 h-4"></i></button>
+            <button class="zoom-btn" onclick="resetAppZoom()" title="Restaurar Zoom"><i data-lucide="maximize" class="w-4 h-4"></i></button>
+        </div>
+
         <!-- BARRA FLOTANTE DE DESHACER / REHACER -->
         <div id="undo-redo-bar">
             <button class="undo-redo-btn" id="btn-undo" onclick="undoAction()" disabled title="Deshacer (Ctrl+Z)">
@@ -465,93 +548,97 @@
             <!-- CANVAS DE DIBUJO LIBRE (superpuesto) -->
             <canvas id="drawing-canvas"></canvas>
             
-            <div id="step-0" class="math-step panel-style p-6">
-                <h2 class="font-bold text-sm mb-2 opacity-80 uppercase tracking-widest text-center editable-item">TEMA: Determinantes 3x3</h2>
-                <div class="latex-container editable-item" id="latex-0"></div>
-            </div>
+            <!-- NUEVO: Wrapper para el Zoom Aislado -->
+            <div id="zoom-wrapper">
 
-            <div id="step-1" class="math-step panel-style p-6 w-[95%]">
-                <h3 class="font-bold text-sm mb-4 editable-item" style="color: var(--color-paso3);">01 Escribir en formato determinante</h3>
-                <div class="latex-container editable-item" id="latex-1"></div>
-            </div>
+                <div id="step-0" class="math-step panel-style p-6">
+                    <h2 class="font-bold text-sm mb-2 opacity-80 uppercase tracking-widest text-center editable-item">TEMA: Determinantes 3x3</h2>
+                    <div class="latex-container editable-item" id="latex-0"></div>
+                </div>
 
-            <div id="step-2" class="math-step panel-style p-4 w-full relative">
-                <h3 class="font-bold text-sm mb-4 text-[#db2777] editable-item">02.1 Eliminamos fila 1 y columna 1</h3>
-                <div class="w-full flex flex-col items-center mt-2 mb-8 relative">
-                    <div class="pedagogy-matrix editable-item">
-                        <div class="strike-box strike-r1"></div><div class="strike-box strike-c1"></div>
-                        <div class="p-grid">
-                            <div class="p-cell pivot-circle-1" onwheel="resizeCircle(event, this)">3</div><div class="p-cell">-1</div><div class="p-cell">1</div>
-                            <div class="p-cell">2</div><div class="p-cell">1</div><div class="p-cell">0</div>
-                            <div class="p-cell">3</div><div class="p-cell">1</div><div class="p-cell">2</div>
+                <div id="step-1" class="math-step panel-style p-6 w-[95%]">
+                    <h3 class="font-bold text-sm mb-4 editable-item" style="color: var(--color-paso3);">01 Escribir en formato determinante</h3>
+                    <div class="latex-container editable-item" id="latex-1"></div>
+                </div>
+
+                <div id="step-2" class="math-step panel-style p-4 w-full relative">
+                    <h3 class="font-bold text-sm mb-4 text-[#db2777] editable-item">02.1 Eliminamos fila 1 y columna 1</h3>
+                    <div class="w-full flex flex-col items-center mt-2 mb-8 relative">
+                        <div class="pedagogy-matrix editable-item">
+                            <div class="strike-box strike-r1"></div><div class="strike-box strike-c1"></div>
+                            <div class="p-grid">
+                                <div class="p-cell pivot-circle-1" onwheel="resizeCircle(event, this)">3</div><div class="p-cell">-1</div><div class="p-cell">1</div>
+                                <div class="p-cell">2</div><div class="p-cell">1</div><div class="p-cell">0</div>
+                                <div class="p-cell">3</div><div class="p-cell">1</div><div class="p-cell">2</div>
+                            </div>
                         </div>
+                        <div id="svg-container-1"></div>
                     </div>
-                    <div id="svg-container-1"></div>
+                    <div class="latex-container editable-item" id="latex-2"></div>
                 </div>
-                <div class="latex-container editable-item" id="latex-2"></div>
-            </div>
 
-            <div id="step-3" class="math-step panel-style p-4 w-full relative">
-                <h3 class="font-bold text-sm mb-4 text-[#db2777] editable-item">02.2 Eliminamos fila 1 y columna 2</h3>
-                <div class="w-full flex flex-col items-center mt-2 mb-8 relative">
-                    <div class="pedagogy-matrix editable-item">
-                        <div class="strike-box strike-r1"></div><div class="strike-box strike-c2"></div>
-                        <div class="p-grid">
-                            <div class="p-cell">3</div><div class="p-cell pivot-circle-2" onwheel="resizeCircle(event, this)">-1</div><div class="p-cell">1</div>
-                            <div class="p-cell">2</div><div class="p-cell">1</div><div class="p-cell">0</div>
-                            <div class="p-cell">3</div><div class="p-cell">1</div><div class="p-cell">2</div>
+                <div id="step-3" class="math-step panel-style p-4 w-full relative">
+                    <h3 class="font-bold text-sm mb-4 text-[#db2777] editable-item">02.2 Eliminamos fila 1 y columna 2</h3>
+                    <div class="w-full flex flex-col items-center mt-2 mb-8 relative">
+                        <div class="pedagogy-matrix editable-item">
+                            <div class="strike-box strike-r1"></div><div class="strike-box strike-c2"></div>
+                            <div class="p-grid">
+                                <div class="p-cell">3</div><div class="p-cell pivot-circle-2" onwheel="resizeCircle(event, this)">-1</div><div class="p-cell">1</div>
+                                <div class="p-cell">2</div><div class="p-cell">1</div><div class="p-cell">0</div>
+                                <div class="p-cell">3</div><div class="p-cell">1</div><div class="p-cell">2</div>
+                            </div>
                         </div>
+                        <div id="svg-container-2"></div>
                     </div>
-                    <div id="svg-container-2"></div>
+                    <div class="latex-container editable-item" id="latex-3"></div>
                 </div>
-                <div class="latex-container editable-item" id="latex-3"></div>
-            </div>
 
-            <div id="step-4" class="math-step panel-style p-4 w-full relative">
-                <h3 class="font-bold text-sm mb-4 text-[#db2777] editable-item">02.3 Eliminamos fila 1 y columna 3</h3>
-                <div class="w-full flex flex-col items-center mt-2 mb-8 relative">
-                    <div class="pedagogy-matrix editable-item">
-                        <div class="strike-box strike-r1"></div><div class="strike-box strike-c3"></div>
-                        <div class="p-grid">
-                            <div class="p-cell">3</div><div class="p-cell">-1</div><div class="p-cell pivot-circle-3" onwheel="resizeCircle(event, this)">1</div>
-                            <div class="p-cell">2</div><div class="p-cell">1</div><div class="p-cell">0</div>
-                            <div class="p-cell">3</div><div class="p-cell">1</div><div class="p-cell">2</div>
+                <div id="step-4" class="math-step panel-style p-4 w-full relative">
+                    <h3 class="font-bold text-sm mb-4 text-[#db2777] editable-item">02.3 Eliminamos fila 1 y columna 3</h3>
+                    <div class="w-full flex flex-col items-center mt-2 mb-8 relative">
+                        <div class="pedagogy-matrix editable-item">
+                            <div class="strike-box strike-r1"></div><div class="strike-box strike-c3"></div>
+                            <div class="p-grid">
+                                <div class="p-cell">3</div><div class="p-cell">-1</div><div class="p-cell pivot-circle-3" onwheel="resizeCircle(event, this)">1</div>
+                                <div class="p-cell">2</div><div class="p-cell">1</div><div class="p-cell">0</div>
+                                <div class="p-cell">3</div><div class="p-cell">1</div><div class="p-cell">2</div>
+                            </div>
                         </div>
+                        <div id="svg-container-3"></div>
                     </div>
-                    <div id="svg-container-3"></div>
+                    <div class="latex-container editable-item" id="latex-4"></div>
                 </div>
-                <div class="latex-container editable-item" id="latex-4"></div>
-            </div>
 
-            <div id="step-5" class="math-step panel-style p-4 w-[95%]">
-                <h3 class="font-bold text-[13px] text-[#2dd4bf] text-center leading-tight mb-4 editable-item">03 Resolviendo los determinantes 2x2</h3>
-                <div class="w-full flex justify-between px-2 text-[10px] uppercase tracking-wider opacity-80 mb-1 editable-item">
-                    <span>Positivo</span><span>Negativo</span><span>Positivo</span>
+                <div id="step-5" class="math-step panel-style p-4 w-[95%]">
+                    <h3 class="font-bold text-[13px] text-[#2dd4bf] text-center leading-tight mb-4 editable-item">03 Resolviendo los determinantes 2x2</h3>
+                    <div class="w-full flex justify-between px-2 text-[10px] uppercase tracking-wider opacity-80 mb-1 editable-item">
+                        <span>Positivo</span><span>Negativo</span><span>Positivo</span>
+                    </div>
+                    <div class="flex items-center justify-center gap-[2px] text-xs sm:text-sm editable-item">
+                        <span>|A|=+(3)</span><div class="relative"><div id="latex-5-1" class="latex-container"></div><div class="cross-arrow-container"><div class="c-arrow c-arrow-main"></div><div class="c-arrow c-arrow-sec"></div></div></div>
+                        <span>-(-1)</span><div class="relative"><div id="latex-5-2" class="latex-container"></div><div class="cross-arrow-container"><div class="c-arrow c-arrow-main"></div><div class="c-arrow c-arrow-sec"></div></div></div>
+                        <span>+(1)</span><div class="relative"><div id="latex-5-3" class="latex-container"></div><div class="cross-arrow-container"><div class="c-arrow c-arrow-main"></div><div class="c-arrow c-arrow-sec"></div></div></div>
+                    </div>
                 </div>
-                <div class="flex items-center justify-center gap-[2px] text-xs sm:text-sm editable-item">
-                    <span>|A|=+(3)</span><div class="relative"><div id="latex-5-1" class="latex-container"></div><div class="cross-arrow-container"><div class="c-arrow c-arrow-main"></div><div class="c-arrow c-arrow-sec"></div></div></div>
-                    <span>-(-1)</span><div class="relative"><div id="latex-5-2" class="latex-container"></div><div class="cross-arrow-container"><div class="c-arrow c-arrow-main"></div><div class="c-arrow c-arrow-sec"></div></div></div>
-                    <span>+(1)</span><div class="relative"><div id="latex-5-3" class="latex-container"></div><div class="cross-arrow-container"><div class="c-arrow c-arrow-main"></div><div class="c-arrow c-arrow-sec"></div></div></div>
+
+                <div id="step-6" class="math-step panel-style p-4 w-[95%]">
+                    <div class="latex-container editable-item" id="latex-6-1"></div>
+                    <div class="latex-container editable-item mt-2" id="latex-6-2"></div>
                 </div>
-            </div>
 
-            <div id="step-6" class="math-step panel-style p-4 w-[95%]">
-                <div class="latex-container editable-item" id="latex-6-1"></div>
-                <div class="latex-container editable-item mt-2" id="latex-6-2"></div>
-            </div>
-
-            <div id="step-7" class="math-step panel-style p-6 w-[95%] text-center">
-                <div class="latex-container editable-item mb-2" id="latex-7-1"></div>
-                <div class="latex-container editable-item" id="latex-7-2"></div>
-            </div>
-
-            <div id="step-8" class="math-step">
-                <div class="panel-style p-8 text-center border-2 border-[#4ade80] w-full relative overflow-hidden">
-                    <div class="absolute inset-0 bg-[#4ade80]/10 blur-xl"></div>
-                    <div id="latex-8" class="text-4xl font-bold relative z-10 text-shadow-lg latex-container editable-item"></div>
+                <div id="step-7" class="math-step panel-style p-6 w-[95%] text-center">
+                    <div class="latex-container editable-item mb-2" id="latex-7-1"></div>
+                    <div class="latex-container editable-item" id="latex-7-2"></div>
                 </div>
-            </div>
 
+                <div id="step-8" class="math-step">
+                    <div class="panel-style p-8 text-center border-2 border-[#4ade80] w-full relative overflow-hidden">
+                        <div class="absolute inset-0 bg-[#4ade80]/10 blur-xl"></div>
+                        <div id="latex-8" class="text-4xl font-bold relative z-10 text-shadow-lg latex-container editable-item"></div>
+                    </div>
+                </div>
+            
+            </div> <!-- Fin de zoom-wrapper -->
         </div>
 
         <!-- REDISEÑO DEL TELEPROMPTER -->
@@ -647,6 +734,7 @@
         let isEditMode = false;
         let currentTool = 'move';
         let neonActive = false;
+        let globalAppZoom = 1; 
 
         let VECTORS = {
             svg1: { stroke: "#4ade80", paths: [ { x1: 95, y1: -15, cx: 65, cy: 30, x2: 90, y2: 70 }, { x1: 180, y1: 20, cx: 210, cy: 50, x2: 190, y2: 70 } ] },
@@ -706,7 +794,7 @@
                 const data = VECTORS[svgId]; let html = `<svg class="svg-connector" viewBox="0 0 300 80" id="${svgId}">`;
                 data.paths.forEach((p, pIdx) => {
                     let angle = Math.atan2(p.y2 - p.cy, p.x2 - p.cx) * 180 / Math.PI;
-                    html += `<path class="svg-path" d="M ${p.x1},${p.y1} Q ${p.cx},${p.cy} ${p.x2},${p.y2}" stroke="${data.stroke}"/>`;
+                    html += `<path class="svg-path" d="M ${p.x1},${p.y1} Q ${p.cx},${p.cy} ${p.x2},${p.y2}" stroke="${data.stroke}" data-svg="${svgId}" data-path="${pIdx}" />`;
                     html += `<polygon fill="${data.stroke}" points="0,0 -12,-6 -12,6" transform="translate(${p.x2},${p.y2}) rotate(${angle})"/>`;
                     html += `<line class="ctrl-line" x1="${p.x1}" y1="${p.y1}" x2="${p.cx}" y2="${p.cy}"/>`;
                     html += `<line class="ctrl-line" x1="${p.x2}" y1="${p.y2}" x2="${p.cx}" y2="${p.cy}"/>`;
@@ -742,8 +830,25 @@
             });
         }
 
+        function setAppZoom(delta) {
+            globalAppZoom += delta;
+            globalAppZoom = Math.max(0.5, Math.min(globalAppZoom, 2));
+            applyZoom();
+        }
+
+        function resetAppZoom() {
+            globalAppZoom = 1;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            document.getElementById('zoom-level-text').innerText = Math.round(globalAppZoom * 100) + '%';
+            document.getElementById('zoom-wrapper').style.transform = `scale(${globalAppZoom})`;
+            resizeDrawingCanvas(); 
+        }
+
         // =================================================================
-        // AÑADIR FORMAS PERSONALIZADAS
+        // AÑADIR FORMAS Y TEXTO LIBRE
         // =================================================================
         function addShape(type, e) {
             e.stopPropagation();
@@ -758,20 +863,31 @@
             pushUndoState('Añadir forma');
         }
 
+        function addTextElement(e) {
+            e.stopPropagation();
+            if(currentStep < 0) { alert("Avanza a un paso para añadir texto."); return; }
+            const stepEl = document.getElementById('step-' + currentStep);
+            const textId = 'text-' + Date.now();
+            // NUEVO: Se añade el texto con soporte de scroll para hacerlo más grande o pequeño
+            const html = `<div id="${textId}" class="editable-item custom-text" style="top:20%; left:50%; transform: translateX(-50%); font-size: 16px;" onwheel="resizeCircle(event, this)">Doble clic para\neditar este texto</div>`;
+            stepEl.insertAdjacentHTML('beforeend', html);
+            pushUndoState('Añadir texto');
+            if(window.lucide) lucide.createIcons();
+        }
+
         // =================================================================
         // 💾 GUARDAR Y CARGAR PROYECTO (NUBE Y LOCAL)
         // =================================================================
         function getProjectData() {
-            const canvasClone = document.getElementById('math-canvas').cloneNode(true);
-            canvasClone.querySelectorAll('.math-step').forEach(el => el.classList.remove('active'));
-            canvasClone.querySelectorAll('.selected-item').forEach(el => el.classList.remove('selected-item'));
-            // Eliminar el canvas de dibujo del clon para no guardar el elemento DOM
-            const drawCanvasClone = canvasClone.querySelector('#drawing-canvas');
-            if(drawCanvasClone) drawCanvasClone.remove();
+            const wrapperClone = document.getElementById('zoom-wrapper').cloneNode(true);
+            wrapperClone.querySelectorAll('.math-step').forEach(el => el.classList.remove('active'));
+            wrapperClone.querySelectorAll('.selected-item').forEach(el => el.classList.remove('selected-item'));
+            wrapperClone.style.transform = 'scale(1)'; 
+            
             return {
                 script: scriptData, vectors: VECTORS, totalSteps: totalSteps, config: USER_CONFIG,
-                canvasHTML: canvasClone.innerHTML,
-                drawingStrokes: drawingStrokes, // NUEVO: guardar trazos de dibujo
+                canvasHTML: wrapperClone.innerHTML,
+                drawingStrokes: drawingStrokes,
                 colors: {
                     p1: document.documentElement.style.getPropertyValue('--color-paso1') || '#4ade80',
                     p2: document.documentElement.style.getPropertyValue('--color-paso2') || '#ec4899',
@@ -783,17 +899,14 @@
 
         function applyProjectData(data) {
             scriptData = data.script; VECTORS = data.vectors; totalSteps = data.totalSteps; USER_CONFIG = data.config;
-            // Preservar el canvas de dibujo
-            const drawCanvas = document.getElementById('drawing-canvas');
-            document.getElementById('math-canvas').innerHTML = data.canvasHTML;
-            document.getElementById('math-canvas').prepend(drawCanvas);
+            document.getElementById('zoom-wrapper').innerHTML = data.canvasHTML;
+            
             if(data.colors) {
                 document.documentElement.style.setProperty('--color-paso1', data.colors.p1);
                 document.documentElement.style.setProperty('--color-paso2', data.colors.p2);
                 document.documentElement.style.setProperty('--color-paso3', data.colors.p3);
                 document.documentElement.style.setProperty('--font-principal', data.colors.font);
             }
-            // NUEVO: restaurar trazos de dibujo
             if(data.drawingStrokes) { drawingStrokes = data.drawingStrokes; redrawAllStrokes(); }
             neonActive = !data.neon; toggleNeon({stopPropagation:()=>{}});
             renderSVGs(); resetApp(); selectedNodes = []; activeSvgPoint = null;
@@ -836,8 +949,8 @@
             }
             renderSVGs(); document.getElementById('step-0').classList.add('active');
             lucide.createIcons(); initDrag(); initDoubleClickHandler(); initKeyboardControls();
-            initDrawingCanvas();   // NUEVO
-            initToolbarDrag();     // NUEVO
+            initDrawingCanvas(); 
+            initToolbarDrag();
         };
 
         // =================================================================
@@ -853,16 +966,16 @@
 
             const hint = document.getElementById('tool-hint');
             if(toolName === 'move') hint.innerHTML = "Shift+Clic para selec. múltiple.<br>Usa flechas teclado para mover.<br>Usa 'Suprimir' para borrar.";
-            if(toolName === 'text') hint.innerText = "Doble clic en un texto/ecuación para editar.";
-            if(toolName === 'graphics') hint.innerText = "Selecciona puntos de flecha y usa teclado para precisión.";
+            if(toolName === 'text') hint.innerText = "Doble clic en un texto/ecuación para editar sus líneas libremente.";
+            if(toolName === 'graphics') hint.innerText = "Usa la rueda del ratón sobre las formas o texto para agrandarlos/achicarlos.";
             if(toolName === 'brush') hint.innerText = "Dibuja libremente sobre el lienzo. Ajusta color, grosor y opacidad.";
             if(toolName === 'eraser') hint.innerText = "Pasa el borrador sobre los trazos para eliminarlos.";
             
-            // Mostrar/ocultar config del pincel
             const brushSettings = document.getElementById('brush-settings');
             if(toolName === 'brush' || toolName === 'eraser') { brushSettings.style.display = 'block'; }
             else { brushSettings.style.display = 'none'; }
 
+            updateCanvasInteraction();
             clearSelection();
         }
 
@@ -874,7 +987,10 @@
                 document.body.classList.add('tool-' + currentTool);
                 btn.innerHTML = `<i data-lucide="settings-2" class="w-4 h-4 mr-1"></i> Modo Edición: ON`;
                 btn.classList.add('bg-red-500', 'border-red-400', 'text-white');
-                resizeDrawingCanvas(); // NUEVO: ajustar canvas al entrar
+                resizeDrawingCanvas(); 
+                if(!document.getElementById('super-toolbar').style.display) {
+                    document.getElementById('super-toolbar').style.display = 'flex';
+                }
             } else {
                 document.body.classList.remove('tool-move', 'tool-text', 'tool-graphics', 'tool-brush', 'tool-eraser');
                 btn.innerHTML = `<i data-lucide="settings-2" class="w-4 h-4 mr-1"></i> Modo Edición: OFF`;
@@ -885,36 +1001,109 @@
         }
 
         // =================================================================
-        // SUPER-EDICIÓN: DOBLE CLIC (TEXTO)
+        // CONTROLES DE VENTANA DEL TOOLBAR
         // =================================================================
+        let tbSavedState = { width: '', height: '', left: '', top: '', maximized: false };
+
+        function minimizeToolbar() {
+            const tb = document.getElementById('super-toolbar');
+            tb.classList.add('minimized');
+            tb.scrollTop = 0; 
+        }
+
+        function maximizeToolbar() {
+            const tb = document.getElementById('super-toolbar');
+            if (tb.classList.contains('minimized')) {
+                tb.classList.remove('minimized');
+                return;
+            }
+            
+            if (!tbSavedState.maximized) {
+                tbSavedState = {
+                    width: tb.style.width, height: tb.style.height,
+                    left: tb.style.left, top: tb.style.top, right: tb.style.right,
+                    maximized: true
+                };
+                tb.style.width = '90vw'; tb.style.height = '80vh';
+                tb.style.left = '5vw'; tb.style.top = '10vh'; tb.style.right = 'auto';
+            } else {
+                tb.style.width = tbSavedState.width; tb.style.height = tbSavedState.height;
+                tb.style.left = tbSavedState.left; tb.style.top = tbSavedState.top; tb.style.right = tbSavedState.right;
+                tbSavedState.maximized = false;
+            }
+        }
+
+        function closeToolbar() {
+            document.getElementById('super-toolbar').style.display = 'none';
+            document.getElementById('btn-reopen-toolbar').style.display = 'flex';
+        }
+
+        function reopenToolbar() {
+            document.getElementById('super-toolbar').style.display = 'flex';
+            document.getElementById('btn-reopen-toolbar').style.display = 'none';
+        }
+
+        // =================================================================
+        // SUPER-EDICIÓN: MODAL DE TEXTO (PERMITE SALTOS DE LÍNEA)
+        // =================================================================
+        let currentEditingElement = null;
+        let currentEditingType = ''; 
+
         function initDoubleClickHandler() {
             window.addEventListener('dblclick', (e) => {
                 if(!isEditMode) return;
                 const el = e.target.closest('.editable-item'); if(!el) return;
 
                 if(currentTool === 'text') {
-                    if(el.classList.contains('custom-shape')) return;
-                    if(el.classList.contains('latex-container')) {
-                        let currentTex = el.getAttribute('data-tex') || "";
-                        let newTex = prompt("📝 MOTOR LATEX INTERNO\nEdita el código de tu ecuación:", currentTex);
-                        if(newTex !== null && newTex.trim() !== "") {
-                            pushUndoState('Editar LaTeX');
-                            el.setAttribute('data-tex', newTex); katex.render(newTex, el, { displayMode: true, throwOnError: false });
-                        }
+                    // No permitir editar figuras por texto (salvo que sea .custom-text)
+                    if(el.classList.contains('custom-shape') && !el.classList.contains('custom-text')) return;
+                    
+                    currentEditingElement = el;
+                    const isLatex = el.classList.contains('latex-container');
+                    currentEditingType = isLatex ? 'latex' : 'text';
+                    
+                    const modalTitle = document.getElementById('editor-modal-title');
+                    const textarea = document.getElementById('editor-textarea');
+                    
+                    if (isLatex) {
+                        modalTitle.innerHTML = '📝 Editar Ecuación (LaTeX)';
+                        textarea.value = el.getAttribute('data-tex') || "";
                     } else {
-                        let currentText = el.innerText;
-                        let newText = prompt("📝 MOTOR DE TEXTO\nEdita el contenido:", currentText);
-                        if(newText !== null && newText.trim() !== "") {
-                            pushUndoState('Editar texto');
-                            el.innerText = newText; if(window.lucide) lucide.createIcons(); 
-                        }
+                        modalTitle.innerHTML = '📝 Editar Texto Libre';
+                        textarea.value = el.innerText;
                     }
+                    
+                    document.getElementById('editor-modal').style.display = 'flex';
+                    textarea.focus();
                 }
             });
         }
 
+        function closeEditorModal() {
+            document.getElementById('editor-modal').style.display = 'none';
+            currentEditingElement = null;
+        }
+
+        function saveEditorModal() {
+            if(!currentEditingElement) return;
+            const newText = document.getElementById('editor-textarea').value;
+            
+            if(newText !== null && newText.trim() !== "") {
+                pushUndoState(currentEditingType === 'latex' ? 'Editar LaTeX' : 'Editar texto');
+                
+                if (currentEditingType === 'latex') {
+                    currentEditingElement.setAttribute('data-tex', newText); 
+                    katex.render(newText, currentEditingElement, { displayMode: true, throwOnError: false });
+                } else {
+                    currentEditingElement.innerText = newText; 
+                    if(window.lucide) lucide.createIcons(); 
+                }
+            }
+            closeEditorModal();
+        }
+
         // =================================================================
-        // DRAG & DROP, SELECCIÓN MÚLTIPLE Y ALINEACIÓN
+        // DRAG & DROP FÍSICO Y ESCALADO (TEXTOS Y FORMAS)
         // =================================================================
         let isDragging = false;
         let dragInfo = null;       
@@ -924,7 +1113,11 @@
         function clearSelection() {
             selectedNodes.forEach(n => { n.classList.remove('selected-item'); const badge = n.querySelector('.layer-badge'); if(badge) badge.remove(); });
             selectedNodes = [];
-            if(activeSvgPoint) { activeSvgPoint.elem.classList.remove('active-pt'); activeSvgPoint = null; }
+            if(activeSvgPoint) { 
+                if(activeSvgPoint.elem) activeSvgPoint.elem.classList.remove('active-pt'); 
+                activeSvgPoint = null; 
+            }
+            document.querySelectorAll('.svg-path').forEach(p => p.style.stroke = '');
         }
 
         function alignSelected(type) {
@@ -956,6 +1149,17 @@
         function resizeCircle(e, element) {
             if(!isEditMode || currentTool !== 'graphics') return;
             e.preventDefault();
+            
+            // NUEVO: Escalar los Textos (Font-size)
+            if(element.classList.contains('custom-text')) {
+                let currentSize = parseFloat(window.getComputedStyle(element).fontSize) || 16;
+                if(e.deltaY < 0) currentSize += 2; else currentSize -= 2;
+                currentSize = Math.max(8, Math.min(currentSize, 120));
+                element.style.fontSize = currentSize + 'px';
+                return;
+            }
+
+            // Escalar Formas (Scale Transform)
             if(element.classList.contains('custom-shape')) {
                 let currentScale = parseFloat(element.style.getPropertyValue('--shape-scale')) || 1;
                 if(e.deltaY < 0) currentScale += 0.1; else currentScale -= 0.1;
@@ -963,6 +1167,8 @@
                 element.style.setProperty('--shape-scale', currentScale);
                 return;
             }
+
+            // Escalar Nodos P-Cell
             let currentScale = parseFloat(element.style.getPropertyValue('--pivot-scale')) || 1;
             if(e.deltaY < 0) currentScale += 0.05; else currentScale -= 0.05;
             currentScale = Math.max(0.5, Math.min(currentScale, 3));
@@ -974,32 +1180,57 @@
 
             const startDrag = (e) => {
                 if(!isEditMode) return;
-                // No interferir con brush/eraser
                 if(currentTool === 'brush' || currentTool === 'eraser') return;
                 
-                if(currentTool === 'graphics' && e.target.classList.contains('ctrl-pt')) {
-                    isDragging = true;
-                    if(activeSvgPoint) activeSvgPoint.elem.classList.remove('active-pt');
-                    e.target.classList.add('active-pt');
+                if(currentTool === 'graphics') {
+                    if (e.target.classList.contains('ctrl-pt')) {
+                        isDragging = true;
+                        clearSelection();
+                        e.target.classList.add('active-pt');
 
-                    const svgElem = document.getElementById(e.target.getAttribute('data-svg'));
-                    const pos = getEventPos(e);
-                    const rect = svgElem.getBoundingClientRect();
-                    const initialViewBoxX = (pos.x - rect.left) * (300 / rect.width);
-                    const initialViewBoxY = (pos.y - rect.top) * (80 / rect.height);
-                    
-                    const svgId = e.target.getAttribute('data-svg');
-                    const pathIdx = parseInt(e.target.getAttribute('data-path'));
-                    const ptType = e.target.getAttribute('data-pt');
-                    const targetPath = VECTORS[svgId].paths[pathIdx];
+                        const svgElem = document.getElementById(e.target.getAttribute('data-svg'));
+                        const pos = getEventPos(e);
+                        const rect = svgElem.getBoundingClientRect();
+                        
+                        const initialViewBoxX = ((pos.x - rect.left) / globalAppZoom) * (300 / (rect.width / globalAppZoom));
+                        const initialViewBoxY = ((pos.y - rect.top) / globalAppZoom) * (80 / (rect.height / globalAppZoom));
+                        
+                        const svgId = e.target.getAttribute('data-svg');
+                        const pathIdx = parseInt(e.target.getAttribute('data-path'));
+                        const ptType = e.target.getAttribute('data-pt');
+                        const targetPath = VECTORS[svgId].paths[pathIdx];
 
-                    let ptX = 0, ptY = 0;
-                    if(ptType === 'start') { ptX = targetPath.x1; ptY = targetPath.y1; }
-                    else if(ptType === 'curve') { ptX = targetPath.cx; ptY = targetPath.cy; }
-                    else if(ptType === 'end') { ptX = targetPath.x2; ptY = targetPath.y2; }
+                        let ptX = 0, ptY = 0;
+                        if(ptType === 'start') { ptX = targetPath.x1; ptY = targetPath.y1; }
+                        else if(ptType === 'curve') { ptX = targetPath.cx; ptY = targetPath.cy; }
+                        else if(ptType === 'end') { ptX = targetPath.x2; ptY = targetPath.y2; }
 
-                    dragInfo = { svgId: svgId, pathIdx: pathIdx, ptType: ptType, svgElem: svgElem, offsetX: initialViewBoxX - ptX, offsetY: initialViewBoxY - ptY };
-                    activeSvgPoint = { ...dragInfo, elem: e.target }; 
+                        dragInfo = { type: 'point', svgId: svgId, pathIdx: pathIdx, ptType: ptType, svgElem: svgElem, offsetX: initialViewBoxX - ptX, offsetY: initialViewBoxY - ptY };
+                        activeSvgPoint = { ...dragInfo, elem: e.target }; 
+                    } 
+                    else if (e.target.classList.contains('svg-path')) {
+                        isDragging = true;
+                        clearSelection();
+                        e.target.style.stroke = '#fcd34d'; 
+
+                        const svgElem = document.getElementById(e.target.getAttribute('data-svg'));
+                        const pos = getEventPos(e);
+                        
+                        const svgId = e.target.getAttribute('data-svg');
+                        const pathIdx = parseInt(e.target.getAttribute('data-path'));
+                        const targetPath = VECTORS[svgId].paths[pathIdx];
+
+                        dragInfo = { 
+                            type: 'path', 
+                            svgId: svgId, 
+                            pathIdx: pathIdx, 
+                            svgElem: svgElem, 
+                            startX: pos.x, 
+                            startY: pos.y, 
+                            origPath: { ...targetPath } 
+                        };
+                        activeSvgPoint = { ...dragInfo, elem: e.target };
+                    }
                 } 
                 else if(currentTool === 'move' && e.target.closest('.editable-item')) {
                     const clickedNode = e.target.closest('.editable-item');
@@ -1040,21 +1271,46 @@
 
                 if(dragInfo && currentTool === 'graphics') {
                     const rect = dragInfo.svgElem.getBoundingClientRect();
-                    const viewBoxX = (pos.x - rect.left) * (300 / rect.width);
-                    const viewBoxY = (pos.y - rect.top) * (80 / rect.height);
-                    const finalX = viewBoxX - dragInfo.offsetX;
-                    const finalY = viewBoxY - dragInfo.offsetY;
-
-                    const targetPath = VECTORS[dragInfo.svgId].paths[dragInfo.pathIdx];
-                    if(dragInfo.ptType === 'start') { targetPath.x1 = finalX; targetPath.y1 = finalY; }
-                    else if(dragInfo.ptType === 'curve') { targetPath.cx = finalX; targetPath.cy = finalY; }
-                    else if(dragInfo.ptType === 'end') { targetPath.x2 = finalX; targetPath.y2 = finalY; }
                     
+                    const scaleX = (300 / (rect.width / globalAppZoom)) / globalAppZoom;
+                    const scaleY = (80 / (rect.height / globalAppZoom)) / globalAppZoom;
+
+                    if (dragInfo.type === 'point') {
+                        const viewBoxX = ((pos.x - rect.left) / globalAppZoom) * (300 / (rect.width / globalAppZoom));
+                        const viewBoxY = ((pos.y - rect.top) / globalAppZoom) * (80 / (rect.height / globalAppZoom));
+                        let finalX = viewBoxX - dragInfo.offsetX;
+                        let finalY = viewBoxY - dragInfo.offsetY;
+
+                        if(e.shiftKey) { finalX = Math.round(finalX/10)*10; finalY = Math.round(finalY/10)*10; }
+
+                        const targetPath = VECTORS[dragInfo.svgId].paths[dragInfo.pathIdx];
+                        if(dragInfo.ptType === 'start') { targetPath.x1 = finalX; targetPath.y1 = finalY; }
+                        else if(dragInfo.ptType === 'curve') { targetPath.cx = finalX; targetPath.cy = finalY; }
+                        else if(dragInfo.ptType === 'end') { targetPath.x2 = finalX; targetPath.y2 = finalY; }
+                    } 
+                    else if (dragInfo.type === 'path') {
+                        const dx = (pos.x - dragInfo.startX) * scaleX;
+                        const dy = (pos.y - dragInfo.startY) * scaleY;
+                        
+                        const targetPath = VECTORS[dragInfo.svgId].paths[dragInfo.pathIdx];
+                        targetPath.x1 = dragInfo.origPath.x1 + dx;
+                        targetPath.y1 = dragInfo.origPath.y1 + dy;
+                        targetPath.cx = dragInfo.origPath.cx + dx;
+                        targetPath.cy = dragInfo.origPath.cy + dy;
+                        targetPath.x2 = dragInfo.origPath.x2 + dx;
+                        targetPath.y2 = dragInfo.origPath.y2 + dy;
+
+                        if (e.shiftKey) {
+                            targetPath.x1 = Math.round(targetPath.x1/10)*10; targetPath.y1 = Math.round(targetPath.y1/10)*10;
+                            targetPath.cx = Math.round(targetPath.cx/10)*10; targetPath.cy = Math.round(targetPath.cy/10)*10;
+                            targetPath.x2 = Math.round(targetPath.x2/10)*10; targetPath.y2 = Math.round(targetPath.y2/10)*10;
+                        }
+                    }
                     updateLiveSVG(dragInfo.svgId, dragInfo.pathIdx);
                 } 
                 else if(elemStartPos.length > 0 && currentTool === 'move') {
-                    const dx = pos.x - startPos.x;
-                    const dy = pos.y - startPos.y;
+                    const dx = (pos.x - startPos.x) / globalAppZoom;
+                    const dy = (pos.y - startPos.y) / globalAppZoom;
                     elemStartPos.forEach(data => {
                         data.node.style.transform = `translate(${data.x + dx}px, ${data.y + dy}px)`;
                     });
@@ -1063,13 +1319,16 @@
 
             const endDrag = () => {
                 if(isDragging && elemStartPos.length > 0 && currentTool === 'move') {
-                    // Guardar estado si hubo movimiento real
                     const pos = elemStartPos[0];
                     const style = window.getComputedStyle(pos.node);
                     const matrix = new WebKitCSSMatrix(style.transform);
                     if(Math.abs(matrix.m41 - pos.x) > 1 || Math.abs(matrix.m42 - pos.y) > 1) {
                         pushUndoState('Mover elemento');
                     }
+                }
+                if(isDragging && dragInfo && currentTool === 'graphics') {
+                    pushUndoState('Modificar Gráfico');
+                    if (dragInfo.type === 'path' && dragInfo.elem) dragInfo.elem.style.stroke = '';
                 }
                 isDragging = false; dragInfo = null; elemStartPos = [];
             };
@@ -1084,7 +1343,6 @@
                 
                 if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-                // NUEVO: Ctrl+Z deshacer, Ctrl+Y / Ctrl+Shift+Z rehacer
                 if((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoAction(); return; }
                 if((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redoAction(); return; }
 
@@ -1093,7 +1351,7 @@
                         e.preventDefault();
                         pushUndoState('Borrar elementos');
                         selectedNodes.forEach(node => {
-                            if(node.classList.contains('custom-shape') || node.id.startsWith('latex-dynamic') || node.innerText.includes('NUEVO PASO')) {
+                            if(node.classList.contains('custom-shape') || node.classList.contains('custom-text') || node.id.startsWith('latex-dynamic') || node.innerText.includes('NUEVO PASO')) {
                                 node.remove();
                             } else {
                                 alert("No puedes borrar la estructura principal de la app. Solo formas y textos añadidos.");
@@ -1122,9 +1380,16 @@
                     else if(currentTool === 'graphics' && activeSvgPoint) {
                         e.preventDefault();
                         const targetPath = VECTORS[activeSvgPoint.svgId].paths[activeSvgPoint.pathIdx];
-                        if(activeSvgPoint.ptType === 'start') { targetPath.x1 += dx; targetPath.y1 += dy; }
-                        else if(activeSvgPoint.ptType === 'curve') { targetPath.cx += dx; targetPath.cy += dy; }
-                        else if(activeSvgPoint.ptType === 'end') { targetPath.x2 += dx; targetPath.y2 += dy; }
+                        
+                        if (activeSvgPoint.type === 'point') {
+                            if(activeSvgPoint.ptType === 'start') { targetPath.x1 += dx; targetPath.y1 += dy; }
+                            else if(activeSvgPoint.ptType === 'curve') { targetPath.cx += dx; targetPath.cy += dy; }
+                            else if(activeSvgPoint.ptType === 'end') { targetPath.x2 += dx; targetPath.y2 += dy; }
+                        } else if (activeSvgPoint.type === 'path') {
+                            targetPath.x1 += dx; targetPath.y1 += dy;
+                            targetPath.cx += dx; targetPath.cy += dy;
+                            targetPath.x2 += dx; targetPath.y2 += dy;
+                        }
                         updateLiveSVG(activeSvgPoint.svgId, activeSvgPoint.pathIdx);
                     }
                 }
@@ -1137,11 +1402,11 @@
         let autoPlayInterval = null;
 
         function handleBodyClick(e) {
-            if(isEditMode || e.target.closest('#auth-modal')) {
+            if(isEditMode || e.target.closest('#auth-modal') || e.target.closest('#editor-modal') || e.target.closest('#zoom-controls-panel')) {
                 if(isEditMode && e.target.id === 'math-canvas') clearSelection();
                 return;
             }
-            if(e.target.closest('button') || e.target.closest('.pro-btn') || e.target.closest('.nav-btn') || e.target.closest('#settings-panel') || e.target.closest('#super-toolbar')) return;
+            if(e.target.closest('button') || e.target.closest('.pro-btn') || e.target.closest('.nav-btn') || e.target.closest('#settings-panel') || e.target.closest('#super-toolbar') || e.target.closest('#btn-reopen-toolbar')) return;
             
             if(autoPlayInterval) toggleAutoPlay();
             nextStep();
@@ -1264,6 +1529,7 @@
         function startRecording(e) {
             if (e) e.stopPropagation();
             if(isEditMode) toggleEditMode(e); 
+            resetAppZoom(); 
             
             const panel = document.getElementById('settings-panel');
             if(panel) {
@@ -1333,10 +1599,9 @@
         /* =====================================================================
            NUEVO SISTEMA: CAPAS (Z-INDEX) PARA OBJETOS
            ===================================================================== */
-        let layerCounter = 50; // Contador base de z-index
+        let layerCounter = 50; 
 
         function showLayerBadge(node) {
-            // Remover badge anterior si existe
             const old = node.querySelector('.layer-badge'); if(old) old.remove();
             const z = window.getComputedStyle(node).zIndex;
             const badge = document.createElement('span');
@@ -1374,9 +1639,9 @@
 
 
         /* =====================================================================
-           NUEVO SISTEMA: PINCEL DE ESCRITURA LIBRE Y BORRADOR
+           SISTEMA MEJORADO: PINCEL DE ESCRITURA LIBRE Y BORRADOR CON ZOOM
            ===================================================================== */
-        let drawingStrokes = [];   // Array de trazos: [{points, color, size, opacity}]
+        let drawingStrokes = [];   
         let currentStroke = null;
         let isDrawing = false;
         let drawCtx = null;
@@ -1390,8 +1655,8 @@
                 const rect = canvas.getBoundingClientRect();
                 const mathCanvas = document.getElementById('math-canvas');
                 const scrollTop = mathCanvas.scrollTop;
-                if(e.touches) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top + scrollTop };
-                return { x: e.clientX - rect.left, y: e.clientY - rect.top + scrollTop };
+                if(e.touches) return { x: (e.touches[0].clientX - rect.left), y: (e.touches[0].clientY - rect.top) + scrollTop };
+                return { x: (e.clientX - rect.left), y: (e.clientY - rect.top) + scrollTop };
             };
 
             canvas.addEventListener('mousedown', (e) => { if(currentTool === 'brush' || currentTool === 'eraser') startDrawing(e, getPos(e)); });
@@ -1402,17 +1667,24 @@
             canvas.addEventListener('touchmove', (e) => { if(isDrawing) { e.preventDefault(); continueDrawing(getPos(e)); } }, {passive:false});
             canvas.addEventListener('touchend', () => { stopDrawing(); });
 
-            // Redimensionar al hacer scroll
             document.getElementById('math-canvas').addEventListener('scroll', () => { redrawAllStrokes(); });
-
             window.addEventListener('resize', () => { resizeDrawingCanvas(); });
+        }
+        
+        function updateCanvasInteraction() {
+            const canvas = document.getElementById('drawing-canvas');
+            if (currentTool === 'brush' || currentTool === 'eraser') {
+                canvas.style.pointerEvents = 'auto'; 
+            } else {
+                canvas.style.pointerEvents = 'none'; 
+            }
         }
 
         function resizeDrawingCanvas() {
             const canvas = document.getElementById('drawing-canvas');
             const mathCanvas = document.getElementById('math-canvas');
             canvas.width = mathCanvas.scrollWidth || mathCanvas.clientWidth;
-            canvas.height = Math.max(mathCanvas.scrollHeight, mathCanvas.clientHeight, 2000);
+            canvas.height = Math.max(mathCanvas.scrollHeight, mathCanvas.clientHeight, 3000);
             redrawAllStrokes();
         }
 
@@ -1490,7 +1762,6 @@
                 drawCtx.restore();
             });
 
-            // También redibujar el trazo actual si estamos dibujando
             if(currentStroke && currentStroke.points.length > 1) {
                 drawCtx.save();
                 drawCtx.globalAlpha = currentStroke.opacity;
@@ -1517,7 +1788,7 @@
                     const dy = stroke.points[i].y - pos.y;
                     if(Math.sqrt(dx*dx + dy*dy) < eraserSize) {
                         erased = true;
-                        return false; // Eliminar todo el trazo
+                        return false; 
                     }
                 }
                 return true;
@@ -1555,10 +1826,9 @@
         const MAX_UNDO = 40;
 
         function captureState() {
-            const canvasClone = document.getElementById('math-canvas').cloneNode(true);
-            const dc = canvasClone.querySelector('#drawing-canvas'); if(dc) dc.remove();
+            const wrapperClone = document.getElementById('zoom-wrapper').cloneNode(true);
             return {
-                canvasHTML: canvasClone.innerHTML,
+                canvasHTML: wrapperClone.innerHTML,
                 drawingStrokes: JSON.parse(JSON.stringify(drawingStrokes)),
                 vectors: JSON.parse(JSON.stringify(VECTORS)),
                 scriptData: JSON.parse(JSON.stringify(scriptData)),
@@ -1572,13 +1842,12 @@
             state.label = label || 'Acción';
             undoStack.push(state);
             if(undoStack.length > MAX_UNDO) undoStack.shift();
-            redoStack = []; // Limpiar redo al hacer nueva acción
+            redoStack = []; 
             updateUndoRedoUI();
         }
 
         function undoAction() {
             if(undoStack.length === 0) return;
-            // Guardar estado actual en redo
             const currentState = captureState();
             currentState.label = 'Rehacer';
             redoStack.push(currentState);
@@ -1590,7 +1859,6 @@
 
         function redoAction() {
             if(redoStack.length === 0) return;
-            // Guardar estado actual en undo
             const currentState = captureState();
             currentState.label = 'Deshacer';
             undoStack.push(currentState);
@@ -1601,10 +1869,8 @@
         }
 
         function restoreState(state) {
-            const drawCanvas = document.getElementById('drawing-canvas');
-            const mathCanvas = document.getElementById('math-canvas');
-            mathCanvas.innerHTML = state.canvasHTML;
-            mathCanvas.prepend(drawCanvas);
+            const wrapper = document.getElementById('zoom-wrapper');
+            wrapper.innerHTML = state.canvasHTML;
 
             drawingStrokes = state.drawingStrokes;
             VECTORS = state.vectors;
@@ -1641,17 +1907,20 @@
 
             const getPos = (e) => e.touches ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : { x: e.clientX, y: e.clientY };
 
-            handle.addEventListener('mousedown', startTbDrag);
-            handle.addEventListener('touchstart', startTbDrag, {passive: false});
+            const dragDots = handle.querySelector('.drag-dots');
+
+            dragDots.addEventListener('mousedown', startTbDrag);
+            dragDots.addEventListener('touchstart', startTbDrag, {passive: false});
 
             function startTbDrag(e) {
+                if(toolbar.classList.contains('minimized') && tbSavedState.maximized) return; 
                 e.preventDefault(); e.stopPropagation();
                 tbDragging = true;
                 const pos = getPos(e);
                 const rect = toolbar.getBoundingClientRect();
                 tbOffsetX = pos.x - rect.left;
                 tbOffsetY = pos.y - rect.top;
-                handle.style.cursor = 'grabbing';
+                dragDots.style.cursor = 'grabbing';
             }
 
             function doTbDrag(e) {
@@ -1663,19 +1932,18 @@
                 let newLeft = pos.x - appRect.left - tbOffsetX;
                 let newTop = pos.y - appRect.top - tbOffsetY;
 
-                // Limitar al contenedor
                 newLeft = Math.max(0, Math.min(newLeft, appRect.width - toolbar.offsetWidth));
                 newTop = Math.max(0, Math.min(newTop, appRect.height - toolbar.offsetHeight));
 
                 toolbar.style.left = newLeft + 'px';
                 toolbar.style.top = newTop + 'px';
-                toolbar.style.right = 'auto'; // Desactivar el right original
+                toolbar.style.right = 'auto'; 
             }
 
             function endTbDrag() {
                 if(tbDragging) {
                     tbDragging = false;
-                    handle.style.cursor = 'grab';
+                    dragDots.style.cursor = 'grab';
                 }
             }
 
