@@ -32,7 +32,7 @@
 
         @media (max-width: 380px) { :root { --escala-matematica: 1rem; } }
 
-        /* AÑADIDO: Prevención de gestos para modo tablet (pull-to-refresh, zoom elástico) */
+        /* Prevención de gestos para modo tablet (pull-to-refresh, zoom elástico) */
         body.edit-mode { touch-action: none; overscroll-behavior: none; }
 
         body {
@@ -275,7 +275,6 @@
         .zoom-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;}
         .zoom-btn:hover { background: #3b82f6; color: white; border-color: #60a5fa;}
 
-        /* AÑADIDO: touch-action: none es VITAL para que la tablet no haga scroll al dibujar */
         #drawing-canvas {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 55; pointer-events: none; touch-action: none;
@@ -431,7 +430,7 @@
                     <span>Opacidad:</span>
                     <input type="range" id="brush-opacity" min="10" max="100" value="100" class="w-[100px]">
                 </div>
-                <!-- AÑADIDO: MODO RECHAZO DE PALMA PARA TABLETS -->
+                <!-- MODO RECHAZO DE PALMA PARA TABLETS -->
                 <div class="toolbar-row mb-1 mt-1">
                     <span>Solo Lápiz <span class="text-[9px] text-gray-400">(Tablet)</span>:</span>
                     <button class="btn-action w-[60px]" onclick="togglePenOnly(event)" id="btn-pen-only" title="Bloquea los dedos, dibuja solo con S-Pen o Apple Pencil">OFF</button>
@@ -1041,7 +1040,7 @@
                 btn.innerHTML = `<i data-lucide="settings-2" class="w-4 h-4 mr-1"></i> Modo Edición: ON`;
                 btn.classList.add('bg-red-500', 'border-red-400', 'text-white');
                 resizeDrawingCanvas(); 
-                if(!document.getElementById('super-toolbar').style.display) {
+                if(!document.getElementById('super-toolbar').style.display || document.getElementById('super-toolbar').style.display === 'none') {
                     document.getElementById('super-toolbar').style.display = 'flex';
                 }
             } else {
@@ -1049,6 +1048,10 @@
                 btn.innerHTML = `<i data-lucide="settings-2" class="w-4 h-4 mr-1"></i> Modo Edición: OFF`;
                 btn.classList.remove('bg-red-500', 'border-red-400', 'text-white');
                 clearSelection(); 
+                
+                // NUEVO: Asegurarse de que el super-toolbar desaparezca completamente al apagar la edición.
+                document.getElementById('super-toolbar').style.display = 'none';
+                document.getElementById('btn-reopen-toolbar').style.display = 'none';
             }
             if(window.lucide) lucide.createIcons(); 
         }
@@ -1578,7 +1581,15 @@
 
             const currentEl = document.getElementById('step-' + currentStep);
             if(currentEl && currentStep > 0) {
-                setTimeout(() => { currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
+                setTimeout(() => { 
+                    // NUEVO: Reemplazado scrollIntoView por scrollTo para evitar el bug nativo de Safari/iOS
+                    // que empujaba la pantalla hacia arriba revelando el fondo negro (pantalla negra)
+                    const canvas = document.getElementById('math-canvas');
+                    if (canvas) {
+                        const scrollPos = currentEl.offsetTop - (canvas.clientHeight / 2) + (currentEl.clientHeight / 2);
+                        canvas.scrollTo({ top: Math.max(0, scrollPos), behavior: 'smooth' });
+                    }
+                }, 100);
             }
 
             const editTag = document.getElementById('edit-tag');
@@ -1627,6 +1638,12 @@
                 setTimeout(() => panel.style.display = 'none', 300);
             }
             
+            // NUEVO: Asegurar por completo que el panel de ajustes esté oculto al grabar
+            const superToolbar = document.getElementById('super-toolbar');
+            if (superToolbar) superToolbar.style.display = 'none';
+            const btnReopen = document.getElementById('btn-reopen-toolbar');
+            if (btnReopen) btnReopen.style.display = 'none';
+
             const watermark = document.getElementById('watermark');
             if(watermark) watermark.style.opacity = '1';
             
@@ -1735,7 +1752,7 @@
         let currentStroke = null;
         let isDrawing = false;
         let drawCtx = null;
-        let penOnlyMode = false; // AÑADIDO: Control de rechazo de palma
+        let penOnlyMode = false; 
 
         function togglePenOnly(e) {
             e.stopPropagation();
@@ -1750,7 +1767,6 @@
 
         function initDrawingCanvas() {
             const canvas = document.getElementById('drawing-canvas');
-            // AÑADIDO: desynchronized para baja latencia en tablets (reduce el lag al dibujar)
             drawCtx = canvas.getContext('2d', { desynchronized: true }); 
             resizeDrawingCanvas();
 
@@ -1758,18 +1774,15 @@
                 const rect = canvas.getBoundingClientRect();
                 const mathCanvas = document.getElementById('math-canvas');
                 const scrollTop = mathCanvas.scrollTop;
-                // PointerEvent maneja touch y pen internamente en clientX/clientY
                 return { x: (e.clientX - rect.left), y: (e.clientY - rect.top) + scrollTop };
             };
 
-            // AÑADIDO: Uso de la API moderna de Punteros para detectar lápiz, dedos, presión y estabilizar
             canvas.addEventListener('pointerdown', (e) => {
                 if(currentTool === 'brush' || currentTool === 'eraser') {
-                    // Si el rechazo de palma está ON, y no es un lápiz, ignora el toque
                     if(penOnlyMode && e.pointerType !== 'pen') return;
                     
                     e.preventDefault();
-                    canvas.setPointerCapture(e.pointerId); // Mantiene el foco en el canvas
+                    canvas.setPointerCapture(e.pointerId); 
                     startDrawing(e, getPos(e), e.pressure);
                 }
             });
@@ -1777,7 +1790,6 @@
             canvas.addEventListener('pointermove', (e) => {
                 if(isDrawing) {
                     e.preventDefault();
-                    // AÑADIDO: Soporte para pantallas 120Hz/240Hz procesando micro-eventos interpolados
                     const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
                     for (let ev of events) {
                         continueDrawing(getPos(ev), ev.pressure, ev);
@@ -1822,7 +1834,6 @@
                 const size = parseInt(document.getElementById('brush-size').value);
                 const opacity = parseInt(document.getElementById('brush-opacity').value) / 100;
                 
-                // AÑADIDO: Extraer presión real si es lápiz óptico
                 let p = (e && e.pointerType === 'pen') ? Math.max(0.1, pressure) : 1;
                 currentStroke = { points: [{...pos, p: p}], color, size, opacity };
             } else if(currentTool === 'eraser') {
@@ -1849,7 +1860,6 @@
             isDrawing = false;
         }
 
-        // AÑADIDO: El segmento de dibujo ahora soporta grosor dinámico basado en la presión
         function drawStrokeSegment(stroke, fromIdx) {
             if(!drawCtx || fromIdx < 0 || fromIdx >= stroke.points.length - 1) return;
             const mathCanvas = document.getElementById('math-canvas');
@@ -1858,7 +1868,6 @@
             const p1 = stroke.points[fromIdx];
             const p2 = stroke.points[fromIdx + 1];
 
-            // Calcular tamaño dinámico suavizado
             let size1 = stroke.size * (p1.p !== undefined ? p1.p : 1);
             let size2 = stroke.size * (p2.p !== undefined ? p2.p : 1);
 
@@ -1868,7 +1877,6 @@
             drawCtx.lineCap = 'round';
             drawCtx.lineJoin = 'round';
 
-            // Dibujar trazado para el segmento con el grosor adaptado
             drawCtx.lineWidth = (size1 + size2) / 2;
 
             drawCtx.beginPath();
@@ -1886,7 +1894,6 @@
             const mathCanvas = document.getElementById('math-canvas');
             const scrollTop = mathCanvas.scrollTop;
 
-            // Función interna para redibujar un trazo completo respetando la presión guardada
             const drawSingleStroke = (stroke) => {
                 if(stroke.points.length < 2) return;
                 drawCtx.save();
