@@ -14,6 +14,13 @@
     <!-- Librería para Exportar a PNG -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+    <!-- Mermaid.js para Diagramas -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+    <!-- Firebase SDK (Modular CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
     <style>
         /* MOTOR DE VARIABLES GLOBALES (MODO OSCURO POR DEFECTO) */
         :root {
@@ -165,7 +172,7 @@
         .tool-btn.highlight:hover { background: rgba(59, 130, 246, 0.2); }
 
         /* ========================================== */
-        /* SISTEMA DE BOMBILLO FLOTANTE (ICONO PROFESIONAL SVG) */
+        /* SISTEMA DE BOMBILLO FLOTANTE               */
         /* ========================================== */
         .lightbulb-btn {
             position: absolute; top: -14px; right: -14px; width: 42px; height: 42px;
@@ -211,6 +218,346 @@
         .modal-box::-webkit-scrollbar-track { background: transparent; }
         .modal-box::-webkit-scrollbar-thumb { background: var(--node-border); border-radius: 10px; }
         .modal-box::-webkit-scrollbar-thumb:hover { background: var(--text-sub); }
+
+        /* ========================================== */
+        /* MERMAID EDITOR V2 — GLASSMORPHISM PREMIUM  */
+        /* ========================================== */
+        .mermaid-editor-container {
+            display: flex; gap: 2rem; 
+            position: absolute; top: 150px; left: 50px; right: 50px; bottom: 50px; z-index: 20;
+        }
+
+        /* GLASS PANELS */
+        .mermaid-panel {
+            flex: 1; 
+            background: var(--node-bg); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+            border: 1px solid var(--node-border); border-radius: 28px; 
+            display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,var(--shadow-str)), inset 0 1px 0 rgba(255,255,255,0.06);
+            transition: box-shadow 0.4s ease, border-color 0.4s ease;
+            position: relative;
+        }
+        .mermaid-panel::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+            z-index: 5;
+        }
+        .mermaid-panel:hover {
+            box-shadow: 0 30px 60px -15px rgba(0,0,0,calc(var(--shadow-str) + 0.1)), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .mermaid-panel.panel-editor { border-color: rgba(6, 182, 212, 0.15); }
+        .mermaid-panel.panel-editor:hover { border-color: rgba(6, 182, 212, 0.3); }
+        .mermaid-panel.panel-preview { border-color: rgba(139, 92, 246, 0.15); }
+        .mermaid-panel.panel-preview:hover { border-color: rgba(139, 92, 246, 0.3); }
+
+        /* PANEL HEADERS */
+        .mermaid-panel-header {
+            padding: 1rem 1.5rem; 
+            border-bottom: 1px solid var(--node-border);
+            display: flex; align-items: center; justify-content: space-between;
+            flex-shrink: 0; position: relative; z-index: 2;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+        }
+        .mermaid-panel-header h3 { 
+            font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 0.6rem;
+            letter-spacing: 0.02em;
+        }
+        .panel-header-icon {
+            width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        }
+        .icon-editor { background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.3); }
+        .icon-preview { background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); }
+
+        /* TEMPLATE CHIPS - SCROLLABLE ROW */
+        .mermaid-templates-row {
+            padding: 0.8rem 1.5rem; border-bottom: 1px solid var(--node-border);
+            display: flex; gap: 0.5rem; overflow-x: auto; flex-shrink: 0;
+            scrollbar-width: none; -ms-overflow-style: none;
+            background: linear-gradient(180deg, rgba(0,0,0,0.05), transparent);
+        }
+        .mermaid-templates-row::-webkit-scrollbar { display: none; }
+
+        .mermaid-tpl-chip {
+            padding: 0.4rem 1rem; border-radius: 99px; font-size: 0.72rem; font-weight: 700;
+            background: var(--inner-box); border: 1px solid var(--node-border); color: var(--text-sub);
+            cursor: pointer; transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); white-space: nowrap;
+            display: flex; align-items: center; gap: 0.4rem; letter-spacing: 0.03em; text-transform: uppercase;
+            flex-shrink: 0; position: relative; overflow: hidden;
+        }
+        .mermaid-tpl-chip::before {
+            content: ''; position: absolute; inset: 0; opacity: 0;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            transition: opacity 0.3s ease; z-index: 0;
+        }
+        .mermaid-tpl-chip:hover::before { opacity: 1; }
+        .mermaid-tpl-chip:hover { color: white; border-color: transparent; transform: scale(1.08) translateY(-1px); 
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3); }
+        .mermaid-tpl-chip.active { background: linear-gradient(135deg, var(--primary), var(--purple)); color: white; border-color: transparent;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25); }
+        .mermaid-tpl-chip span { position: relative; z-index: 1; }
+        .mermaid-tpl-chip .chip-icon { font-size: 0.85rem; position: relative; z-index: 1; }
+
+        /* CODE EDITOR AREA */
+        .editor-body { flex: 1; display: flex; overflow: hidden; position: relative; min-height: 0; }
+
+        .line-numbers {
+            padding: 1.2rem 0.8rem 1.2rem 1rem; font-family: 'Fira Code', monospace; font-size: 0.78rem;
+            line-height: 1.85; color: rgba(148, 163, 184, 0.25); text-align: right;
+            user-select: none; pointer-events: none; flex-shrink: 0; overflow: hidden;
+            border-right: 1px solid var(--node-border); min-width: 38px;
+        }
+        
+        #mermaid-code-editor {
+            flex: 1; width: 100%; resize: none; background: transparent; color: var(--text-main);
+            border: none; padding: 1.2rem 1.2rem; font-family: 'Fira Code', monospace; font-size: 0.78rem;
+            line-height: 1.85; outline: none; tab-size: 2; min-height: 0;
+            caret-color: #06b6d4;
+        }
+        #mermaid-code-editor::placeholder { color: var(--text-sub); opacity: 0.3; }
+        #mermaid-code-editor::selection { background: rgba(6, 182, 212, 0.2); }
+
+        /* EDITOR STATUS BAR */
+        .editor-statusbar {
+            padding: 0.5rem 1.5rem; border-top: 1px solid var(--node-border);
+            display: flex; align-items: center; justify-content: space-between;
+            font-size: 0.7rem; font-family: 'Fira Code', monospace; color: var(--text-sub);
+            flex-shrink: 0; opacity: 0.6;
+            background: linear-gradient(0deg, rgba(0,0,0,0.05), transparent);
+        }
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; transition: all 0.3s ease; }
+        .status-dot.live { background: #10b981; box-shadow: 0 0 8px #10b981; animation: statusPulse 2s ease infinite; }
+        .status-dot.error { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+        .status-dot.idle { background: rgba(148, 163, 184, 0.3); }
+        @keyframes statusPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* PREVIEW AREA + GLASSMORPHISM ON RENDERED DIAGRAMS */
+        #mermaid-preview {
+            flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center;
+            padding: 2rem; min-height: 0; position: relative;
+            background: 
+                radial-gradient(ellipse at 20% 30%, rgba(6, 182, 212, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+        }
+        #mermaid-preview svg { 
+            max-width: 100%; max-height: 100%; 
+            filter: drop-shadow(0 8px 24px rgba(0,0,0,0.2)); 
+            animation: previewFadeIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes previewFadeIn { from { opacity: 0; transform: scale(0.92) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        
+        /* Glassmorphism overlay for Mermaid SVG nodes */
+        #mermaid-preview .node rect,
+        #mermaid-preview .node polygon,
+        #mermaid-preview .node circle {
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
+            rx: 12; ry: 12;
+        }
+        #mermaid-preview .edgePath .path {
+            stroke-width: 2.5px !important;
+            filter: drop-shadow(0 0 4px rgba(100, 116, 139, 0.3));
+        }
+        #mermaid-preview .edgeLabel {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        /* Animate edges entry */
+        #mermaid-preview .edgePath {
+            animation: edgeDraw 0.8s ease-out forwards;
+        }
+        @keyframes edgeDraw { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* Animate nodes entry with stagger effect */
+        #mermaid-preview .node { animation: nodePopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+        #mermaid-preview .node:nth-child(1) { animation-delay: 0.05s; }
+        #mermaid-preview .node:nth-child(2) { animation-delay: 0.1s; }
+        #mermaid-preview .node:nth-child(3) { animation-delay: 0.15s; }
+        #mermaid-preview .node:nth-child(4) { animation-delay: 0.2s; }
+        #mermaid-preview .node:nth-child(5) { animation-delay: 0.25s; }
+        #mermaid-preview .node:nth-child(6) { animation-delay: 0.3s; }
+        #mermaid-preview .node:nth-child(7) { animation-delay: 0.35s; }
+        #mermaid-preview .node:nth-child(8) { animation-delay: 0.4s; }
+        #mermaid-preview .node:nth-child(9) { animation-delay: 0.45s; }
+        #mermaid-preview .node:nth-child(10) { animation-delay: 0.5s; }
+        #mermaid-preview .node:nth-child(n+11) { animation-delay: 0.55s; }
+        @keyframes nodePopIn { from { opacity: 0; transform: scale(0.7) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        /* Glassmorphism for sequence diagram participants */
+        #mermaid-preview .actor {
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
+            animation: nodePopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        /* Glassmorphism for gantt bars */
+        #mermaid-preview .section { opacity: 0.9; }
+        #mermaid-preview .task {
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
+            rx: 8; ry: 8;
+            animation: nodePopIn 0.4s ease backwards;
+        }
+        /* Glassmorphism for pie chart slices */
+        #mermaid-preview .slice {
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));
+            animation: pieSliceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        @keyframes pieSliceIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+        
+        /* Glassmorphism glow border around preview content */
+        #mermaid-preview::after {
+            content: ''; position: absolute; inset: 12px; border-radius: 20px; pointer-events: none;
+            border: 1px solid transparent;
+            background: linear-gradient(135deg, rgba(6,182,212,0.06), transparent, rgba(139,92,246,0.06)) border-box;
+            -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude;
+            z-index: 1; opacity: 0.5;
+        }
+        #mermaid-preview .error { 
+            color: var(--danger); font-size: 0.82rem; padding: 1.5rem; 
+            background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 16px; max-width: 90%; text-align: center; line-height: 1.6;
+        }
+        #mermaid-preview .placeholder-msg {
+            text-align: center; color: var(--text-sub); opacity: 0.3;
+        }
+        #mermaid-preview .placeholder-msg svg { margin: 0 auto 1rem; opacity: 0.3; }
+
+        /* ACTION BUTTONS */
+        .mermaid-actions { display: flex; gap: 0.5rem; align-items: center; }
+        .mermaid-action-btn {
+            padding: 0.45rem 0.9rem; border-radius: 12px; font-size: 0.75rem; font-weight: 700;
+            border: 1px solid; cursor: pointer; transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; align-items: center; gap: 0.35rem; background: transparent;
+            letter-spacing: 0.02em;
+        }
+        .mermaid-action-btn:hover { transform: scale(1.06) translateY(-1px); }
+        .mermaid-action-btn.btn-svg { color: var(--success); border-color: rgba(16,185,129,0.3); }
+        .mermaid-action-btn.btn-svg:hover { background: rgba(16,185,129,0.1); box-shadow: 0 4px 15px rgba(16,185,129,0.2); }
+        .mermaid-action-btn.btn-png { color: var(--warning); border-color: rgba(245,158,11,0.3); }
+        .mermaid-action-btn.btn-png:hover { background: rgba(245,158,11,0.1); box-shadow: 0 4px 15px rgba(245,158,11,0.2); }
+        .mermaid-action-btn.btn-copy { color: var(--pink); border-color: rgba(236,72,153,0.3); }
+        .mermaid-action-btn.btn-copy:hover { background: rgba(236,72,153,0.1); box-shadow: 0 4px 15px rgba(236,72,153,0.2); }
+
+        /* LIVE INDICATOR BADGE */
+        .live-badge {
+            position: absolute; top: 16px; right: 16px; z-index: 30;
+            background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981; padding: 0.3rem 0.8rem; border-radius: 99px;
+            font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+            display: flex; align-items: center; gap: 0.4rem;
+            backdrop-filter: blur(8px); animation: liveBadgePulse 3s ease infinite;
+        }
+        @keyframes liveBadgePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.2); } 50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); } }
+
+        /* ANIMATED SVG CONNECTORS FOR SLIDE 5 */
+        .s5-connector-svg { position: absolute; z-index: 15; pointer-events: none; }
+        .s5-flow-line { fill: none; stroke-width: 3px; stroke-linecap: round; stroke-dasharray: 10 20; animation: flow-animation 2s linear infinite; }
+        .s5-flow-bg { fill: none; stroke: var(--path-line); stroke-width: 2px; stroke-linecap: round; }
+        .s5-glow-cyan { stroke: #06b6d4; filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.5)); }
+        .s5-glow-violet { stroke: #8b5cf6; filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.5)); }
+        .s5-glow-pink { stroke: #ec4899; filter: drop-shadow(0 0 6px rgba(236, 72, 153, 0.5)); }
+
+        /* FLOATING DECORATION ORBS */
+        .mermaid-orb {
+            position: absolute; border-radius: 50%; z-index: 5; pointer-events: none;
+            animation: orbFloat 8s ease-in-out infinite;
+        }
+        @keyframes orbFloat { 
+            0%, 100% { transform: translate(0, 0) scale(1); } 
+            25% { transform: translate(10px, -15px) scale(1.05); } 
+            50% { transform: translate(-5px, -25px) scale(0.95); } 
+            75% { transform: translate(15px, -10px) scale(1.02); }
+        }
+
+        /* ========================================== */
+        /* PANEL INTEGRATED: CAFÉ & RATING BUTTONS    */
+        /* ========================================== */
+        .tool-btn.coffee-tool {
+            color: #f59e0b; position: relative;
+        }
+        .tool-btn.coffee-tool:hover { 
+            background: rgba(245, 158, 11, 0.15); color: #fbbf24;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+        }
+        .tool-btn.coffee-tool .mini-steam {
+            position: absolute; top: 2px; right: 6px; display: flex; gap: 2px;
+        }
+        .tool-btn.coffee-tool .mini-steam span {
+            display: block; width: 2px; height: 5px; background: rgba(245, 158, 11, 0.5);
+            border-radius: 99px; animation: steam 1.5s ease-in-out infinite;
+        }
+        .tool-btn.coffee-tool .mini-steam span:nth-child(2) { animation-delay: 0.3s; height: 7px; }
+        @keyframes steam {
+            0%, 100% { transform: translateY(0) scaleX(1); opacity: 0.4; }
+            50% { transform: translateY(-4px) scaleX(1.3); opacity: 0.9; }
+        }
+
+        .tool-btn.rating-tool { color: #f59e0b; }
+        .tool-btn.rating-tool:hover { 
+            background: rgba(245, 158, 11, 0.15); color: #fbbf24;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+        }
+
+        .star-rating { display: flex; gap: 4px; direction: rtl; }
+        .star-rating input { display: none; }
+        .star-rating label {
+            cursor: pointer; font-size: 1.8rem; color: rgba(148, 163, 184, 0.3);
+            transition: all 0.15s ease; line-height: 1;
+        }
+        .star-rating label:hover,
+        .star-rating label:hover ~ label,
+        .star-rating input:checked ~ label {
+            color: #f59e0b; text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            transform: scale(1.1);
+        }
+
+        .rating-question {
+            background: var(--inner-box); border: 1px solid var(--node-border); border-radius: 16px;
+            padding: 1.2rem 1.5rem; margin-bottom: 1rem;
+        }
+        .rating-question p { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.6rem; }
+
+        .rating-submit-btn {
+            width: 100%; padding: 1rem; border-radius: 16px; font-size: 1rem; font-weight: 700;
+            border: none; cursor: pointer; transition: all 0.3s ease;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            color: white; box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
+        .rating-submit-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 35px rgba(59, 130, 246, 0.5); }
+        .rating-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .rating-thankyou { text-align: center; padding: 3rem 1rem; }
+        .rating-thankyou .check-circle {
+            width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, var(--success), #34d399);
+            display: flex; align-items: center; justify-content: center;
+            animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+
+        /* TOOLTIP FOR PANEL BUTTONS */
+        .tool-btn[data-tooltip] { position: relative; }
+        .tool-btn[data-tooltip]::after {
+            content: attr(data-tooltip); position: absolute; right: 54px; top: 50%; transform: translateY(-50%);
+            background: var(--badge-bg); border: 1px solid var(--node-border); color: var(--text-main);
+            padding: 0.3rem 0.7rem; border-radius: 8px; font-size: 0.65rem; font-weight: 600;
+            white-space: nowrap; opacity: 0; pointer-events: none; transition: all 0.2s ease;
+            backdrop-filter: blur(8px); box-shadow: 0 4px 12px rgba(0,0,0,var(--shadow-str));
+        }
+        .tool-btn[data-tooltip]:hover::after { opacity: 1; right: 50px; }
+
+        /* UNDO TOAST */
+        .undo-toast {
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: var(--badge-bg); backdrop-filter: blur(12px); border: 1px solid var(--node-border);
+            border-radius: 16px; padding: 0.6rem 1.2rem; font-size: 0.8rem; font-weight: 600;
+            color: var(--text-main); display: flex; align-items: center; gap: 0.8rem; z-index: 9998;
+            box-shadow: 0 15px 30px rgba(0,0,0, var(--shadow-str));
+            opacity: 0; pointer-events: none; transition: all 0.3s ease;
+        }
+        .undo-toast.visible { opacity: 1; pointer-events: all; transform: translateX(-50%) translateY(0); }
+        .undo-toast button {
+            background: var(--primary); color: white; border: none; border-radius: 8px;
+            padding: 0.3rem 0.8rem; font-weight: 700; font-size: 0.75rem; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .undo-toast button:hover { background: #2563eb; }
     </style>
 </head>
 <body>
@@ -218,32 +565,56 @@
     <!-- MENÚ LATERAL UNIFICADO (DERECHA) -->
     <div class="side-nav">
         <!-- Navegación de Páginas -->
-        <button id="dot-1" class="nav-dot active" onclick="switchSlide(1)" title="Página 1: Estrategia Core"></button>
-        <button id="dot-2" class="nav-dot" onclick="switchSlide(2)" title="Página 2: Guion y Ejecución"></button>
-        <button id="dot-3" class="nav-dot" onclick="switchSlide(3)" title="Página 3: Temario y Casos"></button>
-        <button id="dot-4" class="nav-dot" onclick="switchSlide(4)" title="Página 4: Roles y Ecosistema"></button>
+        <button id="dot-1" class="nav-dot active" onclick="switchSlide(1)" title="Estrategia Core"></button>
+        <button id="dot-2" class="nav-dot" onclick="switchSlide(2)" title="Guion y Ejecución"></button>
+        <button id="dot-3" class="nav-dot" onclick="switchSlide(3)" title="Temario y Casos"></button>
+        <button id="dot-4" class="nav-dot" onclick="switchSlide(4)" title="Roles y Ecosistema"></button>
+        <button id="dot-5" class="nav-dot" onclick="switchSlide(5)" title="Generador Mermaid"></button>
         
         <div class="nav-divider"></div>
 
         <!-- Herramientas -->
-        <button id="theme-btn" class="tool-btn" onclick="toggleTheme()" title="Cambiar Tema (Claro/Oscuro)">
+        <button class="tool-btn" onclick="toggleTheme()" data-tooltip="Tema" title="Cambiar Tema">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
         </button>
         
-        <button id="marker-btn" class="tool-btn" onclick="toggleMarker()" title="Cambiar Punta de Conexión" style="font-size: 1.1rem; font-weight: bold;">
-            ➤
+        <button id="marker-btn" class="tool-btn" onclick="toggleMarker()" data-tooltip="Punta" title="Cambiar Punta" style="font-size: 1.1rem; font-weight: bold;">➤</button>
+
+        <button class="tool-btn" onclick="toggleFullScreen()" data-tooltip="Pantalla" title="Pantalla Completa">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
         </button>
 
-        <button class="tool-btn" onclick="toggleFullScreen()" title="Pantalla Completa">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        <button class="tool-btn" onclick="undoAction()" data-tooltip="Deshacer" title="Deshacer (Ctrl+Z)">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4"></path></svg>
+        </button>
+
+        <button class="tool-btn" onclick="redoAction()" data-tooltip="Rehacer" title="Rehacer (Ctrl+Y)">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H11a5 5 0 00-5 5v2m15-7l-4-4m4 4l-4 4"></path></svg>
         </button>
 
         <div class="nav-divider"></div>
 
-        <!-- Botón de Exportar (Guardar) Integrado -->
-        <button class="tool-btn highlight" onclick="exportarHD()" title="Guardar Gráfico en HD">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+        <!-- Exportar HD -->
+        <button class="tool-btn highlight" onclick="exportarHD()" data-tooltip="Guardar HD" title="Guardar en HD">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
         </button>
+
+        <!-- Invítame un Café (integrado) -->
+        <a href="https://paypal.me/TU_USUARIO_PAYPAL" target="_blank" rel="noopener noreferrer" class="tool-btn coffee-tool" data-tooltip="Invítame un Café" title="Invítame un Café ☕" style="text-decoration:none;">
+            <div class="mini-steam"><span></span><span></span></div>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h1a4 4 0 110 8h-1M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8zm0-3h14"></path></svg>
+        </a>
+
+        <!-- Califícanos (integrado) -->
+        <button class="tool-btn rating-tool" onclick="abrirRatingModal()" data-tooltip="Califícanos" title="Califícanos ⭐">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </button>
+    </div>
+
+    <!-- UNDO TOAST -->
+    <div id="undo-toast" class="undo-toast">
+        <span>Texto modificado</span>
+        <button onclick="undoAction()">Deshacer</button>
     </div>
 
     <!-- ========================================== -->
@@ -286,12 +657,8 @@
                     <span class="font-code text-pink-500" contenteditable="true" spellcheck="false">Link en Bio</span>
                 </div>
 
-                <!-- NODO 1 -->
                 <div id="n1-core" class="glass-node glow-pink shape-cloud" style="left: 100px; top: 540px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 320px; padding: 1.5rem;">
-                    <!-- Botón Bombillo SVG Profesional -->
-                    <button class="lightbulb-btn" onclick="abrirModal('n1-core')" title="Expandir Información">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
-                    </button>
+                    <button class="lightbulb-btn" onclick="abrirModal('n1-core')" title="Expandir Información"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
                     <div class="flex items-center gap-3 mb-2 justify-center"><svg class="w-6 h-6 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg><h3 class="text-2xl font-extrabold text-[var(--text-main)] text-center" contenteditable="true" spellcheck="false">Personal Branding</h3></div>
                     <p class="text-sm text-center font-bold text-pink-500 mt-1" contenteditable="true" spellcheck="false">María José Luna Dita</p>
                     <div class="bg-[var(--inner-box)] rounded-xl p-3 mt-4 border border-[var(--node-border)] text-xs text-[var(--text-sub)]">
@@ -299,7 +666,6 @@
                     </div>
                 </div>
 
-                <!-- NODO 2 -->
                 <div id="n2-lab" class="glass-node glow-blue shape-leaf" style="left: 550px; top: 340px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 340px; padding: 1.5rem;">
                     <button class="lightbulb-btn" onclick="abrirModal('n2-lab')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
                     <div class="flex items-center gap-3 border-b border-[var(--node-border)] pb-3">
@@ -309,7 +675,6 @@
                     <p class="text-sm mt-3 text-[var(--text-sub)] leading-tight" contenteditable="true" spellcheck="false"><strong>Storytelling (Narrativa):</strong> <em>Hooks</em> dinámicos, casos reales, ataque directo a los <strong>Pain Points</strong> del trabajador.</p>
                 </div>
 
-                <!-- NODO 3 -->
                 <div id="n3-acad" class="glass-node glow-violet shape-leaf" style="left: 550px; top: 740px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 340px; padding: 1.5rem;">
                     <button class="lightbulb-btn" onclick="abrirModal('n3-acad')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
                     <div class="flex items-center gap-3 border-b border-[var(--node-border)] pb-3">
@@ -319,7 +684,6 @@
                     <p class="text-sm mt-3 text-[var(--text-sub)] leading-tight" contenteditable="true" spellcheck="false"><strong>Inbound Marketing (Atracción):</strong> Tutoriales, <em>Lead Magnets</em>, prevención legal para RRHH.</p>
                 </div>
 
-                <!-- NODO 4 -->
                 <div id="n4-topics1" class="glass-node glow-blue" style="left: 980px; top: 340px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 280px; padding: 1.5rem;">
                     <button class="lightbulb-btn" onclick="abrirModal('n4-topics1')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
                     <h4 class="font-bold text-[var(--text-main)] mb-3" contenteditable="true" spellcheck="false">Content Pillars - B2C</h4>
@@ -331,7 +695,6 @@
                     </ul>
                 </div>
 
-                <!-- NODO 5 -->
                 <div id="n5-topics2" class="glass-node glow-violet" style="left: 980px; top: 740px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 280px; padding: 1.5rem;">
                     <button class="lightbulb-btn" onclick="abrirModal('n5-topics2')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
                     <h4 class="font-bold text-[var(--text-main)] mb-3" contenteditable="true" spellcheck="false">Core Offerings - B2B</h4>
@@ -343,7 +706,6 @@
                     </ul>
                 </div>
 
-                <!-- NODO 6 -->
                 <div id="n6-funnel" class="glass-node glow-amber shape-leaf" style="left: 1450px; top: 540px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 340px; padding: 1.5rem;">
                     <button class="lightbulb-btn" onclick="abrirModal('n6-funnel')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
                     <h3 class="text-2xl font-extrabold text-[var(--text-main)] text-center mb-4" contenteditable="true" spellcheck="false">Sales Funnel (Embudo)</h3>
@@ -354,7 +716,6 @@
                     </div>
                 </div>
 
-                <!-- NODO 7 -->
                 <div id="n7-prod" class="glass-node glow-blue" style="left: 150px; top: 850px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 320px; padding: 1.5rem;">
                     <button class="lightbulb-btn" onclick="abrirModal('n7-prod')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
                     <h3 class="text-xl font-extrabold text-[var(--text-main)] text-center" contenteditable="true" spellcheck="false">Content Production</h3>
@@ -364,7 +725,6 @@
                     </div>
                 </div>
 
-                <!-- NODO 8 -->
                 <div id="n8-growth" class="glass-node glow-amber" style="left: 1450px; top: 200px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 340px; padding: 1.5rem;">
                     <button class="lightbulb-btn" onclick="abrirModal('n8-growth')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
                     <h3 class="text-xl font-extrabold text-[var(--text-main)] text-center" contenteditable="true" spellcheck="false">Growth Marketing</h3>
@@ -374,7 +734,6 @@
                     </div>
                 </div>
 
-                <!-- NODO 9 -->
                 <div id="n9-metrics" class="glass-node glow-emerald" style="left: 1450px; top: 850px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 340px; padding: 1.5rem;">
                     <button class="lightbulb-btn" onclick="abrirModal('n9-metrics')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
                     <h3 class="text-xl font-extrabold text-[var(--text-main)] text-center" contenteditable="true" spellcheck="false">Data & Analytics (KPIs)</h3>
@@ -486,7 +845,6 @@
                     <g class="dynamic-path-group" data-from="s3-n1-core" data-to="s3-n2-contracts" data-offset-y="0"><path class="path-base" /> <path class="path-flow flow-blue" /></g>
                     <g class="dynamic-path-group" data-from="s3-n1-core" data-to="s3-n3-salary" data-offset-y="0"><path class="path-base" /> <path class="path-flow flow-violet" /></g>
                     <g class="dynamic-path-group" data-from="s3-n1-core" data-to="s3-n4-benefits" data-offset-y="0"><path class="path-base" /> <path class="path-flow flow-pink" /></g>
-                    <!-- Conexiones a Casos Reales -->
                     <g class="dynamic-path-group" data-from="s3-n2-contracts" data-to="s3-n5-cases" data-offset-y="-30"><path class="path-base" style="stroke-dasharray: 6;" /> <path class="path-flow flow-amber" /></g>
                     <g class="dynamic-path-group" data-from="s3-n3-salary" data-to="s3-n5-cases" data-offset-y="0"><path class="path-base" style="stroke-dasharray: 6;" /> <path class="path-flow flow-amber" /></g>
                     <g class="dynamic-path-group" data-from="s3-n4-benefits" data-to="s3-n5-cases" data-offset-y="30"><path class="path-base" style="stroke-dasharray: 6;" /> <path class="path-flow flow-amber" /></g>
@@ -568,126 +926,356 @@
         <!-- PÁGINA 4: ROLES Y CRECIMIENTO              -->
         <!-- ========================================== -->
         <section id="slide-4" class="slide-section">
-            <div class="scale-wrapper">
-                <div id="main-canvas-4" class="canvas-16-9">
-                    
-                    <div class="cluster-bg bg-blue-600" style="width: 900px; height: 900px; left: 50%; top: 50%; transform: translate(-50%, -50%);"></div>
+            <div class="scale-wrapper"><div id="main-canvas-4" class="canvas-16-9">
+                <div class="cluster-bg bg-blue-600" style="width: 900px; height: 900px; left: 50%; top: 50%; transform: translate(-50%, -50%);"></div>
 
-                    <div class="absolute top-16 left-24 z-40">
-                        <h1 class="text-6xl font-extrabold text-[var(--text-main)] tracking-tight leading-tight" contenteditable="true" spellcheck="false">El Ecosistema del Creador</h1>
-                        <h2 class="text-2xl font-medium text-[var(--text-sub)] mt-2 flex items-center gap-3">
-                            <span class="w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_10px_#06b6d4]"></span> 
-                            <span contenteditable="true" spellcheck="false">División de Roles y Estrategias Anti-Burnout para iniciar con éxito</span>
-                        </h2>
-                    </div>
-
-                    <svg id="svg-layer-4" class="svg-layer svg-glow" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet">
-                        <defs id="svg-defs-4"></defs>
-                        <g class="dynamic-path-group" data-from="s4-n0-core" data-to="s4-n1-creator" data-offset-y="0"><path class="path-base" /> <path class="path-flow flow-pink" /></g>
-                        <g class="dynamic-path-group" data-from="s4-n0-core" data-to="s4-n2-smm" data-offset-y="0"><path class="path-base" /> <path class="path-flow flow-blue" /></g>
-                        <g class="dynamic-path-group" data-from="s4-n0-core" data-to="s4-n3-cm" data-offset-y="0"><path class="path-base" /> <path class="path-flow flow-amber" /></g>
-                        <g class="dynamic-path-group" data-from="s4-n0-core" data-to="s4-n4-growth" data-offset-y="0"><path class="path-base" style="stroke-dasharray: 6;" /> <path class="path-flow flow-emerald" /></g>
-                    </svg>
-
-                    <!-- NODO CENTRAL S4 (Forma Circular) -->
-                    <div id="s4-n0-core" class="glass-node glow-blue shape-circle" style="left: 150px; top: 540px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 340px;">
-                        <button class="lightbulb-btn" onclick="abrirModal('s4-n0-core')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
-                        <h3 class="text-3xl font-extrabold text-[var(--text-main)] text-center" contenteditable="true" spellcheck="false">Tu Rol como CEO</h3>
-                        <p class="text-sm text-center font-bold text-cyan-400 mt-2" contenteditable="true" spellcheck="false">Desdoblando Personalidades</p>
-                        <div class="bg-[var(--inner-box)] rounded-xl p-3 mt-4 border border-[var(--node-border)] text-sm text-[var(--text-sub)] w-full">
-                            <span contenteditable="true" spellcheck="false">Para iniciar sola sin abrumarte, debes entender que vas a ocupar 3 sillas distintas en tu empresa. No mezcles las tareas.</span>
-                        </div>
-                    </div>
-
-                    <!-- NODO: CONTENT CREATOR -->
-                    <div id="s4-n1-creator" class="glass-node glow-pink" style="left: 750px; top: 220px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 380px; padding: 1.5rem;">
-                        <button class="lightbulb-btn" onclick="abrirModal('creator')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
-                        <div class="flex items-center gap-3 border-b border-[var(--node-border)] pb-3">
-                            <div class="bg-pink-500/20 text-pink-500 rounded-lg p-2 border border-pink-500/50"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></div>
-                            <div><h3 class="text-xl font-extrabold text-[var(--text-main)]" contenteditable="true" spellcheck="false">El Content Creator</h3><p class="text-xs font-bold text-pink-500" contenteditable="true" spellcheck="false">La Artista & Comunicadora</p></div>
-                        </div>
-                        <p class="text-sm mt-3 text-[var(--text-sub)] leading-tight" contenteditable="true" spellcheck="false">Encargada de la ideación creativa, grabar frente a cámara, iluminación, y edición de impacto.</p>
-                    </div>
-
-                    <!-- NODO: SOCIAL MEDIA MANAGER -->
-                    <div id="s4-n2-smm" class="glass-node glow-blue" style="left: 750px; top: 540px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 380px; padding: 1.5rem;">
-                        <button class="lightbulb-btn" onclick="abrirModal('smm')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
-                        <div class="flex items-center gap-3 border-b border-[var(--node-border)] pb-3">
-                            <div class="bg-blue-500/20 text-blue-500 rounded-lg p-2 border border-blue-500/50"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg></div>
-                            <div><h3 class="text-xl font-extrabold text-[var(--text-main)]" contenteditable="true" spellcheck="false">El Social Media Manager</h3><p class="text-xs font-bold text-blue-500" contenteditable="true" spellcheck="false">La Estratega & Analista</p></div>
-                        </div>
-                        <p class="text-sm mt-3 text-[var(--text-sub)] leading-tight" contenteditable="true" spellcheck="false">Diseña el calendario de publicación mensual, analiza KPIs (Alcance, CTR) y recicla contenidos.</p>
-                    </div>
-
-                    <!-- NODO: COMMUNITY MANAGER -->
-                    <div id="s4-n3-cm" class="glass-node glow-amber" style="left: 750px; top: 860px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 380px; padding: 1.5rem;">
-                        <button class="lightbulb-btn" onclick="abrirModal('cm')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
-                        <div class="flex items-center gap-3 border-b border-[var(--node-border)] pb-3">
-                            <div class="bg-amber-500/20 text-amber-500 rounded-lg p-2 border border-amber-500/50"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg></div>
-                            <div><h3 class="text-xl font-extrabold text-[var(--text-main)]" contenteditable="true" spellcheck="false">El Community Manager</h3><p class="text-xs font-bold text-amber-500" contenteditable="true" spellcheck="false">La Voz de la Marca</p></div>
-                        </div>
-                        <p class="text-sm mt-3 text-[var(--text-sub)] leading-tight" contenteditable="true" spellcheck="false">Interactúa, responde DMs y comentarios, construye relaciones (Networking) y gestiona crisis.</p>
-                    </div>
-
-                    <!-- NODO: ESTRATEGIAS DE CRECIMIENTO -->
-                    <div id="s4-n4-growth" class="glass-node glow-emerald shape-cloud" style="left: 1350px; top: 540px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 420px; padding: 2.5rem;">
-                        <button class="lightbulb-btn" onclick="abrirModal('growth')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
-                        <div class="flex items-center justify-center gap-3 mb-2">
-                            <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                            <h3 class="text-2xl font-extrabold text-[var(--text-main)] text-center" contenteditable="true" spellcheck="false">Crecimiento & Actualización</h3>
-                        </div>
-                        <p class="text-sm text-center font-bold text-emerald-500 mt-1 mb-4" contenteditable="true" spellcheck="false">Growth Hacking en TikTok</p>
-                        <div class="bg-[var(--inner-box)] rounded-xl p-3 border border-emerald-500/30 text-sm text-[var(--text-sub)]">
-                            <span contenteditable="true" spellcheck="false">El algoritmo evoluciona cada semana. Entender cómo posicionarse (SEO) y aprovechar tendencias (Trendjacking) garantiza la viralidad sostenida.</span>
-                        </div>
-                    </div>
-
-                    <div class="copyright-tag">&copy; 2026 Laboralmente & LunaAcademy. Todos los derechos reservados.</div>
+                <div class="absolute top-16 left-24 z-40">
+                    <h1 class="text-6xl font-extrabold text-[var(--text-main)] tracking-tight leading-tight" contenteditable="true" spellcheck="false">El Ecosistema del Creador</h1>
+                    <h2 class="text-2xl font-medium text-[var(--text-sub)] mt-2 flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_10px_#06b6d4]"></span> <span contenteditable="true" spellcheck="false">División de Roles y Estrategias Anti-Burnout para iniciar con éxito</span></h2>
                 </div>
-            </div>
+
+                <svg id="svg-layer-4" class="svg-layer svg-glow" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet"><defs id="svg-defs-4"></defs>
+                    <g class="dynamic-path-group" data-from="s4-n0-core" data-to="s4-n1-creator" data-offset-y="0"><path class="path-base" /> <path class="path-flow flow-pink" /></g>
+                    <g class="dynamic-path-group" data-from="s4-n0-core" data-to="s4-n2-smm" data-offset-y="0"><path class="path-base" /> <path class="path-flow flow-blue" /></g>
+                    <g class="dynamic-path-group" data-from="s4-n0-core" data-to="s4-n3-cm" data-offset-y="0"><path class="path-base" /> <path class="path-flow flow-amber" /></g>
+                    <g class="dynamic-path-group" data-from="s4-n0-core" data-to="s4-n4-growth" data-offset-y="0"><path class="path-base" style="stroke-dasharray: 6;" /> <path class="path-flow flow-emerald" /></g>
+                </svg>
+
+                <div id="s4-n0-core" class="glass-node glow-blue shape-circle" style="left: 150px; top: 540px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 340px;">
+                    <button class="lightbulb-btn" onclick="abrirModal('s4-n0-core')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
+                    <h3 class="text-3xl font-extrabold text-[var(--text-main)] text-center" contenteditable="true" spellcheck="false">Tu Rol como CEO</h3>
+                    <p class="text-sm text-center font-bold text-cyan-400 mt-2" contenteditable="true" spellcheck="false">Desdoblando Personalidades</p>
+                    <div class="bg-[var(--inner-box)] rounded-xl p-3 mt-4 border border-[var(--node-border)] text-sm text-[var(--text-sub)] w-full">
+                        <span contenteditable="true" spellcheck="false">Para iniciar sola sin abrumarte, debes entender que vas a ocupar 3 sillas distintas en tu empresa. No mezcles las tareas.</span>
+                    </div>
+                </div>
+
+                <div id="s4-n1-creator" class="glass-node glow-pink" style="left: 750px; top: 220px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 380px; padding: 1.5rem;">
+                    <button class="lightbulb-btn" onclick="abrirModal('creator')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
+                    <div class="flex items-center gap-3 border-b border-[var(--node-border)] pb-3">
+                        <div class="bg-pink-500/20 text-pink-500 rounded-lg p-2 border border-pink-500/50"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></div>
+                        <div><h3 class="text-xl font-extrabold text-[var(--text-main)]" contenteditable="true" spellcheck="false">El Content Creator</h3><p class="text-xs font-bold text-pink-500" contenteditable="true" spellcheck="false">La Artista & Comunicadora</p></div>
+                    </div>
+                    <p class="text-sm mt-3 text-[var(--text-sub)] leading-tight" contenteditable="true" spellcheck="false">Encargada de la ideación creativa, grabar frente a cámara, iluminación, y edición de impacto.</p>
+                </div>
+
+                <div id="s4-n2-smm" class="glass-node glow-blue" style="left: 750px; top: 540px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 380px; padding: 1.5rem;">
+                    <button class="lightbulb-btn" onclick="abrirModal('smm')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
+                    <div class="flex items-center gap-3 border-b border-[var(--node-border)] pb-3">
+                        <div class="bg-blue-500/20 text-blue-500 rounded-lg p-2 border border-blue-500/50"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg></div>
+                        <div><h3 class="text-xl font-extrabold text-[var(--text-main)]" contenteditable="true" spellcheck="false">El Social Media Manager</h3><p class="text-xs font-bold text-blue-500" contenteditable="true" spellcheck="false">La Estratega & Analista</p></div>
+                    </div>
+                    <p class="text-sm mt-3 text-[var(--text-sub)] leading-tight" contenteditable="true" spellcheck="false">Diseña el calendario de publicación mensual, analiza KPIs (Alcance, CTR) y recicla contenidos.</p>
+                </div>
+
+                <div id="s4-n3-cm" class="glass-node glow-amber" style="left: 750px; top: 860px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 380px; padding: 1.5rem;">
+                    <button class="lightbulb-btn" onclick="abrirModal('cm')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
+                    <div class="flex items-center gap-3 border-b border-[var(--node-border)] pb-3">
+                        <div class="bg-amber-500/20 text-amber-500 rounded-lg p-2 border border-amber-500/50"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg></div>
+                        <div><h3 class="text-xl font-extrabold text-[var(--text-main)]" contenteditable="true" spellcheck="false">El Community Manager</h3><p class="text-xs font-bold text-amber-500" contenteditable="true" spellcheck="false">La Voz de la Marca</p></div>
+                    </div>
+                    <p class="text-sm mt-3 text-[var(--text-sub)] leading-tight" contenteditable="true" spellcheck="false">Interactúa, responde DMs y comentarios, construye relaciones (Networking) y gestiona crisis.</p>
+                </div>
+
+                <div id="s4-n4-growth" class="glass-node glow-emerald shape-cloud" style="left: 1350px; top: 540px; --dx: 0px; --dy: 0px; transform: translate(var(--dx), calc(-50% + var(--dy))); width: 420px; padding: 2.5rem;">
+                    <button class="lightbulb-btn" onclick="abrirModal('growth')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
+                    <div class="flex items-center justify-center gap-3 mb-2">
+                        <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                        <h3 class="text-2xl font-extrabold text-[var(--text-main)] text-center" contenteditable="true" spellcheck="false">Crecimiento & Actualización</h3>
+                    </div>
+                    <p class="text-sm text-center font-bold text-emerald-500 mt-1 mb-4" contenteditable="true" spellcheck="false">Growth Hacking en TikTok</p>
+                    <div class="bg-[var(--inner-box)] rounded-xl p-3 border border-emerald-500/30 text-sm text-[var(--text-sub)]">
+                        <span contenteditable="true" spellcheck="false">El algoritmo evoluciona cada semana. Entender cómo posicionarse (SEO) y aprovechar tendencias (Trendjacking) garantiza la viralidad sostenida.</span>
+                    </div>
+                </div>
+
+                <div class="copyright-tag">&copy; 2026 Laboralmente & LunaAcademy. Todos los derechos reservados.</div>
+            </div></div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PÁGINA 5: GENERADOR MERMAID PREMIUM        -->
+        <!-- ========================================== -->
+        <section id="slide-5" class="slide-section">
+            <div class="scale-wrapper"><div id="main-canvas-5" class="canvas-16-9">
+                <!-- AMBIENT GLOWS -->
+                <div class="cluster-bg bg-cyan-600" style="width: 1000px; height: 1000px; left: -300px; top: -200px;"></div>
+                <div class="cluster-bg bg-violet-600" style="width: 800px; height: 800px; right: -200px; bottom: -200px;"></div>
+                <div class="cluster-bg bg-pink-600" style="width: 500px; height: 500px; left: 50%; top: 50%; transform: translate(-50%,-50%); opacity: 0.08;"></div>
+
+                <!-- FLOATING ORBS -->
+                <div class="mermaid-orb" style="width: 12px; height: 12px; background: #06b6d4; left: 40px; top: 400px; opacity: 0.3; animation-delay: 0s;"></div>
+                <div class="mermaid-orb" style="width: 8px; height: 8px; background: #8b5cf6; right: 60px; top: 200px; opacity: 0.25; animation-delay: 2s;"></div>
+                <div class="mermaid-orb" style="width: 16px; height: 16px; background: #ec4899; left: 50%; bottom: 80px; opacity: 0.2; animation-delay: 4s;"></div>
+                <div class="mermaid-orb" style="width: 6px; height: 6px; background: #f59e0b; left: 30%; top: 120px; opacity: 0.35; animation-delay: 1s;"></div>
+                <div class="mermaid-orb" style="width: 10px; height: 10px; background: #10b981; right: 35%; bottom: 150px; opacity: 0.2; animation-delay: 3s;"></div>
+
+                <!-- ANIMATED SVG CONNECTOR (Editor → Preview) -->
+                <svg class="s5-connector-svg" style="left: 0; top: 0; width: 1920px; height: 1080px;" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet">
+                    <!-- Top decorative arc -->
+                    <path class="s5-flow-bg" d="M 200 120 Q 960 60, 1720 120" />
+                    <path class="s5-flow-line s5-glow-cyan" d="M 200 120 Q 960 60, 1720 120" style="animation-delay: 0s;" />
+                    <!-- Center connector: Editor to Preview -->
+                    <path class="s5-flow-bg" d="M 870 540 C 910 540, 930 540, 960 540" />
+                    <path class="s5-flow-line s5-glow-violet" d="M 870 540 C 910 540, 930 540, 960 540" style="stroke-dasharray: 6 12;" />
+                    <!-- Bottom decorative arc -->
+                    <path class="s5-flow-bg" d="M 200 1000 Q 960 1060, 1720 1000" />
+                    <path class="s5-flow-line s5-glow-pink" d="M 200 1000 Q 960 1060, 1720 1000" style="animation-delay: 1s;" />
+                    <!-- Vertical flow lines (left) -->
+                    <path class="s5-flow-bg" d="M 100 150 C 100 400, 120 700, 100 950" />
+                    <path class="s5-flow-line s5-glow-cyan" d="M 100 150 C 100 400, 120 700, 100 950" style="animation-delay: 0.5s; stroke-dasharray: 8 16;" />
+                    <!-- Vertical flow lines (right) -->
+                    <path class="s5-flow-bg" d="M 1820 150 C 1820 400, 1800 700, 1820 950" />
+                    <path class="s5-flow-line s5-glow-violet" d="M 1820 150 C 1820 400, 1800 700, 1820 950" style="animation-delay: 0.8s; stroke-dasharray: 8 16;" />
+                </svg>
+
+                <!-- HEADER -->
+                <div class="absolute top-10 left-16 z-40" style="max-width: 55%;">
+                    <h1 class="text-5xl font-extrabold text-[var(--text-main)] tracking-tight leading-tight">
+                        Generador de Diagramas
+                    </h1>
+                    <h2 class="text-lg font-medium text-[var(--text-sub)] mt-2 flex items-center gap-3">
+                        <span class="w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_10px_#06b6d4]"></span> 
+                        Mermaid Live Editor — Edición en Tiempo Real
+                    </h2>
+                </div>
+
+                <!-- FLOATING BADGES -->
+                <div class="curve-badge" style="left: 1600px; top: 85px; border-color: rgba(6, 182, 212, 0.3);">
+                    <div class="bg-cyan-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-black">⌨</div>
+                    <span class="font-code text-cyan-500" style="font-size: 0.8rem;">Ctrl+Enter</span>
+                </div>
+
+                <!-- ============================== -->
+                <!-- EDITOR CONTAINER               -->
+                <!-- ============================== -->
+                <div class="mermaid-editor-container">
+
+                    <!-- LEFT PANEL: CODE EDITOR -->
+                    <div class="mermaid-panel panel-editor" style="flex: 0.42;">
+                        <div class="mermaid-panel-header">
+                            <h3>
+                                <div class="panel-header-icon icon-editor">
+                                    <svg class="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                                </div>
+                                <span class="text-cyan-400">Código Mermaid</span>
+                            </h3>
+                            <div style="display:flex; align-items:center; gap: 0.6rem;">
+                                <span id="editor-char-count" class="font-code text-[0.65rem]" style="color: var(--text-sub); opacity: 0.4;">0 chars</span>
+                            </div>
+                        </div>
+
+                        <!-- TEMPLATE CHIPS -->
+                        <div class="mermaid-templates-row">
+                            <button class="mermaid-tpl-chip active" onclick="loadMermaidTemplate('flowchart', this)"><span class="chip-icon">🔀</span><span>Flow</span></button>
+                            <button class="mermaid-tpl-chip" onclick="loadMermaidTemplate('sequence', this)"><span class="chip-icon">🔄</span><span>Sequence</span></button>
+                            <button class="mermaid-tpl-chip" onclick="loadMermaidTemplate('gantt', this)"><span class="chip-icon">📅</span><span>Gantt</span></button>
+                            <button class="mermaid-tpl-chip" onclick="loadMermaidTemplate('mindmap', this)"><span class="chip-icon">🧠</span><span>Mindmap</span></button>
+                            <button class="mermaid-tpl-chip" onclick="loadMermaidTemplate('pie', this)"><span class="chip-icon">🥧</span><span>Pie</span></button>
+                            <button class="mermaid-tpl-chip" onclick="loadMermaidTemplate('class', this)"><span class="chip-icon">🏗️</span><span>Class</span></button>
+                            <button class="mermaid-tpl-chip" onclick="loadMermaidTemplate('state', this)"><span class="chip-icon">⚡</span><span>State</span></button>
+                            <button class="mermaid-tpl-chip" onclick="loadMermaidTemplate('er', this)"><span class="chip-icon">🗄️</span><span>ER</span></button>
+                            <button class="mermaid-tpl-chip" onclick="loadMermaidTemplate('journey', this)"><span class="chip-icon">🗺️</span><span>Journey</span></button>
+                            <button class="mermaid-tpl-chip" onclick="loadMermaidTemplate('git', this)"><span class="chip-icon">🌿</span><span>Git</span></button>
+                        </div>
+
+                        <!-- CODE BODY -->
+                        <div class="editor-body">
+                            <div class="line-numbers" id="line-numbers">1</div>
+                            <textarea id="mermaid-code-editor" spellcheck="false" placeholder="Escribe tu código Mermaid aquí...
+Renderizado en tiempo real ⚡">graph TD
+    A[🎯 Estrategia TikTok] --> B{¿Qué tipo de contenido?}
+    B -->|B2C| C[Laboralmente]
+    B -->|B2B| D[LunaAcademy]
+    C --> E[Casos Reales]
+    C --> F[Pain Points]
+    D --> G[Cursos Online]
+    D --> H[Lead Magnets]
+    E --> I[📱 TikTok Feed]
+    F --> I
+    G --> J[🎓 Plataforma LMS]
+    H --> J
+    I --> K{Embudo de Ventas}
+    J --> K
+    K --> L[💰 Conversión]
+
+    style A fill:#ec4899,stroke:#be185d,color:#fff
+    style B fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    style C fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style D fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    style K fill:#f59e0b,stroke:#d97706,color:#000
+    style L fill:#10b981,stroke:#059669,color:#fff</textarea>
+                        </div>
+
+                        <!-- STATUS BAR -->
+                        <div class="editor-statusbar">
+                            <div><span class="status-dot idle" id="render-status-dot"></span><span id="render-status-text">Listo</span></div>
+                            <div id="editor-lines-count">Ln 1</div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT PANEL: LIVE PREVIEW -->
+                    <div class="mermaid-panel panel-preview" style="flex: 0.58;">
+                        <div class="mermaid-panel-header">
+                            <h3>
+                                <div class="panel-header-icon icon-preview">
+                                    <svg class="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                </div>
+                                <span class="text-violet-400">Vista Previa en Vivo</span>
+                            </h3>
+                            <div class="mermaid-actions">
+                                <button class="mermaid-action-btn btn-copy" onclick="copyMermaidCode()" title="Copiar código">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> Copy
+                                </button>
+                                <button class="mermaid-action-btn btn-svg" onclick="exportMermaidSVG()" title="Descargar SVG">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> SVG
+                                </button>
+                                <button class="mermaid-action-btn btn-png" onclick="exportMermaidPNG()" title="Descargar PNG HD">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> PNG
+                                </button>
+                            </div>
+                        </div>
+                        <div id="mermaid-preview" style="position: relative;">
+                            <div class="live-badge"><span class="status-dot live" style="margin:0;"></span> LIVE</div>
+                            <div class="placeholder-msg">
+                                <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path></svg>
+                                <p style="font-size: 1rem; font-weight: 600;">Escribe código para ver tu diagrama</p>
+                                <p style="font-size: 0.8rem; margin-top: 0.5rem;">Renderizado automático en tiempo real</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="copyright-tag">&copy; 2026 Laboralmente & LunaAcademy. Todos los derechos reservados.</div>
+            </div></div>
         </section>
 
     </main>
 
     <!-- ========================================== -->
-    <!-- SISTEMA OVERLAY: MODAL DE INFORMACIÓN      -->
+    <!-- MODAL: INFORMACIÓN (ORIGINAL)              -->
     <!-- ========================================== -->
     <div id="info-modal" class="modal-overlay">
         <div class="modal-box">
             <button class="close-modal-btn" onclick="closeModal()" title="Cerrar Modal">✕</button>
-            <div id="modal-content-area" class="text-[var(--text-main)]">
-                <!-- El contenido se inyecta dinámicamente vía JavaScript -->
+            <div id="modal-content-area" class="text-[var(--text-main)]"></div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: SISTEMA DE RATING CON FIREBASE      -->
+    <!-- ========================================== -->
+    <div id="rating-modal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 600px;">
+            <button class="close-modal-btn" onclick="closeRatingModal()" title="Cerrar">✕</button>
+            
+            <div id="rating-form-area">
+                <div class="text-center mb-6">
+                    <h2 class="text-3xl font-extrabold text-[var(--text-main)]">Califica esta Estrategia</h2>
+                    <p class="text-[var(--text-sub)] mt-2">Tu feedback nos ayuda a mejorar</p>
+                </div>
+
+                <div class="rating-question">
+                    <p class="text-[var(--text-main)]">1. ¿Qué tan útil te pareció la estrategia de contenido?</p>
+                    <div class="star-rating" data-question="q1">
+                        <input type="radio" id="q1-5" name="q1" value="5"><label for="q1-5">★</label>
+                        <input type="radio" id="q1-4" name="q1" value="4"><label for="q1-4">★</label>
+                        <input type="radio" id="q1-3" name="q1" value="3"><label for="q1-3">★</label>
+                        <input type="radio" id="q1-2" name="q1" value="2"><label for="q1-2">★</label>
+                        <input type="radio" id="q1-1" name="q1" value="1"><label for="q1-1">★</label>
+                    </div>
+                </div>
+
+                <div class="rating-question">
+                    <p class="text-[var(--text-main)]">2. ¿Qué tan clara fue la estructura del embudo de ventas?</p>
+                    <div class="star-rating" data-question="q2">
+                        <input type="radio" id="q2-5" name="q2" value="5"><label for="q2-5">★</label>
+                        <input type="radio" id="q2-4" name="q2" value="4"><label for="q2-4">★</label>
+                        <input type="radio" id="q2-3" name="q2" value="3"><label for="q2-3">★</label>
+                        <input type="radio" id="q2-2" name="q2" value="2"><label for="q2-2">★</label>
+                        <input type="radio" id="q2-1" name="q2" value="1"><label for="q2-1">★</label>
+                    </div>
+                </div>
+
+                <div class="rating-question">
+                    <p class="text-[var(--text-main)]">3. ¿Recomendarías este mapa estratégico a otros creadores?</p>
+                    <div class="star-rating" data-question="q3">
+                        <input type="radio" id="q3-5" name="q3" value="5"><label for="q3-5">★</label>
+                        <input type="radio" id="q3-4" name="q3" value="4"><label for="q3-4">★</label>
+                        <input type="radio" id="q3-3" name="q3" value="3"><label for="q3-3">★</label>
+                        <input type="radio" id="q3-2" name="q3" value="2"><label for="q3-2">★</label>
+                        <input type="radio" id="q3-1" name="q3" value="1"><label for="q3-1">★</label>
+                    </div>
+                </div>
+
+                <div class="rating-question">
+                    <p class="text-[var(--text-main)]">4. ¿Qué tan útil te pareció la sección de guiones y hooks?</p>
+                    <div class="star-rating" data-question="q4">
+                        <input type="radio" id="q4-5" name="q4" value="5"><label for="q4-5">★</label>
+                        <input type="radio" id="q4-4" name="q4" value="4"><label for="q4-4">★</label>
+                        <input type="radio" id="q4-3" name="q4" value="3"><label for="q4-3">★</label>
+                        <input type="radio" id="q4-2" name="q4" value="2"><label for="q4-2">★</label>
+                        <input type="radio" id="q4-1" name="q4" value="1"><label for="q4-1">★</label>
+                    </div>
+                </div>
+
+                <div class="rating-question">
+                    <p class="text-[var(--text-main)]">5. Valoración general de la experiencia interactiva</p>
+                    <div class="star-rating" data-question="q5">
+                        <input type="radio" id="q5-5" name="q5" value="5"><label for="q5-5">★</label>
+                        <input type="radio" id="q5-4" name="q5" value="4"><label for="q5-4">★</label>
+                        <input type="radio" id="q5-3" name="q5" value="3"><label for="q5-3">★</label>
+                        <input type="radio" id="q5-2" name="q5" value="2"><label for="q5-2">★</label>
+                        <input type="radio" id="q5-1" name="q5" value="1"><label for="q5-1">★</label>
+                    </div>
+                </div>
+
+                <button id="submit-rating-btn" class="rating-submit-btn" onclick="submitRating()" disabled>
+                    Enviar Calificación
+                </button>
+                <p class="text-center text-xs text-[var(--text-sub)] mt-3 opacity-60">Los datos se envían a Firebase de forma anónima</p>
+            </div>
+
+            <div id="rating-thankyou-area" class="rating-thankyou" style="display:none;">
+                <div class="check-circle">
+                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h3 class="text-2xl font-extrabold text-[var(--text-main)]">¡Gracias por tu feedback!</h3>
+                <p class="text-[var(--text-sub)] mt-2">Tu opinión nos ayuda a mejorar esta herramienta.</p>
             </div>
         </div>
     </div>
 
     <!-- ========================================== -->
-    <!-- JAVASCRIPT LÓGICA CORE                     -->
+    <!-- JAVASCRIPT CORE + NUEVAS FUNCIONALIDADES   -->
     <!-- ========================================== -->
     <script>
+        // ============================================================
         // 1. MOTOR DE TEMAS Y FULLSCREEN
-        function toggleTheme() {
+        // ============================================================
+        function toggleTheme() { 
             document.body.classList.toggle('light-theme');
+            // Re-init mermaid with correct theme
+            mermaidInitialized = false;
+            lastRenderCode = '';
+            setTimeout(() => { if (typeof renderMermaid === 'function') renderMermaid(true); }, 200);
         }
 
         function toggleFullScreen() {
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.error(`Error al intentar iniciar pantalla completa: ${err.message}`);
-                });
-            } else {
-                document.exitFullscreen();
-            }
+                document.documentElement.requestFullscreen().catch(err => console.error(err));
+            } else { document.exitFullscreen(); }
         }
 
-        // 2. MOTOR SVG GEOMÉTRICO (AHORA SOPORTA HASTA 4 SVGs)
+        // ============================================================
+        // 2. MOTOR SVG GEOMÉTRICO
+        // ============================================================
         const markerTypes = ['arr', 'dot', 'dia', 'ast'];
         const markerIcons = ['➤', '●', '◆', '✶'];
         let currentMarkerIdx = 0;
 
         function initMarkers() {
             const colors = { blue: '#3b82f6', violet: '#8b5cf6', pink: '#ec4899', amber: '#f59e0b', emerald: '#10b981', cyan: '#06b6d4' };
-            
             ['svg-defs', 'svg-defs-2', 'svg-defs-3', 'svg-defs-4'].forEach(defId => {
                 const defs = document.getElementById(defId);
                 if(!defs) return;
@@ -697,90 +1285,109 @@
                         <marker id="arr-${cName}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 1 L 8 5 L 0 9 z" fill="${hex}" /></marker>
                         <marker id="dot-${cName}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><circle cx="5" cy="5" r="3.5" fill="${hex}" /></marker>
                         <marker id="dia-${cName}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><polygon points="5,1 9,5 5,9 1,5" fill="${hex}" /></marker>
-                        <marker id="ast-${cName}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 5 1 L 6 4 L 9 5 L 6 6 L 5 9 L 4 6 L 1 5 L 4 4 Z" fill="${hex}" /></marker>
-                    `;
+                        <marker id="ast-${cName}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 5 1 L 6 4 L 9 5 L 6 6 L 5 9 L 4 6 L 1 5 L 4 4 Z" fill="${hex}" /></marker>`;
                 }
             });
             applyMarker();
         }
 
-        function toggleMarker() {
-            currentMarkerIdx = (currentMarkerIdx + 1) % markerTypes.length;
-            applyMarker();
-        }
+        function toggleMarker() { currentMarkerIdx = (currentMarkerIdx + 1) % markerTypes.length; applyMarker(); }
 
         function applyMarker() {
             const mType = markerTypes[currentMarkerIdx];
             document.querySelectorAll('.path-flow').forEach(path => {
                 const colorMatch = path.className.baseVal.match(/flow-(\w+)/);
-                if (colorMatch) { path.setAttribute('marker-end', `url(#${mType}-${colorMatch[1]})`); }
+                if (colorMatch) path.setAttribute('marker-end', `url(#${mType}-${colorMatch[1]})`);
             });
             document.getElementById('marker-btn').innerText = markerIcons[currentMarkerIdx];
         }
 
-        // 3. AUTO-ESCALADO (PANTALLA COMPLETA RESPONSIVE)
+        // ============================================================
+        // 3. AUTO-ESCALADO
+        // ============================================================
         let currentScaleFactor = 1;
         function ajustarPantalla() {
             const containerW = window.innerWidth;
             const containerH = window.innerHeight;
             currentScaleFactor = Math.min((containerW - 40) / 1920, (containerH - 40) / 1080);
-            
             document.querySelectorAll('.canvas-16-9').forEach(canvas => {
                 canvas.style.transform = `scale(${currentScaleFactor})`;
             });
             updateSVGPaths();
         }
 
-        // 4. NAVEGACIÓN DE PÁGINAS (4 SLIDES)
+        // ============================================================
+        // 4. NAVEGACIÓN DE PÁGINAS (5 SLIDES + TECLADO)
+        // ============================================================
+        let currentSlide = 1;
+        const totalSlides = 5;
+
         function switchSlide(slideNumber) {
+            currentSlide = slideNumber;
             document.querySelectorAll('.slide-section').forEach(el => el.classList.remove('active-slide'));
             document.querySelectorAll('.nav-dot').forEach(el => el.classList.remove('active'));
-
             document.getElementById(`slide-${slideNumber}`).classList.add('active-slide');
             document.getElementById(`dot-${slideNumber}`).classList.add('active');
-            
             ajustarPantalla();
             setTimeout(updateSVGPaths, 50);
         }
 
-        // 5. CÁLCULO HIPER-OPTIMIZADO DE CURVAS BEZIER
+        // NAVEGACIÓN POR TECLADO
+        document.addEventListener('keydown', (e) => {
+            // No interceptar si estamos en un textarea o contenteditable
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.isContentEditable) {
+                // Solo interceptar Ctrl+Enter en textarea Mermaid
+                if (e.ctrlKey && e.key === 'Enter' && e.target.id === 'mermaid-code-editor') {
+                    e.preventDefault();
+                    renderMermaid();
+                }
+                return;
+            }
+
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (currentSlide < totalSlides) switchSlide(currentSlide + 1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (currentSlide > 1) switchSlide(currentSlide - 1);
+            } else if (e.key === 'Home') {
+                e.preventDefault(); switchSlide(1);
+            } else if (e.key === 'End') {
+                e.preventDefault(); switchSlide(totalSlides);
+            } else if (e.key === 'Escape') {
+                closeModal(); closeRatingModal();
+            } else if (e.ctrlKey && e.key === 'z') {
+                e.preventDefault(); undoAction();
+            } else if (e.ctrlKey && e.key === 'y') {
+                e.preventDefault(); redoAction();
+            }
+        });
+
+        // ============================================================
+        // 5. CURVAS BEZIER SVG
+        // ============================================================
         function updateSVGPaths() {
             document.querySelectorAll('.dynamic-path-group').forEach(group => {
                 const fromNode = document.getElementById(group.dataset.from);
                 const toNode = document.getElementById(group.dataset.to);
                 if(!fromNode || !toNode) return;
-
-                const fLeft = parseFloat(fromNode.style.left);
-                const fTop = parseFloat(fromNode.style.top); 
-                const fWidth = fromNode.offsetWidth;
-                const fHeight = fromNode.offsetHeight;
-                
-                const tLeft = parseFloat(toNode.style.left);
-                const tTop = parseFloat(toNode.style.top);
+                const fLeft = parseFloat(fromNode.style.left), fTop = parseFloat(fromNode.style.top);
+                const fWidth = fromNode.offsetWidth, fHeight = fromNode.offsetHeight;
+                const tLeft = parseFloat(toNode.style.left), tTop = parseFloat(toNode.style.top);
                 const tWidth = toNode.offsetWidth;
-                const tHeight = toNode.offsetHeight;
-
                 const fDx = parseFloat(fromNode.style.getPropertyValue('--dx')) || 0;
                 const fDy = parseFloat(fromNode.style.getPropertyValue('--dy')) || 0;
                 const tDx = parseFloat(toNode.style.getPropertyValue('--dx')) || 0;
                 const tDy = parseFloat(toNode.style.getPropertyValue('--dy')) || 0;
-
                 const fOffsetY = parseFloat(group.dataset.offsetY) || 0;
-                
-                const startY = fTop + fDy + fOffsetY;
-                const endY = tTop + tDy + fOffsetY;
-                
+                const startY = fTop + fDy + fOffsetY, endY = tTop + tDy + fOffsetY;
                 let startX, endX;
-                if (fLeft < tLeft) { 
-                    startX = fLeft + fWidth + fDx; endX = tLeft + tDx; 
-                } else { 
-                    startX = fLeft + fDx; endX = tLeft + tWidth + tDx; 
-                }
-
+                if (fLeft < tLeft) { startX = fLeft + fWidth + fDx; endX = tLeft + tDx; }
+                else { startX = fLeft + fDx; endX = tLeft + tWidth + tDx; }
                 let newD = "";
                 if (group.dataset.type === 'loop') {
-                    const sX = fLeft + fWidth/2 + fDx; const sY = fTop + fHeight/2 + fDy + 50; 
-                    const eX = tLeft + tWidth/2 + tDx; const eY = tTop + tHeight/2 + tDy + 50; 
+                    const sX = fLeft + fWidth/2 + fDx, sY = fTop + fHeight/2 + fDy + 50;
+                    const eX = tLeft + tWidth/2 + tDx, eY = tTop + fHeight/2 + tDy + 50;
                     newD = `M ${sX} ${sY} C ${sX} ${sY + 300}, ${eX} ${eY + 300}, ${eX} ${eY}`;
                 } else {
                     const dist = Math.abs(endX - startX);
@@ -792,380 +1399,153 @@
             });
         }
 
-        // INICIALIZADORES EVENTOS GLOBALES
-        window.addEventListener('resize', ajustarPantalla);
-        window.addEventListener('load', () => {
-            initMarkers(); ajustarPantalla(); setTimeout(updateSVGPaths, 50);
-        });
-        document.addEventListener('input', updateSVGPaths);
+        // ============================================================
+        // 6. UNDO / REDO SYSTEM
+        // ============================================================
+        const undoStack = [];
+        const redoStack = [];
+        let lastEditTarget = null;
+        let undoToastTimer = null;
 
-        // DRAG & DROP MAGNÉTICO (INMUTABLE Y PROTEGIDO CONTRA CLICKS DE BOTONES)
-        let isDragging = false, draggedNode = null, startMouseX, startMouseY, startNodeDx, startNodeDy, animationFrameId;
-
-        document.addEventListener('mousedown', (e) => {
-            // Protección: No arrastrar si clickeas texto editable O un botón
-            if (e.target.closest('[contenteditable="true"]') || e.target.closest('button')) return;
-
-            const node = e.target.closest('.glass-node');
-            if (node) {
-                isDragging = true; draggedNode = node;
-                startMouseX = e.clientX; startMouseY = e.clientY;
-                startNodeDx = parseFloat(draggedNode.style.getPropertyValue('--dx')) || 0;
-                startNodeDy = parseFloat(draggedNode.style.getPropertyValue('--dy')) || 0;
-                draggedNode.style.transition = 'none'; draggedNode.style.zIndex = '100';
-                cancelAnimationFrame(animationFrameId);
+        document.addEventListener('focusin', (e) => {
+            if (e.target.isContentEditable) {
+                lastEditTarget = e.target;
+                undoStack.push({ el: e.target, html: e.target.innerHTML });
+                if (undoStack.length > 50) undoStack.shift();
             }
         });
 
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging || !draggedNode) return;
-            const deltaX = (e.clientX - startMouseX) / currentScaleFactor;
-            const deltaY = (e.clientY - startMouseY) / currentScaleFactor;
-            draggedNode.style.setProperty('--dx', `${startNodeDx + deltaX}px`);
-            draggedNode.style.setProperty('--dy', `${startNodeDy + deltaY}px`);
-            updateSVGPaths(); 
+        document.addEventListener('input', (e) => {
+            if (e.target.isContentEditable) {
+                redoStack.length = 0; // Clear redo on new input
+                showUndoToast();
+            }
+            updateSVGPaths();
         });
 
-        document.addEventListener('mouseup', () => {
+        function undoAction() {
+            if (undoStack.length === 0) return;
+            const last = undoStack.pop();
+            redoStack.push({ el: last.el, html: last.el.innerHTML });
+            last.el.innerHTML = last.html;
+            updateSVGPaths();
+        }
+
+        function redoAction() {
+            if (redoStack.length === 0) return;
+            const last = redoStack.pop();
+            undoStack.push({ el: last.el, html: last.el.innerHTML });
+            last.el.innerHTML = last.html;
+            updateSVGPaths();
+        }
+
+        function showUndoToast() {
+            const toast = document.getElementById('undo-toast');
+            toast.classList.add('visible');
+            clearTimeout(undoToastTimer);
+            undoToastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);
+        }
+
+        // ============================================================
+        // 7. DRAG & DROP (MOUSE + TOUCH)
+        // ============================================================
+        let isDragging = false, draggedNode = null, startMouseX, startMouseY, startNodeDx, startNodeDy, animationFrameId;
+
+        function startDrag(clientX, clientY, node) {
+            isDragging = true; draggedNode = node;
+            startMouseX = clientX; startMouseY = clientY;
+            startNodeDx = parseFloat(draggedNode.style.getPropertyValue('--dx')) || 0;
+            startNodeDy = parseFloat(draggedNode.style.getPropertyValue('--dy')) || 0;
+            draggedNode.style.transition = 'none'; draggedNode.style.zIndex = '100';
+            cancelAnimationFrame(animationFrameId);
+        }
+
+        function moveDrag(clientX, clientY) {
+            if (!isDragging || !draggedNode) return;
+            const deltaX = (clientX - startMouseX) / currentScaleFactor;
+            const deltaY = (clientY - startMouseY) / currentScaleFactor;
+            draggedNode.style.setProperty('--dx', `${startNodeDx + deltaX}px`);
+            draggedNode.style.setProperty('--dy', `${startNodeDy + deltaY}px`);
+            updateSVGPaths();
+        }
+
+        function endDrag() {
             if (isDragging && draggedNode) {
                 draggedNode.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
                 draggedNode.style.zIndex = '20';
-                draggedNode.style.setProperty('--dx', '0px'); draggedNode.style.setProperty('--dy', '0px');
-                
+                draggedNode.style.setProperty('--dx', '0px');
+                draggedNode.style.setProperty('--dy', '0px');
                 let startTime = performance.now();
                 function animateSnapBack(time) {
                     updateSVGPaths();
-                    if (time - startTime < 650) { animationFrameId = requestAnimationFrame(animateSnapBack); }
+                    if (time - startTime < 650) animationFrameId = requestAnimationFrame(animateSnapBack);
                 }
                 animationFrameId = requestAnimationFrame(animateSnapBack);
             }
             isDragging = false; draggedNode = null;
+        }
+
+        // MOUSE events
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.closest('[contenteditable="true"]') || e.target.closest('button') || e.target.closest('textarea')) return;
+            const node = e.target.closest('.glass-node');
+            if (node) startDrag(e.clientX, e.clientY, node);
         });
-        document.addEventListener('mouseleave', () => { if(isDragging) document.dispatchEvent(new MouseEvent('mouseup')); });
+        document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('mouseleave', () => { if(isDragging) endDrag(); });
 
-        // 6. DATOS DE LOS MODALES DE EXPANSIÓN (TODAS LAS HOJAS)
+        // TOUCH events (NUEVO)
+        document.addEventListener('touchstart', (e) => {
+            if (e.target.closest('[contenteditable="true"]') || e.target.closest('button') || e.target.closest('textarea')) return;
+            const node = e.target.closest('.glass-node');
+            if (node) {
+                const touch = e.touches[0];
+                startDrag(touch.clientX, touch.clientY, node);
+            }
+        }, { passive: true });
+        document.addEventListener('touchmove', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                moveDrag(touch.clientX, touch.clientY);
+            }
+        }, { passive: false });
+        document.addEventListener('touchend', endDrag);
+        document.addEventListener('touchcancel', endDrag);
+
+        // ============================================================
+        // 8. MODAL DATA (ORIGINAL — SIN CAMBIOS)
+        // ============================================================
         const modalData = {
-            // --- PÁGINA 1 ---
-            'n1-core': `
-                <div class="border-b border-pink-500/30 pb-4 mb-6">
-                    <h2 class="text-4xl font-extrabold text-pink-500">Personal Branding para Abogados</h2>
-                    <p class="text-lg text-[var(--text-sub)] mt-2">La confianza es la moneda más valiosa en el sector legal.</p>
-                </div>
-                <h4 class="text-xl font-bold mb-3 text-[var(--text-main)]">El Efecto "Trust & Authority"</h4>
-                <p class="text-[var(--text-sub)] mb-4">En TikTok, los usuarios no buscan un buffet corporativo, buscan un ser humano que les resuelva un problema y les brinde seguridad. María José debe proyectar empatía sin perder el rigor profesional.</p>
-                <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5 mt-4">
-                    <h5 class="font-bold text-pink-400 mb-2">Claves de Autoridad:</h5>
-                    <ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]">
-                        <li><strong>Credenciales Visibles:</strong> Muestra sutilmente libros, diplomas o tu espacio de oficina real.</li>
-                        <li><strong>Seguridad Verbal:</strong> Habla sin titubeos. La voz proyecta conocimiento.</li>
-                        <li><strong>Traductora Legal:</strong> El abogado que usa latín en TikTok no se hace viral. El que explica "Qué hacer si tu jefe te grita" en palabras de centavo, sí.</li>
-                    </ul>
-                </div>
-            `,
-            'n2-lab': `
-                <div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">Laboralmente (B2C)</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">Estrategia orientada al Cliente Final (el trabajador vulnerable). El objetivo aquí es generar volumen de leads de asesoría mediante la agitación de sus Puntos de Dolor (Pain Points).</p>
-                <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-5">
-                    <h5 class="font-bold text-blue-400 mb-2">Tácticas Storytelling:</h5>
-                    <p class="text-sm text-[var(--text-sub)]">Narra casos reales (modificando nombres). Ej: "Hace un mes, un trabajador me llamó llorando porque lo obligaron a firmar su renuncia... esto es lo que hicimos". Esto activa el gatillo de identificación en la audiencia.</p>
-                </div>
-            `,
-            'n3-acad': `
-                <div class="border-b border-violet-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-violet-500">LunaAcademy (B2B)</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">Estrategia Inbound para empresas, estudiantes y personal de RRHH. Aquí no vendemos asesoría por un problema actual, vendemos <strong>prevención y educación</strong>.</p>
-                <div class="bg-violet-500/10 border border-violet-500/30 rounded-xl p-5">
-                    <h5 class="font-bold text-violet-400 mb-2">Lead Magnets (Imanes de prospectos):</h5>
-                    <p class="text-sm text-[var(--text-sub)]">Regala una calculadora de liquidación en Excel a cambio del correo electrónico. Luego, invítalos a tu "Curso de Nómina de 0 a 100".</p>
-                </div>
-            `,
-            'n4-topics1': `
-                <div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">Content Pillars - B2C</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">No improvises tus temas. Agrupa tu contenido en pilares recurrentes para que el algoritmo entienda tu nicho.</p>
-                <ul class="list-none space-y-4">
-                    <li class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-blue-400">1. Alertas Tempranas:</strong> Contratos trampa, cláusulas abusivas, cómo documentar el acoso (pruebas legales en WhatsApp).</li>
-                    <li class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-blue-400">2. Utilidad Directa:</strong> Tutoriales de cómo revisar si te están pagando bien la pensión, cómo hacer el cálculo rápido de tus cesantías.</li>
-                </ul>
-            `,
-            'n5-topics2': `
-                <div class="border-b border-violet-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-violet-500">Core Offerings - B2B</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">Los productos educativos (Cursos y Diplomados) son la principal fuente de ingresos pasivos. Deben estructurarse como soluciones a miedos corporativos.</p>
-                <ul class="list-none space-y-4">
-                    <li class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-violet-400">El Curso de Nómina:</strong> Un 'Bestseller'. Las empresas temen las multas de la UGPP. Véndelo como el escudo protector contra sanciones.</li>
-                    <li class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-violet-400">Compliance Anual:</strong> Suscripción donde actualizas a los departamentos de RRHH sobre las nuevas leyes aprobadas en el año.</li>
-                </ul>
-            `,
-            'n6-funnel': `
-                <div class="border-b border-amber-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-amber-500">El Sales Funnel (Embudo)</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">Tener 1 millón de vistas no sirve de nada si no sabes canalizarlas. Así funciona el embudo:</p>
-                <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 space-y-3">
-                    <p class="text-sm"><strong class="text-white">ToFu (Top of Funnel - Alcance):</strong> Videos cortos y agresivos en TikTok. Objetivo: Llegar a desconocidos y que te sigan.</p>
-                    <p class="text-sm"><strong class="text-white">MoFu (Middle of Funnel - Consideración):</strong> Linktree en tu bio, historias de Instagram mostrando resultados de juicios ganados. Objetivo: Calentar al lead.</p>
-                    <p class="text-sm"><strong class="text-white">BoFu (Bottom of Funnel - Cierre):</strong> Landing page del curso, formulario de agendamiento de citas pagas (Calendly), mensajes directos por WhatsApp. Objetivo: El pago.</p>
-                </div>
-            `,
-            'n7-prod': `
-                <div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">Content Production</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">La producción debe estar estandarizada para mantener la calidad sin quemar al equipo.</p>
-                <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                    <h5 class="font-bold text-blue-400 mb-2">Flujo de Trabajo:</h5>
-                    <ol class="list-decimal pl-5 text-sm space-y-2 text-[var(--text-sub)]">
-                        <li>El Experto (Abogada) aprueba el guion y graba la toma principal (A-Roll).</li>
-                        <li>El Editor limpia el audio, hace Jump Cuts e inserta imágenes de archivo o documentos legales difuminados (B-Roll).</li>
-                        <li>El Diseñador crea las portadas miniatura (Thumbnails) para el Feed con colores de la marca.</li>
-                    </ol>
-                </div>
-            `,
-            'n8-growth': `
-                <div class="border-b border-amber-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-amber-500">Growth Marketing</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">El Community Manager no solo sube post, es un Growth Hacker en potencia.</p>
-                <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                    <h5 class="font-bold text-amber-400 mb-2">Estrategias Proactivas:</h5>
-                    <p class="text-sm text-[var(--text-sub)]">Responder un comentario en video puede volverse más viral que el video original. El CM debe cazar preguntas frecuentes ("¿Qué pasa si mi jefe no me paga el recargo dominical?") y convertirlas en guiones para la siguiente grabación.</p>
-                </div>
-            `,
-            'n9-metrics': `
-                <div class="border-b border-emerald-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-emerald-500">Data & Analytics</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">Lo que no se mide, no se puede escalar. El ciclo de mejora continua (Feedback Loop).</p>
-                <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-5">
-                    <h5 class="font-bold text-emerald-400 mb-2">KPIs Críticos en TikTok:</h5>
-                    <ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]">
-                        <li><strong>Tasa de Retención (3 Segundos):</strong> Si la gente se va antes del segundo 3, tu gancho (Hook) falló.</li>
-                        <li><strong>Watch-Time Promedio:</strong> Si ven el 70% del video, el algoritmo lo recomendará (FYP).</li>
-                        <li><strong>CTR del Link en Bio:</strong> Cuántos clics recibes por cada mil vistas. Mide el éxito real de conversión.</li>
-                    </ul>
-                </div>
-            `,
-
-            // --- PÁGINA 2 ---
-            's2-n1-script': `
-                <div class="border-b border-emerald-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-emerald-500">Scripting Framework</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">La regla de oro 20-70-10 asegura que retengas la atención del usuario que está scrolleando en automático.</p>
-                <div class="space-y-4">
-                    <div class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-emerald-400">20% Hook (Gancho):</strong> Promete valor o siembra una duda urgente en los primeros 3 segundos.</div>
-                    <div class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-emerald-400">70% Value/Story (Desarrollo):</strong> Entrega lo prometido. Rápido, claro y con ejemplos. Evita rodeos innecesarios.</div>
-                    <div class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-emerald-400">10% CTA (Cierre):</strong> Dile exactamente qué debe hacer ahora (Comentar su caso, ir a tu perfil, etc.).</div>
-                </div>
-            `,
-            's2-n2-hook': `
-                <div class="border-b border-pink-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-pink-500">The Hook (El Gancho)</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">El Scroll-Stopper. Tienes 2 segundos para convencerlos de no deslizar al siguiente video.</p>
-                <div class="bg-pink-500/10 border border-pink-500/30 rounded-xl p-5">
-                    <h5 class="font-bold text-pink-400 mb-2">5 Fórmulas de Gancho Ganadoras:</h5>
-                    <ol class="list-decimal pl-5 text-sm space-y-2 text-[var(--text-sub)]">
-                        <li><strong>El Error Común:</strong> "El 90% de los trabajadores comete este error al firmar su renuncia."</li>
-                        <li><strong>El Secreto Oculto:</strong> "Lo que RRHH no quiere que sepas sobre el periodo de prueba."</li>
-                        <li><strong>La Pregunta Directa:</strong> "¿Te pagan tu salario en efectivo por debajo de cuerda? Cuidado."</li>
-                        <li><strong>Storytime (Drama):</strong> "Ayer un cliente perdió 20 millones por no tener esta prueba en WhatsApp."</li>
-                        <li><strong>Mito vs Verdad:</strong> "Falso: Tu jefe NO puede obligarte a compensar horas el sábado."</li>
-                    </ol>
-                </div>
-            `,
-            's2-n4-retention': `
-                <div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">Retention (Retención Visual)</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">El cerebro en redes sociales necesita estímulos constantes. Una cara estática aburre.</p>
-                <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                    <h5 class="font-bold text-blue-400 mb-2">Trucos de Edición Pacing:</h5>
-                    <ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]">
-                        <li><strong>Jump Cuts:</strong> Elimina cada pausa para respirar. El ritmo debe ser acelerado.</li>
-                        <li><strong>Efectos Sonoros (SFX):</strong> Añade un leve sonido de 'Whoosh' o 'Pop' cada vez que aparezca un texto en pantalla.</li>
-                        <li><strong>Subtítulos Activos:</strong> Subtítulos dinámicos en amarillo/blanco palabra por palabra (estilo Alex Hormozi) para mantener el ojo leyendo.</li>
-                    </ul>
-                </div>
-            `,
-            's2-n5-outro': `
-                <div class="border-b border-violet-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-violet-500">Outro & CTA (Cierre)</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">El Gatillo de Conversión. Dejar un video "al aire" es perder dinero.</p>
-                <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                    <h5 class="font-bold text-violet-400 mb-2">Cierres de Alta Conversión:</h5>
-                    <p class="text-sm text-[var(--text-sub)]"><strong>El CTA Único:</strong> No le pidas a la gente que le dé like, guarde, comente y vaya a tu perfil al mismo tiempo. Elige SOLO UNA ACCIÓN por video.</p>
-                    <p class="text-sm text-[var(--text-sub)] mt-3"><strong>Ejemplo B2C:</strong> "Si tienes un contrato por obra o labor y llevas años ahí, déjame la palabra 'CONTRATO' en los comentarios y te oriento".</p>
-                </div>
-            `,
-            's2-n3-set': `
-                <div class="border-b border-amber-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-amber-500">Mise-en-scène (Set Design)</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">La escenografía es Comunicación No Verbal. Comunica tu tarifa antes de que hables.</p>
-                <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5">
-                    <h5 class="font-bold text-amber-400 mb-2">Construcción de Autoridad Visual:</h5>
-                    <ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]">
-                        <li><strong>Regla de Tercios:</strong> No te ubiques pegada a la pared. Deja profundidad detrás de ti (2 o 3 metros) para lucir cinematográfico.</li>
-                        <li><strong>Iluminación:</strong> Key light (Luz principal de frente) para iluminar tu rostro y eliminar ojeras, y una luz LED cálida o azul en el fondo para separar tu silueta del fondo.</li>
-                        <li><strong>Vestuario (Styling):</strong> Evita los cuadros muy pequeños (hacen ruido en la cámara). Opta por colores sólidos (Blanco, Azul Marino, Negro) con un saco o blazer moderno.</li>
-                    </ul>
-                </div>
-            `,
-
-            // --- PÁGINA 3 ---
-            's3-n1-core': `
-                <div class="border-b border-purple-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-purple-500">Syllabus (Temario Base)</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">El contenido de los diplomados condensado. Esta es la base académica inamovible de la que surgen todos los módulos del curso y los ganchos virales.</p>
-                <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                    <p class="text-sm text-[var(--text-sub)]">Para los cursos (LunaAcademy), la estructura debe ir de macro a micro: Iniciando con los "Principios constitucionales", luego "Sujetos laborales" y finalmente "Ejecución contractual".</p>
-                </div>
-            `,
-            's3-n2-contracts': `
-                <div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">Contracts & Compliance</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">Uno de los pilares de mayor búsqueda orgánica en redes y consultorios jurídicos.</p>
-                <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                    <h5 class="font-bold text-blue-400 mb-2">Conceptos Clave para Enseñar:</h5>
-                    <ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]">
-                        <li>Diferencia abismal entre Contrato de Trabajo vs Prestación de Servicios.</li>
-                        <li>El concepto de <strong>Subordinación</strong> como prueba reina.</li>
-                        <li>Nuevas modalidades: Implicaciones del Teletrabajo frente al pago de servicios y herramientas.</li>
-                    </ul>
-                </div>
-            `,
-            's3-n3-salary': `
-                <div class="border-b border-violet-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-violet-500">Compensation & Workday</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">El dinero es la mayor fuente de conflictos laborales. Domina y explica este tema y ganarás autoridad inmediata.</p>
-                <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                    <h5 class="font-bold text-violet-400 mb-2">Focos de Contenido (Módulo Salarios):</h5>
-                    <ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]">
-                        <li>Qué constituye salario y qué NO (Bonos, auxilios, viáticos).</li>
-                        <li>Regulación estricta de la Jornada Máxima Legal.</li>
-                        <li>Matemática simple: Cómo liquidar recargos nocturnos y horas extras paso a paso en pantalla.</li>
-                    </ul>
-                </div>
-            `,
-            's3-n4-benefits': `
-                <div class="border-b border-pink-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-pink-500">Benefits & Severance</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">El momento del despido o la terminación es donde los empleados más buscan ayuda legal de urgencia en Google/TikTok.</p>
-                <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                    <h5 class="font-bold text-pink-400 mb-2">Casuística Frecuente:</h5>
-                    <ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]">
-                        <li>El despido sin justa causa y sus tablas indemnizatorias.</li>
-                        <li>Falta de pago de aportes a la Seguridad Social y retención ilegal de salarios.</li>
-                        <li>Pago y consignación de cesantías e intereses (Plazos fatales).</li>
-                    </ul>
-                </div>
-            `,
-            's3-n5-cases': `
-                <div class="border-b border-amber-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-amber-500">Real-Life Cases (Casos Reales)</h2></div>
-                <p class="text-[var(--text-sub)] mb-4">Convertir la aburrida "Teoría del Derecho" en casos prácticos con los que la gente común se identifique es la clave de la viralidad.</p>
-                <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                    <h5 class="font-bold text-amber-400 mb-2">Traducción de Académico a Viral:</h5>
-                    <p class="text-sm text-[var(--text-sub)] mt-2"><strong>Teoría:</strong> "Subordinación continuada en los contratos de prestación de servicios y el principio de primacía de la realidad."</p>
-                    <p class="text-sm font-bold text-amber-500 mt-2"><strong>Hook Viral:</strong> "Si tienes un contrato por prestación de servicios, pero tu jefe te obliga a ir a la oficina de 8 a 5... ¡Te deben millones en prestaciones! Aquí te explico."</p>
-                </div>
-            `,
-
-            // --- PÁGINA 4 ---
-            's4-n0-core': `
-                <div class="border-b border-cyan-500/30 pb-4 mb-6">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-10 h-10 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                        <h2 class="text-4xl font-extrabold text-cyan-500">Tu Rol como CEO</h2>
-                    </div>
-                    <p class="text-lg text-[var(--text-sub)] mt-2">Dirigir la orquesta sin tener que tocar todos los instrumentos (Mentalidad Empresarial).</p>
-                </div>
-                <h4 class="text-xl font-bold mb-3 text-[var(--text-main)]">El Peligro del Micromanagement</h4>
-                <p class="text-[var(--text-sub)] mb-4">Cuando inicias una marca personal, es normal querer hacerlo todo. Pero tratar de grabar un video, editarlo, responder comentarios y vender asesorías en un solo día es la receta perfecta para el <strong>Burnout (Síndrome de Agotamiento).</strong></p>
-                <div class="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-2"><svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><h4 class="text-lg font-bold text-cyan-400">Acción Inmediata:</h4></div>
-                    <ul class="list-disc pl-6 space-y-2 text-sm text-[var(--text-sub)]">
-                        <li>Fija límites estrictos de tiempo. Solo ponte "el sombrero" correspondiente en horarios establecidos.</li>
-                        <li>A medida que generes ingresos, lo primero que debes delegar es la <strong>Edición de Video</strong>, luego el <strong>Community Management básico</strong>. Tú solo debes concentrarte en ser la "Genio Estratégico" (SMM) y el Talento frente a cámara.</li>
-                    </ul>
-                </div>
-            `,
-            'creator': `
-                <div class="border-b border-pink-500/30 pb-4 mb-6">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-10 h-10 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                        <h2 class="text-4xl font-extrabold text-pink-500">El Content Creator</h2>
-                    </div>
-                    <p class="text-lg text-[var(--text-sub)] mt-2">La mente creativa, la artista y la presentadora.</p>
-                </div>
-                <h4 class="text-xl font-bold mb-3 text-[var(--text-main)]">🔹 Tareas Principales:</h4>
-                <ul class="list-disc pl-6 space-y-2 text-[var(--text-sub)] mb-6">
-                    <li><strong>Ideación:</strong> Lluvia de ideas y aterrizaje del guion (Hook, Valor, CTA).</li>
-                    <li><strong>Producción:</strong> Grabación frente a cámara, cuidar la luz y el audio.</li>
-                    <li><strong>Edición:</strong> Agregar B-Rolls, Jump Cuts, subtítulos dinámicos (Ej: usando CapCut).</li>
-                </ul>
-                <div class="bg-pink-500/10 border border-pink-500/30 rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-2"><svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><h4 class="text-lg font-bold text-pink-400">Cómo hacer esto SIN ABRUMARSE (Estrategia Anti-Burnout):</h4></div>
-                    <p class="text-[var(--text-sub)]"><strong>Regla de Oro: LA PRODUCCIÓN EN BLOQUE (Batching).</strong><br><br>
-                    Nunca grabes un video al día. Terminarás agotada. En su lugar:<br>
-                    - Dedica el Lunes a escribir 5 guiones.<br>
-                    - El Jueves, usa 2 horas para grabarlos todos de corrido (cambia de blusa o chaqueta entre videos para que parezcan días distintos).<br>
-                    - Usa plantillas pre-armadas para acelerar la edición.</p>
-                </div>
-            `,
-            'smm': `
-                <div class="border-b border-blue-500/30 pb-4 mb-6">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                        <h2 class="text-4xl font-extrabold text-blue-500">El Social Media Manager</h2>
-                    </div>
-                    <p class="text-lg text-[var(--text-sub)] mt-2">El cerebro, el estratega y el analista de negocio.</p>
-                </div>
-                <h4 class="text-xl font-bold mb-3 text-[var(--text-main)]">🔹 Tareas Principales:</h4>
-                <ul class="list-disc pl-6 space-y-2 text-[var(--text-sub)] mb-6">
-                    <li><strong>Estrategia:</strong> Diseñar el calendario mensual y definir objetivos (Alcance vs. Conversión).</li>
-                    <li><strong>Analítica (KPIs):</strong> Revisar métricas. ¿A qué hora publicar? ¿Qué gancho retuvo más la atención?</li>
-                    <li><strong>Omnicanalidad:</strong> Asegurar que un contenido de TikTok se recicle a otras plataformas.</li>
-                </ul>
-                <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-2"><svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><h4 class="text-lg font-bold text-blue-400">Cómo hacer esto SIN ABRUMARSE (Anti-Burnout):</h4></div>
-                    <p class="text-[var(--text-sub)]"><strong>Regla de Oro: RECICLAJE EXTREMO DE CONTENIDOS.</strong><br><br>
-                    Si creas un buen guion de un video de TikTok, transcríbelo y conviértelo en un post escrito para LinkedIn, o diséñalo como un Carrusel para Instagram.<br><br>
-                    Automatiza: Usa herramientas (Metricool o Meta Business Suite) para dejar programado el contenido de la semana.</p>
-                </div>
-            `,
-            'cm': `
-                <div class="border-b border-amber-500/30 pb-4 mb-6">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-10 h-10 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg>
-                        <h2 class="text-4xl font-extrabold text-amber-500">El Community Manager</h2>
-                    </div>
-                    <p class="text-lg text-[var(--text-sub)] mt-2">La voz de la marca, la empatía y las relaciones públicas.</p>
-                </div>
-                <h4 class="text-xl font-bold mb-3 text-[var(--text-main)]">🔹 Tareas Principales:</h4>
-                <ul class="list-disc pl-6 space-y-2 text-[var(--text-sub)] mb-6">
-                    <li><strong>Engagement:</strong> Responder comentarios con tono de autoridad pero empático.</li>
-                    <li><strong>Networking:</strong> Comentar en cuentas de otros referentes o cuentas virales (Social Proof).</li>
-                    <li><strong>Gestión de crisis:</strong> Lidiar con "Haters" inteligentemente.</li>
-                </ul>
-                <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-2"><svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><h4 class="text-lg font-bold text-amber-400">Cómo hacer esto SIN ABRUMARSE (Anti-Burnout):</h4></div>
-                    <p class="text-[var(--text-sub)]"><strong>Regla de Oro: BLOQUEO DE TIEMPO (Time-Blocking).</strong><br><br>
-                    El error más letal es dejar las notificaciones de TikTok activas todo el día. Esto genera ansiedad extrema.<br><br>
-                    Configura dos alarmas al día (Ej: 9:00 AM y 7:00 PM). Durante exactamente 30 minutos, entra a la app exclusivamente a responder y dar likes. Fuera de ese bloque de tiempo, olvídate de la aplicación.</p>
-                </div>
-            `,
-            'growth': `
-                <div class="border-b border-emerald-500/30 pb-4 mb-6">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-10 h-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                        <h2 class="text-4xl font-extrabold text-emerald-500">Crecimiento & Actualización</h2>
-                    </div>
-                    <p class="text-lg text-[var(--text-sub)] mt-2">Cómo hackear el algoritmo e iterar tu estrategia de manera continua.</p>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                        <div class="flex items-center gap-2 mb-3"><svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg><h4 class="text-lg font-bold text-emerald-400">Mejores Estrategias para Crecer</h4></div>
-                        <ul class="space-y-3 text-[var(--text-sub)] text-sm">
-                            <li><strong class="text-white">TikTok SEO (Búsqueda):</strong> TikTok ya es un buscador. Usa palabras clave escritas ocultas en la pantalla de edición y pon títulos SEO en tus descripciones.</li>
-                            <li><strong class="text-white">Trendjacking Estratégico:</strong> Usa un audio que esté explotando en memes, pero adapta el texto flotante a un caso de Derecho Laboral.</li>
-                            <li><strong class="text-white">Hook Retention Loops:</strong> Finaliza el video abriendo una duda que solo se resuelva viendo el video de nuevo, forzando múltiples reproducciones.</li>
-                        </ul>
-                    </div>
-
-                    <div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5">
-                        <div class="flex items-center gap-2 mb-3"><svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg><h4 class="text-lg font-bold text-cyan-400">Cómo mantenerte Actualizada</h4></div>
-                        <ul class="space-y-3 text-[var(--text-sub)] text-sm">
-                            <li><strong class="text-white">Auditoría (15 min/día):</strong> Mira TikTok pero con "ojos de creador". Cuando un video te atrape, anota el gancho.</li>
-                            <li><strong class="text-white">Newsletters de Marketing:</strong> Suscríbete a sitios como <em>Social Media Today</em> para recibir los cambios semanales del algoritmo.</li>
-                            <li><strong class="text-white">Experimentación A/B:</strong> Prueba una semana grabar caminando y otra sentada. Deja que los datos decidan tu estilo.</li>
-                        </ul>
-                    </div>
-                </div>
-            `
+            'n1-core': `<div class="border-b border-pink-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-pink-500">Personal Branding para Abogados</h2><p class="text-lg text-[var(--text-sub)] mt-2">La confianza es la moneda más valiosa en el sector legal.</p></div><h4 class="text-xl font-bold mb-3 text-[var(--text-main)]">El Efecto "Trust & Authority"</h4><p class="text-[var(--text-sub)] mb-4">En TikTok, los usuarios no buscan un buffet corporativo, buscan un ser humano que les resuelva un problema y les brinde seguridad. María José debe proyectar empatía sin perder el rigor profesional.</p><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5 mt-4"><h5 class="font-bold text-pink-400 mb-2">Claves de Autoridad:</h5><ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]"><li><strong>Credenciales Visibles:</strong> Muestra sutilmente libros, diplomas o tu espacio de oficina real.</li><li><strong>Seguridad Verbal:</strong> Habla sin titubeos. La voz proyecta conocimiento.</li><li><strong>Traductora Legal:</strong> El abogado que usa latín en TikTok no se hace viral. El que explica "Qué hacer si tu jefe te grita" en palabras de centavo, sí.</li></ul></div>`,
+            'n2-lab': `<div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">Laboralmente (B2C)</h2></div><p class="text-[var(--text-sub)] mb-4">Estrategia orientada al Cliente Final (el trabajador vulnerable). El objetivo aquí es generar volumen de leads de asesoría mediante la agitación de sus Puntos de Dolor (Pain Points).</p><div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-5"><h5 class="font-bold text-blue-400 mb-2">Tácticas Storytelling:</h5><p class="text-sm text-[var(--text-sub)]">Narra casos reales (modificando nombres). Ej: "Hace un mes, un trabajador me llamó llorando porque lo obligaron a firmar su renuncia... esto es lo que hicimos". Esto activa el gatillo de identificación en la audiencia.</p></div>`,
+            'n3-acad': `<div class="border-b border-violet-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-violet-500">LunaAcademy (B2B)</h2></div><p class="text-[var(--text-sub)] mb-4">Estrategia Inbound para empresas, estudiantes y personal de RRHH. Aquí no vendemos asesoría por un problema actual, vendemos <strong>prevención y educación</strong>.</p><div class="bg-violet-500/10 border border-violet-500/30 rounded-xl p-5"><h5 class="font-bold text-violet-400 mb-2">Lead Magnets (Imanes de prospectos):</h5><p class="text-sm text-[var(--text-sub)]">Regala una calculadora de liquidación en Excel a cambio del correo electrónico. Luego, invítalos a tu "Curso de Nómina de 0 a 100".</p></div>`,
+            'n4-topics1': `<div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">Content Pillars - B2C</h2></div><p class="text-[var(--text-sub)] mb-4">No improvises tus temas. Agrupa tu contenido en pilares recurrentes para que el algoritmo entienda tu nicho.</p><ul class="list-none space-y-4"><li class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-blue-400">1. Alertas Tempranas:</strong> Contratos trampa, cláusulas abusivas, cómo documentar el acoso.</li><li class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-blue-400">2. Utilidad Directa:</strong> Tutoriales de cómo revisar si te están pagando bien la pensión.</li></ul>`,
+            'n5-topics2': `<div class="border-b border-violet-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-violet-500">Core Offerings - B2B</h2></div><p class="text-[var(--text-sub)] mb-4">Los productos educativos son la principal fuente de ingresos pasivos.</p><ul class="list-none space-y-4"><li class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-violet-400">El Curso de Nómina:</strong> Las empresas temen las multas de la UGPP. Véndelo como el escudo protector.</li><li class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-violet-400">Compliance Anual:</strong> Suscripción donde actualizas a RRHH sobre nuevas leyes.</li></ul>`,
+            'n6-funnel': `<div class="border-b border-amber-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-amber-500">El Sales Funnel (Embudo)</h2></div><p class="text-[var(--text-sub)] mb-4">Tener 1 millón de vistas no sirve si no sabes canalizarlas.</p><div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 space-y-3"><p class="text-sm"><strong class="text-white">ToFu:</strong> Videos cortos en TikTok. Llega a desconocidos.</p><p class="text-sm"><strong class="text-white">MoFu:</strong> Linktree en tu bio, historias mostrando resultados.</p><p class="text-sm"><strong class="text-white">BoFu:</strong> Landing page, Calendly, WhatsApp. El pago.</p></div>`,
+            'n7-prod': `<div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">Content Production</h2></div><p class="text-[var(--text-sub)] mb-4">La producción debe estar estandarizada para mantener la calidad.</p><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><h5 class="font-bold text-blue-400 mb-2">Flujo de Trabajo:</h5><ol class="list-decimal pl-5 text-sm space-y-2 text-[var(--text-sub)]"><li>Abogada aprueba el guion y graba (A-Roll).</li><li>Editor limpia audio, Jump Cuts, B-Roll.</li><li>Diseñador crea portadas (Thumbnails).</li></ol></div>`,
+            'n8-growth': `<div class="border-b border-amber-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-amber-500">Growth Marketing</h2></div><p class="text-[var(--text-sub)] mb-4">El CM no solo sube post, es un Growth Hacker en potencia.</p><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><p class="text-sm text-[var(--text-sub)]">Responder un comentario en video puede volverse más viral que el video original. El CM debe cazar preguntas frecuentes y convertirlas en guiones.</p></div>`,
+            'n9-metrics': `<div class="border-b border-emerald-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-emerald-500">Data & Analytics</h2></div><p class="text-[var(--text-sub)] mb-4">Lo que no se mide, no se puede escalar.</p><div class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-5"><h5 class="font-bold text-emerald-400 mb-2">KPIs Críticos:</h5><ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]"><li><strong>Retención 3s:</strong> Si se van antes del segundo 3, tu gancho falló.</li><li><strong>Watch-Time 70%+:</strong> El algoritmo lo recomienda (FYP).</li><li><strong>CTR Link en Bio:</strong> Éxito real de conversión.</li></ul></div>`,
+            's2-n1-script': `<div class="border-b border-emerald-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-emerald-500">Scripting Framework</h2></div><p class="text-[var(--text-sub)] mb-4">La regla 20-70-10 asegura retención.</p><div class="space-y-4"><div class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-emerald-400">20% Hook:</strong> Promesa de valor en 3 segundos.</div><div class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-emerald-400">70% Value:</strong> Entrega lo prometido. Rápido y con ejemplos.</div><div class="bg-[var(--inner-box)] p-4 rounded-lg border border-[var(--node-border)]"><strong class="text-emerald-400">10% CTA:</strong> Dile exactamente qué hacer ahora.</div></div>`,
+            's2-n2-hook': `<div class="border-b border-pink-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-pink-500">The Hook (El Gancho)</h2></div><p class="text-[var(--text-sub)] mb-4">2 segundos para convencer. Scroll-Stopper.</p><div class="bg-pink-500/10 border border-pink-500/30 rounded-xl p-5"><h5 class="font-bold text-pink-400 mb-2">5 Fórmulas Ganadoras:</h5><ol class="list-decimal pl-5 text-sm space-y-2 text-[var(--text-sub)]"><li><strong>Error Común:</strong> "El 90% comete este error al firmar su renuncia."</li><li><strong>Secreto Oculto:</strong> "Lo que RRHH no quiere que sepas."</li><li><strong>Pregunta Directa:</strong> "¿Te pagan en efectivo por debajo? Cuidado."</li><li><strong>Storytime:</strong> "Ayer un cliente perdió 20 millones..."</li><li><strong>Mito vs Verdad:</strong> "Tu jefe NO puede obligarte."</li></ol></div>`,
+            's2-n4-retention': `<div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">Retention (Retención Visual)</h2></div><p class="text-[var(--text-sub)] mb-4">El cerebro necesita estímulos constantes.</p><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]"><li><strong>Jump Cuts:</strong> Elimina cada pausa. Ritmo acelerado.</li><li><strong>SFX:</strong> Sonidos 'Whoosh' o 'Pop' con cada texto.</li><li><strong>Subtítulos Activos:</strong> Palabra por palabra (estilo Alex Hormozi).</li></ul></div>`,
+            's2-n5-outro': `<div class="border-b border-violet-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-violet-500">Outro & CTA (Cierre)</h2></div><p class="text-[var(--text-sub)] mb-4">Dejar un video "al aire" es perder dinero.</p><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><p class="text-sm text-[var(--text-sub)]"><strong>CTA Único:</strong> Elige SOLO UNA ACCIÓN por video.</p><p class="text-sm text-[var(--text-sub)] mt-3"><strong>Ejemplo:</strong> "Déjame la palabra 'CONTRATO' en los comentarios y te oriento".</p></div>`,
+            's2-n3-set': `<div class="border-b border-amber-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-amber-500">Mise-en-scène (Set Design)</h2></div><p class="text-[var(--text-sub)] mb-4">La escenografía es Comunicación No Verbal.</p><div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5"><ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]"><li><strong>Regla de Tercios:</strong> Deja profundidad detrás de ti.</li><li><strong>Iluminación:</strong> Key light + LED de fondo.</li><li><strong>Vestuario:</strong> Colores sólidos. Blazer moderno.</li></ul></div>`,
+            's3-n1-core': `<div class="border-b border-purple-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-purple-500">Syllabus (Temario Base)</h2></div><p class="text-[var(--text-sub)] mb-4">Base académica inamovible de la que surgen módulos y ganchos virales.</p><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><p class="text-sm text-[var(--text-sub)]">Estructura macro a micro: "Principios constitucionales" → "Sujetos laborales" → "Ejecución contractual".</p></div>`,
+            's3-n2-contracts': `<div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">Contracts & Compliance</h2></div><p class="text-[var(--text-sub)] mb-4">Pilar de mayor búsqueda orgánica.</p><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]"><li>Contrato de Trabajo vs Prestación de Servicios.</li><li>Subordinación como prueba reina.</li><li>Implicaciones del Teletrabajo.</li></ul></div>`,
+            's3-n3-salary': `<div class="border-b border-violet-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-violet-500">Compensation & Workday</h2></div><p class="text-[var(--text-sub)] mb-4">El dinero es la mayor fuente de conflictos laborales.</p><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]"><li>Qué constituye salario y qué NO.</li><li>Jornada Máxima Legal.</li><li>Cómo liquidar recargos nocturnos paso a paso.</li></ul></div>`,
+            's3-n4-benefits': `<div class="border-b border-pink-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-pink-500">Benefits & Severance</h2></div><p class="text-[var(--text-sub)] mb-4">El momento de despido es cuando más buscan ayuda legal urgente.</p><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><ul class="list-disc pl-5 text-sm space-y-2 text-[var(--text-sub)]"><li>Despido sin justa causa y tablas indemnizatorias.</li><li>Falta de aportes a la Seguridad Social.</li><li>Cesantías e intereses (Plazos fatales).</li></ul></div>`,
+            's3-n5-cases': `<div class="border-b border-amber-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-amber-500">Real-Life Cases</h2></div><p class="text-[var(--text-sub)] mb-4">Convertir la teoría en casos con los que la gente se identifique es clave.</p><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><p class="text-sm text-[var(--text-sub)]"><strong>Teoría:</strong> "Subordinación continuada en prestación de servicios..."</p><p class="text-sm font-bold text-amber-500 mt-2"><strong>Hook Viral:</strong> "Si tu jefe te obliga a ir de 8 a 5 con contrato de prestación... ¡Te deben millones!"</p></div>`,
+            's4-n0-core': `<div class="border-b border-cyan-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-cyan-500">Tu Rol como CEO</h2><p class="text-lg text-[var(--text-sub)] mt-2">Dirigir sin tocar todos los instrumentos.</p></div><p class="text-[var(--text-sub)] mb-4">Tratar de grabar, editar, responder y vender en un solo día es la receta para el <strong>Burnout.</strong></p><div class="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-6"><ul class="list-disc pl-6 space-y-2 text-sm text-[var(--text-sub)]"><li>Fija límites de tiempo. Solo el "sombrero" correspondiente en cada horario.</li><li>Delega primero la Edición de Video, luego el CM básico.</li></ul></div>`,
+            'creator': `<div class="border-b border-pink-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-pink-500">El Content Creator</h2></div><p class="text-[var(--text-sub)] mb-4">Ideación, grabación, iluminación y edición.</p><div class="bg-pink-500/10 border border-pink-500/30 rounded-xl p-6"><h4 class="text-lg font-bold text-pink-400 mb-2">Anti-Burnout: PRODUCCIÓN EN BLOQUE</h4><p class="text-[var(--text-sub)]">Lunes: 5 guiones. Jueves: grabar todos (cambiar ropa entre videos). Plantillas pre-armadas para edición.</p></div>`,
+            'smm': `<div class="border-b border-blue-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-blue-500">El Social Media Manager</h2></div><p class="text-[var(--text-sub)] mb-4">Estrategia, calendario y analítica.</p><div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-6"><h4 class="text-lg font-bold text-blue-400 mb-2">Anti-Burnout: RECICLAJE EXTREMO</h4><p class="text-[var(--text-sub)]">Un guion TikTok = post LinkedIn + Carrusel Instagram. Automatiza con Metricool o Meta Business Suite.</p></div>`,
+            'cm': `<div class="border-b border-amber-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-amber-500">El Community Manager</h2></div><p class="text-[var(--text-sub)] mb-4">Engagement, networking y gestión de crisis.</p><div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6"><h4 class="text-lg font-bold text-amber-400 mb-2">Anti-Burnout: TIME-BLOCKING</h4><p class="text-[var(--text-sub)]">Dos alarmas (9AM y 7PM). 30 min exactos respondiendo. Fuera de ese bloque, olvídate de la app.</p></div>`,
+            'growth': `<div class="border-b border-emerald-500/30 pb-4 mb-6"><h2 class="text-4xl font-extrabold text-emerald-500">Crecimiento & Actualización</h2></div><div class="grid grid-cols-1 gap-4"><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><h4 class="font-bold text-emerald-400 mb-2">Estrategias de Crecimiento</h4><ul class="space-y-2 text-[var(--text-sub)] text-sm"><li><strong>TikTok SEO:</strong> Usa palabras clave ocultas y títulos SEO.</li><li><strong>Trendjacking:</strong> Audio viral + texto de Derecho Laboral.</li><li><strong>Retention Loops:</strong> Finaliza con duda para forzar replay.</li></ul></div><div class="bg-[var(--inner-box)] border border-[var(--node-border)] rounded-xl p-5"><h4 class="font-bold text-cyan-400 mb-2">Mantenerte Actualizada</h4><ul class="space-y-2 text-[var(--text-sub)] text-sm"><li><strong>Auditoría 15min/día:</strong> Mira TikTok con ojos de creador.</li><li><strong>Newsletters:</strong> Social Media Today para cambios del algoritmo.</li><li><strong>A/B Testing:</strong> Deja que los datos decidan tu estilo.</li></ul></div></div>`
         };
 
         const modal = document.getElementById('info-modal');
         const modalContent = document.getElementById('modal-content-area');
-
         function abrirModal(roleKey) {
             if(modalData[roleKey]) {
                 modalContent.innerHTML = modalData[roleKey];
@@ -1173,60 +1553,517 @@
                 document.body.style.overflow = 'hidden'; 
             }
         }
+        function closeModal() { modal.classList.remove('active'); document.body.style.overflow = ''; }
+        modal.addEventListener('click', (e) => { if(e.target === modal) closeModal(); });
 
-        function closeModal() {
-            modal.classList.remove('active');
-            document.body.style.overflow = '';
+        // ============================================================
+        // 9. MERMAID LIVE EDITOR V2 — REAL-TIME ENGINE
+        // ============================================================
+        let mermaidInitialized = false;
+        let mermaidRenderCounter = 0;
+        let mermaidDebounceTimer = null;
+        let lastRenderCode = '';
+        const mermaidEditor = document.getElementById('mermaid-code-editor');
+        const mermaidPreview = document.getElementById('mermaid-preview');
+        const lineNumbersEl = document.getElementById('line-numbers');
+        const statusDot = document.getElementById('render-status-dot');
+        const statusText = document.getElementById('render-status-text');
+        const charCount = document.getElementById('editor-char-count');
+        const linesCount = document.getElementById('editor-lines-count');
+
+        function initMermaidEngine() {
+            if (mermaidInitialized || typeof mermaid === 'undefined') return;
+            const isDark = !document.body.classList.contains('light-theme');
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: isDark ? 'dark' : 'default',
+                securityLevel: 'loose',
+                flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis', padding: 15 },
+                sequence: { useMaxWidth: true, showSequenceNumbers: true },
+                gantt: { useMaxWidth: true },
+                fontFamily: 'Outfit, sans-serif',
+                themeVariables: isDark ? {
+                    primaryColor: '#3b82f6', primaryTextColor: '#fff', primaryBorderColor: '#1d4ed8',
+                    lineColor: '#64748b', secondaryColor: '#8b5cf6', tertiaryColor: '#0f172a',
+                    background: '#0b0f19', mainBkg: '#1e293b', nodeBorder: '#334155',
+                    clusterBkg: '#1e293b', titleColor: '#f1f5f9', edgeLabelBackground: '#1e293b'
+                } : {}
+            });
+            mermaidInitialized = true;
         }
 
-        modal.addEventListener('click', (e) => {
-            if(e.target === modal) { closeModal(); }
+        function updateLineNumbers() {
+            const code = mermaidEditor.value;
+            const lines = code.split('\n').length;
+            lineNumbersEl.innerHTML = Array.from({length: lines}, (_, i) => i + 1).join('<br>');
+            charCount.textContent = `${code.length} chars`;
+            linesCount.textContent = `Ln ${lines}`;
+        }
+
+        function setRenderStatus(status) {
+            statusDot.className = `status-dot ${status}`;
+            if (status === 'live') statusText.textContent = 'Renderizado ✓';
+            else if (status === 'error') statusText.textContent = 'Error de sintaxis';
+            else statusText.textContent = 'Listo';
+        }
+
+        async function renderMermaid(force) {
+            initMermaidEngine();
+            const code = mermaidEditor.value.trim();
+            if (!code) {
+                mermaidPreview.innerHTML = `<div class="placeholder-msg"><svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path></svg><p style="font-size:1rem;font-weight:600;">Escribe código para ver tu diagrama</p></div>`;
+                setRenderStatus('idle');
+                return;
+            }
+            if (!force && code === lastRenderCode) return;
+            lastRenderCode = code;
+            try {
+                mermaidRenderCounter++;
+                const id = `mermaid-svg-${mermaidRenderCounter}`;
+                const { svg } = await mermaid.render(id, code);
+                // Keep the live badge
+                mermaidPreview.innerHTML = `<div class="live-badge"><span class="status-dot live" style="margin:0;"></span> LIVE</div>${svg}`;
+                setRenderStatus('live');
+            } catch (err) {
+                const errMsg = (err.message || String(err)).substring(0, 200);
+                mermaidPreview.innerHTML = `<div class="live-badge" style="background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.3);color:#ef4444;"><span class="status-dot error" style="margin:0;"></span> ERROR</div><div class="error"><strong>⚠ Error de sintaxis</strong><br><br>${errMsg}</div>`;
+                setRenderStatus('error');
+            }
+        }
+
+        // REAL-TIME RENDERING (Debounced)
+        mermaidEditor.addEventListener('input', () => {
+            updateLineNumbers();
+            clearTimeout(mermaidDebounceTimer);
+            mermaidDebounceTimer = setTimeout(() => renderMermaid(), 500);
         });
 
-        // 7. EXPORTACIÓN DE ALTA RESOLUCIÓN
+        // Sync scroll between line numbers and editor
+        mermaidEditor.addEventListener('scroll', () => {
+            lineNumbersEl.scrollTop = mermaidEditor.scrollTop;
+        });
+
+        function exportMermaidSVG() {
+            const svgEl = mermaidPreview.querySelector('svg');
+            if (!svgEl) { alert('Primero genera un diagrama.'); return; }
+            const svgData = new XMLSerializer().serializeToString(svgEl);
+            const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'diagrama-mermaid.svg';
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        async function exportMermaidPNG() {
+            const svgEl = mermaidPreview.querySelector('svg');
+            if (!svgEl) { alert('Primero genera un diagrama.'); return; }
+            const svgData = new XMLSerializer().serializeToString(svgEl);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            img.onload = () => {
+                canvas.width = img.width * 3; canvas.height = img.height * 3;
+                ctx.scale(3, 3);
+                ctx.fillStyle = document.body.classList.contains('light-theme') ? '#f8fafc' : '#0b0f19';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                const link = document.createElement('a');
+                link.download = 'diagrama-mermaid-HD.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
+
+        function copyMermaidCode() {
+            navigator.clipboard.writeText(mermaidEditor.value).then(() => {
+                const btn = document.querySelector('.btn-copy');
+                const orig = btn.innerHTML;
+                btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copiado!`;
+                setTimeout(() => { btn.innerHTML = orig; }, 1500);
+            });
+        }
+
+        // EXTENDED TEMPLATES (10 tipos)
+        const mermaidTemplates = {
+            flowchart: `graph TD
+    A[🎯 Estrategia TikTok] --> B{¿Qué tipo de contenido?}
+    B -->|B2C| C[Laboralmente]
+    B -->|B2B| D[LunaAcademy]
+    C --> E[Casos Reales]
+    C --> F[Pain Points]
+    D --> G[Cursos Online]
+    D --> H[Lead Magnets]
+    E --> I[📱 TikTok Feed]
+    F --> I
+    G --> J[🎓 Plataforma LMS]
+    H --> J
+    I --> K{Embudo de Ventas}
+    J --> K
+    K --> L[💰 Conversión]
+
+    style A fill:#ec4899,stroke:#be185d,color:#fff
+    style B fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    style C fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style D fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    style K fill:#f59e0b,stroke:#d97706,color:#000
+    style L fill:#10b981,stroke:#059669,color:#fff`,
+
+            sequence: `sequenceDiagram
+    autonumber
+    participant W as 👤 Trabajador
+    participant T as 📱 TikTok
+    participant A as ⚖️ Abogada
+    participant P as 💳 Pasarela Pago
+
+    W->>T: Descubre video viral
+    Note over W,T: Hook: "Si te despiden hoy..."
+    T-->>W: CTA → Comenta tu caso
+    W->>A: DM con consulta
+    A->>W: Agenda asesoría (Calendly)
+    W->>P: Realiza pago
+    P-->>A: Confirmación
+    A->>W: Sesión de asesoría legal
+    A-->>W: Seguimiento post-consulta
+    Note over A,W: Fidelización → Nuevo referido`,
+
+            gantt: `gantt
+    title 📅 Calendario de Contenido — Abril 2026
+    dateFormat  YYYY-MM-DD
+    axisFormat  %d/%m
+    
+    section 🎬 Producción
+    Lluvia de ideas y guiones  :a1, 2026-04-01, 2d
+    Grabación batch (5 videos) :crit, a2, after a1, 1d
+    Edición y subtítulos       :a3, after a2, 3d
+    
+    section 📱 Publicación
+    Semana 1 — Contratos       :b1, 2026-04-07, 5d
+    Semana 2 — Salarios        :b2, 2026-04-14, 5d
+    Semana 3 — Despidos        :b3, 2026-04-21, 5d
+    
+    section 📊 Análisis
+    Review KPIs semanales      :c1, 2026-04-08, 20d
+    Ajuste estrategia          :milestone, 2026-04-28, 0d`,
+
+            mindmap: `mindmap
+  root((🎯 Estrategia TikTok))
+    ::icon(📱)
+    Laboralmente B2C
+      Despido injusto
+      Acoso laboral
+      Contratos trampa
+      Liquidaciones
+      Horas extras
+    LunaAcademy B2B
+      Curso Nómina 0 a 100
+      Compliance RRHH
+      Actualización Legal
+      Diplomados
+    Producción
+      Hooks virales
+      Edición dinámica
+      Escenografía pro
+      B-Rolls legales
+    Crecimiento
+      SEO en TikTok
+      Trendjacking
+      A/B Testing
+      Community Management`,
+
+            pie: `pie showData
+    title 🥧 Distribución de Contenido Semanal
+    "Laboralmente B2C — Casos" : 35
+    "LunaAcademy B2B — Cursos" : 25
+    "Trending / Viral hooks" : 20
+    "Engagement / Q&A Lives" : 12
+    "Behind the scenes" : 8`,
+
+            class: `classDiagram
+    class PersonalBrand {
+        +String nombre
+        +String nicho
+        +int seguidores
+        +crearContenido()
+        +grabar()
+    }
+    class Laboralmente {
+        +List painPoints
+        +generarHook()
+        +publicarVideo()
+        +responderComentarios()
+    }
+    class LunaAcademy {
+        +List cursos
+        +List modulos
+        +crearLeadMagnet()
+        +venderCurso()
+        +certificar()
+    }
+    class SalesFunnel {
+        +ToFu awareness
+        +MoFu consideration
+        +BoFu conversion
+        +calcularCTR()
+        +optimizar()
+    }
+    PersonalBrand <|-- Laboralmente
+    PersonalBrand <|-- LunaAcademy
+    Laboralmente --> SalesFunnel : alimenta
+    LunaAcademy --> SalesFunnel : alimenta`,
+
+            state: `stateDiagram-v2
+    [*] --> Descubrimiento
+    Descubrimiento --> Enganche : Ve el video
+    Enganche --> Retención : Hook efectivo
+    Enganche --> Abandono : Hook débil
+    Retención --> CTA : Ve 70%+ del video
+    CTA --> Seguidor : Da follow
+    CTA --> Lead : Link en bio
+    Lead --> Consulta : Agenda cita
+    Consulta --> Cliente : Paga asesoría
+    Cliente --> Referido : Recomienda
+    Referido --> Descubrimiento
+    Abandono --> [*]
+    
+    note right of Enganche : Los primeros 3 segundos\\ndefinen todo
+    note left of Lead : Linktree con\\nCalendly + WhatsApp`,
+
+            er: `erDiagram
+    CREADOR ||--o{ VIDEO : produce
+    CREADOR {
+        string nombre
+        string nicho
+        int seguidores
+    }
+    VIDEO ||--|{ METRICA : genera
+    VIDEO {
+        string titulo
+        string hook
+        date fecha
+        string plataforma
+    }
+    METRICA {
+        int vistas
+        float retencion
+        int likes
+        int shares
+        float ctr
+    }
+    VIDEO ||--o{ COMENTARIO : recibe
+    COMENTARIO {
+        string texto
+        date fecha
+        boolean respondido
+    }
+    COMENTARIO ||--o| LEAD : convierte
+    LEAD {
+        string email
+        string telefono
+        string estado
+    }
+    LEAD ||--o| CLIENTE : cierra
+    CLIENTE {
+        string caso
+        float monto
+        date fechaPago
+    }`,
+
+            journey: `journey
+    title 🗺️ User Journey — Trabajador en TikTok
+    section Descubrimiento
+      Scrollea en FYP: 3: Trabajador
+      Ve hook impactante: 5: Trabajador
+      Se identifica con el caso: 5: Trabajador
+    section Engagement
+      Ve el video completo: 4: Trabajador
+      Lee comentarios: 3: Trabajador
+      Comenta su caso: 5: Trabajador, Abogada
+    section Conversión
+      Va al perfil: 4: Trabajador
+      Clic en Link en Bio: 4: Trabajador
+      Agenda asesoría: 5: Trabajador, Abogada
+      Realiza pago: 3: Trabajador
+    section Post-Venta
+      Recibe asesoría: 5: Abogada
+      Deja testimonio: 4: Trabajador
+      Refiere amigo: 5: Trabajador`,
+
+            git: `gitGraph
+    commit id: "Idea inicial"
+    commit id: "Estructura marca"
+    branch laboralmente
+    checkout laboralmente
+    commit id: "Primer video B2C"
+    commit id: "Video despidos"
+    commit id: "Video contratos"
+    checkout main
+    branch lunaacademy
+    checkout lunaacademy
+    commit id: "Curso Nómina v1"
+    commit id: "Lead Magnet Excel"
+    checkout main
+    merge laboralmente id: "10K seguidores"
+    merge lunaacademy id: "Primer curso vendido"
+    commit id: "Embudo optimizado"
+    branch growth
+    commit id: "TikTok SEO"
+    commit id: "Trendjacking"
+    checkout main
+    merge growth id: "50K seguidores 🎉"`
+        };
+
+        function loadMermaidTemplate(type, btnEl) {
+            // Update active chip
+            document.querySelectorAll('.mermaid-tpl-chip').forEach(c => c.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+            
+            mermaidEditor.value = mermaidTemplates[type] || '';
+            updateLineNumbers();
+            lastRenderCode = ''; // Force re-render
+            
+            // Re-init mermaid with correct theme for clean render
+            mermaidInitialized = false;
+            renderMermaid(true);
+        }
+
+        // Tab + Ctrl+Enter support
+        mermaidEditor.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); renderMermaid(true); }
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const ta = e.target, start = ta.selectionStart, end = ta.selectionEnd;
+                ta.value = ta.value.substring(0, start) + '  ' + ta.value.substring(end);
+                ta.selectionStart = ta.selectionEnd = start + 2;
+                updateLineNumbers();
+            }
+        });
+
+        // Initial line numbers
+        updateLineNumbers();
+
+        // ============================================================
+        // 10. FIREBASE RATING SYSTEM
+        // ============================================================
+        /* 
+         * INSTRUCCIONES: Reemplaza la configuración de abajo con tus credenciales de Firebase.
+         * Ve a console.firebase.google.com → Tu proyecto → Configuración → Web App
+         */
+        let firebaseReady = false;
+        try {
+            const firebaseConfig = {
+                apiKey: "TU_API_KEY_AQUI",
+                authDomain: "tu-proyecto.firebaseapp.com",
+                projectId: "tu-proyecto-id",
+                storageBucket: "tu-proyecto.appspot.com",
+                messagingSenderId: "123456789",
+                appId: "1:123456789:web:abc123"
+            };
+            // Solo inicializar si ya tiene configuración real
+            if (firebaseConfig.apiKey !== "TU_API_KEY_AQUI") {
+                firebase.initializeApp(firebaseConfig);
+                firebaseReady = true;
+            }
+        } catch(e) { console.log('Firebase no configurado todavía. Ratings se guardarán localmente.'); }
+
+        // Enable submit button when all questions answered
+        document.querySelectorAll('.star-rating input').forEach(input => {
+            input.addEventListener('change', () => {
+                const allAnswered = ['q1','q2','q3','q4','q5'].every(q => document.querySelector(`input[name="${q}"]:checked`));
+                document.getElementById('submit-rating-btn').disabled = !allAnswered;
+            });
+        });
+
+        function abrirRatingModal() {
+            document.getElementById('rating-modal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeRatingModal() {
+            document.getElementById('rating-modal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        document.getElementById('rating-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'rating-modal') closeRatingModal();
+        });
+
+        async function submitRating() {
+            const ratings = {};
+            ['q1','q2','q3','q4','q5'].forEach(q => {
+                const checked = document.querySelector(`input[name="${q}"]:checked`);
+                ratings[q] = checked ? parseInt(checked.value) : 0;
+            });
+            ratings.timestamp = new Date().toISOString();
+            ratings.averageScore = Object.values(ratings).filter(v => typeof v === 'number').reduce((a,b) => a+b, 0) / 5;
+
+            // Enviar a Firebase si está configurado
+            if (firebaseReady) {
+                try {
+                    await firebase.firestore().collection('ratings').add(ratings);
+                } catch(e) { console.error('Error enviando a Firebase:', e); }
+            }
+            
+            // Siempre guardar localmente como backup
+            const localRatings = JSON.parse(localStorage.getItem('strategy-ratings') || '[]');
+            localRatings.push(ratings);
+            localStorage.setItem('strategy-ratings', JSON.stringify(localRatings));
+
+            // Mostrar thank you
+            document.getElementById('rating-form-area').style.display = 'none';
+            document.getElementById('rating-thankyou-area').style.display = 'block';
+
+            setTimeout(closeRatingModal, 2500);
+        }
+
+        // ============================================================
+        // 11. EXPORTACIÓN HD (ACTUALIZADO PARA 5 SLIDES)
+        // ============================================================
         async function exportarHD() {
-            // Se actualizó el selector para encontrar el nuevo botón integrado en la barra lateral
             const btnElement = document.querySelector('[onclick="exportarHD()"]');
-            
             let activeSlideId = 'main-canvas';
-            if (document.getElementById('slide-2').classList.contains('active-slide')) activeSlideId = 'main-canvas-2';
-            if (document.getElementById('slide-3').classList.contains('active-slide')) activeSlideId = 'main-canvas-3';
-            if (document.getElementById('slide-4').classList.contains('active-slide')) activeSlideId = 'main-canvas-4';
-            
+            for (let i = 2; i <= 5; i++) {
+                if (document.getElementById(`slide-${i}`).classList.contains('active-slide')) activeSlideId = `main-canvas-${i}`;
+            }
             const canvasToExport = document.getElementById(activeSlideId);
             const originalHTML = btnElement.innerHTML;
-            
-            btnElement.disabled = true;
-            btnElement.classList.remove('highlight');
+            btnElement.disabled = true; btnElement.classList.remove('highlight');
             btnElement.innerHTML = `<svg class="w-6 h-6 animate-spin text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>`;
-            
             try {
                 canvasToExport.style.transform = `scale(1)`;
-                
-                // Ocultar botones interactivos para la foto
                 const bulbBtns = canvasToExport.querySelectorAll('.lightbulb-btn');
                 bulbBtns.forEach(b => b.style.display = 'none');
-
                 const esClaro = document.body.classList.contains('light-theme');
                 const canvasRender = await html2canvas(canvasToExport, {
                     scale: 2, useCORS: true, backgroundColor: esClaro ? '#f8fafc' : '#0b0f19', logging: false
                 });
-                
                 const link = document.createElement('a');
-                link.download = `Estrategia-TikTok-P${document.querySelector('.nav-dot.active').id.split('-')[1]}.png`; 
+                link.download = `Estrategia-TikTok-P${currentSlide}.png`;
                 link.href = canvasRender.toDataURL('image/png'); link.click();
-
-                // Restaurar botones
                 bulbBtns.forEach(b => b.style.display = 'flex');
-
-            } catch (error) { console.error("Fallo de renderizado:", error); } 
+            } catch (error) { console.error("Fallo de renderizado:", error); }
             finally {
                 canvasToExport.style.transform = `scale(${currentScaleFactor})`;
-                btnElement.innerHTML = originalHTML; 
-                btnElement.disabled = false;
-                btnElement.classList.add('highlight');
+                btnElement.innerHTML = originalHTML; btnElement.disabled = false; btnElement.classList.add('highlight');
             }
         }
+
+        // ============================================================
+        // INICIALIZADORES
+        // ============================================================
+        window.addEventListener('resize', ajustarPantalla);
+        window.addEventListener('load', () => {
+            initMarkers(); ajustarPantalla(); setTimeout(updateSVGPaths, 50);
+            // Auto-init Mermaid
+            setTimeout(() => {
+                if (typeof mermaid !== 'undefined') {
+                    initMermaidEngine();
+                    renderMermaid(true);
+                }
+            }, 800);
+        });
     </script>
 </body>
 </html>
