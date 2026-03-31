@@ -1049,7 +1049,6 @@
                 btn.classList.remove('bg-red-500', 'border-red-400', 'text-white');
                 clearSelection(); 
                 
-                // NUEVO: Asegurarse de que el super-toolbar desaparezca completamente al apagar la edición.
                 document.getElementById('super-toolbar').style.display = 'none';
                 document.getElementById('btn-reopen-toolbar').style.display = 'none';
             }
@@ -1582,14 +1581,17 @@
             const currentEl = document.getElementById('step-' + currentStep);
             if(currentEl && currentStep > 0) {
                 setTimeout(() => { 
-                    // NUEVO: Reemplazado scrollIntoView por scrollTo para evitar el bug nativo de Safari/iOS
-                    // que empujaba la pantalla hacia arriba revelando el fondo negro (pantalla negra)
                     const canvas = document.getElementById('math-canvas');
-                    if (canvas) {
-                        const scrollPos = currentEl.offsetTop - (canvas.clientHeight / 2) + (currentEl.clientHeight / 2);
-                        canvas.scrollTo({ top: Math.max(0, scrollPos), behavior: 'smooth' });
+                    if (canvas && currentEl) {
+                        // SOLUCIÓN: Usar un cálculo absoluto que ignora los bugs del offsetParent 
+                        // de las tablets Safari/Chrome, para que no haga overscroll y genere pantalla negra.
+                        const cRect = canvas.getBoundingClientRect();
+                        const eRect = currentEl.getBoundingClientRect();
+                        // El cálculo matemático perfecto independientemente de si hay animaciones en CSS o escalas.
+                        const targetScroll = canvas.scrollTop + (eRect.top - cRect.top) - (cRect.height / 2) + (eRect.height / 2);
+                        canvas.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
                     }
-                }, 100);
+                }, 300); // Tiempo suficiente para dejar que la tablet empuje el "display: flex"
             }
 
             const editTag = document.getElementById('edit-tag');
@@ -1632,15 +1634,17 @@
             if(isEditMode) toggleEditMode(e); 
             resetAppZoom(); 
             
+            // SOLUCIÓN: Ocultar el panel de forma forzada para que las tablets no lo dejen dibujado
             const panel = document.getElementById('settings-panel');
             if(panel) {
                 panel.style.opacity = '0';
-                setTimeout(() => panel.style.display = 'none', 300);
+                panel.style.pointerEvents = 'none';
+                panel.style.display = 'none';
             }
             
-            // NUEVO: Asegurar por completo que el panel de ajustes esté oculto al grabar
             const superToolbar = document.getElementById('super-toolbar');
             if (superToolbar) superToolbar.style.display = 'none';
+            
             const btnReopen = document.getElementById('btn-reopen-toolbar');
             if (btnReopen) btnReopen.style.display = 'none';
 
@@ -1657,6 +1661,7 @@
             const panel = document.getElementById('settings-panel');
             if(panel) {
                 panel.style.display = 'flex';
+                panel.style.pointerEvents = 'auto';
                 setTimeout(() => panel.style.opacity = '1', 50);
             }
 
