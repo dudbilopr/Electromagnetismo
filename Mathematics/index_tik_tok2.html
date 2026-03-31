@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MathStudio Pro Max - Motor Educativo Avanzado</title>
+    <title>MathStudio Pro - Production Release</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- React & ReactDOM (Standalone) -->
+    <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -17,10 +17,19 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
 
-    <!-- Estilos de los Temas y Optimizaciones CSS -->
+    <!-- Firebase SDKs Modulares -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Exponemos las funciones para que React pueda usarlas
+        window.FirebaseAPI = { initializeApp, getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, getFirestore, doc, setDoc, getDoc, collection };
+    </script>
+
+    <!-- Estilos Globales y Temas -->
     <style>
         :root {
-            /* Tema Oscuro Base */
             --bg-color: #0f172a;
             --surface-color: #1e293b;
             --text-color: #f8fafc;
@@ -32,266 +41,143 @@
             --backdrop: blur(12px);
             --highlight-yellow: rgba(250, 204, 21, 0.2);
             --highlight-green: rgba(74, 222, 128, 0.3);
-            --panel-bg: rgba(30, 41, 59, 0.9);
+            --panel-bg: rgba(30, 41, 59, 0.85);
             --option-bg: #1e293b;
             --option-color: #ffffff;
         }
 
         .theme-light {
-            --bg-color: #f8fafc;
-            --surface-color: #ffffff;
-            --text-color: #0f172a;
-            --accent-color: #2563eb;
-            --secondary-color: #7e22ce;
-            --grid-color: rgba(0, 0, 0, 0.05);
-            --border-color: #e2e8f0;
-            --shadow: 0 10px 40px rgba(0,0,0,0.08);
-            --backdrop: blur(12px);
-            --highlight-yellow: rgba(250, 204, 21, 0.4);
-            --highlight-green: rgba(74, 222, 128, 0.5);
-            --panel-bg: rgba(255, 255, 255, 0.95);
-            --option-bg: #ffffff;
-            --option-color: #000000;
+            --bg-color: #f8fafc; --surface-color: #ffffff; --text-color: #0f172a; --accent-color: #2563eb;
+            --secondary-color: #7e22ce; --grid-color: rgba(0, 0, 0, 0.05); --border-color: #e2e8f0;
+            --shadow: 0 10px 40px rgba(0,0,0,0.08); --highlight-yellow: rgba(250, 204, 21, 0.4);
+            --highlight-green: rgba(74, 222, 128, 0.5); --panel-bg: rgba(255, 255, 255, 0.95);
+            --option-bg: #ffffff; --option-color: #000000;
         }
 
         .theme-glass {
             --bg-color: #09090e;
-            background-image: radial-gradient(at 0% 0%, hsla(253, 50%, 15%, 1) 0, transparent 50%), 
-                              radial-gradient(at 50% 0%, hsla(225, 60%, 20%, 1) 0, transparent 50%), 
-                              radial-gradient(at 100% 0%, hsla(339, 50%, 15%, 1) 0, transparent 50%);
-            --surface-color: rgba(255, 255, 255, 0.08);
-            --text-color: #ffffff;
-            --accent-color: #60a5fa;
-            --secondary-color: #f472b6;
-            --grid-color: rgba(255, 255, 255, 0.05);
-            --border-color: rgba(255, 255, 255, 0.15);
-            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-            --backdrop: blur(16px);
-            --highlight-yellow: rgba(250, 204, 21, 0.3);
-            --highlight-green: rgba(74, 222, 128, 0.4);
-            --panel-bg: rgba(20, 25, 40, 0.6);
-            --option-bg: #1a1a2e;
-            --option-color: #ffffff;
+            background-image: radial-gradient(at 0% 0%, hsla(253, 50%, 15%, 1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225, 60%, 20%, 1) 0, transparent 50%);
+            --surface-color: rgba(255, 255, 255, 0.08); --text-color: #ffffff; --accent-color: #60a5fa; --secondary-color: #f472b6;
+            --border-color: rgba(255, 255, 255, 0.15); --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5); --backdrop: blur(16px);
+            --panel-bg: rgba(20, 25, 40, 0.7); --option-bg: #1a1a2e;
         }
 
         .theme-neon {
-            --bg-color: #000000;
-            --surface-color: #0a0a0a;
-            --text-color: #ffffff;
-            --accent-color: #00ffff;
-            --secondary-color: #ff00ff;
-            --grid-color: rgba(0, 255, 255, 0.15);
-            --border-color: rgba(255, 0, 255, 0.3);
-            --shadow: 0 0 25px rgba(0, 255, 255, 0.3);
-            --backdrop: blur(8px);
-            --highlight-yellow: rgba(255, 255, 0, 0.25);
-            --highlight-green: rgba(0, 255, 128, 0.3);
-            --panel-bg: rgba(5, 5, 5, 0.95);
-            --option-bg: #000000;
-            --option-color: #ffffff;
+            --bg-color: #000000; --surface-color: #0a0a0a; --text-color: #ffffff; --accent-color: #00ffff;
+            --secondary-color: #ff00ff; --grid-color: rgba(0, 255, 255, 0.15); --border-color: rgba(255, 0, 255, 0.3);
+            --shadow: 0 0 25px rgba(0, 255, 255, 0.3); --panel-bg: rgba(5, 5, 5, 0.95); --option-bg: #000000;
+        }
+
+        .theme-nord {
+            --bg-color: #2e3440; --surface-color: #3b4252; --text-color: #eceff4; --accent-color: #88c0d0;
+            --secondary-color: #b48ead; --grid-color: rgba(216, 222, 233, 0.05); --border-color: #4c566a;
+            --shadow: 0 10px 30px rgba(0,0,0,0.5); --panel-bg: rgba(46, 52, 64, 0.9); --option-bg: #3b4252;
+            --highlight-yellow: rgba(235, 203, 139, 0.3); --highlight-green: rgba(163, 190, 140, 0.3);
+        }
+
+        .theme-monokai {
+            --bg-color: #272822; --surface-color: #3e3d32; --text-color: #f8f8f2; --accent-color: #a6e22e;
+            --secondary-color: #fd971f; --grid-color: rgba(248, 248, 242, 0.05); --border-color: #75715e;
+            --shadow: 0 10px 30px rgba(0,0,0,0.6); --panel-bg: rgba(39, 40, 34, 0.9); --option-bg: #3e3d32;
+            --highlight-yellow: rgba(230, 219, 116, 0.3); --highlight-green: rgba(166, 226, 46, 0.3);
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            overflow: hidden;
-            user-select: none;
-            touch-action: none;
+            background-color: var(--bg-color); color: var(--text-color);
+            overflow: hidden; user-select: none; touch-action: none;
             transition: background-color 0.4s ease, color 0.4s ease;
         }
 
-        /* Paneles App */
         .app-panel {
-            background: var(--panel-bg);
-            backdrop-filter: var(--backdrop);
-            border: 1px solid var(--border-color);
-            box-shadow: var(--shadow);
+            background: var(--panel-bg); backdrop-filter: var(--backdrop);
+            border: 1px solid var(--border-color); box-shadow: var(--shadow);
         }
 
-        /* 1. MOTOR DE PRESENTACIÓN: Secuenciador CSS */
-        .math-step {
-            transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-            opacity: 0;
-            pointer-events: none;
+        /* Barra flotante estilo app moderna */
+        .floating-island {
+            position: absolute; top: 1rem; left: 50%; transform: translateX(-50%);
+            width: 96%; max-width: 1400px; z-index: 50;
+            border-radius: 1.5rem; padding: 0.75rem 1.5rem;
         }
-        .math-step.visible {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            pointer-events: auto;
-        }
+
+        .math-step { transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); opacity: 0; pointer-events: none; }
+        .math-step.visible { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
         .math-step.hidden-next { transform: translateY(40px) scale(0.95); }
         .math-step.hidden-prev { transform: translateY(-40px) scale(0.95); opacity: 0.3; }
 
-        /* Lienzo y Zoom Wrapper */
         .workspace {
-            background-image: 
-                linear-gradient(var(--grid-color) 1px, transparent 1px),
-                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-            background-size: 50px 50px;
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-            overflow: hidden;
+            background-image: linear-gradient(var(--grid-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 50px 50px; width: 100vw; height: 100vh; position: relative; overflow: hidden;
         }
 
-        .zoom-wrapper {
-            position: absolute;
-            transform-origin: 0 0;
-            transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
-            will-change: transform;
-        }
+        .zoom-wrapper { position: absolute; transform-origin: 0 0; transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1); will-change: transform; }
         .zoom-wrapper.dragging { transition: none; }
-
-        .artboard {
-            background-color: var(--surface-color);
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border-color);
-            position: relative;
-            overflow: hidden;
-            transition: background-color 0.4s ease;
-        }
-
-        /* Tema Neón Especificidades */
+        .artboard { background-color: var(--surface-color); box-shadow: var(--shadow); border: 1px solid var(--border-color); position: relative; overflow: hidden; transition: background-color 0.4s ease; }
         .theme-neon .artboard { box-shadow: 0 0 40px rgba(0, 255, 255, 0.1), inset 0 0 60px rgba(255, 0, 255, 0.05); border: 1px solid rgba(255, 0, 255, 0.3); }
-        .theme-neon .editable-item.selected { outline-color: var(--secondary-color); box-shadow: 0 0 15px var(--secondary-color); }
 
-        /* 2. MOTOR DE EDICIÓN: Selección y Capas */
-        .editable-item {
-            position: absolute;
-            cursor: grab;
-            user-select: text;
-            transform-origin: top left;
-            /* Solución al desbordamiento interno: Evita colapsos de KaTeX */
-            min-width: max-content; 
-            white-space: nowrap;
-        }
+        .editable-item { position: absolute; cursor: grab; user-select: text; transform-origin: top left; min-width: max-content; white-space: nowrap; }
         .editable-item:active { cursor: grabbing; }
-        .editable-item.selected {
-            outline: 2px dashed var(--accent-color);
-            outline-offset: 4px;
-        }
+        .editable-item.selected { outline: 2px dashed var(--accent-color); outline-offset: 4px; }
+        .theme-neon .editable-item.selected { outline-color: var(--secondary-color); box-shadow: 0 0 15px var(--secondary-color); }
         
-        .z-badge {
-            position: absolute;
-            top: -24px;
-            right: -24px;
-            background: var(--secondary-color);
-            color: #fff;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 4px 8px;
-            border-radius: 12px;
-            opacity: 0;
-            transition: opacity 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            pointer-events: none;
-        }
+        .z-badge { position: absolute; top: -24px; right: -24px; background: var(--secondary-color); color: #fff; font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 12px; opacity: 0; pointer-events: none; }
         .editable-item.selected .z-badge { opacity: 1; }
 
-        /* Handle de redimensionamiento de formas */
-        .resize-handle {
-            position: absolute;
-            bottom: -6px;
-            right: -6px;
-            width: 14px;
-            height: 14px;
-            background: var(--surface-color);
-            border: 2px solid var(--accent-color);
-            border-radius: 50%;
-            cursor: nwse-resize;
-            pointer-events: auto;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-            z-index: 100;
-        }
+        .resize-handle { position: absolute; bottom: -6px; right: -6px; width: 14px; height: 14px; background: var(--surface-color); border: 2px solid var(--accent-color); border-radius: 50%; cursor: nwse-resize; pointer-events: auto; z-index: 100; }
 
         .btn-tool { transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
         .btn-tool:hover { background-color: var(--accent-color); color: #fff; }
         .btn-tool.active { background-color: var(--accent-color); color: #fff; box-shadow: inset 0 2px 5px rgba(0,0,0,0.3); }
-
-        .btn-action { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-action { transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
         .btn-action:hover { transform: scale(1.05); }
         .btn-action:active { transform: scale(0.95); }
 
         .katex-display { margin: 0 !important; }
         .math-scalable { transition: transform 0.1s; transform-origin: top left; }
 
-        /* Ajuste de Selects para resolver el fondo blanco / alto contraste */
+        /* Ajuste nativo selects (Evita el fondo blanco en móviles/Safari) */
         .app-select {
-            appearance: none;
-            -webkit-appearance: none; /* Fuerza el reseteo en navegadores Apple/Webkit */
-            -moz-appearance: none; /* Fuerza el reseteo en Firefox */
-            background-color: var(--surface-color); /* Fondo explícito para evitar el blanco por defecto */
-            color: var(--text-color); /* Color de texto explícito */
+            appearance: none; -webkit-appearance: none; -moz-appearance: none;
+            background-color: var(--surface-color); color: var(--text-color);
             background-image: url('data:image/svg+xml;utf8,<svg fill="%23999" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
-            background-repeat: no-repeat;
-            background-position: right 0.5rem center;
-            padding-right: 2.5rem;
+            background-repeat: no-repeat; background-position: right 0.5rem center; padding-right: 2.2rem;
         }
+        .app-select option { background-color: var(--option-bg); color: var(--option-color); font-weight: 600; }
 
-        /* Estilo forzado para las opciones desplegadas */
-        .app-select option {
-            background-color: var(--option-bg);
-            color: var(--option-color);
-            font-weight: 600;
-        }
-
-        /* 3. MOTOR VECTORIAL SVG */
         .vector-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
         .vector-path { pointer-events: stroke; cursor: pointer; transition: stroke-width 0.2s; }
         .vector-path:hover { stroke-width: 6; }
         .vector-handle { fill: var(--surface-color); stroke: var(--accent-color); stroke-width: 3; cursor: grab; pointer-events: auto; }
-        .vector-handle:active { cursor: grabbing; }
         
-        /* EFECTO LUZ DIRECCIONAL PARA FLECHAS (Actualizado) */
-        @keyframes flowLightDynamic {
-            from { stroke-dashoffset: 100; opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            to { stroke-dashoffset: 0; opacity: 0; }
-        }
-        .arrow-light {
-            /* Al usar pathLength="100", 10 es el 10% de la linea y 100 es el resto vacío */
-            stroke-dasharray: 10 100; 
-            animation: flowLightDynamic 1.5s linear infinite;
-            pointer-events: none;
-            filter: drop-shadow(0 0 10px var(--accent-color));
-            stroke-linecap: round;
-        }
-        .theme-neon .arrow-light { 
-            filter: drop-shadow(0 0 15px #fff) drop-shadow(0 0 30px var(--accent-color)); 
-            stroke-width: 4; 
-        }
+        @keyframes flowLightDynamic { from { stroke-dashoffset: 100; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 0; } }
+        .arrow-light { stroke-dasharray: 10 100; animation: flowLightDynamic 1.5s linear infinite; pointer-events: none; filter: drop-shadow(0 0 10px var(--accent-color)); stroke-linecap: round; }
+        .theme-neon .arrow-light { filter: drop-shadow(0 0 15px #fff) drop-shadow(0 0 30px var(--accent-color)); stroke-width: 4; }
 
-        /* 4. MOTOR DE DIBUJO CANVAS */
         .draw-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 60; }
         .draw-layer.active { pointer-events: auto; touch-action: none; }
-
-        .modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
-            display: flex; justify-content: center; align-items: center; z-index: 9999;
-        }
-
-        /* Pulsing dot for Record mode */
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-        .rec-dot { width: 12px; height: 12px; background-color: #ef4444; border-radius: 50%; animation: pulse-red 2s infinite; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .rec-dot { width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; animation: pulse-red 2s infinite; }
     </style>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        window.FirebaseAPI = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, collection };
-    </script>
 </head>
 <body class="theme-neon">
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        const { useState, useEffect, useRef, useMemo, useCallback, Fragment } = React;
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // TU CONFIGURACIÓN DE FIREBASE PARA PRODUCCIÓN
+        const firebaseConfig = {
+            apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+            authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+            databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+            projectId: "laboratorio-de-coulomb",
+            storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+            messagingSenderId: "525944850850",
+            appId: "1:525944850850:web:eca9c0b79809358e8d8afb",
+            measurementId: "G-SZECJNG25E"
+        };
+        const MAIN_APP_ID = "mathstudio-prod";
 
         const Icons = {
             MousePointer: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>,
@@ -308,25 +194,20 @@
             CloudLoad: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><polyline points="8 16 12 20 16 16"/><line x1="12" y1="12" x2="12" y2="20"/></svg>,
             Undo: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>,
             X: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-            Edit: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+            Login: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>,
+            Logout: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         };
 
         const initialElements = [
-            // Cabecera
             { id: 't1', type: 'text', content: 'TEMA: Determinantes 3x3', x: 80, y: 100, z: 10, step: 0, scale: 1.6, color: 'var(--accent-color)', bold: true },
             { id: 't2', type: 'text', content: 'Calcular el determinante de la matriz:', x: 80, y: 180, z: 10, step: 0, scale: 1.3, color: 'var(--text-color)' },
             { id: 'm1', type: 'math', content: 'A = \\begin{bmatrix} 3 & -1 & 1 \\\\ 2 & 1 & 0 \\\\ 3 & 1 & 2 \\end{bmatrix}', x: 350, y: 280, z: 10, step: 0, scale: 2.2, color: 'var(--text-color)' },
-            
-            // Método (Paso 1)
             { id: 't3', type: 'text', content: 'Método de Cofactores:', x: 80, y: 650, z: 10, step: 1, scale: 1.5, color: 'var(--text-color)', bold: true },
             { id: 't4', type: 'text', content: '01 Formato determinante', x: 120, y: 730, z: 10, step: 1, scale: 1.3, color: 'var(--accent-color)', bold: true },
             { id: 'm2', type: 'math', content: '\\det(A) = |A| = \\begin{vmatrix} 3 & -1 & 1 \\\\ 2 & 1 & 0 \\\\ 3 & 1 & 2 \\end{vmatrix}', x: 350, y: 830, z: 10, step: 1, scale: 2, color: 'var(--text-color)' },
-
-            // Paso 2 (Introducción)
             { id: 't5', type: 'text', content: '02 Escribimos el menor y cofactor', x: 120, y: 1200, z: 10, step: 2, scale: 1.3, color: 'var(--accent-color)', bold: true },
             { id: 'm3', type: 'math', content: '|A| = \\begin{vmatrix} 3 & -1 & 1 \\\\ 2 & 1 & 0 \\\\ 3 & 1 & 2 \\end{vmatrix}', x: 400, y: 1300, z: 10, step: 2, scale: 1.8, color: 'var(--text-color)' },
-
-            // Paso 3 (02.1)
             { id: 't6', type: 'text', content: '02.1', x: 80, y: 1700, z: 10, step: 3, scale: 1.4, color: 'var(--secondary-color)', bold: true },
             { id: 't7', type: 'text', content: 'Eliminamos fila 1\ny columna 1', x: 80, y: 1760, z: 10, step: 3, scale: 1.2, color: 'var(--text-color)' },
             { id: 'sh1', type: 'shape', shapeType: 'rect', w: 180, h: 40, x: 505, y: 1690, z: 1, step: 3, color: 'var(--highlight-yellow)' },
@@ -334,8 +215,6 @@
             { id: 'sh3', type: 'shape', shapeType: 'circle', w: 50, h: 50, x: 500, y: 1685, z: 2, step: 3, color: 'var(--highlight-green)' },
             { id: 'm4', type: 'math', content: 'A = \\begin{vmatrix} 3 & -1 & 1 \\\\ 2 & 1 & 0 \\\\ 3 & 1 & 2 \\end{vmatrix}', x: 400, y: 1700, z: 10, step: 3, scale: 1.6, color: 'var(--text-color)' },
             { id: 'm_cof1', type: 'math', content: '+(3)\\left( (-1)^{1+1} \\begin{vmatrix} 1 & 0 \\\\ 1 & 2 \\end{vmatrix} \\right)', x: 150, y: 1950, z: 10, step: 3, scale: 1.6, color: 'var(--text-color)' },
-
-            // Paso 4 (02.2)
             { id: 't8', type: 'text', content: '02.2', x: 80, y: 2300, z: 10, step: 4, scale: 1.4, color: 'var(--secondary-color)', bold: true },
             { id: 't9', type: 'text', content: 'Eliminamos fila 1\ny columna 2', x: 80, y: 2360, z: 10, step: 4, scale: 1.2, color: 'var(--text-color)' },
             { id: 'sh4', type: 'shape', shapeType: 'rect', w: 180, h: 40, x: 505, y: 2290, z: 1, step: 4, color: 'var(--highlight-yellow)' },
@@ -343,8 +222,6 @@
             { id: 'sh6', type: 'shape', shapeType: 'circle', w: 50, h: 50, x: 570, y: 2285, z: 2, step: 4, color: 'var(--highlight-green)' },
             { id: 'm5', type: 'math', content: 'A = \\begin{vmatrix} 3 & -1 & 1 \\\\ 2 & 1 & 0 \\\\ 3 & 1 & 2 \\end{vmatrix}', x: 400, y: 2300, z: 10, step: 4, scale: 1.6, color: 'var(--text-color)' },
             { id: 'm_cof2', type: 'math', content: '+ (-1)\\left( (-1)^{1+2} \\begin{vmatrix} 2 & 0 \\\\ 3 & 2 \\end{vmatrix} \\right)', x: 150, y: 2550, z: 10, step: 4, scale: 1.6, color: 'var(--text-color)' },
-
-            // Paso 5 (02.3)
             { id: 't10', type: 'text', content: '02.3', x: 80, y: 2900, z: 10, step: 5, scale: 1.4, color: 'var(--secondary-color)', bold: true },
             { id: 't11', type: 'text', content: 'Eliminamos fila 1\ny columna 3', x: 80, y: 2960, z: 10, step: 5, scale: 1.2, color: 'var(--text-color)' },
             { id: 'sh7', type: 'shape', shapeType: 'rect', w: 180, h: 40, x: 505, y: 2890, z: 1, step: 5, color: 'var(--highlight-yellow)' },
@@ -352,8 +229,6 @@
             { id: 'sh9', type: 'shape', shapeType: 'circle', w: 50, h: 50, x: 640, y: 2885, z: 2, step: 5, color: 'var(--highlight-green)' },
             { id: 'm6', type: 'math', content: 'A = \\begin{vmatrix} 3 & -1 & 1 \\\\ 2 & 1 & 0 \\\\ 3 & 1 & 2 \\end{vmatrix}', x: 400, y: 2900, z: 10, step: 5, scale: 1.6, color: 'var(--text-color)' },
             { id: 'm_cof3', type: 'math', content: '+ (1)\\left( (-1)^{1+3} \\begin{vmatrix} 2 & 1 \\\\ 3 & 1 \\end{vmatrix} \\right)', x: 150, y: 3150, z: 10, step: 5, scale: 1.6, color: 'var(--text-color)' },
-
-            // Pasos de Resolución Final
             { id: 't12', type: 'text', content: '03 Resolviendo determinantes 2x2', x: 80, y: 3500, z: 10, step: 6, scale: 1.5, color: 'var(--accent-color)', bold: true },
             { id: 'm7', type: 'math', content: '|A| = (3)[(1)(2) - (1)(0)] - (-1)[(2)(2) - (3)(0)] + (1)[(2)(1) - (3)(1)]', x: 100, y: 3600, z: 10, step: 6, scale: 1.4, color: 'var(--text-color)' },
             { id: 'm8', type: 'math', content: '|A| = (3)[2 - 0] - (-1)[4 - 0] + (1)[2 - 3]', x: 100, y: 3720, z: 10, step: 7, scale: 1.4, color: 'var(--text-color)' },
@@ -414,6 +289,8 @@
             const [selectedArrowId, setSelectedArrowId] = useState(null);
             const [editingElement, setEditingElement] = useState(null);
             const [history, setHistory] = useState([]);
+            
+            const [currentUser, setCurrentUser] = useState(null);
 
             const workspaceRef = useRef(null);
             const boardRef = useRef(null);
@@ -422,6 +299,43 @@
             const boardWidth = format === '16:9' ? 1920 : 1080;
             const boardHeight = format === '16:9' ? 1080 : 4200;
 
+            // Inicialización de Firebase Auth
+            useEffect(() => {
+                const initAuth = async () => {
+                    try {
+                        const app = window.FirebaseAPI.initializeApp(firebaseConfig);
+                        const auth = window.FirebaseAPI.getAuth(app);
+                        const unsubscribe = window.FirebaseAPI.onAuthStateChanged(auth, (user) => {
+                            setCurrentUser(user);
+                        });
+                        return () => unsubscribe();
+                    } catch (e) { console.error("Firebase init error:", e); }
+                };
+                initAuth();
+            }, []);
+
+            // Login con Google
+            const handleLogin = async () => {
+                try {
+                    const app = window.FirebaseAPI.initializeApp(firebaseConfig);
+                    const auth = window.FirebaseAPI.getAuth(app);
+                    const provider = new window.FirebaseAPI.GoogleAuthProvider();
+                    await window.FirebaseAPI.signInWithPopup(auth, provider);
+                } catch (error) {
+                    console.error("Error al iniciar sesión:", error);
+                    alert("No se pudo iniciar sesión con Google.");
+                }
+            };
+
+            const handleLogout = async () => {
+                try {
+                    const app = window.FirebaseAPI.initializeApp(firebaseConfig);
+                    const auth = window.FirebaseAPI.getAuth(app);
+                    await window.FirebaseAPI.signOut(auth);
+                } catch (error) { console.error(error); }
+            };
+
+            // Zoom responsivo
             useEffect(() => {
                 const handleResize = () => {
                     const screenWidth = window.innerWidth;
@@ -434,27 +348,27 @@
                 return () => window.removeEventListener('resize', handleResize);
             }, [format, boardWidth]);
 
+            // Auto-Pan
             useEffect(() => {
                 if (mode !== 'edit' && currentStep >= 0) {
                     const stepEls = elements.filter(e => e.step === currentStep);
                     let targetY = 0;
                     if (stepEls.length > 0) {
-                        const minY = Math.min(...stepEls.map(e => e.y));
-                        targetY = minY - 150; 
+                        targetY = Math.min(...stepEls.map(e => e.y)) - 150; 
                     }
                     if (currentStep === 0) targetY = 0;
                     setPan(prev => ({ ...prev, y: -targetY * zoom }));
                 }
             }, [currentStep, elements, mode, zoom]);
 
+            // Reproductor
             useEffect(() => {
                 let interval;
                 if (isPlaying) {
                     interval = setInterval(() => {
                         setCurrentStep(p => {
                             if (p < totalSteps) return p + 1;
-                            setIsPlaying(false);
-                            return p;
+                            setIsPlaying(false); return p;
                         });
                     }, 4000); 
                 }
@@ -592,44 +506,36 @@
 
             const getAngle = (p1, p2) => Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI;
 
-            // --- SISTEMA DE GUARDADO EN FIREBASE ---
+            // --- SISTEMA FIREBASE PARA PRODUCCIÓN (Tus reglas) ---
             const handleCloudSync = async () => {
                 try {
-                    const app = window.FirebaseAPI.initializeApp(JSON.parse(__firebase_config || '{}'));
+                    const app = window.FirebaseAPI.initializeApp(firebaseConfig);
                     const auth = window.FirebaseAPI.getAuth(app);
                     const db = window.FirebaseAPI.getFirestore(app);
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'mathstudio-dev';
                     
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await window.FirebaseAPI.signInWithCustomToken(auth, __initial_auth_token);
-                    else await window.FirebaseAPI.signInAnonymously(auth);
-                    
+                    if (!auth.currentUser) await window.FirebaseAPI.signInAnonymously(auth);
                     if (!auth.currentUser) return;
                     
-                    // Guarda todos los datos visuales, incluyendo el tema y formato
-                    await window.FirebaseAPI.setDoc(window.FirebaseAPI.doc(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'projects', 'main'), { 
+                    await window.FirebaseAPI.setDoc(window.FirebaseAPI.doc(db, 'artifacts', MAIN_APP_ID, 'users', auth.currentUser.uid, 'projects', 'main'), { 
                         elements, arrows, strokes, theme, format, timestamp: Date.now() 
                     });
-                    alert("✅ Proyecto guardado en la nube exitosamente.");
+                    alert("✅ Guardado exitoso en Firebase");
                 } catch (e) { 
-                    console.error("Error al guardar:", e); 
-                    alert("❌ Error al guardar en la nube. Revisa la consola.");
+                    console.error(e); 
+                    alert("❌ Error al guardar. Verifica permisos o login.");
                 }
             };
 
-            // --- SISTEMA DE CARGA DESDE FIREBASE ---
             const handleCloudLoad = async () => {
                 try {
-                    const app = window.FirebaseAPI.initializeApp(JSON.parse(__firebase_config || '{}'));
+                    const app = window.FirebaseAPI.initializeApp(firebaseConfig);
                     const auth = window.FirebaseAPI.getAuth(app);
                     const db = window.FirebaseAPI.getFirestore(app);
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'mathstudio-dev';
                     
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await window.FirebaseAPI.signInWithCustomToken(auth, __initial_auth_token);
-                    else await window.FirebaseAPI.signInAnonymously(auth);
-                    
+                    if (!auth.currentUser) await window.FirebaseAPI.signInAnonymously(auth);
                     if (!auth.currentUser) return;
                     
-                    const docRef = window.FirebaseAPI.doc(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'projects', 'main');
+                    const docRef = window.FirebaseAPI.doc(db, 'artifacts', MAIN_APP_ID, 'users', auth.currentUser.uid, 'projects', 'main');
                     const docSnap = await window.FirebaseAPI.getDoc(docRef);
                     
                     if (docSnap.exists()) {
@@ -640,103 +546,115 @@
                         if (data.theme) setTheme(data.theme);
                         if (data.format) setFormat(data.format);
                         
-                        saveStateToHistory(); // Guarda el estado recién cargado para poder hacer "Deshacer"
-                        alert("☁️ Proyecto cargado con éxito.");
+                        saveStateToHistory(); 
+                        alert("☁️ Proyecto cargado.");
                     } else {
-                        alert("ℹ️ No se encontró ningún proyecto guardado previamente.");
+                        alert("ℹ️ No hay proyectos guardados en tu cuenta.");
                     }
                 } catch (e) { 
-                    console.error("Error al cargar:", e);
-                    alert("❌ Error al cargar de la nube. Revisa la consola.");
+                    console.error(e);
+                    alert("❌ Error al cargar.");
                 }
             };
 
             return (
                 <div className={`theme-${theme} w-full h-screen flex flex-col font-sans relative overflow-hidden`}>
                     
-                    {/* BOTÓN DE SALIDA (Modo Grabación) */}
+                    {/* BOTÓN SALIR GRABACIÓN */}
                     {mode === 'record' && (
                         <button className="absolute top-4 right-4 z-50 app-panel p-3 rounded-full hover:bg-red-600 hover:text-white transition shadow-[0_0_15px_rgba(239,68,68,0.5)] text-[var(--text-color)] font-bold flex items-center gap-2 border border-red-500/50"
-                                onClick={() => setMode('present')} title="Salir de Grabación">
+                                onClick={() => setMode('present')} title="Salir">
                             <Icons.X /> Salir
                         </button>
                     )}
 
-                    {/* APP TOOLBAR SUPERIOR */}
+                    {/* SUPER NAVBAR FLOTANTE (Estilo App Moderna) */}
                     {mode !== 'record' && (
-                        <header className="app-panel m-2 md:m-4 p-3 flex flex-col xl:flex-row justify-between items-center z-50 absolute top-0 left-0 right-0 rounded-xl gap-4 xl:gap-0">
+                        <header className="floating-island app-panel flex flex-col lg:flex-row justify-between items-center gap-4 lg:gap-2 border border-[var(--border-color)] shadow-2xl">
                             
-                            <div className="flex items-center gap-4 w-full xl:w-auto justify-between xl:justify-start">
-                                <h1 className="text-xl md:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-color)] to-[var(--secondary-color)] drop-shadow-lg">
-                                    MathStudio PRO
+                            {/* Bloque Izquierdo: Branding y Modo */}
+                            <div className="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-start">
+                                <h1 className="text-xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-color)] to-[var(--secondary-color)]">
+                                    MathStudio
                                 </h1>
-                                
-                                <div className="relative">
-                                    <select className="app-select outline-none cursor-pointer font-bold border border-[var(--border-color)] rounded-lg py-2 pl-3 shadow-inner" 
-                                            value={mode} onChange={(e) => { setMode(e.target.value); setSelectedIds([]); setSelectedArrowId(null); setIsPlaying(false); }}>
-                                        <option value="present">Presentación</option>
-                                        <option value="edit">Edición Visual</option>
-                                        <option value="record">Modo Grabación</option>
-                                    </select>
-                                </div>
+                                <select className="app-select outline-none cursor-pointer font-bold border border-[var(--border-color)] rounded-lg py-1.5 pl-3 text-sm" 
+                                        value={mode} onChange={(e) => { setMode(e.target.value); setSelectedIds([]); setSelectedArrowId(null); setIsPlaying(false); }}>
+                                    <option value="present">Presentación</option>
+                                    <option value="edit">Edición Visual</option>
+                                    <option value="record">Grabar</option>
+                                </select>
                             </div>
                             
+                            {/* Bloque Central: Herramientas de Edición */}
                             {mode === 'edit' && (
-                                <div className="flex bg-[var(--surface-color)] rounded-xl p-1 border border-[var(--border-color)] shadow-lg w-full xl:w-auto justify-center">
-                                    <button className={`p-2 md:p-2.5 rounded-lg btn-tool ${activeTool === 'select' ? 'active' : ''}`} onClick={() => setActiveTool('select')} title="Cursor"><Icons.MousePointer /></button>
-                                    <button className={`p-2 md:p-2.5 rounded-lg btn-tool ${activeTool === 'pen' ? 'active' : ''}`} onClick={() => setActiveTool('pen')} title="Lápiz"><Icons.PenTool /></button>
-                                    <button className={`p-2 md:p-2.5 rounded-lg btn-tool ${activeTool === 'eraser' ? 'active' : ''}`} onClick={() => setActiveTool('eraser')} title="Borrador"><Icons.Eraser /></button>
-                                    <div className="w-px bg-[var(--border-color)] mx-1 md:mx-2"></div>
-                                    <button className="p-2 md:p-2.5 rounded-lg btn-tool" onClick={undo} title="Deshacer"><Icons.Undo /></button>
-                                    {/* Nuevos botones de Nube (Guardar y Cargar) */}
-                                    <button className="p-2 md:p-2.5 rounded-lg btn-tool text-[var(--accent-color)]" onClick={handleCloudSync} title="Guardar en la Nube"><Icons.CloudSave /></button>
-                                    <button className="p-2 md:p-2.5 rounded-lg btn-tool text-[var(--secondary-color)]" onClick={handleCloudLoad} title="Cargar desde la Nube"><Icons.CloudLoad /></button>
+                                <div className="flex bg-[var(--surface-color)] rounded-xl p-1 shadow-inner w-full lg:w-auto justify-center">
+                                    <button className={`p-2 rounded-lg btn-tool ${activeTool === 'select' ? 'active' : ''}`} onClick={() => setActiveTool('select')} title="Cursor"><Icons.MousePointer /></button>
+                                    <button className={`p-2 rounded-lg btn-tool ${activeTool === 'pen' ? 'active' : ''}`} onClick={() => setActiveTool('pen')} title="Lápiz"><Icons.PenTool /></button>
+                                    <button className={`p-2 rounded-lg btn-tool ${activeTool === 'eraser' ? 'active' : ''}`} onClick={() => setActiveTool('eraser')} title="Borrador"><Icons.Eraser /></button>
+                                    <div className="w-px bg-[var(--border-color)] mx-2"></div>
+                                    <button className="p-2 rounded-lg btn-tool opacity-80 hover:opacity-100" onClick={undo} title="Deshacer"><Icons.Undo /></button>
                                 </div>
                             )}
 
-                            <div className="flex gap-2 w-full xl:w-auto overflow-x-auto pb-1 xl:pb-0 justify-center">
-                                <select className="app-select text-xs md:text-sm font-semibold border border-[var(--border-color)] rounded-lg py-2 pl-3" 
+                            {/* Bloque Derecho: Settings, Auth y Nube */}
+                            <div className="flex items-center gap-3 w-full lg:w-auto justify-center lg:justify-end overflow-x-auto pb-1 lg:pb-0">
+                                
+                                {/* Temas */}
+                                <select className="app-select text-xs font-semibold border border-[var(--border-color)] rounded-lg py-1.5 pl-2" 
                                         value={theme} onChange={e=>setTheme(e.target.value)}>
-                                    <option value="neon">Cyber Neón</option>
-                                    <option value="glass">Glassmorfismo</option>
-                                    <option value="dark">Modo Oscuro</option>
-                                    <option value="light">Modo Claro</option>
+                                    <option value="neon">Neón</option>
+                                    <option value="nord">Nord</option>
+                                    <option value="monokai">Monokai</option>
+                                    <option value="glass">Glass</option>
+                                    <option value="dark">Oscuro</option>
+                                    <option value="light">Claro</option>
                                 </select>
-                                <select className="app-select text-xs md:text-sm font-semibold border border-[var(--border-color)] rounded-lg py-2 pl-3" 
+
+                                <select className="app-select text-xs font-semibold border border-[var(--border-color)] rounded-lg py-1.5 pl-2" 
                                         value={format} onChange={e=>setFormat(e.target.value)}>
-                                    <option value="9:16">Formato Vertical (9:16)</option>
-                                    <option value="16:9">Formato Horizontal (16:9)</option>
+                                    <option value="9:16">9:16 (Móvil)</option>
+                                    <option value="16:9">16:9 (PC)</option>
                                 </select>
+
+                                <div className="w-px h-6 bg-[var(--border-color)] hidden lg:block"></div>
+
+                                {/* Botones Nube */}
+                                <div className="flex bg-[var(--surface-color)] rounded-xl p-1 shadow-inner">
+                                    <button className="p-1.5 rounded-lg btn-tool text-[var(--accent-color)]" onClick={handleCloudSync} title="Guardar a la Nube"><Icons.CloudSave /></button>
+                                    <button className="p-1.5 rounded-lg btn-tool text-[var(--secondary-color)]" onClick={handleCloudLoad} title="Cargar de la Nube"><Icons.CloudLoad /></button>
+                                </div>
+
+                                {/* Auth Administrador */}
+                                {currentUser && !currentUser.isAnonymous ? (
+                                    <button className="flex items-center gap-2 p-1.5 px-3 rounded-lg text-xs font-bold bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white transition" 
+                                            onClick={handleLogout} title={currentUser.email}>
+                                        <Icons.Logout />
+                                    </button>
+                                ) : (
+                                    <button className="flex items-center gap-2 p-1.5 px-3 rounded-lg text-xs font-bold bg-[var(--accent-color)] text-white hover:opacity-90 transition shadow-lg" 
+                                            onClick={handleLogin}>
+                                        <Icons.Login /> Login
+                                    </button>
+                                )}
                             </div>
                         </header>
                     )}
 
-                    {/* CONTROLES FLOTANTES DE ZOOM (Derecha) */}
+                    {/* CONTROLES FLOTANTES ZOOM */}
                     <div className="absolute right-4 top-1/2 transform -translate-y-1/2 z-40 flex flex-col gap-2">
-                        <button className="app-panel p-3 rounded-full hover:bg-[var(--accent-color)] hover:text-white transition shadow-lg" onClick={() => setZoom(z => z + 0.1)} title="Acercar">
-                            <Icons.ZoomIn />
-                        </button>
-                        <button className="app-panel p-3 rounded-full font-bold text-xs shadow-lg hover:bg-[var(--surface-color)]" onClick={() => {setZoom(Math.min(1, window.innerWidth / boardWidth)); setPan({x:0,y:0});}} title="Restablecer">
-                            {Math.round(zoom * 100)}%
-                        </button>
-                        <button className="app-panel p-3 rounded-full hover:bg-[var(--accent-color)] hover:text-white transition shadow-lg" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} title="Alejar">
-                            <Icons.ZoomOut />
-                        </button>
+                        <button className="app-panel p-3 rounded-full hover:bg-[var(--accent-color)] hover:text-white transition shadow-lg" onClick={() => setZoom(z => z + 0.1)}><Icons.ZoomIn /></button>
+                        <button className="app-panel p-3 rounded-full font-bold text-xs shadow-lg" onClick={() => {setZoom(Math.min(1, window.innerWidth / boardWidth)); setPan({x:0,y:0});}}>{Math.round(zoom * 100)}%</button>
+                        <button className="app-panel p-3 rounded-full hover:bg-[var(--accent-color)] hover:text-white transition shadow-lg" onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}><Icons.ZoomOut /></button>
                     </div>
 
-                    {/* ÁREA DE TRABAJO */}
-                    <main className="workspace mt-0" ref={workspaceRef} onPointerDown={handleWorkspacePointerDown}
-                          onWheel={(e) => { if(mode==='edit') setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY })); }}>
-                        
+                    {/* LIENZO */}
+                    <main className="workspace" ref={workspaceRef} onPointerDown={handleWorkspacePointerDown} onWheel={(e) => { if(mode==='edit') setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY })); }}>
                         <div className={`zoom-wrapper shadow-2xl ${isDraggingPan ? 'dragging' : ''}`}
-                             style={{ 
-                                 width: boardWidth, height: boardHeight,
-                                 transform: `translate(${mode==='edit'? pan.x : (window.innerWidth - boardWidth*zoom)/2}px, ${mode==='edit'? pan.y : pan.y + (mode==='record'? 0:100)}px) scale(${zoom})`,
-                             }}>
+                             style={{ width: boardWidth, height: boardHeight, transform: `translate(${mode==='edit'? pan.x : (window.innerWidth - boardWidth*zoom)/2}px, ${mode==='edit'? pan.y : pan.y + (mode==='record'? 0:100)}px) scale(${zoom})` }}>
                             
                             <div className="artboard w-full h-full" ref={boardRef} onClick={(e)=>{if(e.target===boardRef.current){setSelectedIds([]);setSelectedArrowId(null);}}}>
                                 
-                                {/* 1. CAPA VECTORIAL */}
+                                {/* CAPA VECTORIAL (Luz Continua con pathLength) */}
                                 <svg className="vector-layer">
                                     {arrows.map(arr => {
                                         const isVisible = mode === 'edit' || arr.step <= currentStep;
@@ -746,18 +664,12 @@
 
                                         return (
                                             <g key={arr.id} className="math-step visible">
-                                                <path d={pathD} fill="none" stroke="transparent" strokeWidth="30" pointerEvents="stroke"
-                                                      onClick={(e) => { if(mode==='edit'){ setSelectedArrowId(arr.id); setSelectedIds([]); e.stopPropagation();} }} />
+                                                <path d={pathD} fill="none" stroke="transparent" strokeWidth="30" pointerEvents="stroke" onClick={(e) => { if(mode==='edit'){ setSelectedArrowId(arr.id); setSelectedIds([]); e.stopPropagation();} }} />
                                                 <path d={pathD} fill="none" stroke={arr.color} strokeWidth="5" pointerEvents="none" opacity={isSelected ? 0.3 : 1} />
                                                 
-                                                {/* Efecto de Luz Direccional Perfeccionado */}
+                                                {/* Motor de Luz direccional */}
                                                 {(mode === 'present' || mode === 'record' || isPlaying) && (
-                                                    <path d={pathD} 
-                                                          fill="none" 
-                                                          stroke="#fff" 
-                                                          strokeWidth="3" 
-                                                          pathLength="100" 
-                                                          className="arrow-light" />
+                                                    <path d={pathD} fill="none" stroke="#fff" strokeWidth="3" pathLength="100" className="arrow-light" />
                                                 )}
                                                 
                                                 <polygon points="-10,-8 10,0 -10,8" fill={arr.color} transform={`translate(${arr.end.x}, ${arr.end.y}) rotate(${getAngle(arr.cp2, arr.end)})`} />
@@ -777,7 +689,7 @@
                                     })}
                                 </svg>
 
-                                {/* 2. CAPA DE ELEMENTOS */}
+                                {/* CAPA DE ELEMENTOS */}
                                 {elements.map(el => {
                                     const isVisible = mode === 'edit' || el.step <= currentStep;
                                     const isSelected = selectedIds.includes(el.id);
@@ -785,40 +697,23 @@
 
                                     return (
                                         <div key={el.id} id={el.id} className={`editable-item ${seqClass} ${isSelected ? 'selected' : ''}`}
-                                             style={{ 
-                                                 left: el.x, top: el.y, zIndex: el.z,
-                                                 fontFamily: el.type === 'text' ? 'system-ui, sans-serif' : 'inherit',
-                                                 fontWeight: el.bold ? 'bold' : 'normal',
-                                                 fontSize: '28px',
-                                                 transform: `scale(${el.scale || 1})`
-                                             }}
-                                             onPointerDown={(e) => handleElementPointerDown(e, el.id)}
-                                             onDoubleClick={(e) => { if(mode==='edit') setEditingElement(el); e.stopPropagation(); }}
-                                             onWheel={(e) => {
-                                                 if (mode === 'edit' && isSelected) {
-                                                     e.preventDefault();
-                                                     const delta = e.deltaY < 0 ? 0.05 : -0.05;
-                                                     setElements(p => p.map(i => i.id===el.id ? {...i, scale: Math.max(0.2, (i.scale||1) + delta)} : i));
-                                                 }
-                                             }}>
+                                             style={{ left: el.x, top: el.y, zIndex: el.z, fontFamily: el.type === 'text' ? 'system-ui, sans-serif' : 'inherit', fontWeight: el.bold ? 'bold' : 'normal', fontSize: '28px', transform: `scale(${el.scale || 1})` }}
+                                             onPointerDown={(e) => handleElementPointerDown(e, el.id)} onDoubleClick={(e) => { if(mode==='edit') setEditingElement(el); e.stopPropagation(); }}
+                                             onWheel={(e) => { if (mode === 'edit' && isSelected) { e.preventDefault(); setElements(p => p.map(i => i.id===el.id ? {...i, scale: Math.max(0.2, (i.scale||1) + (e.deltaY<0?0.05:-0.05))} : i)); } }}>
                                             
                                             {mode === 'edit' && isSelected && <div className="z-badge">Z: {el.z}</div>}
-
                                             {el.type === 'math' && <MathNode content={el.content} color={el.color} />}
                                             {el.type === 'text' && <div style={{ color: el.color, whiteSpace: 'pre-wrap' }}>{el.content}</div>}
                                             {el.type === 'shape' && (
                                                 <div style={{ width: el.w, height: el.h, backgroundColor: el.color, borderRadius: el.shapeType==='circle'?'50%':'8px', pointerEvents:'none', border: `2px solid ${el.color.replace(/[\d.]+\)$/g, '0.8)')}` }}>
-                                                    {/* Tirador de Redimensionamiento Dinámico */}
-                                                    {mode === 'edit' && isSelected && (
-                                                        <div className="resize-handle" onPointerDown={(e) => handleShapeResize(e, el.id)} />
-                                                    )}
+                                                    {mode === 'edit' && isSelected && <div className="resize-handle" onPointerDown={(e) => handleShapeResize(e, el.id)} />}
                                                 </div>
                                             )}
                                         </div>
                                     );
                                 })}
 
-                                {/* 3. CAPA DE DIBUJO */}
+                                {/* CAPA CANVAS */}
                                 <canvas ref={canvasRef} width={boardWidth} height={boardHeight} className="draw-layer" />
                             </div>
                         </div>
@@ -832,25 +727,19 @@
                                 <div className="flex justify-between items-center text-sm font-bold opacity-90">
                                     <div className="flex items-center gap-3">
                                         <span className="bg-[var(--surface-color)] px-3 py-1.5 rounded-lg border border-[var(--border-color)]">Paso {currentStep} de {totalSteps}</span>
-                                        {mode === 'record' && <div className="flex items-center gap-2 text-red-500 bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20"><div className="rec-dot"></div> EN VIVO</div>}
+                                        {mode === 'record' && <div className="flex items-center gap-2 text-red-500 bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20"><div className="rec-dot"></div> REC</div>}
                                     </div>
                                     
                                     <div className="flex bg-[var(--surface-color)] rounded-full p-1 border border-[var(--border-color)] shadow-inner">
-                                        <button className="p-2 md:p-3 rounded-full hover:bg-[var(--accent-color)] hover:text-white transition" onClick={() => setCurrentStep(0)} title="Reiniciar"><Icons.Rewind /></button>
-                                        <button className="p-2 md:p-3 rounded-full hover:bg-[var(--surface-color)] transition opacity-70 hover:opacity-100" onClick={() => setCurrentStep(p => Math.max(0, p - 1))} title="Paso Anterior"><Icons.SkipBack /></button>
-                                        
-                                        <button className={`p-2 md:p-3 mx-1 rounded-full text-white shadow-lg transition transform hover:scale-110 active:scale-95 ${isPlaying ? 'bg-red-500' : 'bg-[var(--accent-color)]'}`} 
-                                                onClick={() => setIsPlaying(!isPlaying)} title={isPlaying ? "Pausar" : "Reproducir Automático"}>
+                                        <button className="p-2 md:p-3 rounded-full hover:bg-[var(--accent-color)] hover:text-white transition" onClick={() => setCurrentStep(0)}><Icons.Rewind /></button>
+                                        <button className="p-2 md:p-3 rounded-full hover:bg-[var(--surface-color)] transition opacity-70 hover:opacity-100" onClick={() => setCurrentStep(p => Math.max(0, p - 1))}><Icons.SkipBack /></button>
+                                        <button className={`p-2 md:p-3 mx-1 rounded-full text-white shadow-lg transition transform hover:scale-110 active:scale-95 ${isPlaying ? 'bg-red-500' : 'bg-[var(--accent-color)]'}`} onClick={() => setIsPlaying(!isPlaying)}>
                                             {isPlaying ? <Icons.Pause /> : <Icons.Play />}
                                         </button>
-
-                                        <button className="p-2 md:p-3 rounded-full hover:bg-[var(--surface-color)] transition opacity-70 hover:opacity-100" onClick={() => setCurrentStep(p => Math.min(totalSteps, p + 1))} title="Siguiente Paso"><Icons.SkipForward /></button>
+                                        <button className="p-2 md:p-3 rounded-full hover:bg-[var(--surface-color)] transition opacity-70 hover:opacity-100" onClick={() => setCurrentStep(p => Math.min(totalSteps, p + 1))}><Icons.SkipForward /></button>
                                     </div>
                                 </div>
-                                
-                                <p className={`text-lg md:text-xl font-medium leading-relaxed ${mode==='record' ? 'text-[var(--accent-color)] drop-shadow-md brightness-150' : ''}`}>
-                                    {initialTeleprompter.find(t => t.step === currentStep)?.text || "..."}
-                                </p>
+                                <p className={`text-lg md:text-xl font-medium leading-relaxed ${mode==='record' ? 'text-[var(--accent-color)] drop-shadow-md brightness-150' : ''}`}>{initialTeleprompter.find(t => t.step === currentStep)?.text || "..."}</p>
                             </div>
                         </div>
                     )}
@@ -861,20 +750,15 @@
                             <div className="app-panel p-6 rounded-2xl w-[90%] max-w-xl border-2 border-[var(--accent-color)]">
                                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-[var(--text-color)]"><Icons.Edit /> Editor Avanzado</h2>
                                 <textarea className="w-full h-40 p-4 rounded-xl bg-black/30 font-mono text-sm focus:outline-none focus:ring-2 ring-[var(--accent-color)] text-white placeholder-gray-400 border border-white/10"
-                                          value={editingElement.content || ''} onChange={(e) => setEditingElement({...editingElement, content: e.target.value})} placeholder="Escribe tu texto o LaTeX aquí..." />
+                                          value={editingElement.content || ''} onChange={(e) => setEditingElement({...editingElement, content: e.target.value})} />
                                 <div className="flex justify-end gap-3 mt-5">
                                     <button className="px-5 py-2.5 rounded-lg hover:bg-white/10 transition font-bold text-[var(--text-color)]" onClick={() => setEditingElement(null)}>Cancelar</button>
                                     <button className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-[var(--accent-color)] to-[var(--secondary-color)] text-white font-bold shadow-[0_0_15px_var(--accent-color)] btn-action"
-                                            onClick={() => {
-                                                setElements(prev => prev.map(el => el.id === editingElement.id ? editingElement : el));
-                                                saveStateToHistory();
-                                                setEditingElement(null);
-                                            }}>Guardar Cambios</button>
+                                            onClick={() => { setElements(prev => prev.map(el => el.id === editingElement.id ? editingElement : el)); saveStateToHistory(); setEditingElement(null); }}>Guardar</button>
                                 </div>
                             </div>
                         </div>
                     )}
-
                 </div>
             );
         };
