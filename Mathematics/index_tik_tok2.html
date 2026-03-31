@@ -244,17 +244,17 @@
         ];
 
         const initialTeleprompter = [
-            { step: 0, text: "Hoy aprenderemos a calcular un determinante 3x3 paso a paso." },
-            { step: 1, text: "El primer paso es expresar la matriz en formato determinante con barras verticales." },
-            { step: 2, text: "Ahora, hallaremos el 'menor' y el 'cofactor' para la primera fila." },
-            { step: 3, text: "Tomamos el (3). Eliminamos su fila y columna. El 2x2 restante es su menor." },
-            { step: 4, text: "Hacemos lo mismo con el (-1). Fíjate cómo alterna el signo a negativo." },
-            { step: 5, text: "Y finalmente con el (1). Ya tenemos la ecuación principal armada." },
-            { step: 6, text: "Resolvemos los pequeños determinantes multiplicando en cruz." },
-            { step: 7, text: "Simplificamos las multiplicaciones internas." },
-            { step: 8, text: "Hacemos las restas de los corchetes..." },
-            { step: 9, text: "Multiplicamos por los cofactores exteriores." },
-            { step: 10, text: "Sumamos todo y ¡listo! El resultado es 9." },
+            { step: 0, tag: "GANCHO", action: "Mirar a cámara, enérgico", text: "¡Hoy aprenderemos a calcular un determinante 3x3 paso a paso y sin enredarnos!" },
+            { step: 1, tag: "EXPLICACIÓN", action: "Señalar matriz", text: "El primer paso es expresar la matriz en formato determinante con barras verticales." },
+            { step: 2, tag: "ENFOQUE", action: "Pausa dramática", text: "Ahora, viene el truco principal: hallaremos el 'menor' y el 'cofactor' para la primera fila." },
+            { step: 3, tag: "ACCIÓN", action: "Tono didáctico", text: "Tomamos el primer número (3). Eliminamos su fila y su columna. El determinante 2x2 que nos sobra es su 'menor'." },
+            { step: 4, tag: "ALERTA", action: "Levantar cejas (Ojo)", text: "Hacemos lo mismo con el segundo (-1). ¡Pero ojo aquí! Fíjate cómo el signo exterior alterna a negativo." },
+            { step: 5, tag: "CONTINUACIÓN", action: "Ritmo rápido", text: "Y finalmente con el tercer elemento (1). Con esto, ya tenemos la ecuación principal armada." },
+            { step: 6, tag: "DESARROLLO", action: "Tono explicativo", text: "Ahora resolvemos estos pequeños determinantes 2x2 multiplicando en cruz." },
+            { step: 7, tag: "CÁLCULO", action: "Velocidad normal", text: "Simplificamos las multiplicaciones internas que están dentro de los corchetes." },
+            { step: 8, tag: "CÁLCULO", action: "Velocidad normal", text: "Hacemos las restas correspondientes..." },
+            { step: 9, tag: "CÁLCULO", action: "Velocidad normal", text: "Multiplicamos por los cofactores que dejamos afuera." },
+            { step: 10, tag: "CIERRE", action: "Sonrisa, logro", text: "Sumamos todo y ¡listo! El resultado es 9. ¡Así de fácil se calcula un determinante 3x3!" },
         ];
 
         const MathNode = ({ content, color }) => {
@@ -348,16 +348,37 @@
                 return () => window.removeEventListener('resize', handleResize);
             }, [format, boardWidth]);
 
-            // Auto-Pan
+            // Auto-Pan (Centrado Dinámico)
             useEffect(() => {
                 if (mode !== 'edit' && currentStep >= 0) {
                     const stepEls = elements.filter(e => e.step === currentStep);
-                    let targetY = 0;
+                    let targetPanY = 0;
+                    
                     if (stepEls.length > 0) {
-                        targetY = Math.min(...stepEls.map(e => e.y)) - 150; 
+                        // 1. Encontrar los extremos verticales (Y) de los elementos de este paso
+                        const minY = Math.min(...stepEls.map(e => e.y));
+                        const maxY = Math.max(...stepEls.map(e => e.y));
+                        
+                        // 2. Calcular el centro matemático de esos elementos
+                        const centerY = (minY + maxY) / 2;
+                        
+                        // 3. Definir el centro visual de la pantalla (usamos el 45% de la altura 
+                        // para que quede centrado pero con "aire" inferior para el teleprompter)
+                        const screenCenterY = window.innerHeight * 0.45;
+                        
+                        // 4. Ajuste de desplazamiento interno de la app (offset)
+                        const offset = mode === 'record' ? 0 : 100;
+                        
+                        // 5. Ecuación final de centrado
+                        targetPanY = screenCenterY - (centerY * zoom) - offset;
                     }
-                    if (currentStep === 0) targetY = 0;
-                    setPan(prev => ({ ...prev, y: -targetY * zoom }));
+                    
+                    // Si es el Paso 0 (Generalmente el Título), lo dejamos anclado arriba para contexto
+                    if (currentStep === 0) {
+                        targetPanY = 0; 
+                    }
+                    
+                    setPan(prev => ({ ...prev, y: targetPanY }));
                 }
             }, [currentStep, elements, mode, zoom]);
 
@@ -724,13 +745,23 @@
                         <div className="absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 w-[95%] max-w-3xl z-50">
                             <div className={`app-panel p-4 md:p-6 rounded-2xl flex flex-col gap-4 border-t-4 border-t-[var(--accent-color)] ${mode==='record' ? 'opacity-95 shadow-[0_0_30px_rgba(0,0,0,0.8)]' : ''}`}>
                                 
-                                <div className="flex justify-between items-center text-sm font-bold opacity-90">
-                                    <div className="flex items-center gap-3">
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-sm font-bold opacity-90 gap-3">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <span className="bg-[var(--surface-color)] px-3 py-1.5 rounded-lg border border-[var(--border-color)]">Paso {currentStep} de {totalSteps}</span>
                                         {mode === 'record' && <div className="flex items-center gap-2 text-red-500 bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20"><div className="rec-dot"></div> REC</div>}
+                                        {initialTeleprompter.find(t => t.step === currentStep)?.tag && (
+                                            <span className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-1 rounded-lg uppercase tracking-wider text-[10px] sm:text-xs">
+                                                🔥 {initialTeleprompter.find(t => t.step === currentStep).tag}
+                                            </span>
+                                        )}
+                                        {initialTeleprompter.find(t => t.step === currentStep)?.action && (
+                                            <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-1 rounded-lg text-[10px] sm:text-xs italic">
+                                                🎭 {initialTeleprompter.find(t => t.step === currentStep).action}
+                                            </span>
+                                        )}
                                     </div>
                                     
-                                    <div className="flex bg-[var(--surface-color)] rounded-full p-1 border border-[var(--border-color)] shadow-inner">
+                                    <div className="flex bg-[var(--surface-color)] rounded-full p-1 border border-[var(--border-color)] shadow-inner w-full md:w-auto justify-center">
                                         <button className="p-2 md:p-3 rounded-full hover:bg-[var(--accent-color)] hover:text-white transition" onClick={() => setCurrentStep(0)}><Icons.Rewind /></button>
                                         <button className="p-2 md:p-3 rounded-full hover:bg-[var(--surface-color)] transition opacity-70 hover:opacity-100" onClick={() => setCurrentStep(p => Math.max(0, p - 1))}><Icons.SkipBack /></button>
                                         <button className={`p-2 md:p-3 mx-1 rounded-full text-white shadow-lg transition transform hover:scale-110 active:scale-95 ${isPlaying ? 'bg-red-500' : 'bg-[var(--accent-color)]'}`} onClick={() => setIsPlaying(!isPlaying)}>
