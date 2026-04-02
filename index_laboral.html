@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Liquidación Exacta - Luna Abogada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        luna: {
+                            blue: '#1A2942',
+                            gold: '#D4AF37',
+                            light: '#F8FAFC',
+                            alert: '#EF4444',
+                            gray: '#F1F5F9',
+                            nequi: '#DA0081'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Inter:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        h1, h2, h3, .brand-font { font-family: 'Playfair Display', serif; }
+
+        .formula-text { font-family: 'Fira Code', monospace; font-size: 0.75rem; color: #64748B; background-color: #F8FAFC; padding: 0.35rem 0.5rem; border-radius: 0.25rem; border-left: 2px solid #D4AF37; margin-top: 0.25rem; display: inline-block; word-break: break-all; }
+        .input-group label { display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.25rem; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 0.5rem 0.75rem; border-radius: 0.375rem; border: 1px solid #cbd5e1; outline: none; transition: all 0.2s; }
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-color: #D4AF37; box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2); }
+        .card { background: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); padding: 1.5rem; }
+
+        /* Tooltip CSS */
+        .tooltip { position: relative; display: inline-block; cursor: pointer; color: #D4AF37; margin-left: 0.25rem; }
+        .tooltip .tooltiptext { visibility: hidden; width: 260px; background-color: #1A2942; color: #fff; text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 10; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s; font-size: 0.75rem; font-weight: 400; line-height: 1.4; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #1A2942 transparent transparent transparent; }
+
+        /* Floating Buttons */
+        .float-btn { position: fixed; bottom: 20px; z-index: 90; border-radius: 50px; padding: 12px 20px; font-weight: bold; color: white; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s; cursor: pointer; }
+        .float-btn:hover { transform: scale(1.05); }
+        .btn-whatsapp { right: 20px; background-color: #25D366; }
+        .btn-survey { left: 20px; background-color: #1A2942; border: 2px solid #D4AF37; }
+
+        /* Stars */
+        .star-rating i { color: #cbd5e1; cursor: pointer; transition: color 0.2s; font-size: 1.5rem; }
+        .star-rating i.active, .star-rating i:hover, .star-rating i:hover ~ i { color: #F59E0B; } /* Logic handled in JS for proper hover */
+
+        /* Modal Overlay */
+        .modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; }
+        .hidden-auth { display: none !important; }
+
+        /* THEMES */
+        body.theme-glass { background: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop') no-repeat center center fixed; background-size: cover; }
+        body.theme-glass .card, body.theme-glass .bg-white, body.theme-glass .bg-slate-50, body.theme-glass .bg-yellow-50 { background: rgba(255, 255, 255, 0.25) !important; backdrop-filter: blur(16px) !important; -webkit-backdrop-filter: blur(16px) !important; border: 1px solid rgba(255, 255, 255, 0.4) !important; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15) !important; color: #1e293b; }
+        body.theme-neon { background-color: #050505 !important; color: #fff !important; }
+        body.theme-neon .card { background-color: #0a0a0a !important; border: 2px solid #0ff !important; box-shadow: 0 0 15px rgba(0, 255, 255, 0.5), inset 0 0 10px rgba(0, 255, 255, 0.2) !important; color: #fff !important; }
+        body.theme-neon h2, body.theme-neon h3, body.theme-neon span.font-bold, body.theme-neon .brand-font { color: #f0f !important; text-shadow: 0 0 5px #f0f !important; }
+        body.theme-neon input, body.theme-neon select, body.theme-neon textarea { background: #111 !important; color: #0ff !important; border: 1px solid #0ff !important; }
+        body.theme-brutalist { background-color: #fff !important; }
+        body.theme-brutalist .card { border: 4px solid #000 !important; border-radius: 0 !important; box-shadow: 8px 8px 0px #000 !important; background-color: #fff !important; }
+        
+        body.dark-mode:not(.theme-glass):not(.theme-neon) { background-color: #0f172a !important; color: #e2e8f0 !important; }
+        body.dark-mode:not(.theme-glass):not(.theme-neon) .card, body.dark-mode:not(.theme-glass):not(.theme-neon) .bg-white { background-color: #1e293b !important; border-color: #334155 !important; }
+        body.dark-mode:not(.theme-glass):not(.theme-neon) input, body.dark-mode:not(.theme-glass):not(.theme-neon) select, body.dark-mode:not(.theme-glass):not(.theme-neon) textarea { background-color: #0f172a !important; color: #e2e8f0 !important; border-color: #475569 !important; }
+        
+        /* HERRAMIENTAS PANEL */
+        .tools-panel { position: fixed; top: 0; right: -380px; width: 350px; background: white; box-shadow: -4px 0 25px rgba(0,0,0,0.2); height: 100vh; z-index: 100; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); padding: 1.5rem; overflow-y: auto; }
+        .tools-panel.open { right: 0; }
+        body.dark-mode .tools-panel { background: #1e293b; color: white; border-left: 1px solid #334155; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col relative">
+
+    <!-- Auth Protection Overlay -->
+    <div id="authModal" class="modal-overlay flex">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 text-center border-t-4 border-luna-blue">
+            <i class="fa-solid fa-scale-balanced text-luna-gold text-5xl mb-4"></i>
+            <h2 class="brand-font text-2xl font-bold text-luna-blue mb-2">Luna Abogada</h2>
+            <p class="text-slate-500 text-sm mb-6">Inicia sesión para usar la Calculadora de Liquidación de Ley.</p>
+            
+            <button onclick="window.iniciarSesionGoogle()" class="w-full bg-white border border-slate-300 text-slate-700 font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center gap-3 hover:bg-slate-50 transition shadow-sm mb-4">
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" class="w-5 h-5">
+                Continuar con Google
+            </button>
+            
+            <div class="flex items-center gap-2 mb-4">
+                <div class="h-px bg-slate-200 flex-1"></div>
+                <span class="text-xs text-slate-400 uppercase font-bold">O con correo</span>
+                <div class="h-px bg-slate-200 flex-1"></div>
+            </div>
+
+            <div class="space-y-3 mb-4 text-left">
+                <div class="input-group">
+                    <input type="email" id="authEmail" placeholder="Tu correo electrónico">
+                </div>
+                <div class="input-group">
+                    <input type="password" id="authPass" placeholder="Contraseña">
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window.iniciarSesionEmail()" class="flex-1 bg-luna-blue text-white font-bold py-2 rounded-lg hover:bg-slate-800 transition text-sm">Entrar</button>
+                    <button onclick="window.registrarEmail()" class="flex-1 bg-slate-200 text-luna-blue font-bold py-2 rounded-lg hover:bg-slate-300 transition text-sm">Registrarse</button>
+                </div>
+                <p id="authError" class="text-red-500 text-xs text-center hidden"></p>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-4">Al ingresar aceptas nuestros términos de uso. Obtienes 2 cálculos gratuitos.</p>
+        </div>
+    </div>
+
+    <!-- Header & App Content -->
+    <header class="bg-luna-blue text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-scale-balanced text-luna-gold text-2xl"></i>
+                    <span class="brand-font text-2xl font-semibold tracking-wide">Luna Abogada</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap">
+                <!-- User Info Panel -->
+                <div id="userInfoPanel" class="hidden items-center gap-3 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700">
+                    <div class="flex flex-col text-right">
+                        <span id="userEmailDisplay" class="text-xs font-bold text-slate-200">cargando...</span>
+                        <span id="userStatusDisplay" class="text-[10px] text-luna-gold font-mono"></span>
+                    </div>
+                    <button id="btnAdminPanel" onclick="window.abrirAdmin()" class="hidden bg-purple-600 hover:bg-purple-700 text-white text-xs px-2 py-1 rounded shadow-sm"><i class="fa-solid fa-crown mr-1"></i> Admin</button>
+                    <button onclick="window.cerrarSesion()" class="text-slate-400 hover:text-red-400 ml-1"><i class="fa-solid fa-right-from-bracket"></i></button>
+                </div>
+
+                <select id="themeSelector" class="bg-slate-800 text-white border border-luna-gold rounded p-1.5 text-xs outline-none cursor-pointer hover:bg-slate-700 transition">
+                    <option value="default">Corporativo</option>
+                    <option value="theme-glass">Glassmorphism</option>
+                    <option value="theme-neon">Neón Cyber</option>
+                    <option value="theme-brutalist">Brutalista</option>
+                </select>
+                
+                <button id="darkModeToggle" class="bg-slate-800 p-1.5 rounded border border-slate-600 text-luna-gold hover:text-white hover:bg-slate-700 transition w-8 h-8 flex items-center justify-center" title="Modo Noche"><i class="fa-solid fa-moon"></i></button>
+                <button id="toolsToggleBtn" class="bg-luna-gold text-luna-blue px-3 py-1.5 rounded font-bold hover:bg-yellow-500 transition text-xs flex items-center gap-2 shadow-md"><i class="fa-solid fa-toolbox"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 py-8 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+        <div class="lg:col-span-8 space-y-6">
+            
+            <div class="bg-gradient-to-r from-luna-blue to-slate-800 rounded-xl p-6 text-white shadow-md">
+                <h2 class="text-xl font-semibold brand-font mb-2 text-luna-gold"><i class="fa-solid fa-graduation-cap mr-2"></i> Conoce tus Derechos: Liquidación Exacta de Ley</h2>
+                <p class="text-sm text-slate-200 leading-relaxed">
+                    La liquidación laboral en Colombia se rige por fórmulas matemáticas estrictas sobre un <strong>año comercial de 360 días</strong>. Esta herramienta calcula tus prestaciones al centavo y muestra la <strong>fórmula legal exacta</strong>. 
+                </p>
+            </div>
+
+            <!-- Formulario Principal -->
+            <div class="card border-t-4 border-luna-blue">
+                <h3 class="text-lg font-semibold brand-font mb-4 text-luna-blue border-b pb-2"><i class="fa-solid fa-file-signature mr-2"></i> Datos del Contrato</h3>
+                
+                <form id="calcForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="input-group">
+                        <label for="fechaInicio">Fecha de Inicio</label>
+                        <input type="date" id="fechaInicio" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="fechaFin">Fecha de Terminación</label>
+                        <input type="date" id="fechaFin" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="salario">Salario Mensual Base $ 
+                            <span class="tooltip"><i class="fa-solid fa-circle-info"></i><span class="tooltiptext">Incluye salario fijo, comisiones, extras y recargos habituales.</span></span>
+                        </label>
+                        <div class="flex gap-2">
+                            <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 font-semibold">$</span>
+                            <input type="number" id="salario" class="rounded-l-none" placeholder="Ej: 1750905" required>
+                        </div>
+                    </div>
+
+                    <div class="input-group flex items-center mt-6">
+                        <label class="flex items-center gap-2 cursor-pointer bg-slate-50 p-2 rounded border border-slate-200 w-full">
+                            <input type="checkbox" id="tieneTransporte" class="w-5 h-5 text-luna-blue rounded border-gray-300">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-semibold text-slate-700">Incluir Aux. Transporte</span>
+                                <span class="text-xs text-slate-500" id="txtTransporteValor">Automático por ley</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="tipoContrato">Tipo de Contrato</label>
+                        <select id="tipoContrato">
+                            <option value="indefinido">A Término Indefinido</option>
+                            <option value="fijo">A Término Fijo</option>
+                            <option value="obra">Por Obra o Labor</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group hidden" id="divFechaFinPactada">
+                        <label for="fechaFinPactada">Fecha Fin Pactada (Para indemnización)</label>
+                        <input type="date" id="fechaFinPactada">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="motivoRetiro">Motivo de Terminación</label>
+                        <select id="motivoRetiro">
+                            <option value="justa">Despido con Justa Causa</option>
+                            <option value="injusta">Despido SIN Justa Causa</option>
+                            <option value="renuncia">Renuncia Voluntaria</option>
+                            <option value="mutuo">Mutuo Acuerdo</option>
+                            <option value="vencimiento">Vencimiento del Contrato</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="diasVacacionesTomadas">Días de vacaciones ya disfrutados</label>
+                        <input type="number" id="diasVacacionesTomadas" value="0" min="0" step="1">
+                    </div>
+
+                    <div class="input-group md:col-span-2 mt-2 bg-yellow-50 p-3 rounded border border-yellow-200 shadow-sm">
+                        <label class="flex items-start gap-3 cursor-pointer">
+                            <input type="checkbox" id="liquidarHistorico" class="w-5 h-5 mt-0.5 text-luna-gold rounded border-gray-300">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-bold text-yellow-800">Liquidar TODO el histórico de fechas ingresadas</span>
+                                <span class="text-xs text-yellow-700 mt-1">Marca esta opción SOLO si la empresa te debe años anteriores no pagados (Modo MinTrabajo).</span>
+                            </div>
+                        </label>
+                    </div>
+                </form>
+
+                <div class="mt-6">
+                    <button onclick="window.intentarCalcular()" class="w-full bg-luna-blue hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-calculator"></i> <span id="btnTextCalc">Calcular Liquidación Exacta</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Div Resultados -->
+            <div id="resultadosDiv" class="card hidden border-t-4 border-luna-gold bg-white">
+                <div class="flex justify-between items-start mb-6 border-b pb-4">
+                    <div>
+                        <h3 class="text-xl font-bold brand-font text-luna-blue"><i class="fa-solid fa-file-invoice-dollar mr-2 text-luna-gold"></i> Detalle de Liquidación</h3>
+                        <p class="text-sm text-slate-500 mt-1" id="resumenTiempos"></p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- Cards de Resultados -->
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="font-bold text-slate-700">Cesantías</span>
+                            <span class="font-bold text-lg text-slate-800" id="resCesantias">$0</span>
+                        </div>
+                        <div class="text-[10px] font-bold text-luna-blue mb-1" id="perCesantias"></div>
+                        <div class="formula-text w-full" id="formCesantias"></div>
+                    </div>
+
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="font-bold text-slate-700">Intereses de Cesantías</span>
+                            <span class="font-bold text-lg text-slate-800" id="resIntereses">$0</span>
+                        </div>
+                        <div class="text-[10px] font-bold text-luna-blue mb-1" id="perIntereses"></div>
+                        <div class="formula-text w-full" id="formIntereses"></div>
+                    </div>
+
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="font-bold text-slate-700">Prima de Servicios</span>
+                            <span class="font-bold text-lg text-slate-800" id="resPrima">$0</span>
+                        </div>
+                        <div class="text-[10px] font-bold text-luna-blue mb-1" id="perPrima"></div>
+                        <div class="formula-text w-full" id="formPrima"></div>
+                    </div>
+
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="font-bold text-slate-700">Vacaciones</span>
+                            <span class="font-bold text-lg text-slate-800" id="resVacaciones">$0</span>
+                        </div>
+                        <div class="text-[10px] font-bold text-luna-blue mb-1" id="perVacaciones"></div>
+                        <div class="formula-text w-full" id="formVacaciones"></div>
+                    </div>
+
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200 hidden" id="divIndemnizacionContenedor">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="font-bold text-red-700">Indemnización por Despido</span>
+                            <span class="font-bold text-lg text-red-700" id="resIndemnizacion">$0</span>
+                        </div>
+                        <div class="formula-text w-full !bg-white !border-red-400 !text-red-800" id="formIndemnizacion"></div>
+                    </div>
+
+                    <div class="bg-luna-blue text-white rounded-xl p-8 flex flex-col md:flex-row justify-between items-center shadow-xl">
+                        <div>
+                            <h4 class="text-sm font-semibold text-luna-gold uppercase tracking-wider mb-1">Total Liquidación de Ley</h4>
+                        </div>
+                        <div class="text-4xl md:text-5xl font-bold text-white mt-4 md:mt-0 tracking-tight" id="resTotal">$0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="alertasAbuso" class="card hidden border-t-4 border-red-500 bg-red-50 shadow-md">
+                <h3 class="text-lg font-bold text-red-800 mb-3"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Análisis Jurídico de Luna Abogada</h3>
+                <ul id="listaAlertas" class="list-disc list-inside text-sm text-red-800 space-y-3"></ul>
+            </div>
+        </div>
+
+        <div class="lg:col-span-4 space-y-6">
+            <div class="card border-l-4 border-luna-gold">
+                <h3 class="text-lg font-bold brand-font text-luna-blue mb-3"><i class="fa-solid fa-chart-line text-luna-gold mr-2"></i> Evolución Salarial</h3>
+                <div class="space-y-4">
+                    <div class="bg-gradient-to-br from-blue-50 to-slate-50 p-4 rounded-lg border border-blue-200 shadow-sm relative">
+                        <div class="absolute top-0 right-0 bg-luna-gold text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg">2026</div>
+                        <div class="flex justify-between items-center border-b border-blue-100 pb-1 mb-1">
+                            <span class="text-sm font-medium">Salario Mínimo</span>
+                            <span class="text-sm font-bold text-luna-blue">$1.750.905</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium">Aux. Transporte</span>
+                            <span class="text-sm font-bold text-luna-blue">$249.095</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-luna-blue text-white shadow-xl relative overflow-hidden">
+                <h3 class="text-lg font-bold brand-font text-luna-gold mb-4"><i class="fa-solid fa-lightbulb mr-2"></i> Tips Legales</h3>
+                <div class="space-y-5 text-sm text-slate-200 relative z-10 leading-relaxed">
+                    <p><i class="fa-solid fa-circle-check text-luna-gold"></i> <strong>Contrato Realidad:</strong> Si facturabas pero cumplías horario y recibías órdenes, se presume contrato laboral.</p>
+                    <p><i class="fa-solid fa-circle-check text-luna-gold"></i> <strong>Base Salarial Oculta:</strong> Bonos fijos que retribuyen tu servicio directamente son base salarial ante un juez.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals Adicionales -->
+
+    <!-- Paywall Modal -->
+    <div id="paywallModal" class="modal-overlay hidden-auth">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 text-center border-t-4 border-luna-nequi relative">
+            <button onclick="document.getElementById('paywallModal').classList.add('hidden-auth')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+            <div class="bg-luna-nequi text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-lg">
+                <i class="fa-solid fa-gem"></i>
+            </div>
+            <h2 class="brand-font text-2xl font-bold text-slate-800 mb-2">Pásate a Premium</h2>
+            <p class="text-slate-600 text-sm mb-6">Has agotado tus 2 cálculos gratuitos. Adquiere acceso ilimitado por todo un año y descarga cartas, horas extras e historial.</p>
+            
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Inversión Anual</p>
+                <p class="text-3xl font-bold text-luna-nequi mb-3">$15.000 <span class="text-sm font-normal text-slate-500">COP</span></p>
+                <div class="text-left text-sm text-slate-700 space-y-2">
+                    <p><i class="fa-solid fa-building-columns text-slate-400 w-5"></i> Transfiere a Nequi:</p>
+                    <p class="font-mono font-bold text-lg bg-white p-2 rounded border text-center text-luna-blue">300 000 0000</p>
+                    <p class="text-xs text-center mt-2 text-slate-500">Envía el comprobante a: <strong>dudbilopr@gmail.com</strong></p>
+                </div>
+            </div>
+            <button onclick="window.open('https://wa.me/573000000000?text=Hola,%20adjunto%20el%20pago%20de%20mi%20suscripcion%20Premium%20correo:%20', '_blank')" class="w-full bg-luna-nequi hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md flex justify-center items-center gap-2">
+                <i class="fa-brands fa-whatsapp"></i> Enviar Comprobante
+            </button>
+        </div>
+    </div>
+
+    <!-- Admin Modal -->
+    <div id="adminModal" class="modal-overlay hidden-auth">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-4xl w-full mx-4 border-t-4 border-purple-600 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="brand-font text-2xl font-bold text-slate-800"><i class="fa-solid fa-chess-king text-purple-600 mr-2"></i> Panel de Administración</h2>
+                <button onclick="document.getElementById('adminModal').classList.add('hidden-auth')" class="text-slate-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
+                    <p class="text-xs text-blue-600 font-bold uppercase">Total Usuarios</p>
+                    <p class="text-2xl font-bold text-blue-800" id="statTotalUsers">0</p>
+                </div>
+                <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center">
+                    <p class="text-xs text-yellow-600 font-bold uppercase">Usuarios Premium</p>
+                    <p class="text-2xl font-bold text-yellow-800" id="statPremiumUsers">0</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg border border-green-100 text-center">
+                    <p class="text-xs text-green-600 font-bold uppercase">Feedback</p>
+                    <p class="text-2xl font-bold text-green-800" id="statFeedbacks">0</p>
+                </div>
+            </div>
+
+            <div class="overflow-y-auto flex-grow border rounded-lg">
+                <table class="w-full text-sm text-left text-slate-600">
+                    <thead class="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3">Usuario (Email)</th>
+                            <th class="px-4 py-3">Estado</th>
+                            <th class="px-4 py-3">Usos Libres</th>
+                            <th class="px-4 py-3 text-right">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminUsersTableBody" class="divide-y divide-slate-200">
+                        <!-- Llenado vía JS -->
+                    </tbody>
+                </table>
+            </div>
+            <button onclick="window.cargarDatosAdmin()" class="mt-4 bg-slate-800 text-white px-4 py-2 rounded font-bold text-sm hover:bg-slate-700 w-fit mx-auto"><i class="fa-solid fa-rotate-right mr-2"></i> Refrescar Datos</button>
+        </div>
+    </div>
+
+    <!-- Survey Modal -->
+    <div id="surveyModal" class="modal-overlay hidden-auth">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 text-center border-t-4 border-luna-blue relative">
+            <button onclick="document.getElementById('surveyModal').classList.add('hidden-auth')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="brand-font text-2xl font-bold text-slate-800 mb-2">Califícame</h2>
+            <p class="text-slate-500 text-sm mb-6">Tu opinión como profesional nos ayuda a mejorar la exactitud y diseño.</p>
+            
+            <div class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">1. Exactitud de Fórmulas</label>
+                    <select id="survQ1" class="w-full p-2 border rounded text-sm bg-slate-50"><option>Excelente</option><option>Buena</option><option>Regular</option><option>Requiere Ajuste</option></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">2. Claridad de las Alertas Jurídicas</label>
+                    <select id="survQ2" class="w-full p-2 border rounded text-sm bg-slate-50"><option>Muy Claras</option><option>Útiles</option><option>Confusas</option></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">3. Facilidad de Uso (UI/UX)</label>
+                    <select id="survQ3" class="w-full p-2 border rounded text-sm bg-slate-50"><option>Intuitiva</option><option>Normal</option><option>Complicada</option></select>
+                </div>
+                
+                <div class="text-center pt-2">
+                    <label class="block text-xs font-bold text-slate-700 mb-2">Calificación General</label>
+                    <div class="star-rating flex justify-center gap-2" id="starContainer">
+                        <i class="fa-solid fa-star" data-val="1"></i><i class="fa-solid fa-star" data-val="2"></i><i class="fa-solid fa-star" data-val="3"></i><i class="fa-solid fa-star" data-val="4"></i><i class="fa-solid fa-star" data-val="5"></i>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Recomendación Libre</label>
+                    <textarea id="survComments" rows="3" class="w-full p-2 border rounded text-sm" placeholder="¿Qué le agregarías?"></textarea>
+                </div>
+
+                <button onclick="window.enviarFeedback()" class="w-full bg-luna-blue text-white font-bold py-2 rounded hover:bg-slate-800 transition">Enviar Opinión</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Tools Sidebar -->
+    <div id="sideToolsPanel" class="tools-panel card">
+        <h3 class="text-lg font-bold brand-font text-luna-blue mb-4 border-b pb-2 flex justify-between items-center">
+            <span><i class="fa-solid fa-screwdriver-wrench text-luna-gold mr-2"></i> Herramientas</span>
+            <button id="closeToolsBtn" class="text-slate-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </h3>
+        <!-- Tools content here (Hora, Renuncia, PDF) -->
+        <div class="mb-4 p-3 bg-slate-50 rounded-lg border">
+            <h4 class="font-semibold text-sm mb-1"><i class="fa-solid fa-clock text-blue-500 mr-1"></i> Calcular Valor Hora</h4>
+            <input type="number" id="toolSalario" placeholder="Salario Base" class="w-full p-2 text-xs border rounded mb-2">
+            <button onclick="window.calcularValorHora()" class="w-full bg-blue-600 text-white p-2 rounded text-xs font-bold">Calcular</button>
+            <div id="toolHoraResult" class="mt-2 text-xs hidden space-y-1"><div class="flex justify-between"><span>Ord:</span><strong id="valHoraOrd"></strong></div><div class="flex justify-between"><span>Ext Diurna:</span><strong id="valHoraExtD"></strong></div><div class="flex justify-between"><span>Ext Noct:</span><strong id="valHoraExtN"></strong></div><div class="flex justify-between"><span>Rec Noct:</span><strong id="valHoraRecN"></strong></div></div>
+        </div>
+        <div class="mb-4 p-3 bg-slate-50 rounded-lg border">
+            <h4 class="font-semibold text-sm mb-1"><i class="fa-solid fa-file-signature text-green-500 mr-1"></i> Carta Renuncia</h4>
+            <button onclick="window.generarRenuncia()" class="w-full bg-green-600 text-white p-2 rounded text-xs font-bold">Generar</button>
+            <textarea id="textoRenuncia" class="w-full p-2 text-[10px] border rounded mt-2 h-32 hidden" readonly></textarea>
+        </div>
+        <div class="p-3 bg-red-50 rounded-lg border">
+            <button onclick="window.print()" class="w-full bg-red-600 text-white p-2 rounded text-xs font-bold flex justify-center items-center gap-2"><i class="fa-solid fa-file-pdf"></i> Exportar PDF</button>
+        </div>
+    </div>
+
+    <!-- Floating Buttons -->
+    <a href="https://wa.me/573000000000?text=Hola,%20necesito%20soporte%20con%20la%20calculadora%20de%20Liquidacion" target="_blank" class="float-btn btn-whatsapp" title="Soporte WhatsApp">
+        <i class="fa-brands fa-whatsapp text-2xl"></i>
+    </a>
+    <button onclick="document.getElementById('surveyModal').classList.remove('hidden-auth')" class="float-btn btn-survey" title="Danos tu opinión">
+        <i class="fa-solid fa-star-half-stroke"></i> Califícanos
+    </button>
+
+    <!-- FIREBASE & APP LOGIC MODULE -->
+    <script type="module">
+        // 1. Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // 2. Constants & Config
+        const ADMIN_EMAIL = "dudbilopr@gmail.com";
+        const APP_ID = "laboratorio-de-coulomb";
+        const firebaseConfig = {
+            apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+            authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+            databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+            projectId: "laboratorio-de-coulomb",
+            storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+            messagingSenderId: "525944850850",
+            appId: "1:525944850850:web:eca9c0b79809358e8d8afb",
+            measurementId: "G-SZECJNG25E"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        let currentUserDoc = null;
+        let currentRating = 5;
+
+        // --- AUTH LOGIC ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                document.getElementById('authModal').classList.add('hidden-auth');
+                document.getElementById('userInfoPanel').classList.remove('hidden');
+                document.getElementById('userInfoPanel').classList.add('flex');
+                document.getElementById('userEmailDisplay').innerText = user.email;
+                
+                await fetchOrCreateUserProfile(user);
+            } else {
+                document.getElementById('authModal').classList.remove('hidden-auth');
+                document.getElementById('userInfoPanel').classList.add('hidden');
+                document.getElementById('userInfoPanel').classList.remove('flex');
+                currentUserDoc = null;
+            }
+        });
+
+        async function fetchOrCreateUserProfile(user) {
+            // Regla de ruta estricta: /artifacts/{appId}/public/data/users/{userId} 
+            // Permite al admin listar a todos fácilmente sin romper reglas de seguridad Canvas.
+            const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid);
+            const docSnap = await getDoc(userRef);
+
+            if (docSnap.exists()) {
+                currentUserDoc = { id: docSnap.id, ...docSnap.data() };
+            } else {
+                // Nuevo Usuario
+                const isMiAdmin = (user.email === ADMIN_EMAIL);
+                currentUserDoc = {
+                    email: user.email,
+                    role: isMiAdmin ? 'admin' : 'user',
+                    isPremium: isMiAdmin ? true : false,
+                    freeUses: isMiAdmin ? 999 : 2,
+                    createdAt: serverTimestamp(),
+                    premiumUntil: null
+                };
+                await setDoc(userRef, currentUserDoc);
+                currentUserDoc.id = user.uid;
+            }
+
+            actualizarUIUsuario();
+        }
+
+        function actualizarUIUsuario() {
+            const statusDisp = document.getElementById('userStatusDisplay');
+            const btnCalc = document.getElementById('btnTextCalc');
+            
+            if (currentUserDoc.role === 'admin') {
+                document.getElementById('btnAdminPanel').classList.remove('hidden');
+                statusDisp.innerText = "👑 ADMIN";
+                btnCalc.innerText = "Calcular Liquidación (Modo Dios)";
+            } else if (currentUserDoc.isPremium) {
+                statusDisp.innerText = "💎 PREMIUM";
+                btnCalc.innerText = "Calcular Liquidación Exacta";
+            } else {
+                statusDisp.innerText = `Prueba: ${currentUserDoc.freeUses} usos rest.`;
+                btnCalc.innerText = `Calcular (${currentUserDoc.freeUses} gratis)`;
+            }
+        }
+
+        // --- EXPORTAR FUNCIONES AL SCOPE GLOBAL (WINDOW) ---
+        window.iniciarSesionGoogle = async () => {
+            try { await signInWithPopup(auth, provider); } 
+            catch (e) { document.getElementById('authError').innerText = "Error: " + e.message; document.getElementById('authError').classList.remove('hidden'); }
+        };
+
+        window.iniciarSesionEmail = async () => {
+            const email = document.getElementById('authEmail').value;
+            const pass = document.getElementById('authPass').value;
+            try { await signInWithEmailAndPassword(auth, email, pass); }
+            catch (e) { document.getElementById('authError').innerText = "Credenciales incorrectas."; document.getElementById('authError').classList.remove('hidden'); }
+        };
+
+        window.registrarEmail = async () => {
+            const email = document.getElementById('authEmail').value;
+            const pass = document.getElementById('authPass').value;
+            try { await createUserWithEmailAndPassword(auth, email, pass); }
+            catch (e) { document.getElementById('authError').innerText = "Error al crear: " + e.message; document.getElementById('authError').classList.remove('hidden'); }
+        };
+
+        window.cerrarSesion = () => { signOut(auth); };
+
+        // --- INTERCEPTOR DE CÁLCULO (PAYWALL) ---
+        window.intentarCalcular = async () => {
+            if (!currentUserDoc) return;
+            
+            if (currentUserDoc.isPremium || currentUserDoc.role === 'admin') {
+                ejecutarCalculoMatematico();
+            } else if (currentUserDoc.freeUses > 0) {
+                // Descontar uso
+                currentUserDoc.freeUses -= 1;
+                const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUserDoc.id);
+                await updateDoc(userRef, { freeUses: currentUserDoc.freeUses });
+                actualizarUIUsuario();
+                ejecutarCalculoMatematico();
+            } else {
+                // Paywall
+                document.getElementById('paywallModal').classList.remove('hidden-auth');
+            }
+        };
+
+        // --- PANEL ADMIN LOGIC ---
+        window.abrirAdmin = () => {
+            document.getElementById('adminModal').classList.remove('hidden-auth');
+            window.cargarDatosAdmin();
+        };
+
+        window.cargarDatosAdmin = async () => {
+            if(currentUserDoc.role !== 'admin') return;
+            const tbody = document.getElementById('adminUsersTableBody');
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Cargando...</td></tr>';
+            
+            try {
+                // Usuarios
+                const usersCol = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users');
+                const userSnaps = await getDocs(usersCol);
+                let total = 0; let premium = 0;
+                let html = '';
+
+                userSnaps.forEach(doc => {
+                    const u = doc.data();
+                    total++;
+                    if(u.isPremium) premium++;
+                    
+                    const isPremiumUI = u.isPremium ? '<span class="px-2 py-1 text-[10px] bg-green-100 text-green-800 rounded font-bold">PREMIUM</span>' : '<span class="px-2 py-1 text-[10px] bg-slate-100 text-slate-800 rounded font-bold">FREE</span>';
+                    
+                    html += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2 font-medium">${u.email}</td>
+                        <td class="px-4 py-2">${isPremiumUI}</td>
+                        <td class="px-4 py-2">${u.freeUses}</td>
+                        <td class="px-4 py-2 text-right">
+                            ${!u.isPremium ? `<button onclick="window.hacerPremium('${doc.id}')" class="bg-purple-600 text-white px-2 py-1 text-xs rounded hover:bg-purple-700">Hacer Premium</button>` : `<span class="text-xs text-slate-400">Activo</span>`}
+                        </td>
+                    </tr>`;
+                });
+                
+                tbody.innerHTML = html;
+                document.getElementById('statTotalUsers').innerText = total;
+                document.getElementById('statPremiumUsers').innerText = premium;
+
+                // Estadísticas de Feedbacks
+                const feedCol = collection(db, 'artifacts', APP_ID, 'public', 'data', 'feedback');
+                const feedSnaps = await getDocs(feedCol);
+                document.getElementById('statFeedbacks').innerText = feedSnaps.size;
+
+            } catch (error) {
+                console.error("Error admin: ", error);
+            }
+        };
+
+        window.hacerPremium = async (uid) => {
+            if(!confirm("¿Habilitar 1 año Premium a este usuario?")) return;
+            try {
+                const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', uid);
+                // Calcula fecha + 1 año
+                const nextYear = new Date();
+                nextYear.setFullYear(nextYear.getFullYear() + 1);
+                
+                await updateDoc(userRef, { 
+                    isPremium: true,
+                    premiumUntil: nextYear
+                });
+                alert("Usuario actualizado a Premium exitosamente.");
+                window.cargarDatosAdmin();
+            } catch(e) { alert("Error: " + e.message); }
+        };
+
+        // --- FEEDBACK LOGIC ---
+        const stars = document.querySelectorAll('#starContainer i');
+        stars.forEach(star => {
+            star.addEventListener('click', (e) => {
+                currentRating = parseInt(e.target.getAttribute('data-val'));
+                stars.forEach(s => s.classList.remove('active'));
+                for(let i=0; i<currentRating; i++) stars[i].classList.add('active');
+            });
+        });
+        // Init default stars
+        for(let i=0; i<5; i++) stars[i].classList.add('active');
+
+        window.enviarFeedback = async () => {
+            if(!currentUserDoc) return alert("Debes iniciar sesión.");
+            const data = {
+                uid: currentUserDoc.id,
+                email: currentUserDoc.email,
+                qExactitud: document.getElementById('survQ1').value,
+                qClaridad: document.getElementById('survQ2').value,
+                qUI: document.getElementById('survQ3').value,
+                rating: currentRating,
+                comentario: document.getElementById('survComments').value,
+                timestamp: serverTimestamp()
+            };
+            try {
+                await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'feedback'), data);
+                alert("¡Gracias por ayudarnos a mejorar!");
+                document.getElementById('surveyModal').classList.add('hidden-auth');
+            } catch(e) { alert("Error al enviar: " + e.message); }
+        };
+
+        // --- MATEMÁTICAS ORIGINALES EXACTAS (SIN CAMBIOS LÓGICOS) ---
+        const SMMLV_2026 = 1750905; const AUX_TRANS_2026 = 249095;
+        const SMMLV_2025 = 1423500; const AUX_TRANS_2025 = 200000;
+        const SMMLV_2024 = 1300000; const AUX_TRANS_2024 = 162000;
+
+        const formatearMoneda = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(Math.round(v));
+        
+        document.getElementById('tipoContrato').addEventListener('change', e => {
+            document.getElementById('divFechaFinPactada').classList[e.target.value === 'fijo' ? 'remove' : 'add']('hidden');
+            document.getElementById('fechaFinPactada').required = (e.target.value === 'fijo');
+        });
+
+        document.getElementById('fechaFin').addEventListener('change', e => {
+            if(!e.target.value) return;
+            const year = parseInt(e.target.value.split('-')[0]);
+            let smmlv = year===2025 ? SMMLV_2025 : (year<=2024 ? SMMLV_2024 : SMMLV_2026);
+            if (!document.getElementById('salario').value) document.getElementById('salario').value = smmlv;
+            revisarAuxilio();
+        });
+
+        document.getElementById('salario').addEventListener('input', revisarAuxilio);
+
+        function revisarAuxilio() {
+            const sal = parseFloat(document.getElementById('salario').value)||0;
+            let year = new Date().getFullYear();
+            if(document.getElementById('fechaFin').value) year = parseInt(document.getElementById('fechaFin').value.split('-')[0]);
+            let smmlv = year===2025 ? SMMLV_2025 : (year<=2024 ? SMMLV_2024 : SMMLV_2026);
+            let auxTrans = year===2025 ? AUX_TRANS_2025 : (year<=2024 ? AUX_TRANS_2024 : AUX_TRANS_2026);
+            
+            const check = document.getElementById('tieneTransporte');
+            const txt = document.getElementById('txtTransporteValor');
+            if (sal <= (smmlv * 2)) { check.checked = true; txt.innerText = `Asignado por ley: +${formatearMoneda(auxTrans)}`; txt.classList.add('text-green-600'); } 
+            else { check.checked = false; txt.innerText = `Supera 2 SMMLV`; txt.classList.remove('text-green-600'); }
+        }
+
+        const parseF = s => ({y:parseInt(s.split('-')[0]), m:parseInt(s.split('-')[1]), d:parseInt(s.split('-')[2])});
+        const fmtL = s => {const p=s.split('-'); return `${p[2]}/${p[1]}/${p[0]}`};
+        const esBis = y => (y%4===0 && y%100!==0)||(y%400===0);
+        function diasComerciales(fI, fF) {
+            let s=parseF(fI), e=parseF(fF), d1=s.d, d2=e.d;
+            if(d1===31) d1=30; if(d2===31) d2=30;
+            if(e.m===2 && d2===(esBis(e.y)?29:28)) d2=30;
+            return Math.max(0, ((e.y-s.y)*360)+((e.m-s.m)*30)+(d2-d1)+1);
+        }
+
+        function ejecutarCalculoMatematico() {
+            const fI=document.getElementById('fechaInicio').value, fF=document.getElementById('fechaFin').value;
+            const sal=parseFloat(document.getElementById('salario').value);
+            if(!fI||!fF||isNaN(sal)) return alert("Fechas y salario obligatorios.");
+            
+            const sT=document.getElementById('tieneTransporte').checked, tC=document.getElementById('tipoContrato').value;
+            const mR=document.getElementById('motivoRetiro').value, vT=parseFloat(document.getElementById('diasVacacionesTomadas').value)||0;
+            const fP=document.getElementById('fechaFinPactada').value, lH=document.getElementById('liquidarHistorico').checked;
+            
+            const pI=parseF(fI), pF=parseF(fF);
+            if(pF.y<pI.y || (pF.y===pI.y && pF.m<pI.m) || (pF.y===pI.y && pF.m===pI.m && pF.d<pI.d)) return alert("Fecha terminación < Inicio.");
+            
+            let yF = pF.y;
+            let aTV = yF===2025 ? AUX_TRANS_2025 : (yF<=2024 ? AUX_TRANS_2024 : AUX_TRANS_2026);
+            let sM = yF===2025 ? SMMLV_2025 : (yF<=2024 ? SMMLV_2024 : SMMLV_2026);
+            
+            const bP = sal + (sT?aTV:0), bV = sal, dT = diasComerciales(fI,fF);
+            
+            let fIC = lH ? fI : (pI.y===yF ? fI : `${yF}-01-01`);
+            const dC = diasComerciales(fIC, fF);
+            
+            let mIS = pF.m>=7 ? '07' : '01';
+            let fIP = lH ? fI : (`${yF}-${mIS}-01`);
+            if(!lH && pI.y===yF && pI.m>=parseInt(mIS)) fIP=fI;
+            const dP = diasComerciales(fIP, fF);
+            
+            const vC = (bP*dC)/360, vI = (vC*dC*0.12)/360, vP = (bP*dP)/360;
+            const dVG = (dT*15)/360, dVP = Math.max(0, dVG-vT), dTP = (dVP*360)/15, vV = (bV*dTP)/720;
+            
+            let vInd=0, tInd=""; document.getElementById('divIndemnizacionContenedor').classList.add('hidden');
+            if(mR==='injusta'){
+                if(tC==='indefinido'){
+                    if(sal<(sM*10)){
+                        vInd = dT<=360 ? (sal/30)*30 : ((sal/30)*30)+((sal/30)*(((dT-360)*20)/360));
+                        tInd = dT<=360 ? `[1er Año] Sal Diario × 30` : `[Sal Diario × 30] + Proporcional 20 d/año`;
+                    } else {
+                        vInd = dT<=360 ? (sal/30)*20 : ((sal/30)*20)+((sal/30)*(((dT-360)*15)/360));
+                        tInd = dT<=360 ? `[Salario Alto] Sal Diario × 20` : `[Sal Diario × 20] + Proporcional 15 d/año`;
+                    }
+                } else if(tC==='fijo'){
+                    if(!fP) return alert("Falta Fecha Pactada para Indemnización.");
+                    let dF = diasComerciales(fF, fP)-1;
+                    if(dF>0){ vInd=(sal/30)*dF; tInd=`Sal Diario × ${dF} d faltantes`; }
+                } else { vInd=(sal/30)*15; tInd=`Mínimo 15 d`; }
+                if(vInd>0) document.getElementById('divIndemnizacionContenedor').classList.remove('hidden');
+            }
+            
+            document.getElementById('resumenTiempos').innerHTML = `Días: <strong>${dT}</strong> | Base Presta: <strong>${formatearMoneda(bP)}</strong> | Base Vaca: <strong>${formatearMoneda(bV)}</strong>`;
+            document.getElementById('resCesantias').innerText=formatearMoneda(vC); document.getElementById('perCesantias').innerText=`${fmtL(fIC)} al ${fmtL(fF)}`; document.getElementById('formCesantias').innerText=`(${formatearMoneda(bP)} × ${dC} d) ÷ 360`;
+            document.getElementById('resIntereses').innerText=formatearMoneda(vI); document.getElementById('perIntereses').innerText=`${fmtL(fIC)} al ${fmtL(fF)}`; document.getElementById('formIntereses').innerText=`(${formatearMoneda(vC)} × ${dC} d × 0.12) ÷ 360`;
+            document.getElementById('resPrima').innerText=formatearMoneda(vP); document.getElementById('perPrima').innerText=`${fmtL(fIP)} al ${fmtL(fF)}`; document.getElementById('formPrima').innerText=`(${formatearMoneda(bP)} × ${dP} d) ÷ 360`;
+            document.getElementById('resVacaciones').innerText=formatearMoneda(vV); document.getElementById('perVacaciones').innerText=`${fmtL(fI)} al ${fmtL(fF)}`; document.getElementById('formVacaciones').innerText=`(${formatearMoneda(bV)} × ${Math.round(dTP)} d equiv) ÷ 720`;
+            document.getElementById('resIndemnizacion').innerText=formatearMoneda(vInd); document.getElementById('formIndemnizacion').innerText=`Art. 64: ${tInd}`;
+            document.getElementById('resTotal').innerText=formatearMoneda(vC+vI+vP+vV+vInd);
+            
+            document.getElementById('resultadosDiv').classList.remove('hidden');
+            generarAlertas(sal, sM, dT, mR, tC);
+            setTimeout(() => document.getElementById('resultadosDiv').scrollIntoView({ behavior:'smooth', block:'nearest' }), 100);
+        }
+
+        function generarAlertas(sal, sM, dT, mR, tC) {
+            const ul = document.getElementById('listaAlertas'); ul.innerHTML=''; let i=0;
+            const li = t => `<li class="flex items-start gap-2 border-b border-red-100 pb-2 last:border-0"><span><i class="fa-solid fa-circle-exclamation mt-1 text-red-600"></i> ${t}</span></li>`;
+            if(sal<sM){ ul.innerHTML+=li(`<strong>Salario < Mínimo.</strong> Base: ${formatearMoneda(sal)}. Mínimo: ${formatearMoneda(sM)}. Ilegal si es jornada completa.`); i++;}
+            if(mR==='renuncia'){ ul.innerHTML+=li(`<strong>Despido Indirecto?</strong> Si te coaccionaron, tienes derecho a indemnización.`); i++;}
+            if(dT>360){ ul.innerHTML+=li(`<strong>Antigüedad > 1 año.</strong> Verifica consignación de años previos en tu Fondo.`); i++;}
+            if(mR==='mutuo'){ ul.innerHTML+=li(`<strong>Mutuo Acuerdo.</strong> Cuidado, suele usarse para evadir indemnización.`); i++;}
+            document.getElementById('alertasAbuso').classList[i>0?'remove':'add']('hidden');
+        }
+
+        // --- HERRAMIENTAS ADICIONALES ---
+        document.getElementById('themeSelector').addEventListener('change', e => { document.body.className=document.body.className.replace(/theme-\w+/g,''); if(e.target.value!=='default') document.body.classList.add(e.target.value); });
+        document.getElementById('darkModeToggle').addEventListener('click', e => { document.body.classList.toggle('dark-mode'); const i=e.currentTarget.querySelector('i'); i.className=document.body.classList.contains('dark-mode')?'fa-solid fa-sun':'fa-solid fa-moon'; e.currentTarget.classList.toggle('text-yellow-400'); });
+        document.getElementById('toolsToggleBtn').addEventListener('click',()=>document.getElementById('sideToolsPanel').classList.add('open'));
+        document.getElementById('closeToolsBtn').addEventListener('click',()=>document.getElementById('sideToolsPanel').classList.remove('open'));
+
+        window.calcularValorHora = () => {
+            const s = parseFloat(document.getElementById('toolSalario').value||document.getElementById('salario').value);
+            if(!s) return alert('Ingresa salario.');
+            const vH = (s/30)/(47/6);
+            document.getElementById('valHoraOrd').innerText = formatearMoneda(vH); document.getElementById('valHoraExtD').innerText = formatearMoneda(vH*1.25);
+            document.getElementById('valHoraExtN').innerText = formatearMoneda(vH*1.75); document.getElementById('valHoraRecN').innerText = formatearMoneda(vH*1.35);
+            document.getElementById('toolHoraResult').classList.remove('hidden');
+        };
+
+        window.generarRenuncia = () => {
+            const f = document.getElementById('fechaFin').value;
+            document.getElementById('textoRenuncia').value = `Ciudad, ${new Date().toLocaleDateString('es-CO')}\n\nSeñores Empresa,\n\nPresento mi renuncia irrevocable. Mi último día será el ${f?fmtL(f):'[FECHA]'}.\n\nAtte,\n[TU NOMBRE]`;
+            document.getElementById('textoRenuncia').classList.remove('hidden');
+        };
+    </script>
+</body>
+</html>
