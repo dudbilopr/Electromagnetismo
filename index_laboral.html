@@ -621,16 +621,16 @@
             
             if (currentUserDoc.role === 'admin') {
                 btnAdmin.classList.remove('hidden');
-                statusDisp.innerText = "👑 ADMIN";
+                statusDisp.innerHTML = "👑 <span class='text-purple-400'>ADMIN</span>";
                 // CORRECCIÓN: Se retira "Modo Dios" por profesionalismo
                 btnCalc.innerText = "Calcular Liquidación Exacta";
             } else {
                 btnAdmin.classList.add('hidden');
                 if (currentUserDoc.isPremium) {
-                    statusDisp.innerText = "💎 PREMIUM";
+                    statusDisp.innerHTML = "💎 <span class='text-luna-gold'>PREMIUM</span>";
                     btnCalc.innerText = "Calcular Liquidación Exacta";
                 } else {
-                    statusDisp.innerText = `Prueba: ${currentUserDoc.freeUses} usos rest.`;
+                    statusDisp.innerHTML = `⏳ <span class='text-slate-300'>Prueba: ${currentUserDoc.freeUses} usos rest.</span>`;
                     btnCalc.innerText = `Calcular (${currentUserDoc.freeUses} gratis)`;
                 }
             }
@@ -747,20 +747,37 @@
                     const u = doc.data();
                     if (!u) return;
                     total++;
-                    if(u.isPremium) premium++;
+                    if(u.isPremium && u.role !== 'admin') premium++;
                     
-                    // Lógica para mostrar fechas y estados claramente
-                    const isPremiumUI = u.isPremium 
-                        ? '<span class="px-2 py-1 text-[10px] bg-green-100 text-green-800 rounded font-bold border border-green-200">PREMIUM</span>' 
-                        : '<span class="px-2 py-1 text-[10px] bg-slate-100 text-slate-800 rounded font-bold border border-slate-300">A PRUEBA</span>';
+                    // Lógica para diferenciar visualmente los 3 estados en la tabla
+                    let isPremiumUI = '';
+                    if (u.role === 'admin') {
+                        isPremiumUI = '<span class="px-2 py-1 text-[10px] bg-purple-100 text-purple-800 rounded font-bold border border-purple-200 shadow-sm">👑 ADMIN</span>';
+                    } else if (u.isPremium) {
+                        isPremiumUI = '<span class="px-2 py-1 text-[10px] bg-green-100 text-green-800 rounded font-bold border border-green-200 shadow-sm">💎 PREMIUM</span>';
+                    } else {
+                        isPremiumUI = '<span class="px-2 py-1 text-[10px] bg-slate-100 text-slate-800 rounded font-bold border border-slate-300 shadow-sm">⏳ A PRUEBA</span>';
+                    }
                     
                     let vencimientoStr = "";
-                    if (u.isPremium && u.premiumUntil) {
+                    if (u.role === 'admin') {
+                        vencimientoStr = `<span class="text-[10px] text-purple-500 font-bold mt-1">Ilimitado</span>`;
+                    } else if (u.isPremium && u.premiumUntil) {
                         // Manejo de Fechas Firestore vs Fechas JS
                         const dateObj = u.premiumUntil.toDate ? u.premiumUntil.toDate() : new Date(u.premiumUntil);
-                        vencimientoStr = `<span class="text-[10px] text-slate-500 font-medium">Vence: ${dateObj.toLocaleDateString('es-CO')}</span>`;
+                        vencimientoStr = `<span class="text-[10px] text-slate-500 font-medium mt-1">Vence: ${dateObj.toLocaleDateString('es-CO')}</span>`;
                     } else if (!u.isPremium) {
-                        vencimientoStr = `<span class="text-[10px] text-slate-500 font-medium">Requiere Pago</span>`;
+                        vencimientoStr = `<span class="text-[10px] text-slate-500 font-medium mt-1">Requiere Pago</span>`;
+                    }
+
+                    // Botones de acción dinámicos dependiendo del rol
+                    let actionBtn = '';
+                    if (u.role === 'admin') {
+                        actionBtn = `<span class="text-xs text-slate-400 font-bold">Admin Principal</span>`;
+                    } else if (!u.isPremium) {
+                        actionBtn = `<button onclick="window.hacerPremium('${doc.id}')" class="bg-purple-600 text-white px-3 py-1.5 text-xs rounded hover:bg-purple-700 shadow transition-colors font-bold">Dar Premium</button>`;
+                    } else {
+                        actionBtn = `<button onclick="window.quitarPremium('${doc.id}')" class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors font-semibold">Revocar</button>`;
                     }
                     
                     html += `
@@ -770,7 +787,7 @@
                             ${u.manualEntry ? '<i class="fa-solid fa-user-pen text-blue-400 text-xs ml-1" title="Inscrito Manualmente"></i>' : ''}
                             <br><span class="text-[9px] text-slate-400 font-normal">ID: ${doc.id}</span>
                         </td>
-                        <td class="px-4 py-3 flex flex-col items-start gap-1">
+                        <td class="px-4 py-3 flex flex-col items-start">
                             ${isPremiumUI}
                             ${vencimientoStr}
                         </td>
@@ -779,9 +796,7 @@
                             Usos totales: <strong class="text-luna-blue">${u.totalUses || 0} veces calculó</strong>
                         </td>
                         <td class="px-4 py-3 text-right align-middle">
-                            ${!u.isPremium 
-                                ? `<button onclick="window.hacerPremium('${doc.id}')" class="bg-purple-600 text-white px-3 py-1.5 text-xs rounded hover:bg-purple-700 shadow transition-colors font-bold">Dar Premium</button>` 
-                                : `<button onclick="window.quitarPremium('${doc.id}')" class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors">Revocar</button>`}
+                            ${actionBtn}
                         </td>
                     </tr>`;
                 });
@@ -797,7 +812,24 @@
 
             } catch (error) {
                 console.error("Error admin: ", error);
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500 font-bold">Error al cargar datos: ${error.message} <br><span class="text-xs text-slate-400 font-normal">Reintenta en unos segundos.</span></td></tr>`;
+                let errorMsg = error.message;
+                
+                // Atrapamos el error específico de seguridad de Firebase
+                if (error.code === 'permission-denied' || error.message.toLowerCase().includes('permission')) {
+                    errorMsg = `
+                        <span class="text-red-600 font-bold block mb-2 text-base"><i class="fa-solid fa-lock mr-1"></i> Bloqueado por Reglas de Seguridad de Firebase</span>
+                        <span class="text-sm text-slate-700 font-normal block text-left bg-white p-4 rounded border mt-2 shadow-sm">
+                            Estás usando tu propia base de datos, pero Firestore está bloqueando la lectura de la lista por seguridad. Para solucionarlo y ver a tus clientes:<br><br>
+                            1. Ve a tu consola de Firebase.<br>
+                            2. Entra a <strong>Firestore Database</strong> -> Pestaña <strong>Reglas (Rules)</strong>.<br>
+                            3. Cambia el código a lo siguiente:<br>
+                            <code class="block bg-slate-100 p-2 mt-2 rounded text-red-800 font-mono text-xs">rules_version = '2';<br>service cloud.firestore {<br>&nbsp;&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;&nbsp;&nbsp;match /{document=**} {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if true;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</code><br>
+                            4. Haz clic en <strong>Publicar</strong> y recarga esta página.
+                        </span>
+                    `;
+                }
+                
+                tbody.innerHTML = `<tr><td colspan="4" class="py-6 px-4 text-center bg-red-50 rounded-lg">${errorMsg}</td></tr>`;
             }
         };
 
