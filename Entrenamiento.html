@@ -378,10 +378,12 @@
                     <div class="text-sm text-gray-200 leading-relaxed" id="diagnostic-text">
                         Esperando datos del día... Ve a "Analítica Corporal", registra tus horas y medidas bilaterales para generar tu diagnóstico de asimetría y recuperación.
                     </div>
+                    <!-- NUEVO: Resumen de Progreso Diario -->
+                    <div id="daily-summary-alert" class="mt-3 text-xs font-bold px-3 py-2 rounded hidden"></div>
                 </div>
 
                 <!-- KPIs -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
                     <div class="glass-panel p-5 relative overflow-hidden group">
                         <div class="flex justify-between text-gray-400 mb-1 text-xs font-semibold uppercase tracking-wider"><span>Peso Actual</span></div>
                         <div class="text-3xl font-bold text-white mt-1" id="dash-weight">-- <span class="text-sm text-gray-500">kg</span></div>
@@ -435,6 +437,19 @@
                             </div>
                         </div>
                         <p class="text-[9px] text-gray-500 mt-2">Máx 4/día. No cuenta como agua.</p>
+                    </div>
+
+                    <!-- NUEVO: Tracker de Recuperación / Fatiga SNC -->
+                    <div class="glass-panel p-4 flex flex-col justify-between border border-emerald-900/30">
+                        <div class="flex justify-between text-emerald-500 mb-1 text-xs font-semibold uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><i class="ph ph-battery-charging"></i> Energía SNC</span>
+                            <span id="recovery-status-text">--</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="text-2xl font-bold text-white"><span id="recovery-score">100</span><span class="text-xs text-gray-500 ml-1">%</span></div>
+                            <i class="ph ph-activity text-2xl text-emerald-500 opacity-50"></i>
+                        </div>
+                        <div class="w-full bg-gray-800/80 rounded-full h-1 mt-2 overflow-hidden"><div id="recovery-bar" class="bg-emerald-400 h-1 rounded-full" style="width: 100%"></div></div>
                     </div>
                 </div>
 
@@ -855,6 +870,25 @@
                 <button onclick="closeSettings()" class="glass-icon-btn text-gray-400 hover:text-white"><i class="ph ph-x text-lg"></i></button>
             </div>
             <div class="space-y-4">
+                <!-- NUEVO: Perfil del Usuario para Métricas -->
+                <div class="border-b border-gray-800 pb-4 mb-4 space-y-3">
+                    <h4 class="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-1"><i class="ph ph-user-circle"></i> Perfil Atleta</h4>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase">Nombre o Alias</label>
+                        <input type="text" id="input-profile-name" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-white" placeholder="Ej: Atleta Avanzado">
+                    </div>
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase">Edad</label>
+                            <input type="number" id="input-profile-age" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-white" placeholder="Ej: 30">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase">Estatura (cm)</label>
+                            <input type="number" id="input-profile-height" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-white" placeholder="Ej: 160">
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Duración del Protocolo (Días)</label>
                     <input type="number" id="input-plan-duration" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white" placeholder="Ej: 30" min="1" max="180">
@@ -891,6 +925,10 @@
         let currentUser = null;
         let globalPlanData = null;
         let planDuration = 13;
+        
+        // NUEVO: Variables de Perfil y Registro de Progresión
+        let userProfile = { name: '', age: null, height: 160 };
+        let exerciseHistory = {}; 
         
         let dailyWaterGlasses = 0;
         let dailyCoffeeCups = 0;
@@ -1136,6 +1174,9 @@
             if(modal) {
                 modal.classList.remove('hidden');
                 document.getElementById('input-plan-duration').value = planDuration;
+                document.getElementById('input-profile-name').value = userProfile.name || '';
+                document.getElementById('input-profile-age').value = userProfile.age || '';
+                document.getElementById('input-profile-height').value = userProfile.height || 160;
             }
         };
 
@@ -1145,6 +1186,18 @@
         };
 
         window.saveSettings = async () => {
+            // Guardar perfil del usuario
+            let pName = document.getElementById('input-profile-name').value;
+            let pAge = parseInt(document.getElementById('input-profile-age').value);
+            let pHeight = parseInt(document.getElementById('input-profile-height').value);
+            
+            userProfile = { name: pName, age: pAge, height: pHeight };
+            
+            if(currentUser) {
+                setDoc(doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'profile', 'data'), userProfile, { merge: true });
+                document.getElementById('user-display-email').innerText = userProfile.name || currentUser.email;
+            }
+
             let newDuration = parseInt(document.getElementById('input-plan-duration').value);
             if(newDuration && newDuration > 0 && currentUser) {
                 planDuration = newDuration;
@@ -1281,6 +1334,34 @@
 
         async function loadUserData(user) {
             document.getElementById('user-display-email').innerText = user.email;
+            
+            // NUEVO: Cargar perfil de usuario
+            try {
+                const profileSnap = await getDoc(doc(db, 'artifacts', currentAppId, 'users', user.uid, 'profile', 'data'));
+                if(profileSnap.exists()) {
+                    userProfile = { ...userProfile, ...profileSnap.data() };
+                    document.getElementById('user-display-email').innerText = userProfile.name || user.email;
+                }
+            } catch(e) { console.warn("Error cargando perfil", e); }
+
+            // NUEVO: Cargar historial de ejercicios para la progresión
+            try {
+                const workQuery = query(collection(db, 'artifacts', currentAppId, 'users', user.uid, 'workouts_log'), orderBy('date', 'desc'));
+                onSnapshot(workQuery, (snap) => {
+                    exerciseHistory = {};
+                    // Procesamos del más antiguo al reciente para que quede el peso del último entreno
+                    const docs = snap.docs.slice().reverse();
+                    docs.forEach(docObj => {
+                        const data = docObj.data();
+                        if(data.exercises) {
+                            data.exercises.forEach(ex => {
+                                if(ex.maxWeight > 0) exerciseHistory[ex.name] = ex.maxWeight; 
+                            });
+                        }
+                    });
+                });
+            } catch(e) { console.warn("Error cargando historial de rutina", e); }
+
             try {
                 const planRef = doc(db, 'artifacts', currentAppId, 'users', user.uid, 'plan_13_dias', 'current');
                 let planSnap = await getDoc(planRef);
@@ -1515,18 +1596,31 @@
         function renderActiveExercises() {
             let html = '';
             activeWorkoutData.exercises.forEach((ex, exIdx) => {
+                // Recuperar el peso previo usado en este ejercicio para la progresión
+                let prevWeight = exerciseHistory[ex.name] || '';
+                let defaultReps = parseInt(ex.reps) || 10;
+
                 html += `
                 <div class="glass-panel p-4 border-l-4 border-l-blue-500">
                     <div class="flex justify-between items-center mb-3">
-                        <h4 class="font-bold text-white text-lg">${exIdx + 1}. ${ex.name}</h4>
-                        <span class="text-xs text-blue-300 bg-blue-900/30 px-2 py-1 rounded border border-blue-900/50">Rest: ${ex.rest || 60}s</span>
+                        <div>
+                            <h4 class="font-bold text-white text-lg">${exIdx + 1}. ${ex.name}</h4>
+                            ${prevWeight ? `<span class="text-[10px] text-emerald-400 bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-500/30 inline-block mt-1">Récord previo: <strong>${prevWeight} kg</strong></span>` : ''}
+                        </div>
+                        <span class="text-xs text-blue-300 bg-blue-900/30 px-2 py-1 rounded border border-blue-900/50 h-fit">Rest: ${ex.rest || 60}s</span>
                     </div>
                     <div class="space-y-2 mt-4">
                         ${ex.setList.map((set, setIdx) => `
                             <div class="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-gray-800/50 hover:bg-gray-900 transition">
-                                <div class="text-sm font-bold text-gray-400 w-16">Set ${setIdx + 1}</div>
-                                <div class="text-sm text-gray-300 w-20 text-center font-mono">${ex.reps}</div>
-                                <input type="number" placeholder="kg" class="w-16 bg-transparent border-b border-gray-600 text-white text-center text-sm outline-none focus:border-blue-500" />
+                                <div class="text-sm font-bold text-gray-400 w-12">Set ${setIdx + 1}</div>
+                                <div class="flex items-center gap-1">
+                                    <input type="number" id="reps-${exIdx}-${setIdx}" value="${defaultReps}" class="w-12 bg-transparent border-b border-gray-600 text-white text-center text-sm outline-none focus:border-blue-500" />
+                                    <span class="text-[10px] text-gray-500">reps</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <input type="number" id="weight-${exIdx}-${setIdx}" value="${prevWeight}" placeholder="kg" class="w-16 bg-transparent border-b border-gray-600 text-white text-center text-sm outline-none focus:border-blue-500" />
+                                    <span class="text-[10px] text-gray-500">kg</span>
+                                </div>
                                 <input type="checkbox" class="set-checkbox" ${set.checked ? 'checked' : ''} onchange="toggleSet(${exIdx}, ${setIdx}, ${ex.rest || 60})">
                             </div>
                         `).join('')}
@@ -1605,12 +1699,29 @@
         window.finishWorkout = async () => {
             window.resetTimer();
             if(currentUser) {
+                // NUEVO: Capturar pesos y reps reales ingresados por el usuario
+                let workoutDataToSave = [];
+                activeWorkoutData.exercises.forEach((ex, exIdx) => {
+                    let maxW = 0;
+                    let setsData = [];
+                    ex.setList.forEach((set, setIdx) => {
+                        let wInput = document.getElementById(`weight-${exIdx}-${setIdx}`);
+                        let rInput = document.getElementById(`reps-${exIdx}-${setIdx}`);
+                        let w = wInput && wInput.value ? parseFloat(wInput.value) : 0;
+                        let r = rInput && rInput.value ? parseInt(rInput.value) : 0;
+                        if(w > maxW) maxW = w;
+                        setsData.push({ weight: w, reps: r, completed: true }); // Al cerrar asumimos lo marcado
+                    });
+                    workoutDataToSave.push({ name: ex.name, maxWeight: maxW, sets: setsData });
+                });
+
                 try {
                     await addDoc(collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'workouts_log'), {
                         date: serverTimestamp(),
-                        routine: activeWorkoutData.type
+                        routine: activeWorkoutData.type,
+                        exercises: workoutDataToSave
                     });
-                    showToast("¡Rutina Completada y Guardada en Historial!", "success");
+                    showToast("¡Rutina Completada! Progreso de pesos guardado.", "success");
                 } catch(e) { console.error("No se pudo guardar", e); }
             }
             document.getElementById('workout-active-container').classList.add('hidden');
@@ -1674,17 +1785,56 @@
             
             let html = "";
             
-            // 1. Diagnóstico de Descanso/Trabajo
-            let sueño = parseFloat(data.sleep);
-            let trabajo = parseFloat(data.trabajo);
+            // NUEVO: 1. Algoritmo de Score de Recuperación (Fatiga SNC)
+            let sueño = parseFloat(data.sleep) || 0;
+            let trabajo = parseFloat(data.trabajo) || 0;
             
+            let scoreSNC = 100;
+            if (sueño > 0) {
+                if (sueño < 5) scoreSNC -= 40;
+                else if (sueño < 6) scoreSNC -= 25;
+                else if (sueño < 7) scoreSNC -= 10;
+            }
+            if (trabajo > 0) {
+                if (trabajo > 10) scoreSNC -= 20;
+                else if (trabajo > 8) scoreSNC -= 10;
+            }
+            scoreSNC = Math.max(0, Math.min(100, scoreSNC));
+
+            // Actualizar la interfaz del KPI del Sistema Nervioso (SNC)
+            const recScoreEl = document.getElementById('recovery-score');
+            const recBarEl = document.getElementById('recovery-bar');
+            const recTextEl = document.getElementById('recovery-status-text');
+            const summaryAlert = document.getElementById('daily-summary-alert');
+            
+            if(recScoreEl) recScoreEl.innerText = scoreSNC;
+            if(recBarEl) {
+                recBarEl.style.width = `${scoreSNC}%`;
+                recBarEl.className = `h-1 rounded-full ${scoreSNC >= 80 ? 'bg-emerald-400' : (scoreSNC >= 50 ? 'bg-yellow-400' : 'bg-red-400')}`;
+            }
+            if(recTextEl) {
+                recTextEl.innerText = scoreSNC >= 80 ? 'Óptima' : (scoreSNC >= 50 ? 'Moderada' : 'Alerta');
+                recTextEl.className = scoreSNC >= 80 ? 'text-emerald-500' : (scoreSNC >= 50 ? 'text-yellow-500' : 'text-red-500');
+            }
+
+            if(summaryAlert) {
+                summaryAlert.classList.remove('hidden', 'bg-emerald-900/30', 'text-emerald-400', 'bg-red-900/30', 'text-red-400');
+                if(scoreSNC >= 80) {
+                    summaryAlert.classList.add('bg-emerald-900/30', 'text-emerald-400');
+                    summaryAlert.innerHTML = "<i class='ph ph-trend-up'></i> Resumen: Vas por excelente camino. Tienes luz verde para exigir fuerza máxima hoy.";
+                } else {
+                    summaryAlert.classList.add('bg-red-900/30', 'text-red-400');
+                    summaryAlert.innerHTML = "<i class='ph ph-warning'></i> Resumen: Necesitas mejorar el descanso. No busques récords de peso en el gimnasio hoy, mantén intensidad media.";
+                }
+            }
+
             if(sueño && trabajo) {
                 if(sueño < 6 && trabajo >= 8) {
-                    html += `<div class="mb-3"><span class="text-red-400 font-bold"><i class="ph ph-warning"></i> Alerta Alta (Riesgo Catabólico):</span> Estás durmiendo poco (${sueño}h) y trabajando mucho (${trabajo}h). El cortisol debe estar elevado. Prioriza tu descanso, de lo contrario la quema de grasa se detendrá por estrés oxidativo.</div>`;
+                    html += `<div class="mb-3"><span class="text-red-400 font-bold"><i class="ph ph-warning"></i> Riesgo Catabólico:</span> Estás durmiendo poco (${sueño}h) y trabajando mucho (${trabajo}h). El cortisol debe estar elevado. Prioriza tu descanso, de lo contrario la quema de grasa se detendrá por estrés oxidativo.</div>`;
                 } else if(sueño >= 7 && trabajo <= 8) {
-                    html += `<div class="mb-3"><span class="text-green-400 font-bold"><i class="ph ph-check-circle"></i> Óptimo Hormonal:</span> Ratio de trabajo/sueño excelente. El cuerpo está en un entorno ideal para recomposición (construir músculo y quemar grasa).</div>`;
+                    html += `<div class="mb-3"><span class="text-green-400 font-bold"><i class="ph ph-check-circle"></i> Óptimo Hormonal:</span> Ratio de trabajo/sueño excelente. El cuerpo está en un entorno ideal para recomposición.</div>`;
                 } else if(sueño >= 6) {
-                    html += `<div class="mb-3"><span class="text-yellow-400 font-bold"><i class="ph ph-info"></i> Estable:</span> Nivel de estrés manejable. Asegúrate de tomar tu horario de entrenamiento a las ${data.horaEntreno || 'tu hora fijada'}.</div>`;
+                    html += `<div class="mb-3"><span class="text-yellow-400 font-bold"><i class="ph ph-info"></i> Estable:</span> Nivel de estrés manejable. Asegúrate de entrenar a las ${data.horaEntreno || 'tu hora fijada'}.</div>`;
                 }
             }
 
@@ -1723,9 +1873,9 @@
                          </div>`;
             }
 
-            // 3. Lógica de Somatotipo
+            // 3. Lógica de Somatotipo usando la Estatura Real del Perfil
             let muneca = parseFloat(data.muneca);
-            let alturaContexto = 160; 
+            let alturaContexto = userProfile.height || 160; 
             
             if(muneca) {
                 let r = alturaContexto / muneca;
@@ -1735,14 +1885,14 @@
                     somatoInfo = "Tendencia <strong>Ectomorfa</strong> (baja retención de grasa).";
                 } else if (r >= 9.6 && r <= 10.4) {
                     frame = "Estructura Mediana";
-                    somatoInfo = "Tendencia <strong>Mesomorfa</strong> (genética privilegiada para hipertrofia, ideal para tus 100kg base).";
+                    somatoInfo = "Tendencia <strong>Mesomorfa</strong> (genética privilegiada para hipertrofia, ideal para fuerza base).";
                 } else {
                     frame = "Estructura Grande";
                     somatoInfo = "Tendencia <strong>Endomorfa</strong> (fuerza absoluta extrema, cuidado con los carbos).";
                 }
                 
                 html += `<div class="bg-black/30 p-3 rounded mt-2 border border-emerald-500/30">
-                            <strong class="text-emerald-400 flex items-center gap-1 text-xs"><i class="ph ph-dna"></i> Somatotipo (Índice r=${r.toFixed(1)}):</strong>
+                            <strong class="text-emerald-400 flex items-center gap-1 text-xs"><i class="ph ph-dna"></i> Somatotipo (Altura ${alturaContexto}cm / Índice r=${r.toFixed(1)}):</strong>
                             <p class="text-gray-300 text-[10px] mt-1"><strong>${frame}</strong>. ${somatoInfo}</p>
                          </div>`;
             }
