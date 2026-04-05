@@ -233,7 +233,7 @@
                     <i class="ph ph-barbell text-4xl text-blue-500"></i>
                 </div>
                 <h2 class="text-2xl font-bold tracking-tight text-white">C-LAB SYSTEM</h2>
-                <p class="text-blue-400 text-xs font-semibold tracking-widest uppercase mt-2">Protocolo Élite 13 Días</p>
+                <p class="text-blue-400 text-xs font-semibold tracking-widest uppercase mt-2">Protocolo Élite</p>
             </div>
             
             <form id="login-form" class="space-y-4 relative z-10">
@@ -350,6 +350,9 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
+                    <button onclick="openSettings()" class="glass-icon-btn text-xl text-gray-400 hover:text-white" title="Configuración del Plan">
+                        <i class="ph ph-gear"></i>
+                    </button>
                     <button onclick="exportarDatos()" class="glass-icon-btn text-xl" title="Exportar Data JSON">
                         <i class="ph ph-download-simple"></i>
                     </button>
@@ -387,8 +390,12 @@
                     
                     <div class="glass-panel p-5 relative overflow-hidden group">
                         <div class="flex justify-between text-gray-400 mb-1 text-xs font-semibold uppercase tracking-wider"><span>Kcal Diarias</span></div>
-                        <div class="text-3xl font-bold text-white mt-1">1900 <span class="text-sm text-gray-500">kcal</span></div>
-                        <div class="w-full bg-gray-800/80 rounded-full h-1.5 mt-3"><div class="bg-gradient-to-r from-orange-600 to-yellow-500 h-1.5 rounded-full w-full"></div></div>
+                        <div class="text-3xl font-bold text-white mt-1"><span id="kcal-count">0</span><span class="text-lg text-gray-500"> / 1900</span> <span class="text-sm text-gray-500">kcal</span></div>
+                        <div class="w-full bg-gray-800/80 rounded-full h-1.5 mt-3 overflow-hidden"><div id="kcal-bar" class="bg-gradient-to-r from-orange-600 to-yellow-500 h-1.5 rounded-full" style="width: 0%"></div></div>
+                        <div class="flex items-center justify-end mt-2 gap-1">
+                            <button onclick="removeCalories()" class="glass-icon-btn text-red-400 text-xl" title="Restar Calorías (Corregir)"><i class="ph ph-minus"></i></button>
+                            <button onclick="addCalories()" class="glass-icon-btn text-orange-400 text-xl" title="Agregar Calorías Ingeridas"><i class="ph ph-plus"></i></button>
+                        </div>
                     </div>
 
                     <!-- Tracker de Agua (Con Botones + y -) -->
@@ -835,10 +842,30 @@
         <footer class="mt-auto border-t border-gray-800/50 bg-black/20 p-4 text-center z-10">
             <p class="text-[10px] text-gray-500 font-medium tracking-widest uppercase">
                 &copy; 2026 C-LAB SYS. Todos los derechos reservados. <br>
-                <span class="opacity-50">Build v7.0.0 (Floating UI & Privacy Lock)</span>
+                <span class="opacity-50">Build v8.1.0 (Syntax Patch)</span>
             </p>
         </footer>
     </main>
+
+    <!-- Modal de Configuración Global -->
+    <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/90 backdrop-blur-sm hidden">
+        <div class="glass-panel p-6 w-full max-w-sm mx-4 shadow-2xl border border-gray-700">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-800 pb-3">
+                <h3 class="font-bold text-white uppercase tracking-wider flex items-center gap-2"><i class="ph ph-gear text-blue-400"></i> Ajustes de Plan</h3>
+                <button onclick="closeSettings()" class="glass-icon-btn text-gray-400 hover:text-white"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Duración del Protocolo (Días)</label>
+                    <input type="number" id="input-plan-duration" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white" placeholder="Ej: 30" min="1" max="180">
+                    <p class="text-[9px] text-gray-500 mt-1">Por defecto es 13. Puedes ampliarlo. La inteligencia del sistema escribirá y adaptará todos los días faltantes.</p>
+                </div>
+                <button onclick="saveSettings()" class="glass-btn w-full py-3 rounded-lg font-bold uppercase tracking-widest text-xs mt-6 flex justify-center items-center gap-2">
+                    <i class="ph ph-arrows-clockwise text-lg"></i> Aplicar y Regenerar
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div id="toast-container" class="flex flex-col gap-2"></div>
 
@@ -863,9 +890,11 @@
         let app, auth, db;
         let currentUser = null;
         let globalPlanData = null;
+        let planDuration = 13;
         
         let dailyWaterGlasses = 0;
         let dailyCoffeeCups = 0;
+        let dailyCalories = 0;
 
         let workoutInterval = null;
         let workoutSeconds = 0;
@@ -1002,6 +1031,32 @@
         };
 
         // --- CONTADORES RÁPIDOS Y RESTA (CORRECCIÓN) ---
+        window.addCalories = () => {
+            let val = prompt("¿Cuántas calorías consumiste en esta comida o bebida?", "300");
+            if(val && !isNaN(val)) {
+                dailyCalories += parseInt(val);
+                updateCaloriesUI();
+            }
+        };
+
+        window.removeCalories = () => {
+            let val = prompt("¿Cuántas calorías deseas restar (corrección)?", "100");
+            if(val && !isNaN(val)) {
+                dailyCalories = Math.max(0, dailyCalories - parseInt(val));
+                updateCaloriesUI();
+            }
+        };
+
+        function updateCaloriesUI() {
+            const kcalCount = document.getElementById('kcal-count');
+            const kcalBar = document.getElementById('kcal-bar');
+            if(kcalCount) kcalCount.innerText = dailyCalories;
+            if(kcalBar) {
+                let pct = Math.min((dailyCalories / 1900) * 100, 100);
+                kcalBar.style.width = `${pct}%`;
+            }
+        }
+
         window.addWater = () => {
             if(dailyWaterGlasses >= 12) return showToast("¡Meta de agua de 3L alcanzada!", "success");
             dailyWaterGlasses++;
@@ -1056,13 +1111,13 @@
                 await setDoc(habitsRef, {
                     water: dailyWaterGlasses,
                     coffee: dailyCoffeeCups,
+                    calories: dailyCalories,
                     lastUpdated: serverTimestamp()
                 }, { merge: true });
                 
                 btn.innerHTML = '<i class="ph ph-check-circle text-lg"></i> ¡Guardado!';
                 btn.classList.replace('bg-blue-600', 'bg-green-600');
-                showToast("Sesión diaria de hidratación/café guardada en la nube.", "success");
-                
+                showToast("Sesión diaria de hábitos guardada en la nube.", "success");
                 setTimeout(() => {
                     btn.innerHTML = ogText;
                     btn.classList.replace('bg-green-600', 'bg-blue-600');
@@ -1075,72 +1130,81 @@
             }
         };
 
-        // --- MANEJO DE VISTA CLINICA (AYUNO Y PURGANTE) ---
-        const toggleFasting = document.getElementById('toggle-fasting');
-        const fastingMsg = document.getElementById('fasting-active-msg');
-        if(toggleFasting && fastingMsg) {
-            toggleFasting.addEventListener('change', (e) => {
-                if(e.target.checked) {
-                    fastingMsg.classList.remove('hidden');
-                    showToast("Protocolo de Ayuno Iniciado. Bebe agua mineral.", "success");
-                } else {
-                    fastingMsg.classList.add('hidden');
-                    showToast("Ventana de alimentación abierta. Prioriza proteínas.", "success");
-                }
-            });
-        }
+        // --- MANEJO DE CONFIGURACIÓN Y DURACIÓN FLEXIBLE ---
+        window.openSettings = () => {
+            const modal = document.getElementById('settings-modal');
+            if(modal) {
+                modal.classList.remove('hidden');
+                document.getElementById('input-plan-duration').value = planDuration;
+            }
+        };
 
-        const purganteForm = document.getElementById('purgante-form');
-        if(purganteForm) {
-            purganteForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if(!currentUser) return;
-                const dateVal = document.getElementById('input-purga-date').value;
-                try {
-                    await setDoc(doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'clinical', 'purgante'), { lastDate: dateVal });
-                    showToast("Fecha de purga registrada exitosamente.");
-                } catch(error) { showToast(error.message, 'error'); }
-            });
-        }
+        window.closeSettings = () => {
+            const modal = document.getElementById('settings-modal');
+            if(modal) modal.classList.add('hidden');
+        };
 
-        const clinicalForm = document.getElementById('clinical-form');
-        if(clinicalForm) {
-            clinicalForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if(!currentUser) return;
+        window.saveSettings = async () => {
+            let newDuration = parseInt(document.getElementById('input-plan-duration').value);
+            if(newDuration && newDuration > 0 && currentUser) {
+                planDuration = newDuration;
+                globalPlanData.duration = planDuration;
                 
-                const btn = document.getElementById('btn-save-clinical');
+                // Si la nueva duración es mayor, generamos y agregamos los días faltantes inteligentemente
+                if(globalPlanData.nutrition.length < planDuration) {
+                    let newData = generatePlanSeedData(planDuration);
+                    for(let i = globalPlanData.nutrition.length; i < planDuration; i++) {
+                         globalPlanData.nutrition.push(newData.nutrition[i]);
+                         globalPlanData.training.push(newData.training[i]);
+                    }
+                } else if(globalPlanData.nutrition.length > planDuration) {
+                    // Si es menor, truncamos
+                    globalPlanData.nutrition = globalPlanData.nutrition.slice(0, planDuration);
+                    globalPlanData.training = globalPlanData.training.slice(0, planDuration);
+                }
+                
+                const btn = document.querySelector('#settings-modal .glass-btn');
                 const ogText = btn.innerHTML;
-                btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> Archivos Subiendo...';
-                btn.disabled = true;
-
-                const payload = {
-                    date: document.getElementById('input-clinical-date').value,
-                    glucose: parseFloat(document.getElementById('input-glucose').value) || null,
-                    cortisol: parseFloat(document.getElementById('input-cortisol').value) || null,
-                    testo: parseFloat(document.getElementById('input-testo').value) || null,
-                    ldl: parseFloat(document.getElementById('input-ldl').value) || null,
-                    hdl: parseFloat(document.getElementById('input-hdl').value) || null,
-                    createdAt: serverTimestamp()
-                };
-
+                btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> Procesando...';
+                
                 try {
-                    await addDoc(collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'clinical_labs'), payload);
-                    showToast("Examen de laboratorio archivado para diagnóstico cruzado.");
-                    clinicalForm.reset();
-                    document.getElementById('input-clinical-date').valueAsDate = new Date();
-                } catch(error) {
-                    showToast(error.message, 'error');
+                    await setDoc(doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'plan_13_dias', 'current'), {
+                        data: JSON.stringify(globalPlanData),
+                        duration: planDuration,
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
+                    
+                    renderDaySelectors();
+                    updateDashboardDay(1);
+                    showToast(`Protocolo ajustado con éxito a ${planDuration} días.`, 'success');
+                    closeSettings();
+                } catch(e) {
+                    showToast("Error actualizando plan: " + e.message, "error");
                 } finally {
                     btn.innerHTML = ogText;
-                    btn.disabled = false;
                 }
-            });
+            }
+        };
+
+        function renderDaySelectors() {
+            let htmlN = '', htmlT = '';
+            for(let i=1; i<=planDuration; i++) {
+                const baseCls = 'px-4 py-2 rounded-lg text-sm font-bold border border-gray-700 bg-gray-800/50 text-gray-400 hover:bg-gray-700 transition cursor-pointer min-w-max';
+                htmlN += `<div onclick="selectDay('nutrition', ${i})" id="btn-nut-day-${i}" class="${baseCls}">${i === 1 ? 'DÍA 1 (HOY)' : 'DÍA '+i}</div>`;
+                htmlT += `<div onclick="selectDay('training', ${i})" id="btn-tra-day-${i}" class="${baseCls}">${i === 1 ? 'DÍA 1 (HOY)' : 'DÍA '+i}</div>`;
+            }
+            const nutSelector = document.getElementById('nutrition-day-selector');
+            const traSelector = document.getElementById('training-day-selector');
+            if(nutSelector) nutSelector.innerHTML = htmlN;
+            if(traSelector) traSelector.innerHTML = htmlT;
+            
+            const pageSubtitle = document.getElementById('page-subtitle');
+            if(pageSubtitle) pageSubtitle.innerText = `Día 1 de ${planDuration} - Fase de Ejecución`;
         }
 
         // --- GENERACIÓN DE DATOS REFINADOS ---
-        function generate13DaysSeedData() {
-            const plan = { nutrition: [], training: [] };
+        function generatePlanSeedData(duration) {
+            const plan = { nutrition: [], training: [], duration: duration };
             const rutinasBase = [
                 { type: 'Empuje', focus: 'Pectoral, Deltoides, Tríceps', desc: 'Máquinas y mancuernas. Cero carga axial.', exercises: [
                     { name: 'Press Pecho Máquina Sentado', sets: 4, reps: '10-12', rest: 90, tip: 'Retracción escapular estricta.'},
@@ -1196,7 +1260,7 @@
                 }
             ];
 
-            for (let i = 1; i <= 13; i++) {
+            for (let i = 1; i <= duration; i++) {
                 plan.training.push(JSON.parse(JSON.stringify(rutinasBase[(i - 1) % 4])));
                 plan.nutrition.push(JSON.parse(JSON.stringify({ day: i, ...menusBase[(i - 1) % 3] })));
             }
@@ -1222,23 +1286,15 @@
                 let planSnap = await getDoc(planRef);
                 
                 if (!planSnap.exists()) {
-                    globalPlanData = generate13DaysSeedData();
-                    await setDoc(planRef, { createdAt: serverTimestamp(), data: JSON.stringify(globalPlanData) });
+                    globalPlanData = generatePlanSeedData(planDuration);
+                    await setDoc(planRef, { createdAt: serverTimestamp(), data: JSON.stringify(globalPlanData), duration: planDuration });
                 } else {
-                    globalPlanData = JSON.parse(planSnap.data().data);
+                    let pData = planSnap.data();
+                    globalPlanData = JSON.parse(pData.data);
+                    planDuration = pData.duration || globalPlanData.nutrition.length || 13;
                 }
 
-                let htmlN = '', htmlT = '';
-                for(let i=1; i<=13; i++) {
-                    const baseCls = 'px-4 py-2 rounded-lg text-sm font-bold border border-gray-700 bg-gray-800/50 text-gray-400 hover:bg-gray-700 transition cursor-pointer min-w-max';
-                    htmlN += `<div onclick="selectDay('nutrition', ${i})" id="btn-nut-day-${i}" class="${baseCls}">${i === 1 ? 'DÍA 1 (HOY)' : 'DÍA '+i}</div>`;
-                    htmlT += `<div onclick="selectDay('training', ${i})" id="btn-tra-day-${i}" class="${baseCls}">${i === 1 ? 'DÍA 1 (HOY)' : 'DÍA '+i}</div>`;
-                }
-                
-                const nutSelector = document.getElementById('nutrition-day-selector');
-                const traSelector = document.getElementById('training-day-selector');
-                if(nutSelector) nutSelector.innerHTML = htmlN;
-                if(traSelector) traSelector.innerHTML = htmlT;
+                renderDaySelectors();
 
                 selectDay('nutrition', 1);
                 selectDay('training', 1);
@@ -1261,8 +1317,10 @@
                         const hData = habitsSnap.data();
                         dailyWaterGlasses = hData.water || 0;
                         dailyCoffeeCups = hData.coffee || 0;
+                        dailyCalories = hData.calories || 0;
                         updateWaterUI();
                         updateCoffeeUI();
+                        updateCaloriesUI();
                     }
                 } catch(e) { console.warn("No se encontraron hábitos guardados hoy o hubo error:", e); }
 
@@ -1277,7 +1335,7 @@
         // --- MANEJO DE DÍAS Y VISTAS ---
         window.selectDay = (module, dayNum) => {
             const activeCls = ['bg-blue-600', 'text-white', 'border-blue-400', 'shadow-[0_0_10px_rgba(59,130,246,0.5)]'];
-            for(let i=1; i<=13; i++) {
+            for(let i=1; i<=planDuration; i++) {
                 const btn = document.getElementById(`btn-${module.substring(0,3)}-day-${i}`);
                 if(btn) {
                     btn.classList.remove(...activeCls);
@@ -1300,9 +1358,12 @@
             const ind = document.getElementById('dash-day-indicator');
             const badge = document.getElementById('current-day-badge');
             const mot = document.getElementById('dash-motivation-text');
+            const subtitle = document.getElementById('page-subtitle');
+            
             if(ind) ind.innerText = day;
             if(badge) badge.innerText = day;
-            if(mot) mot.innerText = `"${MOTIVACIONES_DIARIAS[day-1]}"`;
+            if(subtitle) subtitle.innerText = `Día ${day} de ${planDuration} - Fase de Ejecución`;
+            if(mot) mot.innerText = `"${MOTIVACIONES_DIARIAS[(day-1) % MOTIVACIONES_DIARIAS.length]}"`;
         }
 
         // --- FUNCIONES CRUD (EDITAR/ELIMINAR/AGREGAR) ---
@@ -1352,7 +1413,7 @@
                     <div class="flex justify-between items-start mb-6">
                         <div>
                             <h3 class="text-2xl font-black text-white uppercase">${data.name}</h3>
-                            <p class="text-blue-400 font-mono text-sm">Día ${day} de 13</p>
+                            <p class="text-blue-400 font-mono text-sm">Día ${day} de ${planDuration}</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 gap-4">
