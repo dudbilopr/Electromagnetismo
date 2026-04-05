@@ -27,7 +27,7 @@
             --primary-glow: rgba(59, 130, 246, 0.5);
             --success: #10b981;
             --danger: #ef4444;
-            --bg-color: #020617; /* Very dark slate */
+            --bg-color: #020617;
         }
         
         body {
@@ -76,10 +76,15 @@
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
 
-        .glass-btn:hover {
+        .glass-btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px var(--primary-glow);
             background: linear-gradient(135deg, rgba(59, 130, 246, 1), rgba(37, 99, 235, 1));
+        }
+
+        .glass-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .nav-item {
@@ -106,12 +111,10 @@
             text-shadow: 0 0 10px var(--primary-glow);
         }
 
-        /* Day Selector Scrollbar */
+        /* Scrollbars */
         .day-selector::-webkit-scrollbar { height: 4px; }
         .day-selector::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
         .day-selector::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
-
-        /* General Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
@@ -128,6 +131,48 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Timer Float */
+        .timer-float {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+        }
+        
+        @media (min-width: 640px) {
+            .timer-float { bottom: 30px; }
+        }
+
+        /* Checkbox styling */
+        .set-checkbox {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border: 2px solid #4b5563;
+            border-radius: 6px;
+            background-color: rgba(0,0,0,0.2);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+        .set-checkbox:checked {
+            background-color: var(--success);
+            border-color: var(--success);
+        }
+        .set-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -135,7 +180,6 @@
     <!-- Auth Guard UI -->
     <div id="auth-screen" class="absolute inset-0 z-50 flex items-center justify-center bg-[#020617]/95 backdrop-blur-xl transition-opacity duration-500">
         <div class="glass-panel p-8 w-full max-w-md mx-4 relative overflow-hidden">
-            <!-- Decorative blur orb -->
             <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
             
             <div class="text-center mb-8 relative z-10">
@@ -148,7 +192,7 @@
             
             <form id="login-form" class="space-y-4 relative z-10">
                 <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1 uppercase tracking-wider">Credenciales de Acceso</label>
+                    <label class="block text-xs font-medium text-gray-400 mb-1 uppercase tracking-wider">Credenciales</label>
                     <div class="relative">
                         <i class="ph ph-envelope absolute left-3 top-3 text-gray-500"></i>
                         <input type="email" id="email" required class="glass-input w-full pl-10 pr-4 py-2.5 rounded-lg text-sm" placeholder="usuario@ejemplo.com">
@@ -160,40 +204,23 @@
                         <input type="password" id="password" required class="glass-input w-full pl-10 pr-4 py-2.5 rounded-lg text-sm" placeholder="••••••••">
                     </div>
                 </div>
-                
                 <button type="submit" id="btn-login-submit" class="glass-btn w-full py-3 rounded-lg font-bold mt-6 flex justify-center items-center gap-2 text-sm uppercase tracking-wide">
-                    <span>Ingresar al Sistema</span>
-                    <i class="ph ph-arrow-right font-bold"></i>
+                    <span>Ingresar</span><i class="ph ph-arrow-right font-bold"></i>
                 </button>
             </form>
             
             <div class="mt-6 pt-4 relative z-10">
-                <button id="btn-google" class="w-full glass-input py-2.5 rounded-lg font-medium flex justify-center items-center gap-2 hover:bg-white/5 text-sm transition-colors border-gray-700">
-                    <i class="ph ph-google-logo text-lg"></i> Acceso Biométrico (Google)
+                <button id="btn-google" class="w-full glass-input py-2.5 rounded-lg font-medium flex justify-center items-center gap-2 hover:bg-white/5 text-sm border-gray-700">
+                    <i class="ph ph-google-logo text-lg"></i> Acceso con Google
                 </button>
-            </div>
-
-            <!-- Panel de Error Firebase Referer -->
-            <div id="firebase-error-panel" class="hidden mt-4 p-4 bg-red-950/50 border border-red-500/30 rounded-lg text-sm text-red-200 relative z-10">
-                <div class="flex gap-3 items-start">
-                    <i class="ph ph-warning-circle text-xl text-red-400 mt-0.5"></i>
-                    <div>
-                        <strong class="block mb-1 text-red-300">Error de Conexión Segura</strong>
-                        El dominio actual requiere autorización en la consola. Para ambiente de producción:
-                        <ul class="list-disc pl-4 mt-2 space-y-1 text-xs opacity-80">
-                            <li>Accede a Google Cloud Platform.</li>
-                            <li>Añade este dominio a las restricciones de API Key.</li>
-                        </ul>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- Pantalla de Carga de Datos (Post-Login) -->
+    <!-- Pantalla de Carga -->
     <div id="loading-screen" class="hidden absolute inset-0 z-40 flex flex-col items-center justify-center bg-[#020617]/95 backdrop-blur-md">
         <div class="loader-spinner mb-4"></div>
-        <p class="text-blue-400 font-mono text-sm tracking-widest animate-pulse" id="loading-text">SINCRONIZANDO BASE DE DATOS...</p>
+        <p class="text-blue-400 font-mono text-sm tracking-widest animate-pulse" id="loading-text">SINCRONIZANDO...</p>
     </div>
 
     <!-- Main Sidebar -->
@@ -236,7 +263,7 @@
                 </div>
                 <div class="flex-1 truncate">
                     <div id="user-display-email" class="truncate text-white text-xs font-semibold">usuario@...</div>
-                    <div class="text-[10px] text-blue-400 font-mono mt-0.5" id="user-role-display">ATLETA AVANZADO</div>
+                    <div class="text-[10px] text-blue-400 font-mono mt-0.5">ATLETA AVANZADO</div>
                 </div>
                 <button onclick="logout()" class="text-gray-500 hover:text-red-400 transition-colors bg-white/5 p-2 rounded-lg hover:bg-red-500/10" title="Desconectar">
                     <i class="ph ph-power text-lg"></i>
@@ -257,99 +284,88 @@
     <main class="flex-1 overflow-y-auto relative flex flex-col h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-900/10 via-transparent to-transparent">
         
         <div class="p-4 sm:p-8 pb-24 sm:pb-8 flex-1">
-            <!-- Header -->
             <header class="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-8 gap-4">
                 <div>
                     <h2 class="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400" id="page-title">Centro de Control</h2>
                     <p class="text-blue-400 text-sm font-medium mt-1 tracking-wide" id="page-subtitle">Día 1 de 13 - Fase de Adaptación</p>
                 </div>
-                
-                <div class="flex items-center gap-3">
-                    <div class="glass-panel px-4 py-2 flex items-center gap-2 text-sm border-orange-500/30 bg-orange-500/5">
-                        <i class="ph ph-fire text-orange-500 animate-pulse"></i>
-                        <span class="font-bold text-orange-200">Día Actual: <span id="current-day-badge">1</span></span>
-                    </div>
-                </div>
             </header>
 
             <!-- VIEW: DASHBOARD -->
             <div id="view-dashboard" class="space-y-6">
+                <!-- Directriz Motivacional del Día -->
+                <div class="glass-panel p-5 border-l-4 border-blue-500 bg-gradient-to-r from-blue-900/20 to-transparent relative overflow-hidden">
+                    <div class="absolute -right-5 -top-5 opacity-10"><i class="ph ph-lightning text-8xl text-blue-400"></i></div>
+                    <h3 class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <i class="ph ph-quotes"></i> Directriz Diaria (Día <span id="dash-day-indicator">1</span>)
+                    </h3>
+                    <p class="text-base text-gray-200 italic leading-relaxed" id="dash-motivation-text">Cargando directriz...</p>
+                </div>
+
                 <!-- KPIs -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="glass-panel p-5 relative overflow-hidden group">
-                        <div class="absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity"><i class="ph ph-scales text-8xl"></i></div>
-                        <div class="flex justify-between text-gray-400 mb-1 text-xs font-semibold uppercase tracking-wider">
-                            <span>Peso Actual</span>
-                        </div>
-                        <div class="text-3xl font-bold text-white mt-1" id="dash-weight">78.0 <span class="text-sm text-gray-500 font-medium">kg</span></div>
-                        <div class="text-[10px] text-green-400 mt-2 flex items-center gap-1 font-mono bg-green-500/10 w-fit px-2 py-0.5 rounded">
-                            <i class="ph ph-target"></i> Meta: 75.0 kg
-                        </div>
+                        <div class="flex justify-between text-gray-400 mb-1 text-xs font-semibold uppercase tracking-wider"><span>Peso Actual</span></div>
+                        <div class="text-3xl font-bold text-white mt-1" id="dash-weight">-- <span class="text-sm text-gray-500">kg</span></div>
+                        <div class="text-[10px] text-green-400 mt-2 flex items-center gap-1 font-mono bg-green-500/10 w-fit px-2 py-0.5 rounded"><i class="ph ph-target"></i> Meta: 75.0 kg</div>
                     </div>
                     
                     <div class="glass-panel p-5 relative overflow-hidden group">
-                        <div class="absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity"><i class="ph ph-flame text-8xl"></i></div>
-                        <div class="flex justify-between text-gray-400 mb-1 text-xs font-semibold uppercase tracking-wider">
-                            <span>Kcal Diarias</span>
-                        </div>
-                        <div class="text-3xl font-bold text-white mt-1">1900 <span class="text-sm text-gray-500 font-medium">kcal</span></div>
-                        <div class="w-full bg-gray-800/80 rounded-full h-1.5 mt-3 overflow-hidden border border-gray-700">
-                            <div class="bg-gradient-to-r from-orange-600 to-yellow-500 h-1.5 rounded-full w-full"></div>
-                        </div>
+                        <div class="flex justify-between text-gray-400 mb-1 text-xs font-semibold uppercase tracking-wider"><span>Kcal Diarias</span></div>
+                        <div class="text-3xl font-bold text-white mt-1">1900 <span class="text-sm text-gray-500">kcal</span></div>
+                        <div class="w-full bg-gray-800/80 rounded-full h-1.5 mt-3"><div class="bg-gradient-to-r from-orange-600 to-yellow-500 h-1.5 rounded-full w-full"></div></div>
                     </div>
 
-                    <div class="glass-panel p-5 relative overflow-hidden group">
-                        <div class="absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity"><i class="ph ph-meat text-8xl"></i></div>
-                        <div class="flex justify-between text-gray-400 mb-1 text-xs font-semibold uppercase tracking-wider">
-                            <span>Proteína Objetivo</span>
+                    <!-- Modificado: Tracker de Agua -->
+                    <div class="glass-panel p-4 flex flex-col justify-between border border-blue-900/30">
+                        <div class="flex justify-between text-blue-400 mb-1 text-xs font-semibold uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><i class="ph ph-drop"></i> Hidratación</span>
+                            <span id="water-count-text">0 / 12 V.</span>
                         </div>
-                        <div class="text-3xl font-bold text-white mt-1">160 <span class="text-sm text-gray-500 font-medium">g</span></div>
-                        <div class="w-full bg-gray-800/80 rounded-full h-1.5 mt-3 overflow-hidden border border-gray-700">
-                            <div class="bg-gradient-to-r from-blue-600 to-blue-400 h-1.5 rounded-full w-full"></div>
+                        <div class="flex items-end justify-between mt-2">
+                            <div class="text-2xl font-bold text-white" id="water-liters">0.0<span class="text-xs text-gray-500 ml-1">L</span></div>
+                            <button onclick="addWater()" class="bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded px-3 py-1 text-xs font-bold transition">
+                                + 250ml
+                            </button>
                         </div>
+                        <div class="w-full bg-gray-800/80 rounded-full h-1 mt-2 overflow-hidden"><div id="water-bar" class="bg-blue-400 h-1 rounded-full" style="width: 0%"></div></div>
                     </div>
 
-                    <div class="glass-panel p-5 relative overflow-hidden flex flex-col justify-between">
-                        <div>
-                            <div class="flex justify-between text-gray-400 mb-1 text-xs font-semibold uppercase tracking-wider">
-                                <span>Progreso 13 Días</span>
-                                <i class="ph ph-calendar-check text-blue-400"></i>
-                            </div>
-                            <div class="text-3xl font-bold text-white mt-1" id="dash-progress">1<span class="text-sm text-gray-500 font-medium">/13</span></div>
+                    <!-- Modificado: Tracker de Café -->
+                    <div class="glass-panel p-4 flex flex-col justify-between border border-amber-900/30">
+                        <div class="flex justify-between text-amber-500 mb-1 text-xs font-semibold uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><i class="ph ph-coffee"></i> Café Negro</span>
                         </div>
-                        <div class="w-full bg-gray-800/80 rounded-full h-1.5 mt-3 overflow-hidden border border-gray-700">
-                            <div class="bg-gradient-to-r from-green-600 to-emerald-400 h-1.5 rounded-full" style="width: 7.6%" id="dash-progress-bar"></div>
+                        <div class="flex items-end justify-between mt-2">
+                            <div class="text-2xl font-bold text-white"><span id="coffee-count">0</span><span class="text-xs text-gray-500 ml-1">Tazas</span></div>
+                            <button onclick="addCoffee()" class="bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 rounded px-3 py-1 text-xs font-bold transition">
+                                + 1 Taza
+                            </button>
                         </div>
+                        <p class="text-[9px] text-gray-500 mt-2">Permitido. Máx 4/día. No contar como agua.</p>
                     </div>
                 </div>
 
-                <!-- Motivation & Directives -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-2 glass-panel p-0 overflow-hidden flex flex-col">
-                        <div class="p-4 border-b border-gray-800/50 bg-white/5 flex justify-between items-center">
-                            <h3 class="text-sm font-bold text-gray-200 flex items-center gap-2 uppercase tracking-wide">
-                                <i class="ph ph-chart-bar text-blue-400"></i> Distribución de Macronutrientes
-                            </h3>
-                        </div>
-                        <div class="p-6 flex-1 h-64">
-                            <canvas id="macrosChart"></canvas>
-                        </div>
+                        <div class="p-4 border-b border-gray-800/50 bg-white/5"><h3 class="text-sm font-bold text-gray-200 uppercase tracking-wide">Distribución de Macronutrientes</h3></div>
+                        <div class="p-6 flex-1 h-64"><canvas id="macrosChart"></canvas></div>
                     </div>
                     
                     <div class="glass-panel p-0 flex flex-col overflow-hidden border-red-900/30">
                         <div class="p-4 border-b border-red-900/30 bg-gradient-to-r from-red-950/40 to-transparent flex items-center gap-2">
                             <i class="ph ph-warning-octagon text-red-500 text-lg"></i>
-                            <h3 class="text-sm font-bold text-red-100 uppercase tracking-wide">Reglas de Producción</h3>
+                            <h3 class="text-sm font-bold text-red-100 uppercase tracking-wide">Reglas Cero Tolerancia</h3>
                         </div>
-                        <div class="p-6 flex-1 bg-black/40 flex flex-col justify-center">
-                            <p class="text-sm text-gray-300 italic mb-6 leading-relaxed border-l-2 border-blue-500 pl-3">"El cuerpo no cambia en la zona de confort. La memoria muscular hará el 50%, tu disciplina estricta hará el resto. Falla en la preparación y prepárate para fallar."</p>
-                            
-                            <h4 class="text-xs font-bold text-red-400 uppercase tracking-widest mb-3 border-b border-red-900/50 pb-1">Tolerancia Cero</h4>
+                        <div class="p-6 flex-1 bg-black/40 flex flex-col justify-center space-y-4">
                             <ul class="text-sm space-y-3 text-gray-300">
-                                <li class="flex items-center gap-3"><div class="p-1 bg-red-500/20 rounded text-red-500"><i class="ph ph-beer-bottle"></i></div> Cero Alcohol (inhibe lipólisis)</li>
-                                <li class="flex items-center gap-3"><div class="p-1 bg-red-500/20 rounded text-red-500"><i class="ph ph-drop"></i></div> Cero Azúcar Líquido (Gaseosas)</li>
+                                <li class="flex items-center gap-3"><div class="p-1 bg-red-500/20 rounded text-red-500"><i class="ph ph-beer-bottle"></i></div> Cero Alcohol (inhibe lipólisis de inmediato)</li>
+                                <li class="flex items-center gap-3"><div class="p-1 bg-red-500/20 rounded text-red-500"><i class="ph ph-drop-slash"></i></div> Cero Azúcar Líquido (Gaseosas/Jugos)</li>
                                 <li class="flex items-center gap-3"><div class="p-1 bg-red-500/20 rounded text-red-500"><i class="ph ph-hamburger"></i></div> Cero Fritos en Aceite Sumergido</li>
                             </ul>
+                            <div class="bg-blue-900/20 p-3 rounded border border-blue-900/50 text-xs text-blue-200">
+                                <strong>Nota:</strong> ¿Antojo incontrolable? Usa opciones permitidas descritas en la sección Academia (Coca Zero, Soda).
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -357,39 +373,62 @@
 
             <!-- VIEW: NUTRITION -->
             <div id="view-nutrition" class="hidden flex flex-col h-full gap-6">
-                <!-- Day Selector -->
                 <div class="glass-panel p-2">
-                    <div class="flex gap-2 overflow-x-auto day-selector pb-2 px-2" id="nutrition-day-selector">
-                        <!-- Botones de días generados por JS -->
-                    </div>
+                    <div class="flex gap-2 overflow-x-auto day-selector pb-2 px-2" id="nutrition-day-selector"></div>
                 </div>
-
-                <!-- Detalle del Día -->
-                <div id="nutrition-day-detail" class="flex-1 space-y-6">
-                    <!-- Contenido dinámico -->
-                    <div class="text-center text-gray-500 py-10"><i class="ph ph-spinner-gap animate-spin text-3xl"></i> Cargando datos de producción...</div>
-                </div>
+                <div id="nutrition-day-detail" class="flex-1 space-y-6"></div>
             </div>
 
             <!-- VIEW: TRAINING -->
-            <div id="view-training" class="hidden flex flex-col h-full gap-6">
-                <!-- Day Selector -->
-                <div class="glass-panel p-2">
-                    <div class="flex gap-2 overflow-x-auto day-selector pb-2 px-2" id="training-day-selector">
-                        <!-- Botones generados por JS -->
+            <div id="view-training" class="hidden flex flex-col h-full gap-6 relative">
+                
+                <!-- Vista Resumen (Default) -->
+                <div id="training-overview">
+                    <div class="glass-panel p-2 mb-6">
+                        <div class="flex gap-2 overflow-x-auto day-selector pb-2 px-2" id="training-day-selector"></div>
                     </div>
+
+                    <div class="glass-panel p-5 border-l-4 border-yellow-500 bg-gradient-to-r from-yellow-900/20 to-transparent mb-6">
+                        <h3 class="font-bold text-yellow-400 flex items-center gap-2 text-sm uppercase tracking-wide">
+                            <i class="ph ph-warning-circle text-lg"></i> Directriz Médica Espinal Activa
+                        </h3>
+                        <p class="text-sm text-gray-300 mt-2 leading-relaxed">Cero carga axial. Prohibida la sentadilla libre con barra y peso muerto pesado. Todo el trabajo de tren inferior se realizará mediante aislamiento con soporte lumbar.</p>
+                    </div>
+
+                    <div id="training-day-detail" class="space-y-6"></div>
                 </div>
 
-                <div class="glass-panel p-5 border-l-4 border-yellow-500 bg-gradient-to-r from-yellow-900/20 to-transparent">
-                    <h3 class="font-bold text-yellow-400 flex items-center gap-2 text-sm uppercase tracking-wide">
-                        <i class="ph ph-warning-circle text-lg"></i> Directriz Médica Espinal Activa
-                    </h3>
-                    <p class="text-sm text-gray-300 mt-2 leading-relaxed">Cero carga axial. Prohibida la sentadilla libre con barra y peso muerto pesado para proteger discos intervertebrales. El trabajo de tren inferior se realizará mediante aislamiento y prensas con soporte lumbar completo.</p>
-                </div>
+                <!-- Vista Modo Entrenamiento Activo (Oculta por defecto) -->
+                <div id="workout-active-container" class="hidden flex-col h-full gap-4">
+                    <div class="glass-panel p-4 flex justify-between items-center bg-blue-900/20 border-blue-500/30">
+                        <div class="flex items-center gap-3">
+                            <button onclick="abortWorkout()" class="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/40"><i class="ph ph-x"></i></button>
+                            <div>
+                                <h3 class="font-bold text-white uppercase tracking-wide">Modo Ejecución</h3>
+                                <p class="text-xs text-blue-400" id="workout-active-title">Día 1 - Empuje</p>
+                            </div>
+                        </div>
+                        <button onclick="finishWorkout()" class="glass-btn px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg">Finalizar</button>
+                    </div>
 
-                <!-- Detalle del Entrenamiento -->
-                <div id="training-day-detail" class="flex-1 space-y-6">
-                    <!-- Contenido dinámico -->
+                    <div id="workout-exercises-list" class="space-y-4 pb-24">
+                        <!-- Llenado dinámicamente -->
+                    </div>
+
+                    <!-- Timer Flotante -->
+                    <div id="workout-timer-float" class="timer-float glass-panel p-4 flex items-center gap-4 bg-gray-900/90 border-gray-700 shadow-2xl hidden">
+                        <div class="bg-black/50 p-3 rounded-lg border border-gray-700 flex items-center gap-3">
+                            <i class="ph ph-timer text-2xl text-blue-400" id="timer-icon"></i>
+                            <div>
+                                <div class="text-[10px] text-gray-400 uppercase font-bold" id="timer-label">Descanso</div>
+                                <div class="text-2xl font-mono font-bold text-white" id="timer-display">00:00</div>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-400 max-w-[120px]" id="timer-target-text">
+                            Objetivo: 90s
+                        </div>
+                        <button onclick="resetTimer()" class="p-2 bg-gray-800 rounded hover:bg-gray-700 text-gray-300"><i class="ph ph-arrow-counter-clockwise"></i></button>
+                    </div>
                 </div>
             </div>
 
@@ -398,26 +437,39 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="md:col-span-1 glass-panel p-6 flex flex-col">
                         <h3 class="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2 text-blue-400">
-                            <i class="ph ph-plus-circle text-lg"></i> Nuevo Registro
+                            <i class="ph ph-plus-circle text-lg"></i> Registro Antropométrico
                         </h3>
-                        <form id="metrics-form" class="space-y-4 flex-1">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Peso Corporal (kg)</label>
-                                <div class="relative">
-                                    <i class="ph ph-scales absolute left-3 top-3 text-gray-500"></i>
-                                    <input type="number" id="input-weight" step="0.1" required class="glass-input w-full pl-10 p-2.5 rounded-lg text-sm" placeholder="Ej: 77.5">
+                        <form id="metrics-form" class="space-y-4 flex-1 overflow-y-auto pr-2 pb-2">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Peso Corporal (kg)</label>
+                                    <input type="number" id="input-weight" step="0.1" required class="glass-input w-full p-2.5 rounded-lg text-sm" placeholder="Ej: 77.5">
                                 </div>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wider">Horas de Sueño</label>
-                                <div class="relative">
-                                    <i class="ph ph-moon absolute left-3 top-3 text-gray-500"></i>
-                                    <input type="number" id="input-sleep" step="0.5" required class="glass-input w-full pl-10 p-2.5 rounded-lg text-sm" placeholder="Ej: 7.5">
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Sueño (horas)</label>
+                                    <input type="number" id="input-sleep" step="0.5" required class="glass-input w-full p-2.5 rounded-lg text-sm" placeholder="Ej: 7.5">
+                                </div>
+                                <!-- Medidas Nuevas -->
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Cintura (cm)</label>
+                                    <input type="number" id="input-cintura" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Pecho (cm)</label>
+                                    <input type="number" id="input-pecho" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Brazo (cm)</label>
+                                    <input type="number" id="input-brazo" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Pierna (cm)</label>
+                                    <input type="number" id="input-pierna" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
                                 </div>
                             </div>
                             <div class="pt-4 mt-auto">
                                 <button type="submit" class="glass-btn w-full py-3 rounded-lg font-bold text-sm uppercase tracking-wide flex justify-center items-center gap-2">
-                                    <i class="ph ph-floppy-disk"></i> Guardar en BD
+                                    <i class="ph ph-floppy-disk text-lg"></i> Guardar Medidas
                                 </button>
                             </div>
                         </form>
@@ -427,27 +479,25 @@
                         <div class="p-4 border-b border-gray-800/50 bg-white/5">
                             <h3 class="text-sm font-bold uppercase tracking-wider text-gray-200">Evolución de Masa Corporal</h3>
                         </div>
-                        <div class="p-6 h-72">
-                            <canvas id="weightChart"></canvas>
-                        </div>
+                        <div class="p-6 h-72"><canvas id="weightChart"></canvas></div>
                     </div>
                 </div>
                 
                 <div class="glass-panel p-6">
-                    <h3 class="text-sm font-bold uppercase tracking-wider mb-4 text-gray-300 border-b border-gray-800 pb-2">Historial de Registros</h3>
+                    <h3 class="text-sm font-bold uppercase tracking-wider mb-4 text-gray-300 border-b border-gray-800 pb-2">Historial Integral</h3>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left text-gray-400">
-                            <thead class="text-xs uppercase bg-black/40 text-gray-300">
+                        <table class="w-full text-xs text-left text-gray-400">
+                            <thead class="text-[10px] uppercase bg-black/40 text-gray-300">
                                 <tr>
-                                    <th class="px-4 py-3 rounded-l-lg">Fecha</th>
-                                    <th class="px-4 py-3">Peso (kg)</th>
-                                    <th class="px-4 py-3">Sueño (hrs)</th>
-                                    <th class="px-4 py-3 rounded-r-lg">Estado</th>
+                                    <th class="px-3 py-3 rounded-l-lg">Fecha</th>
+                                    <th class="px-3 py-3">Peso</th>
+                                    <th class="px-3 py-3">Cintura</th>
+                                    <th class="px-3 py-3">Pecho</th>
+                                    <th class="px-3 py-3">Brazo</th>
+                                    <th class="px-3 py-3 rounded-r-lg">Sueño</th>
                                 </tr>
                             </thead>
-                            <tbody id="metrics-table-body">
-                                <!-- Dinámico -->
-                            </tbody>
+                            <tbody id="metrics-table-body"></tbody>
                         </table>
                     </div>
                 </div>
@@ -455,78 +505,63 @@
 
             <!-- VIEW: ACADEMY -->
             <div id="view-academy" class="hidden space-y-6">
-                <div class="glass-panel p-6 relative overflow-hidden">
-                    <div class="absolute -right-10 -bottom-10 opacity-5"><i class="ph ph-brain text-9xl"></i></div>
-                    <h3 class="text-xl font-bold mb-2 flex items-center gap-2 text-white">
-                        Ciencia de la Recomposición Corporal
-                    </h3>
-                    <p class="text-sm text-gray-300 mb-6 max-w-3xl leading-relaxed">Al tener memoria muscular (100kg sentadilla previa) y porcentaje de grasa actual, posees el escenario fisiológico perfecto para el "Holy Grail" del fitness: ganar masa muscular y perder grasa simultáneamente. Esto requiere déficit estricto y proteína elevada.</p>
-                    
-                    <div class="bg-black/40 p-6 rounded-xl border border-gray-800/50 flex justify-center shadow-inner">
-                        <div class="mermaid">
-                            graph TD
-                                A[Déficit Calórico Controlado] --> B(Oxidación de Ácidos Grasos)
-                                A --> C(Alta Ingesta Proteica 160g)
-                                B --> D[Pérdida de Grasa]
-                                C --> E(Síntesis Proteica)
-                                E -.-> F[Memoria Muscular Activa]
-                                F -.-> E
-                                E --> G[Recuperación de Masa]
-                                D --> H{Recomposición Corporal}
-                                G --> H
-                                style A fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff
-                                style H fill:#064e3b,stroke:#10b981,stroke-width:3px,color:#fff
-                                style F fill:#7c2d12,stroke:#ea580c,stroke-width:2px,color:#fff
+                <!-- Reglas de Bebidas y Micronutrientes -->
+                <div class="glass-panel p-6 border-l-4 border-purple-500 bg-gradient-to-r from-purple-900/10 to-transparent">
+                    <div class="flex items-center gap-3 mb-4 border-b border-gray-800 pb-3">
+                        <div class="p-2 bg-purple-500/20 rounded text-purple-400"><i class="ph ph-drop text-2xl"></i></div>
+                        <h3 class="font-bold text-white tracking-wide uppercase">Hidratación, Bebidas Cero y Micronutrientes</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-200 mb-2 border-b border-gray-800 pb-1">¿Puedo tomar Coca-Cola Zero o Soda?</h4>
+                            <p class="text-sm text-gray-300 leading-relaxed mb-3"><strong>SÍ, ESTÁ PERMITIDO.</strong> Las bebidas con cero calorías (Coca-Cola Zero, Pepsi Black, Sprite Zero) y el Agua con Gas (Soda) no rompen el déficit calórico ni la lipólisis.</p>
+                            <p class="text-xs text-gray-400 bg-black/30 p-2 rounded border border-gray-800">
+                                <em>Regla de Oro:</em> Úsalas como herramienta táctica para calmar la ansiedad por lo dulce, pero límitalas a 1-2 latas diarias para no acostumbrar al paladar al dulzor extremo extremo y evitar hinchazón por el gas.
+                            </p>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-200 mb-2 border-b border-gray-800 pb-1">Gestión de Micronutrientes</h4>
+                            <ul class="text-xs text-gray-300 space-y-2">
+                                <li><strong class="text-blue-400">Sodio (Sal):</strong> No le tengas miedo. Tu cuerpo lo necesita para la contracción muscular. Sala tu comida al gusto.</li>
+                                <li><strong class="text-yellow-400">Potasio:</strong> Clave para evitar calambres y retención de líquidos. Presente en el banano, pollo y espinacas de tus menús.</li>
+                                <li><strong class="text-gray-200">Magnesio:</strong> Fundamental para el descanso profundo (fase REM). Presente en la avena y los vegetales oscuros.</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="glass-panel p-6">
-                        <div class="flex items-center gap-3 mb-4 border-b border-gray-800 pb-3">
-                            <div class="p-2 bg-blue-500/20 rounded text-blue-400"><i class="ph ph-calculator text-xl"></i></div>
-                            <h4 class="font-bold text-white tracking-wide">Metabolismo Basal (Harris-Benedict)</h4>
+                <div class="glass-panel p-6">
+                    <h3 class="text-xl font-bold mb-2 text-white">Ciencia de la Recomposición</h3>
+                    <p class="text-sm text-gray-300 mb-6">Al tener memoria muscular (100kg sentadilla) y estar desentrenado, tu cuerpo está primado para usar la grasa almacenada como energía para reconstruir el tejido muscular perdido.</p>
+                    <div class="bg-black/40 p-6 rounded-xl flex justify-center shadow-inner overflow-x-auto">
+                        <div class="mermaid">
+                            graph TD
+                                A[Déficit Calórico Estricto] --> B(Uso de Grasa como Energía)
+                                A --> C(Alta Proteína 160g)
+                                B --> D[Reducción Cintura/Grasa]
+                                C --> E(Síntesis Proteica)
+                                E -.-> F[Activación Memoria Muscular]
+                                F -.-> E
+                                E --> G[Aumento de Masa Magra]
+                                D --> H{Recomposición Exitosa}
+                                G --> H
+                                style A fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff
+                                style H fill:#064e3b,stroke:#10b981,stroke-width:3px,color:#fff
                         </div>
-                        <p class="text-xs text-gray-400 mb-4 leading-relaxed">Fórmula aplicada para estimar tu gasto calórico en reposo (TMB) basado en tus 78kg y 1.60m. El déficit se calcula restando 300-500 kcal al TMB + NEAT.</p>
-                        <div class="bg-black/60 p-4 rounded-lg text-sm font-mono text-blue-300 border border-blue-900/50 shadow-inner text-center">
-                            TMB = 88.36 + (13.4 × 78) + (4.8 × 160) - (5.7 × Edad)
-                        </div>
-                    </div>
-                    <div class="glass-panel p-6">
-                        <div class="flex items-center gap-3 mb-4 border-b border-gray-800 pb-3">
-                            <div class="p-2 bg-orange-500/20 rounded text-orange-400"><i class="ph ph-clock-countdown text-xl"></i></div>
-                            <h4 class="font-bold text-white tracking-wide">Cronología de 13 Días</h4>
-                        </div>
-                        <ul class="text-sm text-gray-300 space-y-4">
-                            <li class="flex gap-3 items-start">
-                                <span class="bg-gray-800 text-gray-300 text-[10px] font-bold px-2 py-1 rounded mt-0.5">Días 1-4</span>
-                                <div><strong class="text-white block">Choque Neuromuscular:</strong> Vaciado rápido de glucógeno hepático y muscular por el déficit. Pérdida inicial de agua retenida.</div>
-                            </li>
-                            <li class="flex gap-3 items-start">
-                                <span class="bg-gray-800 text-gray-300 text-[10px] font-bold px-2 py-1 rounded mt-0.5">Días 5-9</span>
-                                <div><strong class="text-white block">Activación Metabólica:</strong> La memoria muscular despierta. El cuerpo prioriza la grasa como energía al no tener alcohol ni azúcares.</div>
-                            </li>
-                            <li class="flex gap-3 items-start">
-                                <span class="bg-blue-900 text-blue-300 text-[10px] font-bold px-2 py-1 rounded mt-0.5">Días 10-13</span>
-                                <div><strong class="text-white block">Consolidación:</strong> Adaptación de fuerza, visible reducción de medidas, entorno hormonal estabilizado.</div>
-                            </li>
-                        </ul>
                     </div>
                 </div>
             </div>
 
         </div>
 
-        <!-- Footer Profesional -->
-        <footer class="mt-auto border-t border-gray-800/50 bg-black/20 p-4 text-center">
-            <p class="text-xs text-gray-500 font-medium tracking-widest uppercase">
+        <footer class="mt-auto border-t border-gray-800/50 bg-black/20 p-4 text-center z-10">
+            <p class="text-[10px] text-gray-500 font-medium tracking-widest uppercase">
                 &copy; 2026 C-LAB SYS. Todos los derechos reservados. <br>
-                <span class="text-[10px] opacity-50 mt-1 block">Sistema de Producción - Build v2.1.0 (Firestore Connected)</span>
+                <span class="opacity-50">Build v3.0.0 (Firestore + Active Training Protocol)</span>
             </p>
         </footer>
     </main>
 
-    <!-- Toast Container -->
     <div id="toast-container" class="flex flex-col gap-2"></div>
 
     <!-- Firebase SDK & App Logic -->
@@ -535,7 +570,6 @@
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDoc, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // Configuración exigida
         const firebaseConfig = {
             apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
             authDomain: "laboratorio-de-coulomb.firebaseapp.com",
@@ -550,25 +584,46 @@
         
         let app, auth, db;
         let currentUser = null;
-        let globalPlanData = null; // Almacenará los 13 días
-        let currentSelectedNutritionDay = 1;
-        let currentSelectedTrainingDay = 1;
+        let globalPlanData = null;
+        
+        // Estado local para contadores rápidos
+        let dailyWaterGlasses = 0;
+        let dailyCoffeeCups = 0;
+
+        // Estado del cronómetro y rutina activa
+        let workoutInterval = null;
+        let workoutSeconds = 0;
+        let currentTargetSeconds = 90;
+        let activeWorkoutData = null;
+
+        const MOTIVACIONES_DIARIAS = [
+            "Día 1: La inercia es tu mayor enemigo. Hoy rompes el estado de reposo. Ejecuta sin cuestionar.",
+            "Día 2: El dolor muscular es debilidad abandonando tu cuerpo. Mantén el déficit, tu cuerpo ya está quemando reservas.",
+            "Día 3: La mente se rinde antes que el cuerpo. Si sientes fatiga, bebe agua y sigue. Cero excusas.",
+            "Día 4: Fase crítica. Tu cuerpo clama por azúcar. Niégasela. Estás forzando la adaptación metabólica.",
+            "Día 5: Tu memoria muscular está despertando. El sistema nervioso recuerda los 100kg. Controla la técnica.",
+            "Día 6: La disciplina es hacer lo que odias como si lo amaras. Cumple tus macros al gramo.",
+            "Día 7: Mitad del camino. Mírate al espejo, la inflamación ha bajado. El proceso funciona si tú funcionas.",
+            "Día 8: No negocies contigo mismo. El plan está escrito. Solo eres el ejecutor.",
+            "Día 9: Tu metabolismo basal se ha acelerado. La quema de grasa en reposo es real. No lo arruines hoy.",
+            "Día 10: Recta final. La fuerza sube, la grasa baja. El Holy Grail del fitness está ocurriendo.",
+            "Día 11: Ignora la fatiga. Protege tu columna. Ejecuta con precisión militar cada repetición.",
+            "Día 12: Eres un atleta avanzado recuperando su trono. Demuéstralo en los hierros.",
+            "Día 13: Día final del choque. Máxima intensidad. Rompe tus límites, el nuevo tú está forjado."
+        ];
 
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
-            
-            // Intento de login por token del entorno (Canvas)
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                signInWithCustomToken(auth, __initial_auth_token).catch(e => console.warn("Custom token fail:", e));
+                signInWithCustomToken(auth, __initial_auth_token).catch(e => console.warn(e));
             }
         } catch (error) {
             console.error("Firebase Error:", error);
-            if(error.message?.includes('referer')) document.getElementById('firebase-error-panel').classList.remove('hidden');
         }
 
-        // --- SISTEMA DE UI GLOBALES ---
+        // --- NAVEGACIÓN Y UI GLOBAL ---
         window.navigate = (viewId) => {
             document.querySelectorAll('main > div > div[id^="view-"]').forEach(el => el.classList.add('hidden'));
             document.getElementById(`view-${viewId}`).classList.remove('hidden');
@@ -576,17 +631,6 @@
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             const targetNav = Array.from(document.querySelectorAll('.nav-item')).find(el => el.getAttribute('onclick') === `Maps('${viewId}')`);
             if(targetNav) targetNav.classList.add('active');
-
-            const titles = {
-                'dashboard': ['Centro de Control', 'Resumen Ejecutivo y Cumplimiento'],
-                'nutrition': ['Nutrición Clínica', 'Protocolo Alimentario (13 Días)'],
-                'training': ['Protocolo Físico', 'Entrenamiento Biomecánico Seguro'],
-                'metrics': ['Analítica Corporal', 'Registro de Datos en Tiempo Real'],
-                'academy': ['Base de Conocimiento', 'Fisiología y Biomecánica']
-            };
-
-            document.getElementById('page-title').innerText = titles[viewId][0];
-            document.getElementById('page-subtitle').innerText = titles[viewId][1];
 
             if(viewId === 'dashboard') initMacrosChart();
             if(viewId === 'academy') setTimeout(() => mermaid.init(undefined, document.querySelectorAll('.mermaid')), 100);
@@ -597,10 +641,8 @@
             const toast = document.createElement('div');
             const colors = type === 'error' ? 'bg-red-900/80 border-red-500/50 text-red-100' : 'bg-emerald-900/80 border-emerald-500/50 text-emerald-100';
             const icon = type === 'error' ? 'ph-warning-circle' : 'ph-check-circle';
-            
-            toast.className = `glass-panel ${colors} border px-5 py-3 rounded-lg shadow-2xl flex items-center gap-3 transform transition-all duration-300 translate-x-full backdrop-blur-xl`;
+            toast.className = `glass-panel ${colors} border px-5 py-3 rounded-lg shadow-2xl flex items-center gap-3 transform transition-all duration-300 translate-x-full backdrop-blur-xl z-50`;
             toast.innerHTML = `<i class="ph ${icon} text-2xl drop-shadow"></i><span class="text-sm font-semibold tracking-wide">${msg}</span>`;
-            
             container.appendChild(toast);
             setTimeout(() => toast.classList.remove('translate-x-full'), 10);
             setTimeout(() => {
@@ -609,204 +651,229 @@
             }, 3500);
         };
 
-        window.logout = () => {
-            signOut(auth).then(() => {
-                document.getElementById('auth-screen').classList.remove('opacity-0', 'pointer-events-none');
-            }).catch(e => showToast(e.message, 'error'));
+        window.logout = () => signOut(auth);
+
+        // --- CONTADORES RÁPIDOS (AGUA Y CAFÉ) ---
+        window.addWater = () => {
+            if(dailyWaterGlasses >= 12) {
+                showToast("¡Meta de agua de 3L alcanzada!", "success");
+                return;
+            }
+            dailyWaterGlasses++;
+            document.getElementById('water-count-text').innerText = `${dailyWaterGlasses} / 12 V.`;
+            document.getElementById('water-liters').innerHTML = `${(dailyWaterGlasses * 0.25).toFixed(2)}<span class="text-xs text-gray-500 ml-1">L</span>`;
+            document.getElementById('water-bar').style.width = `${(dailyWaterGlasses / 12) * 100}%`;
         };
 
-        // --- MANEJO DE DATOS 13 DÍAS (SEMILLA) ---
-        // Generador robusto de datos para evitar exceder código puro pero simular BD real
+        window.addCoffee = () => {
+            dailyCoffeeCups++;
+            document.getElementById('coffee-count').innerText = dailyCoffeeCups;
+            if(dailyCoffeeCups >= 4) showToast("Atención: Has alcanzado el límite recomendado de cafeína diaria.", "error");
+        };
+
+        // --- GENERACIÓN DE DATOS REFINADOS ---
         function generate13DaysSeedData() {
             const plan = { nutrition: [], training: [] };
             
             const rutinasBase = [
-                { type: 'Empuje', focus: 'Pectoral, Deltoides, Tríceps', desc: 'Máquinas y mancuernas. Cero carga axial.', exercises: [
-                    { name: 'Press Pecho Máquina Sentado', sets: '4', reps: '10-12', rest: '90s', tip: 'Mantén las escápulas retraídas, saca pecho.'},
-                    { name: 'Press Inclinado Mancuernas', sets: '3', reps: '10-12', rest: '90s', tip: 'Banco a 30 grados, control excéntrico de 3 seg.'},
-                    { name: 'Elevaciones Laterales (Sentado)', sets: '4', reps: '15', rest: '60s', tip: 'Sentado para evitar balanceos lumbares.'},
-                    { name: 'Extensión Tríceps Polea', sets: '4', reps: '12-15', rest: '60s', tip: 'Codos pegados al torso, bloqueo completo abajo.'}
+                { type: 'Empuje', focus: 'Pectoral, Deltoides, Tríceps', desc: 'Máquinas y mancuernas. Cero carga axial. Protección espinal prioritaria.', exercises: [
+                    { name: 'Press Pecho Máquina Sentado', sets: 4, reps: '10-12', rest: 90, tip: 'Retracción escapular estricta. Rango completo.'},
+                    { name: 'Press Inclinado Mancuernas', sets: 3, reps: '10-12', rest: 90, tip: 'Control excéntrico (bajada) de 3 segundos.'},
+                    { name: 'Elevaciones Laterales Sentado', sets: 4, reps: '15', rest: 60, tip: 'Sentado para anular el balanceo lumbar.'},
+                    { name: 'Extensión Tríceps Polea', sets: 4, reps: '12-15', rest: 60, tip: 'Codos pegados a las costillas, aprieta abajo.'}
                 ]},
-                { type: 'Tracción', focus: 'Dorsal, Bíceps, Core', desc: 'Tracción horizontal con apoyo en pecho para proteger lumbar.', exercises: [
-                    { name: 'Jalón al Pecho Polea Alta', sets: '4', reps: '10-12', rest: '90s', tip: 'Tira con los codos, no con las manos.'},
-                    { name: 'Remo en Máquina (Apoyo en pecho)', sets: '4', reps: '10-12', rest: '90s', tip: 'Crucial: El pecho nunca se despega de la almohadilla.'},
-                    { name: 'Pullover Polea Alta', sets: '3', reps: '15', rest: '60s', tip: 'Siente el estiramiento del dorsal. Abdomen apretado.'},
-                    { name: 'Curl Bíceps Mancuernas Alterno', sets: '4', reps: '12', rest: '60s', tip: 'Sin balanceo. Solo se mueve el antebrazo.'}
+                { type: 'Tracción', focus: 'Dorsal, Bíceps, Core', desc: 'Tracción con soporte para anular fuerza cizalla en lumbares.', exercises: [
+                    { name: 'Jalón al Pecho Polea Alta', sets: 4, reps: '10-12', rest: 90, tip: 'Inicia el movimiento juntando las escápulas.'},
+                    { name: 'Remo Máquina (Apoyo Pecho)', sets: 4, reps: '10-12', rest: 90, tip: 'CRÍTICO: El pecho nunca se despega del cojín.'},
+                    { name: 'Pullover Polea Alta', sets: 3, reps: '15', rest: 60, tip: 'Rodillas semi flexionadas, abdomen de hierro.'},
+                    { name: 'Curl Bíceps Alterno Mancuerna', sets: 4, reps: '12', rest: 60, tip: 'Giro de muñeca (supinación) al subir.'}
                 ]},
-                { type: 'Pierna Segura', focus: 'Cuádriceps, Isquiosurales, Gemelos', desc: 'Aislamiento estricto sin compresión espinal.', exercises: [
-                    { name: 'Prensa 45 Grados', sets: '4', reps: '10-15', rest: '120s', tip: 'Lumbar pegada al respaldo. No bloquees rodillas al subir.'},
-                    { name: 'Extensión de Cuádriceps', sets: '4', reps: '15', rest: '60s', tip: 'Pausa de 1 segundo arriba, bajada lenta.'},
-                    { name: 'Curl Isquios (Sentado/Acostado)', sets: '4', reps: '12', rest: '60s', tip: 'Punta de los pies hacia ti al flexionar.'},
-                    { name: 'Elevación Gemelos en Prensa', sets: '4', reps: '20', rest: '45s', tip: 'Rango de movimiento completo, estira abajo.'}
+                { type: 'Pierna Segura', focus: 'Cuádriceps, Isquios, Gemelos', desc: 'Aislamiento de tren inferior sin compresión vertebral.', exercises: [
+                    { name: 'Prensa 45 Grados', sets: 4, reps: '10-15', rest: 120, tip: 'Lumbar pegada al asiento. NO bloquees rodillas al final.'},
+                    { name: 'Extensión de Cuádriceps', sets: 4, reps: '15', rest: 60, tip: 'Pausa isométrica de 1 segundo arriba.'},
+                    { name: 'Curl Isquios (Acostado/Sentado)', sets: 4, reps: '12', rest: 60, tip: 'Movimiento lento. Punta del pie hacia ti.'},
+                    { name: 'Elevación Gemelos en Prensa', sets: 4, reps: '20', rest: 45, tip: 'Baja hasta sentir estiramiento profundo del gemelo.'}
                 ]},
-                { type: 'Descanso / Recuperación', focus: 'Movilidad y Sistema Cardiovascular', desc: 'Oxigenación y recuperación activa.', exercises: [
-                    { name: 'Caminata en Cinta (Inclinada)', sets: '1', reps: '30 min', rest: '-', tip: 'Velocidad 5 km/h, Inclinación 10%. Sin sujetarse.'},
-                    { name: 'Estiramientos Dinámicos', sets: '1', reps: '10 min', rest: '-', tip: 'Enfoque en caderas y pectorales.'}
+                { type: 'Descanso Activo', focus: 'Cardio LISS y Movilidad', desc: 'Recuperación del sistema nervioso central.', exercises: [
+                    { name: 'Caminata Cinta Inclinada', sets: 1, reps: '30 min', rest: 0, tip: 'Velocidad 5, Inclinación 10. NO TE AGARRES de la máquina.'},
+                    { name: 'Estiramiento Pectoral/Cadera', sets: 1, reps: '10 min', rest: 0, tip: 'Sostenido por 30s cada grupo muscular.'}
                 ]}
             ];
 
             const menusBase = [
                 {
-                    name: 'Menú Día Pesado (A)', kcal: 1950, p: 165, c: 210, f: 50,
+                    name: 'Menú A (Entrenamiento Fuerte)', kcal: 1950, p: 165, c: 210, f: 50,
                     meals: [
-                        { type: 'Desayuno', name: 'Huevos y Arepa', ing: '3 huevos, 1 arepa delgada, Café negro.', prep: 'Huevos revueltos sin aceite (sartén teflón). Arepa asada.', tip: 'Usa stevia en el café. 0 calorías líquidas.' },
-                        { type: 'Almuerzo', name: 'Pollo y Arroz', ing: '200g pechuga, 150g arroz, ensalada verde.', prep: 'Pollo a la plancha condimentado con especias secas, arroz blanco pesado cocido.', tip: 'El volumen de la ensalada ayuda a la saciedad.' },
-                        { type: 'Snack', name: 'Yogur y Creatina', ing: '150g Yogur Griego, 1 puñado arándanos, 5g Creatina.', prep: 'Mezclar todo en un bowl.', tip: 'La creatina es innegociable. Tómala todos los días.' },
-                        { type: 'Cena', name: 'Res Magra', ing: '150g res (corte magro), vegetales asados.', prep: 'Carne a la plancha, vegetales en air fryer 10 min.', tip: 'Proteína de digestión lenta para la noche.' }
+                        { type: 'Desayuno', name: 'Huevos y Arepa Asada', 
+                          ing: '3 huevos enteros (Cat. A), 1 arepa delgada sin sal, Café negro o Té.', 
+                          prep: '1. Calentar sartén antiadherente a fuego medio. 2. Batir huevos con una pizca de sal. 3. Verter y remover suavemente con espátula de silicona hasta textura cremosa (sin quemar). 4. Asar arepa en parrilla. 5. Servir junto al café (usar Stevia si se requiere).', 
+                          tip: 'Toma 2 vasos de agua apenas despiertes, antes de este café.' },
+                        { type: 'Almuerzo', name: 'Pollo Plancha + Arroz', 
+                          ing: '200g pechuga cruda, 150g arroz blanco pesado ya cocido, 2 tazas ensalada verde.', 
+                          prep: '1. Adobar pollo con paprika, ajo en polvo y sal (cero aceite). 2. Cocinar en sartén bien caliente 4-5 min por lado hasta sellar. 3. Servir arroz. 4. Ensalada aderezada solo con limón y sal.', 
+                          tip: 'El arroz cocido y refrigerado aumenta su almidón resistente (baja índice glucémico).' },
+                        { type: 'Snack', name: 'Yogur Protéico', 
+                          ing: '150g Yogur Griego (cero azúcar), 30g arándanos, 5g Creatina.', 
+                          prep: '1. En un bowl, mezclar vigorosamente el yogur con la creatina hasta disolver. 2. Topping de arándanos lavados.', 
+                          tip: 'La creatina es diaria. Si olvidas tomarla aquí, tómala con cualquier líquido luego.' },
+                        { type: 'Cena', name: 'Res Magra y Vegetales', 
+                          ing: '150g lomo de res o centro de pierna, mix de vegetales (brócoli, zanahoria).', 
+                          prep: '1. Cortar res en tiras, asar en sartén muy caliente 3 mins. 2. Vegetales al vapor o en Air Fryer a 180°C x 10 mins con toque de sal.', 
+                          tip: 'La res aporta hierro y zinc, vitales para la recuperación de testosterona nocturna.' }
                     ]
                 },
                 {
-                    name: 'Menú Variación Cerdo (B)', kcal: 1850, p: 160, c: 170, f: 55,
+                    name: 'Menú B (Carga Moderada)', kcal: 1850, p: 160, c: 170, f: 55,
                     meals: [
-                        { type: 'Desayuno', name: 'Avena Proteica', ing: '40g avena, 1 scoop proteína (o 4 claras cocidas), 1 banano.', prep: 'Hervir avena en agua, añadir proteína al apagar fuego.', tip: 'Si no tienes polvo, come las claras cocidas aparte.' },
-                        { type: 'Almuerzo', name: 'Cerdo Air Fryer', ing: '200g lomo cerdo, 1 arepa, tomate/cebolla.', prep: 'Cerdo en Air fryer 180°C por 15 min. Sin aceite.', tip: 'El lomo de cerdo es muy magro y económico.' },
-                        { type: 'Snack', name: 'Empanadas Air Fryer', ing: '2 empanadas pequeñas, té verde.', prep: 'Directo al air fryer hasta que doren.', tip: 'No sumergir en aceite. El té verde aporta antioxidantes.' },
-                        { type: 'Cena', name: 'Corazones de Pollo', ing: '150g corazones, vegetales.', prep: 'Guisados en su propio jugo con tomate y cebolla.', tip: 'Alto en hierro y proteína económica.' }
+                        { type: 'Desayuno', name: 'Avena Proteica Rápida', 
+                          ing: '40g avena hojuelas, 1 scoop proteína (o 4 claras huevo), 1 banano mediano.', 
+                          prep: '1. Hervir avena con agua y canela hasta espesar (5 min). 2. Apagar fuego y mezclar la proteína en polvo rápidamente para evitar grumos. 3. Cortar banano encima. *Si usas huevos, haz las claras en sartén aparte.', 
+                          tip: 'Carga de glucógeno perfecta para iniciar el día con energía sostenida.' },
+                        { type: 'Almuerzo', name: 'Cerdo Air Fryer', 
+                          ing: '200g lomo de cerdo magro, 1 arepa, tomate y cebolla.', 
+                          prep: '1. Sazonar cerdo con especias. 2. Colocar en Air Fryer precalentada a 190°C por 14-16 mins, volteando a la mitad. 3. Picar tomate y cebolla tipo pico de gallo con limón.', 
+                          tip: 'El cerdo magro es económico y tiene un perfil de aminoácidos excelente.' },
+                        { type: 'Snack', name: 'Empanadas Air Fryer', 
+                          ing: '2 empanadas de carne/pollo precocidas, té o soda.', 
+                          prep: '1. Introducir empanadas directo del congelador al Air Fryer a 200°C por 12 mins. (Cero aceite sumergido).', 
+                          tip: 'Satisfacer el antojo de fritos, pero eliminando las 300+ calorías del aceite profundo.' },
+                        { type: 'Cena', name: 'Corazones al Ajillo', 
+                          ing: '150g corazones de pollo, cebolla cabezona, ajo.', 
+                          prep: '1. Limpiar exceso de grasa blanca de los corazones. 2. Sofreír en sartén (usar spray o agua) con mucho ajo y cebolla hasta dorar y cocinar bien.', 
+                          tip: 'Superalimento olvidado: altísimo en Coenzima Q10 y hierro.' }
                     ]
                 },
                 {
-                    name: 'Menú Día Ligero (C)', kcal: 1750, p: 155, c: 110, f: 75,
+                    name: 'Menú C (Día Descanso/Ligero)', kcal: 1750, p: 155, c: 110, f: 75,
                     meals: [
-                        { type: 'Desayuno', name: 'Huevos y Galletas', ing: '2 enteros + 2 claras, 3 galletas saladas, Café.', prep: 'Omelette básico.', tip: 'Mantenemos carbohidratos bajos al despertar.' },
-                        { type: 'Almuerzo', name: 'Pollo y Chicharrón', ing: '150g pollo, 50g chicharrón, ensalada.', prep: 'Chicharrón en air fryer al máximo para extraer toda su manteca, escurrir bien.', tip: 'Ese chicharrón aporta saciedad y grasa buena si se extrae el exceso.' },
-                        { type: 'Snack', name: 'Gelatina', ing: '1 porción gelatina dietética, 1 manzana.', prep: 'Lista para consumo.', tip: 'Truco mental para engañar los antojos dulces.' },
-                        { type: 'Cena', name: 'Omelette Jamón', ing: '3 huevos, 2 rebanadas jamón, espinaca, 5g creatina.', prep: 'Revolver y cocinar a fuego lento.', tip: 'No olvides la creatina.' }
+                        { type: 'Desayuno', name: 'Omelette Ligero', 
+                          ing: '2 huevos enteros + 2 claras, 3 galletas saladas, Café.', 
+                          prep: '1. Batir los 2 enteros y 2 claras juntos. 2. Hacer omelette en sartén a fuego medio bajo tapado para que esponje.', 
+                          tip: 'Menos carbos porque hoy no hay desgaste físico explosivo.' },
+                        { type: 'Almuerzo', name: 'Pollo y Chicharrón Crocante', 
+                          ing: '150g pollo desmechado, 50g chicharrón, espinacas.', 
+                          prep: '1. El truco del chicharrón: meter al Air Fryer a máxima potencia (200°C) por 20 min. Botará toda su manteca al fondo de la canasta. 2. Secar con papel. 3. Servir con pollo sobre cama de espinaca.', 
+                          tip: 'Aprovechamos el chicharrón (tu gusto) extraiéndole la grasa mala, dejando la proteína crocante.' },
+                        { type: 'Snack', name: 'Gelatina Cero', 
+                          ing: '1 porción gelatina dietética, 1 manzana.', 
+                          prep: 'Mantener preparada gelatina en nevera. Comer fría junto a manzana picada.', 
+                          tip: 'Engaña el cerebro y frena el antojo de dulces vespertino.' },
+                        { type: 'Cena', name: 'Huevos y Jamón', 
+                          ing: '3 huevos, 2 rebanadas de jamón, espinaca, 5g creatina.', 
+                          prep: '1. Picar jamón y espinaca. 2. Sofreír levemente y añadir los huevos batidos. 3. Tomar creatina con agua.', 
+                          tip: 'Cena ligera, digestión rápida para mejorar la calidad del sueño (fase REM).' }
                     ]
                 }
             ];
 
             for (let i = 1; i <= 13; i++) {
-                // Rotación inteligente
-                let tIdx = (i - 1) % 4; // 0,1,2,3 -> Empuje, Traccion, Pierna, Descanso
-                let mIdx = (i - 1) % 3; // 0,1,2 -> Menú A, B, C
-
-                // Ajustes especiales según día
-                if(i === 1) { plan.training.push({...rutinasBase[tIdx], note: "Día 1: Arranque de impacto. Concéntrate en la técnica."}); }
-                else if (i === 13) { plan.training.push({...rutinasBase[0], note: "Día 13: Prueba de fuerza final. Mantén técnica estricta."}); }
-                else { plan.training.push(rutinasBase[tIdx]); }
-
+                let tIdx = (i - 1) % 4;
+                let mIdx = (i - 1) % 3;
+                plan.training.push(rutinasBase[tIdx]);
                 plan.nutrition.push({ day: i, ...menusBase[mIdx] });
             }
-
             return plan;
         }
 
         async function loadUserData(user) {
-            document.getElementById('loading-screen').classList.remove('hidden');
             document.getElementById('user-display-email').innerText = user.email;
-            
             try {
-                // Verificar si existe el plan del usuario
                 const planRef = doc(db, 'artifacts', currentAppId, 'users', user.uid, 'plan_13_dias', 'current');
                 let planSnap = await getDoc(planRef);
                 
                 if (!planSnap.exists()) {
-                    document.getElementById('loading-text').innerText = "CONSTRUYENDO PROTOCOLO PERSONALIZADO...";
-                    // Crear Seed Data
                     globalPlanData = generate13DaysSeedData();
-                    await setDoc(planRef, {
-                        createdAt: serverTimestamp(),
-                        data: JSON.stringify(globalPlanData)
-                    });
+                    await setDoc(planRef, { createdAt: serverTimestamp(), data: JSON.stringify(globalPlanData) });
                 } else {
-                    document.getElementById('loading-text').innerText = "RECUPERANDO DATOS DE BD...";
                     globalPlanData = JSON.parse(planSnap.data().data);
                 }
 
-                // Renderizar UI
-                renderSelectors();
+                // Generar UI
+                let htmlN = '', htmlT = '';
+                for(let i=1; i<=13; i++) {
+                    const baseCls = 'px-4 py-2 rounded-lg text-sm font-bold border border-gray-700 bg-gray-800/50 text-gray-400 hover:bg-gray-700 transition cursor-pointer min-w-max';
+                    htmlN += `<div onclick="selectDay('nutrition', ${i})" id="btn-nut-day-${i}" class="${baseCls}">${i === 1 ? 'DÍA 1 (HOY)' : 'DÍA '+i}</div>`;
+                    htmlT += `<div onclick="selectDay('training', ${i})" id="btn-tra-day-${i}" class="${baseCls}">${i === 1 ? 'DÍA 1 (HOY)' : 'DÍA '+i}</div>`;
+                }
+                document.getElementById('nutrition-day-selector').innerHTML = htmlN;
+                document.getElementById('training-day-selector').innerHTML = htmlT;
+
                 selectDay('nutrition', 1);
                 selectDay('training', 1);
+                updateDashboardDay(1);
 
-                // Configurar Listener de Métricas en Tiempo Real
                 setupMetricsListener(user.uid);
 
-                // Ocultar pantallas
                 setTimeout(() => {
                     document.getElementById('loading-screen').classList.add('hidden');
-                    document.getElementById('auth-screen').classList.add('opacity-0', 'pointer-events-none');
                 }, 800);
 
             } catch (error) {
                 console.error("Error BD:", error);
-                document.getElementById('loading-screen').classList.add('hidden');
-                showToast("Error conectando a BD: " + error.message, 'error');
-                if(error.message?.includes('referer')) document.getElementById('firebase-error-panel').classList.remove('hidden');
+                showToast("Error de lectura: " + error.message, 'error');
             }
         }
 
-        // --- FUNCIONES DE RENDERIZADO (UI) ---
-        function renderSelectors() {
-            let htmlN = ''; let htmlT = '';
-            for(let i=1; i<=13; i++) {
-                const activeCls = 'bg-blue-600 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]';
-                const baseCls = 'px-4 py-2 rounded-lg text-sm font-bold border border-gray-700 bg-gray-800/50 text-gray-400 hover:bg-gray-700 hover:text-white transition cursor-pointer min-w-max';
-                
-                htmlN += `<div onclick="selectDay('nutrition', ${i})" id="btn-nut-day-${i}" class="${baseCls}">${i === 1 ? 'DÍA 1 (HOY)' : 'DÍA '+i}</div>`;
-                htmlT += `<div onclick="selectDay('training', ${i})" id="btn-tra-day-${i}" class="${baseCls}">${i === 1 ? 'DÍA 1 (HOY)' : 'DÍA '+i}</div>`;
-            }
-            document.getElementById('nutrition-day-selector').innerHTML = htmlN;
-            document.getElementById('training-day-selector').innerHTML = htmlT;
-        }
-
+        // --- MANEJO DE DÍAS Y VISTAS ---
         window.selectDay = (module, dayNum) => {
-            // Actualizar Botones
+            const activeCls = ['bg-blue-600', 'text-white', 'border-blue-400', 'shadow-[0_0_10px_rgba(59,130,246,0.5)]'];
+            
             for(let i=1; i<=13; i++) {
                 const btn = document.getElementById(`btn-${module.substring(0,3)}-day-${i}`);
                 if(btn) {
-                    btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-400', 'shadow-[0_0_10px_rgba(59,130,246,0.5)]');
+                    btn.classList.remove(...activeCls);
                     btn.classList.add('bg-gray-800/50', 'text-gray-400', 'border-gray-700');
                     if(i === dayNum) {
                         btn.classList.remove('bg-gray-800/50', 'text-gray-400', 'border-gray-700');
-                        btn.classList.add('bg-blue-600', 'text-white', 'border-blue-400', 'shadow-[0_0_10px_rgba(59,130,246,0.5)]');
+                        btn.classList.add(...activeCls);
                     }
                 }
             }
 
             if(module === 'nutrition') {
-                currentSelectedNutritionDay = dayNum;
                 renderNutritionDetail(dayNum);
             } else {
-                currentSelectedTrainingDay = dayNum;
+                updateDashboardDay(dayNum); // Sincronizar dashboard con el día de entreno seleccionado
                 renderTrainingDetail(dayNum);
             }
         };
 
+        function updateDashboardDay(day) {
+            document.getElementById('dash-day-indicator').innerText = day;
+            document.getElementById('current-day-badge').innerText = day;
+            document.getElementById('dash-motivation-text').innerText = `"${MOTIVACIONES_DIARIAS[day-1]}"`;
+        }
+
         function renderNutritionDetail(day) {
             const data = globalPlanData.nutrition[day - 1];
             if(!data) return;
-
             let html = `
-                <div class="glass-panel p-6 border-t-4 border-t-blue-500 relative overflow-hidden">
-                    <div class="absolute -right-5 -top-5 opacity-5"><i class="ph ph-apple-pod text-9xl"></i></div>
-                    <div class="flex justify-between items-start mb-6 relative z-10">
+                <div class="glass-panel p-6 border-t-4 border-t-blue-500 relative">
+                    <div class="flex justify-between items-start mb-6">
                         <div>
-                            <h3 class="text-2xl font-black tracking-tight text-white uppercase">${data.name}</h3>
-                            <p class="text-blue-400 font-mono text-sm mt-1">Día ${day} de 13</p>
+                            <h3 class="text-2xl font-black text-white uppercase">${data.name}</h3>
+                            <p class="text-blue-400 font-mono text-sm">Día ${day} de 13</p>
                         </div>
                         <div class="flex gap-4 text-center">
-                            <div class="bg-black/30 p-2 rounded border border-gray-800"><div class="text-[10px] text-gray-500 uppercase font-bold">KCAL</div><div class="font-bold text-white">${data.kcal}</div></div>
-                            <div class="bg-blue-900/20 p-2 rounded border border-blue-900/50"><div class="text-[10px] text-blue-400 uppercase font-bold">PROT</div><div class="font-bold text-white">${data.p}g</div></div>
-                            <div class="bg-yellow-900/20 p-2 rounded border border-yellow-900/50"><div class="text-[10px] text-yellow-400 uppercase font-bold">CARB</div><div class="font-bold text-white">${data.c}g</div></div>
-                            <div class="bg-red-900/20 p-2 rounded border border-red-900/50"><div class="text-[10px] text-red-400 uppercase font-bold">GRAS</div><div class="font-bold text-white">${data.f}g</div></div>
+                            <div class="bg-black/30 p-2 rounded border border-gray-800"><div class="text-[10px] text-gray-500 font-bold">KCAL</div><div class="font-bold text-white">${data.kcal}</div></div>
+                            <div class="bg-blue-900/20 p-2 rounded border border-blue-900/50"><div class="text-[10px] text-blue-400 font-bold">PROT</div><div class="font-bold text-white">${data.p}g</div></div>
                         </div>
                     </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+                    <div class="grid grid-cols-1 gap-4">
                         ${data.meals.map(m => `
-                            <div class="bg-black/40 border border-gray-800/50 rounded-xl p-4 hover:border-gray-600 transition-colors">
+                            <div class="bg-black/40 border border-gray-800/50 rounded-xl p-4">
                                 <div class="flex items-center justify-between mb-3 border-b border-gray-800/50 pb-2">
-                                    <h4 class="font-bold text-blue-300 text-sm uppercase tracking-wide">${m.type}</h4>
+                                    <h4 class="font-bold text-blue-300 text-sm uppercase">${m.type}</h4>
                                     <span class="text-xs font-semibold text-white bg-gray-800 px-2 py-1 rounded">${m.name}</span>
                                 </div>
-                                <div class="space-y-3">
-                                    <div>
-                                        <div class="text-[10px] text-gray-500 uppercase font-bold mb-1"><i class="ph ph-shopping-cart"></i> Ingredientes Exactos</div>
-                                        <p class="text-sm text-gray-300 leading-snug">${m.ing}</p>
+                                <div class="space-y-4">
+                                    <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-800">
+                                        <div class="text-[10px] text-orange-400 font-bold mb-1 flex items-center gap-1"><i class="ph ph-shopping-cart"></i> INGREDIENTES EXACTOS</div>
+                                        <p class="text-sm text-gray-200">${m.ing}</p>
                                     </div>
                                     <div>
-                                        <div class="text-[10px] text-gray-500 uppercase font-bold mb-1"><i class="ph ph-cooking-pot"></i> Preparación (Cocina)</div>
-                                        <p class="text-sm text-gray-400 leading-snug bg-black/30 p-2 rounded">${m.prep}</p>
+                                        <div class="text-[10px] text-gray-400 font-bold mb-1 flex items-center gap-1"><i class="ph ph-cooking-pot"></i> INSTRUCCIONES DE PREPARACIÓN</div>
+                                        <p class="text-sm text-gray-300 leading-relaxed pl-2 border-l-2 border-gray-600">${m.prep}</p>
                                     </div>
                                     <div class="flex items-start gap-2 bg-blue-900/10 p-2 rounded border border-blue-900/30">
                                         <i class="ph ph-lightbulb text-yellow-500 mt-0.5"></i>
@@ -824,61 +891,175 @@
         function renderTrainingDetail(day) {
             const data = globalPlanData.training[day - 1];
             if(!data) return;
-
             let isRest = data.type.includes('Descanso');
-            let theme = isRest ? 'emerald' : 'blue';
-
+            
             let html = `
-                <div class="glass-panel p-6 border-t-4 border-t-${theme}-500 relative overflow-hidden">
-                    <div class="absolute -right-5 -top-5 opacity-5"><i class="ph ${isRest ? 'ph-bed' : 'ph-barbell'} text-9xl"></i></div>
-                    
-                    <div class="mb-6 relative z-10 border-b border-gray-800/50 pb-4">
-                        <div class="flex items-center gap-3 mb-1">
-                            <h3 class="text-2xl font-black tracking-tight text-white uppercase">${data.type}</h3>
-                            ${data.note ? `<span class="bg-yellow-500/20 text-yellow-400 text-[10px] px-2 py-0.5 rounded border border-yellow-500/30 font-bold uppercase tracking-wider">Nota del Día</span>` : ''}
-                        </div>
-                        <p class="text-${theme}-400 font-mono text-sm mb-2"><i class="ph ph-target"></i> Foco Muscular: ${data.focus}</p>
-                        <p class="text-sm text-gray-400 leading-relaxed bg-black/30 p-3 rounded-lg border border-gray-800">${data.desc}</p>
-                        ${data.note ? `<p class="text-xs text-yellow-500 mt-2 italic font-semibold">" ${data.note} "</p>` : ''}
-                    </div>
+                <div class="mb-4">
+                    <h3 class="text-2xl font-black text-white uppercase">${data.type}</h3>
+                    <p class="text-blue-400 font-mono text-sm">Foco: ${data.focus}</p>
+                    <p class="text-sm text-gray-400 mt-2">${data.desc}</p>
+                </div>
+                
+                ${!isRest ? `<button onclick="startWorkout(${day})" class="w-full glass-btn py-4 rounded-xl font-black uppercase tracking-widest text-lg shadow-[0_0_20px_rgba(59,130,246,0.3)] flex justify-center items-center gap-2 mb-6"><i class="ph ph-play-circle text-2xl"></i> Iniciar Rutina</button>` : ''}
 
-                    <div class="space-y-3 relative z-10">
-                        <div class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 px-1">Ejercicios del Protocolo</div>
-                        ${data.exercises.map((ex, idx) => `
-                            <div class="bg-black/40 border border-gray-800/50 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-start hover:bg-gray-900/50 transition">
-                                <div class="w-8 h-8 rounded-full bg-${theme}-900/50 border border-${theme}-500/50 flex items-center justify-center text-white font-black text-sm shrink-0">
-                                    ${idx + 1}
+                <div class="space-y-3">
+                    ${data.exercises.map((ex, idx) => `
+                        <div class="bg-black/40 border border-gray-800/50 rounded-xl p-4 flex items-start gap-4">
+                            <div class="w-8 h-8 rounded-full bg-blue-900/50 border border-blue-500/50 flex items-center justify-center text-white font-black shrink-0">${idx + 1}</div>
+                            <div class="w-full">
+                                <div class="flex justify-between mb-2">
+                                    <h4 class="font-bold text-gray-200">${ex.name}</h4>
+                                    <div class="text-xs font-mono bg-gray-800 px-2 py-1 rounded text-white">${ex.sets}x${ex.reps}</div>
                                 </div>
-                                <div class="flex-1 w-full">
-                                    <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-2 gap-2">
-                                        <h4 class="font-bold text-gray-200 text-base">${ex.name}</h4>
-                                        ${!isRest ? `
-                                            <div class="flex gap-2 text-xs font-mono">
-                                                <span class="bg-gray-800 px-2 py-1 rounded text-gray-300"><span class="text-gray-500">Series:</span> ${ex.sets}</span>
-                                                <span class="bg-gray-800 px-2 py-1 rounded text-white font-bold"><span class="text-gray-500 font-normal">Reps:</span> ${ex.reps}</span>
-                                                <span class="bg-blue-900/30 px-2 py-1 rounded text-blue-300 border border-blue-900/50"><i class="ph ph-timer"></i> ${ex.rest}</span>
-                                            </div>
-                                        ` : `
-                                            <div class="flex gap-2 text-xs font-mono">
-                                                <span class="bg-gray-800 px-2 py-1 rounded text-white font-bold"><span class="text-gray-500 font-normal">Tiempo:</span> ${ex.reps}</span>
-                                            </div>
-                                        `}
-                                    </div>
-                                    <p class="text-sm text-gray-400 bg-white/5 p-2 rounded border-l-2 border-${theme}-500 flex gap-2 items-start">
-                                        <i class="ph ph-info mt-0.5 text-${theme}-400"></i> ${ex.tip}
-                                    </p>
-                                </div>
+                                <p class="text-xs text-gray-400 border-l-2 border-blue-500 pl-2">${ex.tip}</p>
                             </div>
-                        `).join('')}
-                    </div>
+                        </div>
+                    `).join('')}
                 </div>
             `;
             document.getElementById('training-day-detail').innerHTML = html;
         }
 
-        // --- SISTEMA DE MÉTRICAS EN TIEMPO REAL (FIRESTORE) ---
-        let weightChartInstance = null;
-        
+        // --- MODO WORKOUT ACTIVO (EL CRONÓMETRO Y TRACKING) ---
+        window.startWorkout = (day) => {
+            const rawData = globalPlanData.training[day - 1];
+            
+            // Clonar profundo para estado de checkboxes
+            activeWorkoutData = JSON.parse(JSON.stringify(rawData));
+            
+            // Crear estructura de sets
+            activeWorkoutData.exercises.forEach(ex => {
+                ex.setList = [];
+                for(let i=0; i<ex.sets; i++) {
+                    ex.setList.push({ checked: false });
+                }
+            });
+
+            document.getElementById('training-overview').classList.add('hidden');
+            document.getElementById('workout-active-container').classList.remove('hidden');
+            document.getElementById('workout-active-container').classList.add('flex');
+            
+            document.getElementById('workout-active-title').innerText = `Día ${day} - ${activeWorkoutData.type}`;
+            
+            renderActiveExercises();
+        };
+
+        function renderActiveExercises() {
+            let html = '';
+            activeWorkoutData.exercises.forEach((ex, exIdx) => {
+                html += `
+                <div class="glass-panel p-4 border-l-4 border-l-blue-500">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-bold text-white text-lg">${exIdx + 1}. ${ex.name}</h4>
+                        <span class="text-xs text-blue-300 bg-blue-900/30 px-2 py-1 rounded border border-blue-900/50">Rest: ${ex.rest}s</span>
+                    </div>
+                    <div class="space-y-2 mt-4">
+                        ${ex.setList.map((set, setIdx) => `
+                            <div class="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-gray-800/50 hover:bg-gray-900 transition">
+                                <div class="text-sm font-bold text-gray-400 w-16">Set ${setIdx + 1}</div>
+                                <div class="text-sm text-gray-300 w-20 text-center font-mono">${ex.reps} reps</div>
+                                <input type="number" placeholder="kg" class="w-16 bg-transparent border-b border-gray-600 text-white text-center text-sm outline-none focus:border-blue-500" />
+                                <input type="checkbox" class="set-checkbox" ${set.checked ? 'checked' : ''} onchange="toggleSet(${exIdx}, ${setIdx}, ${ex.rest})">
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+            });
+            document.getElementById('workout-exercises-list').innerHTML = html;
+        }
+
+        window.toggleSet = (exIdx, setIdx, restSecs) => {
+            activeWorkoutData.exercises[exIdx].setList[setIdx].checked = true; // simplificado, solo asume marcado
+            startRestTimer(restSecs);
+        };
+
+        function startRestTimer(seconds) {
+            clearInterval(workoutInterval);
+            currentTargetSeconds = seconds;
+            workoutSeconds = 0;
+            
+            const floatPanel = document.getElementById('workout-timer-float');
+            const display = document.getElementById('timer-display');
+            const label = document.getElementById('timer-label');
+            const icon = document.getElementById('timer-icon');
+            const targetText = document.getElementById('timer-target-text');
+
+            floatPanel.classList.remove('hidden');
+            floatPanel.classList.remove('border-red-500', 'bg-red-900/90');
+            floatPanel.classList.add('bg-gray-900/90', 'border-gray-700');
+            label.innerText = 'Descanso';
+            label.classList.remove('text-red-400');
+            label.classList.add('text-gray-400');
+            icon.classList.replace('ph-warning', 'ph-timer');
+            icon.classList.replace('text-red-500', 'text-blue-400');
+            display.classList.remove('text-red-400');
+            display.classList.add('text-white');
+            targetText.innerText = `Objetivo: ${seconds}s`;
+
+            updateTimerUI();
+
+            workoutInterval = setInterval(() => {
+                workoutSeconds++;
+                updateTimerUI();
+                
+                // Si se pasa del tiempo (Lap/Overtime)
+                if(workoutSeconds > currentTargetSeconds) {
+                    floatPanel.classList.remove('bg-gray-900/90', 'border-gray-700');
+                    floatPanel.classList.add('bg-red-950/90', 'border-red-500');
+                    label.innerText = 'TIEMPO EXTRA';
+                    label.classList.remove('text-gray-400');
+                    label.classList.add('text-red-400');
+                    display.classList.remove('text-white');
+                    display.classList.add('text-red-400');
+                    icon.classList.replace('ph-timer', 'ph-warning');
+                    icon.classList.replace('text-blue-400', 'text-red-500');
+                    
+                    let overtime = workoutSeconds - currentTargetSeconds;
+                    targetText.innerHTML = `Límite excedido por <strong class="text-red-400">+${overtime}s</strong>`;
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            let m = Math.floor(workoutSeconds / 60).toString().padStart(2, '0');
+            let s = (workoutSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('timer-display').innerText = `${m}:${s}`;
+        }
+
+        window.resetTimer = () => {
+            clearInterval(workoutInterval);
+            document.getElementById('workout-timer-float').classList.add('hidden');
+            workoutSeconds = 0;
+        };
+
+        window.abortWorkout = () => {
+            if(confirm('¿Seguro que quieres salir de la rutina activa? Se perderá el progreso no guardado.')) {
+                window.resetTimer();
+                document.getElementById('workout-active-container').classList.add('hidden');
+                document.getElementById('workout-active-container').classList.remove('flex');
+                document.getElementById('training-overview').classList.remove('hidden');
+            }
+        };
+
+        window.finishWorkout = async () => {
+            window.resetTimer();
+            // Lógica para guardar en Firestore
+            if(currentUser) {
+                try {
+                    await addDoc(collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'workouts_log'), {
+                        date: serverTimestamp(),
+                        routine: activeWorkoutData.type
+                    });
+                    showToast("¡Rutina Completada y Guardada en Historial!", "success");
+                } catch(e) { console.error("No se pudo guardar", e); }
+            }
+            document.getElementById('workout-active-container').classList.add('hidden');
+            document.getElementById('workout-active-container').classList.remove('flex');
+            document.getElementById('training-overview').classList.remove('hidden');
+        };
+
+
+        // --- SISTEMA DE MÉTRICAS ANTROPOMÉTRICAS (FIRESTORE) ---
         function setupMetricsListener(uid) {
             const metricsRef = collection(db, 'artifacts', currentAppId, 'users', uid, 'metrics');
             const q = query(metricsRef, orderBy('createdAt', 'desc'));
@@ -890,35 +1071,32 @@
                 let chartLabels = [];
 
                 if (snapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-gray-500">Sin registros aún. ¡Ingresa el primero arriba!</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-3 py-6 text-center text-gray-500">Sin registros aún. ¡Mídete y anota!</td></tr>';
                 } else {
                     let firstData = snapshot.docs[0].data();
-                    document.getElementById('dash-weight').innerHTML = `${firstData.weight} <span class="text-sm text-gray-500 font-medium">kg</span>`;
+                    document.getElementById('dash-weight').innerHTML = `${firstData.weight} <span class="text-sm text-gray-500">kg</span>`;
 
                     snapshot.forEach(doc => {
                         const d = doc.data();
                         const dateStr = d.createdAt?.toDate().toLocaleDateString('es-CO', {day:'2-digit', month:'short'}) || 'Hoy';
                         html += `
-                            <tr class="border-b border-gray-800/50 hover:bg-white/5 transition-colors">
-                                <td class="px-4 py-3 font-medium text-white">${dateStr}</td>
-                                <td class="px-4 py-3 text-blue-400 font-bold">${d.weight}</td>
-                                <td class="px-4 py-3">${d.sleep}</td>
-                                <td class="px-4 py-3"><span class="bg-green-500/20 text-green-400 text-[10px] px-2 py-1 rounded uppercase tracking-wider font-bold">Registrado</span></td>
+                            <tr class="border-b border-gray-800/50 hover:bg-white/5">
+                                <td class="px-3 py-2 font-medium text-white">${dateStr}</td>
+                                <td class="px-3 py-2 text-blue-400 font-bold">${d.weight || '-'}</td>
+                                <td class="px-3 py-2">${d.cintura || '-'}</td>
+                                <td class="px-3 py-2">${d.pecho || '-'}</td>
+                                <td class="px-3 py-2">${d.brazo || '-'}</td>
+                                <td class="px-3 py-2">${d.sleep || '-'}</td>
                             </tr>
                         `;
-                        
-                        // Preparar datos gráfica (invertidos para cronológico)
-                        chartLabels.unshift(dateStr);
-                        chartData.unshift(d.weight);
+                        if(d.weight) {
+                            chartLabels.unshift(dateStr);
+                            chartData.unshift(d.weight);
+                        }
                     });
                     tbody.innerHTML = html;
                 }
-                
                 updateWeightChart(chartLabels, chartData);
-
-            }, (error) => {
-                console.error("Error Snapshot:", error);
-                showToast("Error leyendo métricas.", "error");
             });
         }
 
@@ -931,16 +1109,19 @@
             btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> Guardando...';
             btn.disabled = true;
 
-            const w = parseFloat(document.getElementById('input-weight').value);
-            const s = parseFloat(document.getElementById('input-sleep').value);
+            const payload = {
+                weight: parseFloat(document.getElementById('input-weight').value),
+                sleep: parseFloat(document.getElementById('input-sleep').value),
+                cintura: parseFloat(document.getElementById('input-cintura').value) || null,
+                pecho: parseFloat(document.getElementById('input-pecho').value) || null,
+                brazo: parseFloat(document.getElementById('input-brazo').value) || null,
+                pierna: parseFloat(document.getElementById('input-pierna').value) || null,
+                createdAt: serverTimestamp()
+            };
 
             try {
-                await addDoc(collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'metrics'), {
-                    weight: w,
-                    sleep: s,
-                    createdAt: serverTimestamp()
-                });
-                showToast("Registro biométrico guardado en BD.");
+                await addDoc(collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'metrics'), payload);
+                showToast("Registro biométrico y antropométrico exitoso.");
                 e.target.reset();
             } catch (error) {
                 showToast(error.message, 'error');
@@ -950,20 +1131,16 @@
             }
         });
 
-        // --- CHART JS INITS ---
+        // --- CHARTS (Sin Cambios Profundos, adaptados visualmente) ---
         function initMacrosChart() {
             const ctx = document.getElementById('macrosChart');
-            if(!ctx) return;
-            
-            if(window.macrosChartInstance) window.macrosChartInstance.destroy();
-            
+            if(!ctx || window.macrosChartInstance) return;
             Chart.defaults.color = '#64748b';
             Chart.defaults.font.family = 'Inter';
-
             window.macrosChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['Día 1', 'Día 2', 'Día 3', 'Día 4'], // Muestra de ciclo
+                    labels: ['Día 1', 'Día 2', 'Día 3', 'Día 4'],
                     datasets: [
                         { label: 'Proteína', data: [165, 160, 155, 160], backgroundColor: 'rgba(59, 130, 246, 0.9)', borderRadius: 4 },
                         { label: 'Carbos', data: [210, 170, 110, 180], backgroundColor: 'rgba(234, 179, 8, 0.9)', borderRadius: 4 },
@@ -972,56 +1149,34 @@
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        x: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' }, border: { dash: [4, 4] } }
-                    },
-                    plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } }
+                    scales: { x: { stacked: true }, y: { stacked: true } }
                 }
             });
         }
 
+        let weightChartInstance = null;
         function updateWeightChart(labels, data) {
             const ctx = document.getElementById('weightChart');
             if(!ctx) return;
-
             if(weightChartInstance) weightChartInstance.destroy();
-
-            // Si no hay data, simular la meta para el gráfico vacío
-            if(data.length === 0) {
-                labels = ['Inicio']; data = [78];
-            }
+            if(data.length === 0) { labels = ['Inicio']; data = [78]; }
 
             weightChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Peso (kg)',
-                        data: data,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#020617',
-                        pointBorderColor: '#3b82f6',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        tension: 0.3,
-                        fill: true
+                        label: 'Peso (kg)', data: data,
+                        borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3, pointBackgroundColor: '#020617', pointBorderColor: '#3b82f6',
+                        tension: 0.3, fill: true
                     }]
                 },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        y: { min: 73, max: 80, grid: { color: 'rgba(255,255,255,0.05)' }, border: {dash: [4,4]} },
-                        x: { grid: { color: 'rgba(255,255,255,0)' } }
-                    },
-                    plugins: { legend: { display: false } }
-                }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
-        // --- AUTH LISTENER CENTRAL ---
+        // --- AUTH ---
         if(auth) {
             onAuthStateChanged(auth, async (user) => {
                 const authScreen = document.getElementById('auth-screen');
@@ -1037,47 +1192,24 @@
             });
         }
 
-        // Formularios Auth
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const btn = document.getElementById('btn-login-submit');
-            const ogText = btn.innerHTML;
-            
+            const email = document.getElementById('email').value, password = document.getElementById('password').value, btn = document.getElementById('btn-login-submit'), ogText = btn.innerHTML;
             btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> Autenticando...';
             btn.disabled = true;
-            
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
+            try { await signInWithEmailAndPassword(auth, email, password); } 
+            catch (error) {
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                    try {
-                        await createUserWithEmailAndPassword(auth, email, password);
-                        showToast("Atleta registrado exitosamente.");
-                    } catch (err) {
-                        showToast(err.message, 'error');
-                        if(err.message.includes('referer')) document.getElementById('firebase-error-panel').classList.remove('hidden');
-                    }
-                } else {
-                    showToast(error.message, 'error');
-                    if(error.message.includes('referer')) document.getElementById('firebase-error-panel').classList.remove('hidden');
-                }
-            } finally {
-                btn.innerHTML = ogText;
-                btn.disabled = false;
-            }
+                    try { await createUserWithEmailAndPassword(auth, email, password); showToast("Atleta registrado exitosamente."); } 
+                    catch (err) { showToast(err.message, 'error'); }
+                } else { showToast(error.message, 'error'); }
+            } finally { btn.innerHTML = ogText; btn.disabled = false; }
         });
 
         document.getElementById('btn-google').addEventListener('click', async () => {
-            const provider = new GoogleAuthProvider();
-            try {
-                await signInWithPopup(auth, provider);
-            } catch (error) {
-                showToast("Error Biométrica: " + error.message, 'error');
-            }
+            try { await signInWithPopup(auth, new GoogleAuthProvider()); } 
+            catch (error) { showToast(error.message, 'error'); }
         });
-        
     </script>
 </body>
 </html>
