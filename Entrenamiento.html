@@ -402,6 +402,13 @@
                     </div>
                 </div>
 
+                <!-- NUEVO: Botón para guardar sesión de hidratación y café -->
+                <div class="flex justify-end -mt-2">
+                    <button id="btn-save-habits" onclick="saveDailyHabits()" class="glass-btn px-6 py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                        <i class="ph ph-cloud-arrow-up text-lg"></i> Guardar Sesión Diaria
+                    </button>
+                </div>
+
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-2 glass-panel p-0 overflow-hidden flex flex-col">
                         <div class="p-4 border-b border-gray-800/50 bg-white/5"><h3 class="text-sm font-bold text-gray-200 uppercase tracking-wide">Distribución de Macronutrientes</h3></div>
@@ -954,6 +961,44 @@
             if(dailyCoffeeCups >= 4) showToast("Atención: Has alcanzado el límite recomendado de cafeína.", "error");
         };
 
+        // NUEVO: Funciones para guardar y recuperar la sesión diaria de hábitos (Agua y Café)
+        const getTodayStr = () => {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        };
+
+        window.saveDailyHabits = async () => {
+            if(!currentUser) return showToast("Error: Sesión no iniciada", "error");
+            const btn = document.getElementById('btn-save-habits');
+            const ogText = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-lg"></i> Guardando...';
+            btn.disabled = true;
+
+            try {
+                const todayStr = getTodayStr();
+                const habitsRef = doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'daily_habits', todayStr);
+                await setDoc(habitsRef, {
+                    water: dailyWaterGlasses,
+                    coffee: dailyCoffeeCups,
+                    lastUpdated: serverTimestamp()
+                }, { merge: true });
+                
+                btn.innerHTML = '<i class="ph ph-check-circle text-lg"></i> ¡Guardado!';
+                btn.classList.replace('bg-blue-600', 'bg-green-600');
+                showToast("Sesión diaria de hidratación/café guardada en la nube.", "success");
+                
+                setTimeout(() => {
+                    btn.innerHTML = ogText;
+                    btn.classList.replace('bg-green-600', 'bg-blue-600');
+                    btn.disabled = false;
+                }, 2000);
+            } catch (e) {
+                showToast("Error guardando sesión: " + e.message, "error");
+                btn.innerHTML = ogText;
+                btn.disabled = false;
+            }
+        };
+
         // --- MANEJO DE VISTA CLINICA (AYUNO Y PURGANTE) ---
         const toggleFasting = document.getElementById('toggle-fasting');
         const fastingMsg = document.getElementById('fasting-active-msg');
@@ -1131,6 +1176,24 @@
                         document.getElementById('input-purga-date').value = snap.data().lastDate;
                     }
                 });
+
+                // NUEVO: Cargar los datos de agua y café guardados del día de hoy
+                try {
+                    const todayStr = getTodayStr();
+                    const habitsRef = doc(db, 'artifacts', currentAppId, 'users', user.uid, 'daily_habits', todayStr);
+                    const habitsSnap = await getDoc(habitsRef);
+                    if(habitsSnap.exists()) {
+                        const hData = habitsSnap.data();
+                        dailyWaterGlasses = hData.water || 0;
+                        dailyCoffeeCups = hData.coffee || 0;
+                        
+                        // Actualizar UI con datos de BD
+                        document.getElementById('water-count-text').innerText = `${dailyWaterGlasses} / 12 V.`;
+                        document.getElementById('water-liters').innerHTML = `${(dailyWaterGlasses * 0.25).toFixed(2)}<span class="text-xs text-gray-500 ml-1">L</span>`;
+                        document.getElementById('water-bar').style.width = `${(dailyWaterGlasses / 12) * 100}%`;
+                        document.getElementById('coffee-count').innerText = dailyCoffeeCups;
+                    }
+                } catch(e) { console.warn("No se encontraron hábitos guardados hoy o hubo error:", e); }
 
                 setTimeout(() => { document.getElementById('loading-screen').classList.add('hidden'); }, 800);
 
