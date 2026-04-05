@@ -522,6 +522,17 @@
                         <button onclick="finishWorkout()" class="glass-btn px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg">Finalizar</button>
                     </div>
 
+                    <!-- NUEVO: Progress Bar Rutina -->
+                    <div class="glass-panel p-4 border-l-4 border-blue-500 bg-gradient-to-r from-blue-900/10 to-transparent">
+                         <div class="flex justify-between items-center mb-2">
+                             <h4 class="text-sm font-bold text-white uppercase flex items-center gap-2"><i class="ph ph-chart-line-up"></i> Progreso de la Rutina</h4>
+                             <div class="text-xs text-blue-400 font-mono" id="workout-progress-text">0% (0/0)</div>
+                         </div>
+                         <div class="w-full bg-gray-800/80 rounded-full h-2 overflow-hidden border border-gray-700">
+                             <div id="workout-progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                         </div>
+                    </div>
+
                     <div id="workout-exercises-list" class="space-y-4 pb-24"></div>
 
                     <!-- Timer Flotante -->
@@ -1489,7 +1500,22 @@
         function renderNutritionDetail(day) {
             const data = globalPlanData.nutrition[day - 1];
             if(!data) return;
+            
+            // Calculamos calorías aproximadas por comida
+            let mealKcal = Math.round(data.kcal / data.meals.length);
+
             let html = `
+                <!-- NUEVO: Progress Bar Nutrición -->
+                <div class="glass-panel p-4 border-l-4 border-blue-500 bg-gradient-to-r from-blue-900/10 to-transparent mb-6">
+                     <div class="flex justify-between items-center mb-2">
+                         <h4 class="text-sm font-bold text-white uppercase flex items-center gap-2"><i class="ph ph-chart-pie-slice"></i> Cumplimiento del Menú</h4>
+                         <div class="text-xs text-blue-400 font-mono"><span id="nut-progress-text">0</span> / <span id="nut-total-text">${data.meals.length}</span> Comidas</div>
+                     </div>
+                     <div class="w-full bg-gray-800/80 rounded-full h-2 overflow-hidden border border-gray-700">
+                         <div id="nut-progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                     </div>
+                </div>
+
                 <div class="glass-panel p-6 border-t-4 border-t-blue-500 relative">
                     <div class="flex justify-between items-start mb-6">
                         <div>
@@ -1520,6 +1546,14 @@
                                         <p class="text-sm text-gray-300 leading-relaxed pl-2 border-l-2 border-gray-600">${m.prep}</p>
                                     </div>
                                 </div>
+                                <!-- NUEVO: Botón de Marcar Comida y Auto-Kcal -->
+                                <div class="flex justify-between items-center mt-3 pt-3 border-t border-gray-800/50">
+                                    <div class="text-xs text-gray-400 font-mono flex items-center gap-1"><i class="ph ph-fire text-orange-400"></i> ~${mealKcal} kcal</div>
+                                    <label class="flex items-center gap-2 cursor-pointer group">
+                                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-green-400 transition-colors">Marcar Consumo</span>
+                                        <input type="checkbox" class="set-checkbox" onchange="toggleMeal(${day}, ${idx}, ${mealKcal}, this)">
+                                    </label>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -1528,6 +1562,31 @@
             const container = document.getElementById('nutrition-day-detail');
             if(container) container.innerHTML = html;
         }
+
+        // NUEVO: Lógica de Check para Nutrición
+        window.toggleMeal = (day, idx, kcal, checkboxElement) => {
+            const checkboxes = document.querySelectorAll('#nutrition-day-detail .set-checkbox');
+            let checkedCount = 0;
+            checkboxes.forEach(cb => { if(cb.checked) checkedCount++; });
+            
+            let total = checkboxes.length;
+            let pct = Math.round((checkedCount / total) * 100);
+            
+            const pText = document.getElementById('nut-progress-text');
+            const pBar = document.getElementById('nut-progress-bar');
+            if(pText) pText.innerText = checkedCount;
+            if(pBar) pBar.style.width = `${pct}%`;
+            
+            if(checkboxElement.checked) {
+                dailyCalories += kcal;
+                showToast(`+${kcal} kcal añadidas al contador global.`, 'success');
+            } else {
+                dailyCalories = Math.max(0, dailyCalories - kcal);
+                showToast(`-${kcal} kcal restadas del contador global.`, 'info');
+            }
+            updateCaloriesUI();
+            saveDailyHabits(); // Autoguardado silencioso de las métricas en Firebase
+        };
 
         function renderTrainingDetail(day) {
             const data = globalPlanData.training[day - 1];
@@ -1595,7 +1654,10 @@
 
         function renderActiveExercises() {
             let html = '';
+            let totalSetsInit = 0;
+            
             activeWorkoutData.exercises.forEach((ex, exIdx) => {
+                totalSetsInit += ex.setList.length;
                 // Recuperar el peso previo usado en este ejercicio para la progresión
                 let prevWeight = exerciseHistory[ex.name] || '';
                 let defaultReps = parseInt(ex.reps) || 10;
@@ -1621,18 +1683,44 @@
                                     <input type="number" id="weight-${exIdx}-${setIdx}" value="${prevWeight}" placeholder="kg" class="w-16 bg-transparent border-b border-gray-600 text-white text-center text-sm outline-none focus:border-blue-500" />
                                     <span class="text-[10px] text-gray-500">kg</span>
                                 </div>
-                                <input type="checkbox" class="set-checkbox" ${set.checked ? 'checked' : ''} onchange="toggleSet(${exIdx}, ${setIdx}, ${ex.rest || 60})">
+                                <input type="checkbox" class="set-checkbox" ${set.checked ? 'checked' : ''} onchange="toggleSet(${exIdx}, ${setIdx}, ${ex.rest || 60}, this)">
                             </div>
                         `).join('')}
                     </div>
                 </div>`;
             });
             document.getElementById('workout-exercises-list').innerHTML = html;
+            
+            // Inicializar progreso de rutina
+            const wpText = document.getElementById('workout-progress-text');
+            const wpBar = document.getElementById('workout-progress-bar');
+            if(wpText) wpText.innerText = `0% (0/${totalSetsInit})`;
+            if(wpBar) wpBar.style.width = `0%`;
         }
 
-        window.toggleSet = (exIdx, setIdx, restSecs) => {
-            activeWorkoutData.exercises[exIdx].setList[setIdx].checked = true;
-            startRestTimer(restSecs);
+        window.toggleSet = (exIdx, setIdx, restSecs, checkboxElement) => {
+            activeWorkoutData.exercises[exIdx].setList[setIdx].checked = checkboxElement.checked;
+            
+            // Calcular progreso
+            let totalSets = 0;
+            let checkedSets = 0;
+            activeWorkoutData.exercises.forEach(ex => {
+                ex.setList.forEach(s => {
+                    totalSets++;
+                    if(s.checked) checkedSets++;
+                });
+            });
+            let pct = Math.round((checkedSets / totalSets) * 100);
+            
+            const pText = document.getElementById('workout-progress-text');
+            const pBar = document.getElementById('workout-progress-bar');
+            if(pText) pText.innerText = `${pct}% (${checkedSets}/${totalSets})`;
+            if(pBar) pBar.style.width = `${pct}%`;
+
+            // Solo disparar timer si se marcó (no si se desmarcó accidentalmente)
+            if(checkboxElement.checked) {
+                startRestTimer(restSecs);
+            }
         };
 
         function startRestTimer(seconds) {
