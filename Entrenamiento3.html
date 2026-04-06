@@ -248,8 +248,9 @@
             user: null,
             profile: {},
             antropo: {},
-            nutrition: { meals: [], water: 0, coffee: 0, supplements: { protein: 0, creatine: 0 } },
+            nutrition: { meals: [], water: 0, coffee: 0, supplements: { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 } },
             workoutSession: null,
+            exercises: [],
             unsubscribers: []
         };
 
@@ -392,7 +393,7 @@
                     setDoc(profileRef, {
                         createdAt: new Date().toISOString(),
                         cycleDays: 13,
-                        startDate: new Date().toISOString(),
+                        startDate: new Date().toISOString().split('T')[0],
                         role: state.user.email === ADMIN_EMAIL ? 'admin' : 'student'
                     });
                 }
@@ -410,22 +411,29 @@
             const unsubNutri = onSnapshot(nutriRef, (docSnap) => {
                 if(docSnap.exists()) {
                     state.nutrition = docSnap.data();
+                    if(!state.nutrition.supplements) state.nutrition.supplements = { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 };
                 } else {
-                    state.nutrition = { meals: [], water: 0, coffee: 0, supplements: { protein: 0, creatine: 0 }};
+                    state.nutrition = { meals: [], water: 0, coffee: 0, supplements: { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 }};
                 }
                 if(currentViewId === 'nutrition') renderNutrition(); // Refresh si está en la vista
             });
 
-            state.unsubscribers.push(unsubProfile, unsubAntropo, unsubNutri);
+            // 4. Ejercicios Personalizados
+            const exercisesRef = collection(db, 'artifacts', APP_ID, 'users', uid, 'exercises');
+            const unsubExercises = onSnapshot(exercisesRef, (snap) => {
+                state.exercises = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            });
+
+            state.unsubscribers.push(unsubProfile, unsubAntropo, unsubNutri, unsubExercises);
         }
 
         function calculateTimeMetrics() {
             if(!state.profile.startDate) return;
             const start = new Date(state.profile.startDate);
             const now = new Date();
-            const diffTime = Math.abs(now - start);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            state.profile.currentDay = diffDays;
+            const diffTime = now.getTime() - start.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // Día 1 es el mismo día de inicio
+            state.profile.currentDay = diffDays > 0 ? diffDays : 1;
         }
 
         // --- MOTOR DE VISTAS (SPA) ---
@@ -459,30 +467,67 @@
         // ==========================================
         function buildDashboard() {
             const dayText = state.profile.currentDay ? `Día ${state.profile.currentDay} de ${state.profile.cycleDays || 13}` : 'Iniciando...';
+            const macros = calcularMacros();
+            
+            // Cálculos base para dashboard (Usando Antropometría o Defaults)
+            const baseWeight = state.antropo.peso_actual || 70;
+            const bf = parseFloat(state.antropo.calc_bf) || (state.profile.gender === 'F' ? 25 : 15);
+            const lbm = parseFloat(state.antropo.calc_lbm) || (baseWeight * (1 - bf/100));
+            
             return `
                 <div class="space-y-6">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                             <h2 class="text-3xl font-bold text-white">Centro de Control</h2>
-                            <p class="text-gray-400">Progreso del Ciclo de Recomposición: <span class="text-sky-400 font-semibold">${dayText}</span></p>
+                            <p class="text-gray-400">Progreso del Protocolo IA: <span class="text-sky-400 font-semibold">${dayText}</span></p>
                         </div>
                         <button onclick="appManager.navigate('training')" class="glass-btn px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
                             <i class="fa-solid fa-play"></i> Iniciar Entrenamiento Hoy
                         </button>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <!-- Card Calorías -->
-                        <div class="glass-panel p-6">
-                            <h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-fire text-orange-500"></i> Nutrición Diaria</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <!-- Card Calorías y Macros -->
+                        <div class="glass-panel p-6 md:col-span-2">
+                            <h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-fire text-orange-500"></i> Nutrición y Macros Diarios</h3>
                             <div class="text-3xl font-bold text-white mb-2">
-                                ${calcularCaloriasTotales()} <span class="text-sm text-gray-500">/ ${state.profile.targetKcal || 2000} Kcal</span>
+                                ${macros.k.toFixed(0)} <span class="text-sm text-gray-500">/ ${state.profile.targetKcal || 2000} Kcal</span>
                             </div>
-                            <div class="w-full bg-gray-700 rounded-full h-2.5">
-                                <div class="bg-orange-500 h-2.5 rounded-full" style="width: ${Math.min(100, (calcularCaloriasTotales()/(state.profile.targetKcal||2000))*100)}%"></div>
+                            <div class="w-full bg-gray-700 rounded-full h-2.5 mb-4">
+                                <div class="bg-orange-500 h-2.5 rounded-full" style="width: ${Math.min(100, (macros.k/(state.profile.targetKcal||2000))*100)}%"></div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 text-center text-sm">
+                                <div class="bg-gray-800/50 rounded p-2 border border-blue-500/30">
+                                    <p class="text-blue-400 font-bold">${macros.p.toFixed(1)}g</p><p class="text-xs text-gray-400">Proteína</p>
+                                </div>
+                                <div class="bg-gray-800/50 rounded p-2 border border-green-500/30">
+                                    <p class="text-green-400 font-bold">${macros.c.toFixed(1)}g</p><p class="text-xs text-gray-400">Carbs</p>
+                                </div>
+                                <div class="bg-gray-800/50 rounded p-2 border border-yellow-500/30">
+                                    <p class="text-yellow-400 font-bold">${macros.f.toFixed(1)}g</p><p class="text-xs text-gray-400">Grasas</p>
+                                </div>
                             </div>
                         </div>
                         
+                        <!-- Card Biomarcadores -->
+                        <div class="glass-panel p-6">
+                            <h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-dna text-purple-400"></i> Biomarcadores Base</h3>
+                            <div class="space-y-3 mt-4 text-sm">
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1">
+                                    <span class="text-gray-400">Peso Total</span>
+                                    <span class="font-bold text-white">${baseWeight.toFixed(1)} kg</span>
+                                </div>
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1">
+                                    <span class="text-gray-400">Grasa Corporal</span>
+                                    <span class="font-bold text-sky-400">${bf.toFixed(1)} %</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400">Masa Magra</span>
+                                    <span class="font-bold text-green-400">${lbm.toFixed(1)} kg</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Card Hidratación -->
                         <div class="glass-panel p-6">
                             <h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-droplet text-blue-400"></i> Vasos de Agua</h3>
@@ -491,23 +536,21 @@
                                 ${[1,2,3,4,5,6,7,8].map(i => `<div class="h-8 w-1/8 flex-1 rounded ${i <= (state.nutrition.water||0) ? 'bg-blue-500' : 'bg-gray-700'}"></div>`).join('')}
                             </div>
                         </div>
-
-                        <!-- Card Recuperación -->
-                        <div class="glass-panel p-6">
-                            <h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-bed text-purple-400"></i> Estado SNC & Fatiga</h3>
-                            <p class="text-sm text-gray-300">Basado en tu último entrenamiento y horas de sueño (Simulado).</p>
-                            <div class="mt-4 flex items-center gap-3">
-                                <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg text-sm font-bold">Óptimo para Hipertrofia</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             `;
         }
 
+        function calcularMacros() {
+            if(!state.nutrition || !state.nutrition.meals) return {k:0, p:0, c:0, f:0};
+            return state.nutrition.meals.reduce((acc, m) => {
+                acc.k += Number(m.kcal)||0; acc.p += Number(m.prot)||0; acc.c += Number(m.carb)||0; acc.f += Number(m.fat)||0;
+                return acc;
+            }, {k:0, p:0, c:0, f:0});
+        }
+
         function calcularCaloriasTotales() {
-            if(!state.nutrition || !state.nutrition.meals) return 0;
-            return state.nutrition.meals.reduce((acc, meal) => acc + (Number(meal.kcal) || 0), 0);
+            return calcularMacros().k;
         }
 
         // ==========================================
@@ -515,6 +558,7 @@
         // ==========================================
         function buildProfile() {
             const p = state.profile || {};
+            const todayStr = new Date().toISOString().split('T')[0];
             return `
                 <div class="max-w-4xl mx-auto space-y-6">
                     <div class="flex justify-between items-center">
@@ -527,7 +571,7 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="glass-panel p-6 space-y-4">
-                            <h3 class="text-xl font-bold text-sky-400 border-b border-gray-700 pb-2">Datos Básicos</h3>
+                            <h3 class="text-xl font-bold text-sky-400 border-b border-gray-700 pb-2">Datos Básicos y Cronología</h3>
                             
                             <div>
                                 <label class="block text-xs text-gray-400 mb-1">Fecha de Nacimiento</label>
@@ -536,13 +580,25 @@
                             </div>
                             
                             <div>
-                                <label class="block text-xs text-gray-400 mb-1">Género Biológico (Métricas Antropométricas)</label>
+                                <label class="block text-xs text-gray-400 mb-1">Género Biológico (Para Fórmulas y TMB)</label>
                                 <select id="prof-gender" class="w-full p-2 rounded glass-input text-sm">
                                     <option value="">Seleccionar...</option>
                                     <option value="M" ${p.gender==='M'?'selected':''}>Masculino</option>
                                     <option value="F" ${p.gender==='F'?'selected':''}>Femenino</option>
                                 </select>
                             </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Día de Inicio</label>
+                                    <input type="date" id="prof-startdate" value="${p.startDate || todayStr}" class="w-full p-2 rounded glass-input text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Duración del Protocolo</label>
+                                    <input type="number" id="prof-cycledays" value="${p.cycleDays || 13}" class="w-full p-2 rounded glass-input text-sm" min="1">
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-gray-500">Por defecto 13 días. Si lo amplías, la IA adaptará todos los días faltantes.</p>
 
                             <div>
                                 <label class="block text-xs text-gray-400 mb-1">Somatotipo Predominante</label>
@@ -555,34 +611,35 @@
                         </div>
 
                         <div class="glass-panel p-6 space-y-4">
-                            <h3 class="text-xl font-bold text-sky-400 border-b border-gray-700 pb-2">Historial Clínico y Físico</h3>
+                            <h3 class="text-xl font-bold text-sky-400 border-b border-gray-700 pb-2">Historial Clínico y Marcas</h3>
                             
                             <div>
-                                <label class="block text-xs text-gray-400 mb-1">Tiempo sin ejercicio constante</label>
-                                <select id="prof-timeoff" class="w-full p-2 rounded glass-input text-sm">
-                                    <option value="0">Activo actualmente</option>
-                                    <option value="1-3" ${p.timeoff==='1-3'?'selected':''}>1 a 3 meses</option>
-                                    <option value="4-12" ${p.timeoff==='4-12'?'selected':''}>4 a 12 meses</option>
-                                    <option value="+12" ${p.timeoff==='+12'?'selected':''}>Más de 1 año</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs text-gray-400 mb-1">Peso Máximo Levantado Previamente (Press Banca/Sentadilla)</label>
+                                <label class="block text-xs text-gray-400 mb-1">Marcas Previas (1RM Estimado / Fuerza)</label>
                                 <select id="prof-maxweight" class="w-full p-2 rounded glass-input text-sm">
-                                    <option value="none" ${p.maxweight==='none'?'selected':''}>Principiante absoluto</option>
-                                    <option value="norecord" ${p.maxweight==='norecord'?'selected':''}>No lo recuerdo bien</option>
-                                    <option value="moderate" ${p.maxweight==='moderate'?'selected':''}>Moderado (50-80kg)</option>
-                                    <option value="high" ${p.maxweight==='high'?'selected':''}>Avanzado (+80kg)</option>
+                                    <option value="norecord" ${p.maxweight==='norecord'?'selected':''}>No lo recuerdo / Principiante</option>
+                                    <option value="moderate" ${p.maxweight==='moderate'?'selected':''}>Intermedio (Tengo experiencia en sobrecarga)</option>
+                                    <option value="advanced" ${p.maxweight==='advanced'?'selected':''}>Avanzado (Conozco mis 1RM exactos)</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label class="block text-xs text-gray-400 mb-1 text-red-400">
-                                    <i class="fa-solid fa-truck-medical"></i> Directriz Médica Espinal Activa
+                                <label class="block text-xs text-gray-400 mb-3 text-red-400">
+                                    <i class="fa-solid fa-truck-medical"></i> Condiciones Médicas / Restricciones
                                 </label>
-                                <textarea id="prof-medical" placeholder="Ej. Hernia L4-L5, Escoliosis, Restricción de carga axial..." class="w-full p-2 rounded glass-input text-sm h-20">${p.medical || ''}</textarea>
-                                <p class="text-[10px] text-gray-500 mt-1">Esta info restringe automáticamente ejercicios que comprometan la columna vertebral.</p>
+                                <div class="space-y-3">
+                                    <label class="flex items-start gap-2 text-sm text-gray-300">
+                                        <input type="checkbox" id="med-lumbar" ${p.medLumbar ? 'checked' : ''} class="mt-1 rounded bg-gray-800 border-gray-700 text-sky-500">
+                                        <span><b>Columna / Zona Lumbar</b> <br><span class="text-[10px] text-gray-500">Evitar carga axial pesada (Sentadilla libre, Peso Muerto Pesado)</span></span>
+                                    </label>
+                                    <label class="flex items-start gap-2 text-sm text-gray-300">
+                                        <input type="checkbox" id="med-rodillas" ${p.medRodillas ? 'checked' : ''} class="mt-1 rounded bg-gray-800 border-gray-700 text-sky-500">
+                                        <span><b>Rodillas</b> <br><span class="text-[10px] text-gray-500">Evitar impacto y flexión extrema. Enfoque en cadena posterior.</span></span>
+                                    </label>
+                                    <label class="flex items-start gap-2 text-sm text-gray-300">
+                                        <input type="checkbox" id="med-hombros" ${p.medHombros ? 'checked' : ''} class="mt-1 rounded bg-gray-800 border-gray-700 text-sky-500">
+                                        <span><b>Hombros / Manguito Rotador</b> <br><span class="text-[10px] text-gray-500">Evitar empujes pesados tras nuca o abducción extrema.</span></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -605,10 +662,13 @@
                 const data = {
                     dob: document.getElementById('prof-dob').value,
                     gender: document.getElementById('prof-gender').value,
+                    startDate: document.getElementById('prof-startdate').value,
+                    cycleDays: parseInt(document.getElementById('prof-cycledays').value) || 13,
                     somatotype: document.getElementById('prof-somatotype').value,
-                    timeoff: document.getElementById('prof-timeoff').value,
                     maxweight: document.getElementById('prof-maxweight').value,
-                    medical: document.getElementById('prof-medical').value,
+                    medLumbar: document.getElementById('med-lumbar').checked,
+                    medRodillas: document.getElementById('med-rodillas').checked,
+                    medHombros: document.getElementById('med-hombros').checked,
                     updatedAt: new Date().toISOString()
                 };
                 try {
@@ -638,58 +698,67 @@
             return `
                 <div class="max-w-6xl mx-auto space-y-6">
                     <div class="flex justify-between items-center">
-                        <h2 class="text-3xl font-bold text-white">Módulo Antropométrico (ISAK)</h2>
+                        <h2 class="text-3xl font-bold text-white">Módulo Antropométrico Avanzado</h2>
                         <button id="btn-save-antropo" class="glass-btn px-4 py-2 rounded-lg flex items-center gap-2">
                             <i class="fa-solid fa-save"></i> Guardar Mediciones
                         </button>
                     </div>
-                    <p class="text-gray-400">Registro estricto para análisis de descompensación. <span id="save-status-antropo" class="ml-4 text-sm"></span></p>
+                    <p class="text-gray-400">Si dejas campos vacíos, la app usará parámetros base automáticamente. <span id="save-status-antropo" class="ml-4 text-sm"></span></p>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        
+                        <!-- Básicos -->
+                        <div class="glass-panel p-6">
+                            <h3 class="text-lg font-bold text-sky-400 mb-4 border-b border-gray-700 pb-2"><i class="fa-solid fa-scale-balanced"></i> Básicos</h3>
+                            ${createInputGroup('peso_actual', 'Peso Total', 'Peso en ayunas sin ropa.', 'kg')}
+                            ${createInputGroup('estatura', 'Estatura', 'Altura descalzo.', 'cm')}
+                            <div class="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400 border border-gray-700">
+                                <p>Requeridos para calcular la Tasa Metabólica Basal (TMB) y la Masa Magra Total (LBM).</p>
+                            </div>
+                        </div>
+
                         <!-- Pliegues Cutáneos -->
                         <div class="glass-panel p-6">
-                            <h3 class="text-lg font-bold text-sky-400 mb-4 border-b border-gray-700 pb-2"><i class="fa-solid fa-ruler"></i> Pliegues Cutáneos (Plicómetro)</h3>
-                            ${createInputGroup('pl_axilar', 'Axilar Media', 'Medición oblicua, brazo atrás. Punto medio entre apófisis xifoide y línea axilar media.')}
-                            ${createInputGroup('pl_tricipital', 'Tricipital', 'Posterior del brazo, entre olécranon y acromion.')}
-                            ${createInputGroup('pl_bicipital', 'Bicipital', 'Línea media anterior del brazo, 1 cm sobre el bíceps.')}
-                            ${createInputGroup('pl_subescapular', 'Subescapular', '1 a 2 cm debajo del ángulo inferior de la escápula.')}
-                            ${createInputGroup('pl_suprailiaco', 'Suprailíaco', 'Oblicua, 1 cm sobre cresta ilíaca anterior superior.')}
-                            ${createInputGroup('pl_abdominal', 'Abdominal', '2 cm a la derecha del ombligo, paralelo al eje longitudinal.')}
-                            ${createInputGroup('pl_muslo', 'Muslo Frontal', 'Paralelo al eje. Paciente desplaza miembro inferior al frente.')}
-                            ${createInputGroup('pl_pantorrilla', 'Pantorrilla Medial', 'Sentado, rodilla 90°, lugar de mayor perímetro.')}
+                            <h3 class="text-lg font-bold text-sky-400 mb-4 border-b border-gray-700 pb-2"><i class="fa-solid fa-ruler"></i> Pliegues</h3>
+                            ${createInputGroup('pl_axilar', 'Axilar Media', '')}
+                            ${createInputGroup('pl_tricipital', 'Tricipital', '')}
+                            ${createInputGroup('pl_bicipital', 'Bicipital', '')}
+                            ${createInputGroup('pl_subescapular', 'Subescapular', '')}
+                            ${createInputGroup('pl_suprailiaco', 'Suprailíaco', '')}
+                            ${createInputGroup('pl_abdominal', 'Abdominal', '')}
+                            ${createInputGroup('pl_muslo', 'Muslo Frontal', '')}
+                            ${createInputGroup('pl_pantorrilla', 'Pantorrilla Medial', '')}
                         </div>
 
                         <!-- Perímetros -->
                         <div class="glass-panel p-6">
-                            <h3 class="text-lg font-bold text-sky-400 mb-4 border-b border-gray-700 pb-2"><i class="fa-solid fa-tape"></i> Perímetros (Cinta Métrica)</h3>
-                            ${createInputGroup('per_cuello', 'Cuello', 'Por encima de la prominencia laríngea.', 'cm')}
-                            ${createInputGroup('per_torax', 'Torácica', 'Punto medio entre línea axilar anterior y pezón (H) / 1/3 línea axilar (M).', 'cm')}
-                            ${createInputGroup('per_brazo_rel', 'Brazo Relajado', 'Punto medio acromial-radial.', 'cm')}
-                            ${createInputGroup('per_brazo_con', 'Brazo Contraído', 'Máximo perímetro en flexión.', 'cm')}
-                            ${createInputGroup('per_cintura', 'Cintura', 'Perímetro mínimo visible.', 'cm')}
-                            ${createInputGroup('per_cadera', 'Cadera', 'Máxima prominencia glútea.', 'cm')}
-                            ${createInputGroup('per_muslo', 'Muslo', '1 cm debajo del pliegue glúteo.', 'cm')}
-                            ${createInputGroup('per_pantorrilla', 'Pantorrilla', 'Máximo perímetro.', 'cm')}
+                            <h3 class="text-lg font-bold text-sky-400 mb-4 border-b border-gray-700 pb-2"><i class="fa-solid fa-tape"></i> Perímetros</h3>
+                            ${createInputGroup('per_torax', 'Torácica', '', 'cm')}
+                            ${createInputGroup('per_brazo_con', 'Brazo Contraído', '', 'cm')}
+                            ${createInputGroup('per_cintura', 'Cintura', 'Mínimo visible.', 'cm')}
+                            ${createInputGroup('per_cadera', 'Cadera', 'Máxima prominencia.', 'cm')}
+                            ${createInputGroup('per_muslo', 'Muslo', '', 'cm')}
                         </div>
 
-                        <!-- Análisis y TEM -->
+                        <!-- Análisis y Fórmulas -->
                         <div class="glass-panel p-6 flex flex-col">
-                            <h3 class="text-lg font-bold text-purple-400 mb-4 border-b border-gray-700 pb-2"><i class="fa-solid fa-microscope"></i> Análisis Descompensación</h3>
-                            <div class="flex-1 space-y-4">
-                                <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-                                    <h4 class="text-sm font-bold text-gray-300">Sumatoria de Pliegues</h4>
-                                    <p class="text-2xl font-bold text-sky-400" id="calc-sum-pliegues">0.0 mm</p>
+                            <h3 class="text-lg font-bold text-purple-400 mb-4 border-b border-gray-700 pb-2"><i class="fa-solid fa-microscope"></i> Bio-Métricas</h3>
+                            <div class="flex-1 space-y-3">
+                                <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+                                    <h4 class="text-xs font-bold text-gray-300">% Grasa Corporal <span class="text-[9px] text-gray-500">(Yuhasz)</span></h4>
+                                    <p class="text-2xl font-bold text-sky-400" id="calc-bf">0.0 %</p>
                                 </div>
-                                <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-                                    <h4 class="text-sm font-bold text-gray-300">Índice Cintura/Cadera</h4>
-                                    <p class="text-2xl font-bold text-sky-400" id="calc-icc">0.00</p>
+                                <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+                                    <h4 class="text-xs font-bold text-gray-300">Masa Magra (LBM)</h4>
+                                    <p class="text-xl font-bold text-green-400" id="calc-lbm">0.0 kg</p>
                                 </div>
-                                <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-                                    <h4 class="text-sm font-bold text-gray-300">Alerta Descompensación Tren</h4>
-                                    <p class="text-xs text-gray-400 mt-1" id="calc-descomp">Calculando ratio Torso/Pierna...</p>
+                                <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+                                    <h4 class="text-xs font-bold text-gray-300">TMB Basal <span class="text-[9px] text-gray-500">(Katch-McArdle)</span></h4>
+                                    <p class="text-xl font-bold text-orange-400" id="calc-bmr">0 kcal</p>
                                 </div>
-                                <div class="mt-auto">
-                                    <p class="text-[10px] text-gray-500"><i class="fa-solid fa-info-circle"></i> Control de Calidad: Error Técnico de Medición (TEM) intra-evaluador estimado: &lt; 5% aceptable.</p>
+                                <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+                                    <h4 class="text-xs font-bold text-gray-300">Índice Cintura/Cadera</h4>
+                                    <p class="text-lg font-bold text-sky-400" id="calc-icc">0.00</p>
                                 </div>
                             </div>
                         </div>
@@ -700,30 +769,48 @@
 
         function initAntropoListeners() {
             const calculate = () => {
-                const getVal = (id) => parseFloat(document.getElementById(`ant-${id}`).value) || 0;
+                const getVal = (id) => parseFloat(document.getElementById(`ant-${id}`)?.value) || 0;
                 
-                // Sumatoria
-                const pliegues = ['pl_axilar', 'pl_tricipital', 'pl_bicipital', 'pl_subescapular', 'pl_suprailiaco', 'pl_abdominal', 'pl_muslo', 'pl_pantorrilla'];
-                const sum = pliegues.reduce((acc, id) => acc + getVal(id), 0);
-                document.getElementById('calc-sum-pliegues').innerText = sum.toFixed(1) + ' mm';
+                const peso = getVal('peso_actual') || 70; // Fallback 70kg
+                const estatura = getVal('estatura') || 170; // Fallback 170cm
+                const gender = state.profile.gender || 'M';
+                let age = 30; // fallback age
+                if(state.profile.dob) age = Math.floor((new Date() - new Date(state.profile.dob).getTime()) / 3.15576e+10);
+
+                // Yuhasz modificado (Tricipital, Subescapular, Suprailíaco, Abdominal, Muslo, Pantorrilla)
+                const pliegues_yuhasz = ['pl_tricipital', 'pl_subescapular', 'pl_suprailiaco', 'pl_abdominal', 'pl_muslo', 'pl_pantorrilla'];
+                const sum_yuhasz = pliegues_yuhasz.reduce((acc, id) => acc + getVal(id), 0);
+                
+                let bf = 0;
+                if(sum_yuhasz > 0) {
+                    bf = gender === 'M' ? (sum_yuhasz * 0.1051) + 2.585 : (sum_yuhasz * 0.1548) + 3.580;
+                } else {
+                    bf = gender === 'M' ? 15 : 25; // Parámetros base por defecto si está vacío
+                }
+                
+                const lbm = peso * (1 - bf/100);
+                
+                // Si hay pliegues y peso, Katch-McArdle. Si no, Mifflin-St Jeor.
+                let bmr = 370 + (21.6 * lbm); 
+                if(sum_yuhasz === 0 && peso !== 70) {
+                    bmr = (10 * peso) + (6.25 * estatura) - (5 * age) + (gender === 'M' ? 5 : -161);
+                }
+
+                document.getElementById('calc-bf').innerText = bf.toFixed(1) + ' %' + (sum_yuhasz===0?' (Base)':'');
+                document.getElementById('calc-lbm').innerText = lbm.toFixed(1) + ' kg';
+                document.getElementById('calc-bmr').innerText = bmr.toFixed(0) + ' kcal';
 
                 // ICC
                 const cintura = getVal('per_cintura');
                 const cadera = getVal('per_cadera');
                 if(cintura && cadera) {
                     const icc = cintura/cadera;
-                    let risk = icc > 0.9 ? '<span class="text-red-400">(Riesgo Alto)</span>' : '<span class="text-green-400">(Óptimo)</span>';
+                    let risk = icc > (gender==='M'?0.9:0.85) ? '<span class="text-red-400 text-xs ml-1">(Riesgo)</span>' : '<span class="text-green-400 text-xs ml-1">(Óptimo)</span>';
                     document.getElementById('calc-icc').innerHTML = `${icc.toFixed(2)} ${risk}`;
                 }
-
-                // Descomp
-                const torax = getVal('per_torax');
-                const muslo = getVal('per_muslo');
-                if(torax && muslo) {
-                    const ratio = torax / muslo;
-                    let desc = ratio > 2.0 ? "Posible hiperdesarrollo de torso respecto a tren inferior." : (ratio < 1.4 ? "Predominancia de tren inferior." : "Proporción equilibrada Torso/Pierna.");
-                    document.getElementById('calc-descomp').innerText = desc;
-                }
+                
+                // Guardar en variable temporal para inyectar en Firestore
+                window._tempAntropoCalc = { calc_bf: bf, calc_lbm: lbm, calc_bmr: bmr };
             };
 
             // Listeners para auto-calcular
@@ -740,8 +827,11 @@
                     data[key] = parseFloat(input.value) || 0;
                 });
                 
+                if(window._tempAntropoCalc) Object.assign(data, window._tempAntropoCalc);
+                
                 try {
                     await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'antropometria', 'latest'), data);
+                    state.antropo = data; // actualizar estado local
                     appManager.saveIndicator('save-status-antropo');
                 } catch(e) { ModalSystem.alert("Error guardando: " + e.message); }
             };
@@ -762,6 +852,7 @@
                 renderView('nutrition');
             },
             addSupplement: async (type, amount) => {
+                if(!state.nutrition.supplements) state.nutrition.supplements = {};
                 state.nutrition.supplements[type] = Math.max(0, (state.nutrition.supplements[type] || 0) + amount);
                 await nutriManager.save();
                 renderView('nutrition');
@@ -793,27 +884,35 @@
                             <option value="Cena">Cena</option>
                             <option value="Snack">Snack</option>
                         </select>
-                        <input type="text" id="meal-desc" placeholder="Descripción (Ej. Avena con proteína)" class="w-full p-2 rounded glass-input">
+                        <input type="text" id="meal-desc" placeholder="Ingrediente/Comida (Ej. 100g Pechuga de Pollo)" class="w-full p-2 rounded glass-input">
                         <div class="flex gap-2">
                             <input type="number" id="meal-qty" placeholder="Cant." class="w-1/3 p-2 rounded glass-input">
                             <select id="meal-unit" class="w-2/3 p-2 rounded glass-input">
                                 <option value="gramos">Gramos</option>
-                                <option value="tazas">Tazas</option>
                                 <option value="ml">Mililitros</option>
                                 <option value="unidades">Unidades</option>
+                                <option value="tazas">Tazas</option>
                             </select>
                         </div>
-                        <input type="number" id="meal-kcal" placeholder="Calorías (Kcal)" class="w-full p-2 rounded glass-input">
+                        <div class="grid grid-cols-4 gap-2 mt-2 border-t border-gray-700 pt-3">
+                            <div><label class="text-[10px] text-gray-400 font-bold text-blue-400">Proteína(g)</label><input type="number" id="meal-prot" placeholder="0" class="w-full p-2 rounded glass-input text-xs text-center border-blue-500/30"></div>
+                            <div><label class="text-[10px] text-gray-400 font-bold text-green-400">Carbs(g)</label><input type="number" id="meal-carb" placeholder="0" class="w-full p-2 rounded glass-input text-xs text-center border-green-500/30"></div>
+                            <div><label class="text-[10px] text-gray-400 font-bold text-yellow-400">Grasa(g)</label><input type="number" id="meal-fat" placeholder="0" class="w-full p-2 rounded glass-input text-xs text-center border-yellow-500/30"></div>
+                            <div><label class="text-[10px] text-gray-400 font-bold text-orange-400">Kcal Tot.</label><input type="number" id="meal-kcal" placeholder="0" class="w-full p-2 rounded glass-input text-xs text-center border-orange-500/30"></div>
+                        </div>
                     </div>
                 `;
-                ModalSystem.show("Agregar Comida", html, 'confirm', async () => {
+                ModalSystem.show("Agregar Ingrediente a Diario", html, 'confirm', async () => {
                     const meal = {
                         id: Date.now().toString(),
                         type: document.getElementById('meal-type').value,
                         desc: document.getElementById('meal-desc').value,
                         qty: document.getElementById('meal-qty').value,
                         unit: document.getElementById('meal-unit').value,
-                        kcal: document.getElementById('meal-kcal').value,
+                        prot: parseFloat(document.getElementById('meal-prot').value) || 0,
+                        carb: parseFloat(document.getElementById('meal-carb').value) || 0,
+                        fat: parseFloat(document.getElementById('meal-fat').value) || 0,
+                        kcal: parseFloat(document.getElementById('meal-kcal').value) || 0,
                         checked: false
                     };
                     if(!state.nutrition.meals) state.nutrition.meals = [];
@@ -840,28 +939,46 @@
         function buildNutrition() {
             const n = state.nutrition;
             const meals = n.meals || [];
+            const s = n.supplements || { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 };
             
             const renderMealItem = (m) => `
                 <div class="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg border border-gray-700/50 mb-2 transition ${m.checked ? 'opacity-50' : ''}">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 flex-1">
                         <button onclick="nutriManager.toggleMealCheck('${m.id}')" class="text-xl ${m.checked ? 'text-green-400' : 'text-gray-500'} hover:text-green-300">
                             <i class="fa-${m.checked ? 'solid' : 'regular'} fa-circle-check"></i>
                         </button>
-                        <div>
+                        <div class="flex-1">
                             <p class="font-bold text-sm text-gray-200">${m.type}: ${m.desc}</p>
-                            <p class="text-xs text-gray-400">${m.qty} ${m.unit} • ${m.kcal} Kcal</p>
+                            <div class="flex gap-3 text-xs text-gray-400 mt-1">
+                                <span class="bg-gray-700 px-1 rounded">${m.qty} ${m.unit}</span>
+                                <span class="text-blue-400">P: ${m.prot}g</span>
+                                <span class="text-green-400">C: ${m.carb}g</span>
+                                <span class="text-yellow-400">G: ${m.fat}g</span>
+                                <span class="text-white font-bold">${m.kcal} Kcal</span>
+                            </div>
                         </div>
                     </div>
                     <button onclick="nutriManager.deleteMeal('${m.id}')" class="text-red-400 hover:text-red-300 p-2"><i class="fa-solid fa-trash"></i></button>
                 </div>
             `;
 
+            const createSupplementRow = (key, label, step=1, unit="g") => `
+                <div class="flex justify-between items-center py-1 border-b border-gray-700/50 last:border-0">
+                    <span class="text-xs text-gray-300">${label}</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="nutriManager.addSupplement('${key}', -${step})" class="px-2 bg-gray-700 rounded text-xs hover:bg-gray-600">-</button>
+                        <span class="w-10 text-center text-sm font-bold text-purple-400">${s[key] || 0}${unit}</span>
+                        <button onclick="nutriManager.addSupplement('${key}', ${step})" class="px-2 bg-gray-700 rounded text-xs hover:bg-gray-600">+</button>
+                    </div>
+                </div>
+            `;
+
             return `
                 <div class="max-w-6xl mx-auto space-y-6">
                     <div class="flex justify-between items-center">
-                        <h2 class="text-3xl font-bold text-white">Diario Nutricional</h2>
-                        <button onclick="nutriManager.showAddMeal()" class="glass-btn px-4 py-2 rounded-lg flex items-center gap-2">
-                            <i class="fa-solid fa-plus"></i> Agregar
+                        <h2 class="text-3xl font-bold text-white">Diario Nutricional Detallado</h2>
+                        <button onclick="nutriManager.showAddMeal()" class="glass-btn px-4 py-2 rounded-lg flex items-center gap-2 border-sky-500 bg-sky-900/20 text-white">
+                            <i class="fa-solid fa-plus"></i> Añadir Ingrediente
                         </button>
                     </div>
 
@@ -870,13 +987,13 @@
                         <!-- Lista de Comidas -->
                         <div class="lg:col-span-2 glass-panel p-6">
                             <h3 class="text-lg font-bold text-sky-400 mb-4 border-b border-gray-700 pb-2">Plan de Alimentación de Hoy</h3>
-                            ${meals.length === 0 ? '<p class="text-gray-500 text-center py-4">No hay comidas registradas. Agrega desde el botón superior.</p>' : ''}
+                            ${meals.length === 0 ? '<p class="text-gray-500 text-center py-4">Agrega ingredientes uno a uno con sus detalles de macronutrientes.</p>' : ''}
                             ${meals.map(renderMealItem).join('')}
                         </div>
 
                         <!-- Monitores Específicos -->
-                        <div class="space-y-6">
-                            <div class="glass-panel p-6 text-center">
+                        <div class="space-y-4">
+                            <div class="glass-panel p-4 text-center">
                                 <h3 class="text-sm font-bold text-blue-400 mb-2"><i class="fa-solid fa-glass-water"></i> Vasos de Agua (250ml)</h3>
                                 <div class="flex justify-center items-center gap-4">
                                     <button onclick="nutriManager.addWater(-1)" class="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600">-</button>
@@ -885,32 +1002,21 @@
                                 </div>
                             </div>
 
-                            <div class="glass-panel p-6 text-center">
+                            <div class="glass-panel p-4">
+                                <h3 class="text-sm font-bold text-purple-400 mb-2 text-center"><i class="fa-solid fa-capsules"></i> Suplementos (Dosis)</h3>
+                                ${createSupplementRow('protein', 'Proteína en Polvo', 5, 'g')}
+                                ${createSupplementRow('creatine', 'Creatina Monohidrato', 1, 'g')}
+                                ${createSupplementRow('magnesium', 'Magnesio', 100, 'mg')}
+                                ${createSupplementRow('zinc', 'Zinc / ZMA', 5, 'mg')}
+                                ${createSupplementRow('omega3', 'Omega 3', 1, 'cap')}
+                            </div>
+
+                            <div class="glass-panel p-4 text-center">
                                 <h3 class="text-sm font-bold text-amber-600 mb-2"><i class="fa-solid fa-mug-hot"></i> Tazas de Café</h3>
                                 <div class="flex justify-center items-center gap-4">
                                     <button onclick="nutriManager.addCoffee(-1)" class="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600">-</button>
                                     <span class="text-3xl font-bold">${n.coffee || 0}</span>
                                     <button onclick="nutriManager.addCoffee(1)" class="w-8 h-8 rounded-full bg-amber-700 hover:bg-amber-600">+</button>
-                                </div>
-                            </div>
-
-                            <div class="glass-panel p-6 text-center">
-                                <h3 class="text-sm font-bold text-purple-400 mb-2"><i class="fa-solid fa-pills"></i> Suplementos (Gramos)</h3>
-                                <div class="flex justify-between items-center mb-2">
-                                    <span class="text-xs text-gray-300">Proteína</span>
-                                    <div class="flex items-center gap-2">
-                                        <button onclick="nutriManager.addSupplement('protein', -5)" class="px-2 bg-gray-700 rounded">-</button>
-                                        <span class="w-8 text-center text-sm font-bold">${n.supplements?.protein || 0}</span>
-                                        <button onclick="nutriManager.addSupplement('protein', 5)" class="px-2 bg-gray-700 rounded">+</button>
-                                    </div>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-xs text-gray-300">Creatina</span>
-                                    <div class="flex items-center gap-2">
-                                        <button onclick="nutriManager.addSupplement('creatine', -1)" class="px-2 bg-gray-700 rounded">-</button>
-                                        <span class="w-8 text-center text-sm font-bold">${n.supplements?.creatine || 0}</span>
-                                        <button onclick="nutriManager.addSupplement('creatine', 1)" class="px-2 bg-gray-700 rounded">+</button>
-                                    </div>
                                 </div>
                             </div>
 
@@ -931,12 +1037,90 @@
             timeElapsed: 0,
             isResting: false,
             restTarget: 90, // seconds
+            currentExerciseIndex: 0,
+            activeExercises: [], // Se llenará dinámicamente al armar la sesión
             
+            showExerciseEditor: () => {
+                const html = `
+                    <div class="space-y-3 text-left">
+                        <input type="text" id="ex-name" placeholder="Nombre (Ej. Press Banca Inclinado)" class="w-full p-2 rounded glass-input border-purple-500/30">
+                        <input type="text" id="ex-link" placeholder="Link YouTube/Video (Opcional)" class="w-full p-2 rounded glass-input text-sm">
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="ex-muscle" class="w-full p-2 rounded glass-input text-sm">
+                                <option value="Pecho">Pecho</option>
+                                <option value="Espalda">Espalda</option>
+                                <option value="Cuádriceps">Cuádriceps</option>
+                                <option value="Isquios/Glúteo">Isquios / Glúteo</option>
+                                <option value="Hombros">Hombros</option>
+                                <option value="Brazos">Brazos</option>
+                                <option value="Core">Core</option>
+                            </select>
+                            <select id="ex-type" class="w-full p-2 rounded glass-input text-sm">
+                                <option value="Compuesto">Compuesto (Multiarticular)</option>
+                                <option value="Aislado">Aislado (Analítico)</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="ex-focus" class="w-full p-2 rounded glass-input text-sm">
+                                <option value="Hipertrofia">Enfoque: Hipertrofia</option>
+                                <option value="Fuerza">Enfoque: Fuerza (1-5 RM)</option>
+                                <option value="Resistencia">Enfoque: Resistencia</option>
+                            </select>
+                            <input type="text" id="ex-equip" placeholder="Equipo (Barra, Polea...)" class="w-full p-2 rounded glass-input text-sm">
+                        </div>
+                        <textarea id="ex-desc" placeholder="Descripción / Tempo (Ej. 3-0-1-0) / Tips Biomecánicos" class="w-full p-2 rounded glass-input text-sm h-16"></textarea>
+                    </div>
+                `;
+                ModalSystem.show("Gestor de Ejercicios: Crear Nuevo", html, 'confirm', async () => {
+                    if(!state.user) return;
+                    const ex = {
+                        name: document.getElementById('ex-name').value,
+                        link: document.getElementById('ex-link').value,
+                        muscle: document.getElementById('ex-muscle').value,
+                        type: document.getElementById('ex-type').value,
+                        focus: document.getElementById('ex-focus').value,
+                        equip: document.getElementById('ex-equip').value,
+                        desc: document.getElementById('ex-desc').value,
+                        createdAt: new Date().toISOString()
+                    };
+                    if(!ex.name) return ModalSystem.alert("El nombre es obligatorio.");
+                    try {
+                        await addDoc(collection(db, 'artifacts', APP_ID, 'users', state.user.uid, 'exercises'), ex);
+                        ModalSystem.alert("Ejercicio añadido a tu librería personal.");
+                        renderView('training');
+                    } catch(e) { ModalSystem.alert("Error guardando ejercicio: " + e.message); }
+                });
+            },
+
+            addExerciseToWorkout: () => {
+                if(!state.exercises || state.exercises.length === 0) return ModalSystem.alert("Primero debes crear ejercicios usando el 'Gestor de Ejercicios' en la parte superior.");
+                let options = state.exercises.map(e => `<option value="${e.id}">${e.name} (${e.muscle})</option>`).join('');
+                const html = `
+                    <div class="text-left space-y-2">
+                        <label class="text-sm text-gray-400">Selecciona de tu librería:</label>
+                        <select id="select-active-ex" class="w-full p-2 rounded glass-input">${options}</select>
+                    </div>
+                `;
+                ModalSystem.show("Agregar a la sesión de Hoy", html, 'confirm', () => {
+                    const id = document.getElementById('select-active-ex').value;
+                    const ex = state.exercises.find(e => e.id === id);
+                    if(ex) {
+                        workoutManager.activeExercises.push({...ex, sets: [{weight:0, reps:0, rir:2, done:false}]});
+                        renderView('training');
+                    }
+                });
+            },
+
             startWorkout: () => {
+                if(workoutManager.activeExercises.length === 0) {
+                    return ModalSystem.alert("Agrega al menos un ejercicio a la sesión antes de iniciar.");
+                }
                 document.getElementById('workout-dashboard').classList.add('hidden');
                 document.getElementById('workout-active').classList.remove('hidden');
                 workoutManager.timeElapsed = 0;
+                workoutManager.currentExerciseIndex = 0;
                 workoutManager.startTimer();
+                renderActiveExercise();
             },
             
             startTimer: () => {
@@ -958,7 +1142,7 @@
                 if(workoutManager.isResting) {
                     if(workoutManager.timeElapsed > workoutManager.restTarget) {
                         el.classList.add('timer-penalty');
-                        document.getElementById('timer-status').innerText = "¡PENALIZACIÓN DE DESCANSO! (Exceso)";
+                        document.getElementById('timer-status').innerText = "¡PENALIZACIÓN! (Exceso)";
                     } else {
                         el.classList.remove('timer-penalty');
                         document.getElementById('timer-status').innerText = `Descanso activo (Obj: ${workoutManager.restTarget}s)`;
@@ -978,48 +1162,152 @@
                 workoutManager.updateTimerUI();
             },
 
+            addSetToCurrent: () => {
+                const ex = workoutManager.activeExercises[workoutManager.currentExerciseIndex];
+                ex.sets.push({weight:0, reps:0, rir:2, done:false});
+                renderActiveExercise();
+            },
+
+            toggleSetDone: (idx) => {
+                const ex = workoutManager.activeExercises[workoutManager.currentExerciseIndex];
+                ex.sets[idx].done = !ex.sets[idx].done;
+                if(ex.sets[idx].done) {
+                    // Guardar los valores tipeados en los inputs al confirmar
+                    ex.sets[idx].weight = document.getElementById(`set-w-${idx}`).value;
+                    ex.sets[idx].reps = document.getElementById(`set-r-${idx}`).value;
+                    ex.sets[idx].rir = document.getElementById(`set-rir-${idx}`).value;
+                }
+                renderActiveExercise();
+            },
+            
+            nextExercise: () => {
+                if(workoutManager.currentExerciseIndex < workoutManager.activeExercises.length - 1) {
+                    workoutManager.currentExerciseIndex++;
+                    renderActiveExercise();
+                } else {
+                    ModalSystem.alert("Estás en el último ejercicio.");
+                }
+            },
+            
+            prevExercise: () => {
+                if(workoutManager.currentExerciseIndex > 0) {
+                    workoutManager.currentExerciseIndex--;
+                    renderActiveExercise();
+                }
+            },
+
             contingency: (type) => {
-                if(type === 'fail') ModalSystem.alert("Fallo muscular registrado. ¡Esa es la señal de hipertrofia! Asegúrate de anotar el peso.");
+                if(type === 'fail') ModalSystem.alert("Fallo muscular registrado. ¡Esa es la señal de hipertrofia! Asegúrate de anotar el peso para calcular tu próximo aumento progresivo.");
                 if(type === 'home') ModalSystem.alert("Activando Modo Casa: Reemplaza con Flexiones al fallo, Sentadillas Búlgaras y Dominadas en puerta.");
             },
             
             finishWorkout: async () => {
                 clearInterval(workoutManager.timerInterval);
-                ModalSystem.alert("¡Entrenamiento guardado con éxito! Evaluando fatiga para el próximo ciclo.");
-                
-                // Simular guardado
                 if(state.user) {
-                    await addDoc(collection(db, 'artifacts', APP_ID, 'users', state.user.uid, 'workouts'), {
-                        date: new Date().toISOString(),
-                        duration: workoutManager.timeElapsed,
-                        completed: true
-                    });
+                    try {
+                        await addDoc(collection(db, 'artifacts', APP_ID, 'users', state.user.uid, 'workouts'), {
+                            date: new Date().toISOString(),
+                            duration: workoutManager.timeElapsed,
+                            exercises: workoutManager.activeExercises,
+                            completed: true
+                        });
+                        ModalSystem.alert("¡Entrenamiento guardado con éxito! Evaluando analíticas de sobrecarga para el próximo ciclo.");
+                    } catch(e) { ModalSystem.alert("Error guardando entrenamiento."); }
                 }
+                workoutManager.activeExercises = [];
                 renderView('training');
             }
         };
 
+        function renderActiveExercise() {
+            const ex = workoutManager.activeExercises[workoutManager.currentExerciseIndex];
+            if(!ex) return;
+            
+            const html = `
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-gray-400 text-sm border-b border-gray-700">
+                            <th class="pb-2">Serie</th>
+                            <th class="pb-2">Carga (Kg)</th>
+                            <th class="pb-2">Reps</th>
+                            <th class="pb-2 text-center">RIR / % 1RM</th>
+                            <th class="pb-2 text-right">Done</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${ex.sets.map((s, i) => `
+                            <tr class="border-b border-gray-800 transition ${s.done?'opacity-50':''}">
+                                <td class="py-3 font-bold">${i+1}</td>
+                                <td class="py-3"><input type="number" id="set-w-${i}" value="${s.weight}" class="w-16 p-1 rounded glass-input text-center" ${s.done?'disabled':''}></td>
+                                <td class="py-3"><input type="number" id="set-r-${i}" value="${s.reps}" class="w-16 p-1 rounded glass-input text-center" ${s.done?'disabled':''}></td>
+                                <td class="py-3 text-center">
+                                    <select id="set-rir-${i}" class="p-1 rounded glass-input text-[10px] sm:text-xs text-center w-full" ${s.done?'disabled':''}>
+                                        <option value="2" ${s.rir==2?'selected':''}>RIR 2 (85%)</option>
+                                        <option value="1" ${s.rir==1?'selected':''}>RIR 1 (90%)</option>
+                                        <option value="0" ${s.rir==0?'selected':''}>RIR 0 (Fallo, 100%)</option>
+                                    </select>
+                                </td>
+                                <td class="py-3 text-right">
+                                    <button onclick="workoutManager.toggleSetDone(${i})" class="text-2xl ${s.done?'text-green-500':'text-gray-600 hover:text-green-500'} transition-colors">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div class="mt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <button onclick="workoutManager.contingency('fail')" class="text-red-400 text-sm hover:underline"><i class="fa-solid fa-triangle-exclamation"></i> Registrar Fallo Real</button>
+                    <button onclick="workoutManager.addSetToCurrent()" class="text-sky-400 text-sm hover:underline">+ Agregar Serie Adicional</button>
+                </div>
+            `;
+            document.getElementById('active-sets-container').innerHTML = html;
+            
+            document.getElementById('active-ex-name').innerText = ex.name;
+            document.getElementById('active-ex-info').innerHTML = `
+                Músculo: <span class="text-white">${ex.muscle}</span> | Tipo: ${ex.type} | Enfoque: ${ex.focus} <br>
+                ${ex.desc ? `<span class="text-xs italic text-gray-500">"${ex.desc}"</span>` : ''}
+                ${ex.link ? `<br><a href="${ex.link}" target="_blank" class="text-sky-400 text-xs underline"><i class="fa-brands fa-youtube text-red-500"></i> Ver Video de Ejecución</a>` : ''}
+            `;
+            
+            document.getElementById('ex-counter-display').innerText = `Ejercicio ${workoutManager.currentExerciseIndex + 1} de ${workoutManager.activeExercises.length}`;
+        }
+
+        window.renderActiveExercise = renderActiveExercise;
+
         function buildTraining() {
+            const hasExercises = workoutManager.activeExercises.length > 0;
             return `
                 <div class="max-w-6xl mx-auto h-full flex flex-col">
                     
                     <!-- Dashboard Pre-Entrenamiento -->
                     <div id="workout-dashboard" class="space-y-6">
-                        <div class="flex justify-between items-center">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                             <h2 class="text-3xl font-bold text-white">Alto Rendimiento</h2>
+                            <button onclick="workoutManager.showExerciseEditor()" class="glass-btn px-4 py-2 rounded-lg text-sm border-purple-500 text-purple-400 bg-purple-900/10">
+                                <i class="fa-solid fa-folder-plus"></i> Gestor de Ejercicios
+                            </button>
                         </div>
                         
                         <div class="glass-panel p-8 text-center flex flex-col items-center justify-center min-h-[400px]">
                             <i class="fa-solid fa-bolt text-6xl text-sky-400 mb-6 drop-shadow-[0_0_15px_rgba(56,189,248,0.5)]"></i>
-                            <h3 class="text-2xl font-bold text-white mb-2">Preparación del Sistema Nervioso</h3>
-                            <p class="text-gray-400 max-w-md mx-auto mb-8">El registro intra-entrenamiento es crucial. Registra las cargas y respeta los tiempos de descanso al milisegundo.</p>
+                            <h3 class="text-2xl font-bold text-white mb-2">Planificación de Sesión</h3>
+                            <p class="text-gray-400 max-w-md mx-auto mb-6">Sobrecarga progresiva garantizada. Arma tu bloque de entrenamiento para hoy.</p>
                             
-                            <div class="flex gap-4">
-                                <button onclick="workoutManager.startWorkout()" class="glass-btn px-8 py-4 rounded-xl font-bold text-lg shadow-[0_0_20px_rgba(56,189,248,0.3)]">
-                                    <i class="fa-solid fa-play"></i> INICIAR SESIÓN
+                            <div class="w-full max-w-md bg-gray-800/50 rounded-lg p-4 mb-6 border border-gray-700 text-left">
+                                <h4 class="font-bold text-sky-400 mb-2 border-b border-gray-700 pb-1">Ejercicios en Cola:</h4>
+                                <ul class="text-sm text-gray-300 space-y-1 mb-4 pl-2">
+                                    ${workoutManager.activeExercises.map((e,i) => `<li>${i+1}. ${e.name} <span class="text-[10px] text-gray-500">(${e.muscle})</span></li>`).join('')}
+                                    ${!hasExercises ? '<li class="text-gray-500 italic text-center py-2">No hay ejercicios. Agrégalos abajo.</li>' : ''}
+                                </ul>
+                                <button onclick="workoutManager.addExerciseToWorkout()" class="w-full glass-btn py-3 text-sm font-bold rounded border-dashed border-sky-500/50 hover:bg-sky-500/10 transition">
+                                    <i class="fa-solid fa-plus"></i> Agregar Ejercicio a la Sesión
                                 </button>
-                                <button onclick="workoutManager.contingency('home')" class="glass-btn px-6 py-4 rounded-xl font-bold border-orange-500 text-orange-400">
-                                    <i class="fa-solid fa-house"></i> No Fui Al Gym
+                            </div>
+
+                            <div class="flex gap-4">
+                                <button onclick="workoutManager.startWorkout()" class="glass-btn px-8 py-4 rounded-xl font-bold text-lg shadow-[0_0_20px_rgba(56,189,248,0.3)] bg-sky-900/20">
+                                    <i class="fa-solid fa-play"></i> INICIAR SESIÓN
                                 </button>
                             </div>
                         </div>
@@ -1030,63 +1318,39 @@
                         
                         <!-- Header & Timer -->
                         <div class="glass-panel p-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div>
-                                <h3 class="text-2xl font-bold text-sky-400">Press de Banca Plano (Barra)</h3>
-                                <p class="text-sm text-gray-400">Enfoque: Hipertrofia Pectoral | Tempo: 3-0-1-0</p>
+                            <div class="flex-1">
+                                <h3 class="text-2xl font-bold text-sky-400" id="active-ex-name">Cargando...</h3>
+                                <p class="text-sm text-gray-400 mt-1" id="active-ex-info">Cargando info...</p>
                             </div>
                             
-                            <div class="text-center">
+                            <div class="text-center px-6">
                                 <div id="active-timer" class="text-5xl font-bold font-mono text-white tracking-wider timer-glow">00:00</div>
                                 <p id="timer-status" class="text-xs text-sky-300 mt-1 uppercase tracking-widest">Tiempo de Trabajo</p>
                             </div>
 
-                            <button id="btn-toggle-rest" onclick="workoutManager.toggleRest()" class="glass-btn px-6 py-3 rounded-xl font-bold bg-slate-800">
+                            <button id="btn-toggle-rest" onclick="workoutManager.toggleRest()" class="glass-btn px-6 py-4 rounded-xl font-bold bg-slate-800 text-lg w-full md:w-auto">
                                 <i class="fa-solid fa-stopwatch"></i> Iniciar Descanso
                             </button>
                         </div>
 
                         <!-- Editor/Registro de Series -->
-                        <div class="glass-panel p-6 flex-1">
-                            <table class="w-full text-left">
-                                <thead>
-                                    <tr class="text-gray-400 text-sm border-b border-gray-700">
-                                        <th class="pb-2">Serie</th>
-                                        <th class="pb-2">Peso (Kg)</th>
-                                        <th class="pb-2">Reps</th>
-                                        <th class="pb-2 text-center">RIR / Esfuerzo</th>
-                                        <th class="pb-2 text-right">Completado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr class="border-b border-gray-800">
-                                        <td class="py-3 font-bold">1</td>
-                                        <td class="py-3"><input type="number" value="80" class="w-16 p-1 rounded glass-input text-center"></td>
-                                        <td class="py-3"><input type="number" value="10" class="w-16 p-1 rounded glass-input text-center"></td>
-                                        <td class="py-3 text-center text-sm text-gray-400">RIR 2</td>
-                                        <td class="py-3 text-right"><button class="text-2xl text-green-500 opacity-50 hover:opacity-100"><i class="fa-solid fa-circle-check"></i></button></td>
-                                    </tr>
-                                    <tr class="border-b border-gray-800">
-                                        <td class="py-3 font-bold">2</td>
-                                        <td class="py-3"><input type="number" value="80" class="w-16 p-1 rounded glass-input text-center"></td>
-                                        <td class="py-3"><input type="number" value="8" class="w-16 p-1 rounded glass-input text-center"></td>
-                                        <td class="py-3 text-center text-sm text-gray-400">RIR 0</td>
-                                        <td class="py-3 text-right"><button class="text-2xl text-gray-600 hover:text-green-500"><i class="fa-solid fa-circle-check"></i></button></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            
-                            <div class="mt-6 flex justify-between">
-                                <button onclick="workoutManager.contingency('fail')" class="text-red-400 text-sm hover:underline"><i class="fa-solid fa-triangle-exclamation"></i> Registré un Fallo Muscular Real</button>
-                                <button class="text-sky-400 text-sm hover:underline">+ Agregar Serie</button>
-                            </div>
+                        <div class="glass-panel p-6 flex-1 flex flex-col" id="active-sets-container">
+                            <!-- Se llena dinámicamente con renderActiveExercise -->
                         </div>
 
-                        <!-- Acciones Finales -->
-                        <div class="flex justify-end gap-4 mt-4">
-                            <button onclick="document.getElementById('workout-active').classList.add('hidden'); document.getElementById('workout-dashboard').classList.remove('hidden');" class="glass-btn-danger px-6 py-3 rounded-xl font-bold">Abortar</button>
-                            <button onclick="workoutManager.finishWorkout()" class="glass-btn px-6 py-3 rounded-xl font-bold text-white bg-green-600/20 border-green-500">
-                                <i class="fa-solid fa-flag-checkered"></i> Finalizar Entrenamiento
-                            </button>
+                        <!-- Navegación de Ejercicios y Acciones Finales -->
+                        <div class="glass-panel p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <div class="flex items-center gap-3 w-full sm:w-auto justify-center">
+                                <button onclick="workoutManager.prevExercise()" class="p-2 glass-btn rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                                <span id="ex-counter-display" class="text-sm font-bold text-gray-300">Ejercicio 1 de 1</span>
+                                <button onclick="workoutManager.nextExercise()" class="p-2 glass-btn rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+                            </div>
+                            <div class="flex gap-4 w-full sm:w-auto justify-end">
+                                <button onclick="document.getElementById('workout-active').classList.add('hidden'); document.getElementById('workout-dashboard').classList.remove('hidden');" class="glass-btn-danger px-4 py-2 rounded-lg text-sm font-bold">Abortar</button>
+                                <button onclick="workoutManager.finishWorkout()" class="glass-btn px-6 py-2 rounded-lg font-bold text-white bg-green-600/20 border-green-500">
+                                    <i class="fa-solid fa-flag-checkered"></i> Terminar Sesión
+                                </button>
+                            </div>
                         </div>
                     </div>
 
