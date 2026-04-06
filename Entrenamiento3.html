@@ -641,10 +641,6 @@
             }, {k:0, p:0, c:0, f:0});
         }
 
-        function calcularCaloriasTotales() {
-            return calcularMacros().k;
-        }
-
         // ==========================================
         // VISTA 2: ONBOARDING & PERFIL
         // ==========================================
@@ -1260,7 +1256,7 @@
         }
 
         // ==========================================
-        // VISTA 4: NUTRICIÓN AVANZADA (Edit y Navegación)
+        // VISTA 4: NUTRICIÓN AVANZADA (Edit y Navegación y Agrupación)
         // ==========================================
         window.nutriManager = {
             changeDate: (ev) => {
@@ -1349,8 +1345,9 @@
                         <select id="meal-type" class="w-full p-2 rounded glass-input">
                             <option value="Desayuno" ${m.type=='Desayuno'?'selected':''}>Desayuno</option>
                             <option value="Almuerzo" ${m.type=='Almuerzo'?'selected':''}>Almuerzo</option>
-                            <option value="Cena" ${m.type=='Cena'?'selected':''}>Cena</option>
                             <option value="Snack" ${m.type=='Snack'?'selected':''}>Snack</option>
+                            <option value="Cena" ${m.type=='Cena'?'selected':''}>Cena</option>
+                            <option value="Otro" ${m.type=='Otro'?'selected':''}>Otro</option>
                         </select>
                         <input type="text" id="meal-desc" value="${m.desc}" placeholder="Ingrediente/Comida (Ej. 100g Pechuga de Pollo)" class="w-full p-2 rounded glass-input">
                         <div class="flex gap-2">
@@ -1421,8 +1418,8 @@
                             <i class="fa-${m.checked ? 'solid' : 'regular'} fa-circle-check"></i>
                         </button>
                         <div class="flex-1">
-                            <p class="font-bold text-sm text-gray-200">${m.type}: ${m.desc}</p>
-                            <div class="flex gap-3 text-xs text-gray-400 mt-1">
+                            <p class="font-bold text-sm text-gray-200">${m.desc}</p>
+                            <div class="flex flex-wrap gap-2 text-xs text-gray-400 mt-1">
                                 <span class="bg-gray-700 px-1 rounded">${m.qty} ${m.unit}</span>
                                 <span class="text-blue-400">P: ${m.prot}g</span>
                                 <span class="text-green-400">C: ${m.carb}g</span>
@@ -1437,6 +1434,48 @@
                     </div>
                 </div>
             `;
+
+            const mealGroups = [
+                { type: 'Desayuno', icon: 'mug-saucer' },
+                { type: 'Almuerzo', icon: 'bowl-food' },
+                { type: 'Snack', icon: 'cookie' },
+                { type: 'Cena', icon: 'utensils' },
+                { type: 'Otro', icon: 'pizza-slice' }
+            ];
+
+            let groupedMealsHtml = '';
+            if (meals.length === 0) {
+                groupedMealsHtml = '<p class="text-gray-500 text-center py-8 bg-gray-800/20 rounded-lg border border-dashed border-gray-700">No hay ingredientes registrados. Comienza añadiendo uno.</p>';
+            } else {
+                mealGroups.forEach(group => {
+                    const groupMeals = meals.filter(m => m.type === group.type || (!mealGroups.map(g=>g.type).includes(m.type) && group.type === 'Otro'));
+                    if (groupMeals.length > 0) {
+                        const gMacros = groupMeals.reduce((acc, m) => {
+                            acc.k += Number(m.kcal)||0; acc.p += Number(m.prot)||0; acc.c += Number(m.carb)||0; acc.f += Number(m.fat)||0;
+                            return acc;
+                        }, {k:0, p:0, c:0, f:0});
+                        
+                        groupedMealsHtml += `
+                            <div class="mb-6 bg-gray-800/20 rounded-xl border border-gray-700/50 overflow-hidden">
+                                <div class="bg-gray-800/60 px-4 py-3 border-b border-gray-700/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                    <h4 class="font-bold text-sky-400 flex items-center gap-2">
+                                        <i class="fa-solid fa-${group.icon}"></i> ${group.type}
+                                    </h4>
+                                    <div class="flex gap-3 text-[10px] sm:text-xs font-medium bg-gray-900/50 px-3 py-1.5 rounded-lg border border-gray-700">
+                                        <span class="text-white">${gMacros.k.toFixed(0)} Kcal</span>
+                                        <span class="text-blue-400">P:${gMacros.p.toFixed(1)}g</span>
+                                        <span class="text-green-400">C:${gMacros.c.toFixed(1)}g</span>
+                                        <span class="text-yellow-400">G:${gMacros.f.toFixed(1)}g</span>
+                                    </div>
+                                </div>
+                                <div class="p-4 space-y-2">
+                                    ${groupMeals.map(renderMealItem).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            }
 
             const createSupplementRow = (key, label, step=1, unit="g") => `
                 <div class="flex justify-between items-center py-1 border-b border-gray-700/50 last:border-0">
@@ -1469,11 +1508,10 @@
 
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         
-                        <!-- Lista de Comidas -->
+                        <!-- Lista de Comidas AGRUPADAS -->
                         <div class="lg:col-span-2 glass-panel p-6">
                             <h3 class="text-lg font-bold text-sky-400 mb-4 border-b border-gray-700 pb-2">Plan de Alimentación de Hoy</h3>
-                            ${meals.length === 0 ? '<p class="text-gray-500 text-center py-4">Agrega ingredientes uno a uno con sus detalles de macronutrientes.</p>' : ''}
-                            ${meals.map(renderMealItem).join('')}
+                            ${groupedMealsHtml}
                         </div>
 
                         <!-- Panel de Ciencia (Derecha) -->
@@ -1542,15 +1580,15 @@
         }
 
         // ==========================================
-        // VISTA 5: ENTRENAMIENTO DE ALTO RENDIMIENTO (Edit y Calorías)
+        // VISTA 5: ENTRENAMIENTO DE ALTO RENDIMIENTO
         // ==========================================
         window.workoutManager = {
             timerInterval: null,
             timeElapsed: 0,
             isResting: false,
-            restTarget: 90, // seconds
+            restTarget: 90, 
             currentExerciseIndex: 0,
-            activeExercises: [], // Se llenará dinámicamente al armar la sesión
+            activeExercises: [], 
             
             changeDate: (ev) => {
                 state.activeWorkoutDate = ev.target.value;
@@ -1559,19 +1597,19 @@
 
             editDailyWorkout: () => {
                 if(state.dailyWorkout && state.dailyWorkout.exercises) {
-                    // 1. Cargamos los datos haciendo una copia profunda para no mutar el estado original accidentalmente
+                    // 1. Clonación profunda para editar sin modificar el estado local hasta que se guarde
                     workoutManager.activeExercises = JSON.parse(JSON.stringify(state.dailyWorkout.exercises));
                     workoutManager.timeElapsed = state.dailyWorkout.duration || 0;
                     workoutManager.currentExerciseIndex = 0;
                     
-                    // 2. Forzamos el re-render de la vista para que el DOM vuelva a crear los IDs 'workout-dashboard' y 'workout-active'
+                    // 2. Re-render de la vista para crear IDs
                     renderView('training');
                     
-                    // 3. Ahora sí podemos ocultar el dashboard y mostrar la interfaz de entrenamiento activo
+                    // 3. Modificar DOM
                     document.getElementById('workout-dashboard').classList.add('hidden');
                     document.getElementById('workout-active').classList.remove('hidden');
                     
-                    // 4. Iniciamos el cronómetro y renderizamos la primera tabla de series
+                    // 4. Iniciar
                     workoutManager.startTimer();
                     renderActiveExercise();
                 }
@@ -1605,7 +1643,7 @@
                             </select>
                             <input type="text" id="ex-equip" placeholder="Equipo (Barra, Polea...)" class="w-full p-2 rounded glass-input text-sm">
                         </div>
-                        <textarea id="ex-desc" placeholder="Descripción / Tempo (Ej. 3-0-1-0) / Tips Biomecánicos" class="w-full p-2 rounded glass-input text-sm h-16"></textarea>
+                        <textarea id="ex-desc" placeholder="Descripción / Tempo (Ej. 3-0-1-0)" class="w-full p-2 rounded glass-input text-sm h-16"></textarea>
                     </div>
                 `;
                 ModalSystem.show("Gestor de Ejercicios: Crear Nuevo", html, 'confirm', async () => {
@@ -1625,83 +1663,54 @@
                         await addDoc(collection(db, 'artifacts', APP_ID, 'users', state.user.uid, 'exercises'), ex);
                         ModalSystem.alert("Ejercicio añadido a tu librería personal.");
                         renderView('training');
-                    } catch(e) { ModalSystem.alert("Error guardando ejercicio: " + e.message); }
+                    } catch(e) {}
                 });
             },
 
             addExerciseToWorkout: () => {
-                if(!state.exercises || state.exercises.length === 0) return ModalSystem.alert("Primero debes crear ejercicios usando el 'Gestor de Ejercicios' en la parte superior.");
+                if(!state.exercises || state.exercises.length === 0) return ModalSystem.alert("Crea ejercicios en la librería primero.");
                 let options = state.exercises.map(e => `<option value="${e.id}">${e.name} (${e.muscle})</option>`).join('');
-                const html = `
-                    <div class="text-left space-y-2">
-                        <label class="text-sm text-gray-400">Selecciona de tu librería:</label>
-                        <select id="select-active-ex" class="w-full p-2 rounded glass-input">${options}</select>
-                    </div>
-                `;
-                ModalSystem.show("Agregar a la sesión de Hoy", html, 'confirm', () => {
-                    const id = document.getElementById('select-active-ex').value;
-                    const ex = state.exercises.find(e => e.id === id);
-                    if(ex) {
-                        workoutManager.activeExercises.push({...ex, sets: [{weight:0, reps:0, rir:2, done:false}]});
-                        renderView('training');
-                    }
+                ModalSystem.show("Agregar a la sesión", `<select id="sel-ex" class="w-full p-2 rounded glass-input">${options}</select>`, 'confirm', () => {
+                    const ex = state.exercises.find(e => e.id === document.getElementById('sel-ex').value);
+                    if(ex) { workoutManager.activeExercises.push({...ex, sets: [{weight:0, reps:0, rir:2, done:false}]}); renderView('training'); }
                 });
             },
 
             startWorkout: () => {
-                if(workoutManager.activeExercises.length === 0) {
-                    return ModalSystem.alert("Agrega al menos un ejercicio a la sesión antes de iniciar.");
-                }
+                if(workoutManager.activeExercises.length === 0) return ModalSystem.alert("Agrega ejercicios a la sesión antes de iniciar.");
                 document.getElementById('workout-dashboard').classList.add('hidden');
                 document.getElementById('workout-active').classList.remove('hidden');
-                workoutManager.timeElapsed = 0;
-                workoutManager.currentExerciseIndex = 0;
-                workoutManager.startTimer();
-                renderActiveExercise();
+                workoutManager.timeElapsed = 0; workoutManager.currentExerciseIndex = 0;
+                workoutManager.startTimer(); renderActiveExercise();
             },
             
             startTimer: () => {
                 if(workoutManager.timerInterval) clearInterval(workoutManager.timerInterval);
-                workoutManager.timerInterval = setInterval(() => {
-                    workoutManager.timeElapsed++;
-                    workoutManager.updateTimerUI();
-                }, 1000);
+                workoutManager.timerInterval = setInterval(() => { workoutManager.timeElapsed++; workoutManager.updateTimerUI(); }, 1000);
             },
 
             updateTimerUI: () => {
                 const el = document.getElementById('active-timer');
                 if(!el) return clearInterval(workoutManager.timerInterval);
-                
-                let mins = Math.floor(workoutManager.timeElapsed / 60);
-                let secs = workoutManager.timeElapsed % 60;
+                let mins = Math.floor(workoutManager.timeElapsed / 60); let secs = workoutManager.timeElapsed % 60;
                 el.innerText = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
                 
                 if(workoutManager.isResting) {
-                    if(workoutManager.timeElapsed > workoutManager.restTarget) {
-                        el.classList.add('timer-penalty');
-                        document.getElementById('timer-status').innerText = "¡PENALIZACIÓN! (Exceso)";
-                    } else {
-                        el.classList.remove('timer-penalty');
-                        document.getElementById('timer-status').innerText = `Descanso activo (Obj: ${workoutManager.restTarget}s)`;
-                    }
+                    if(workoutManager.timeElapsed > workoutManager.restTarget) { el.classList.add('timer-penalty'); document.getElementById('timer-status').innerText = "¡PENALIZACIÓN!"; }
+                    else { el.classList.remove('timer-penalty'); document.getElementById('timer-status').innerText = `Descanso activo`; }
                 } else {
-                    el.classList.remove('timer-penalty');
-                    document.getElementById('timer-status').innerText = "Tiempo de Trabajo";
+                    el.classList.remove('timer-penalty'); document.getElementById('timer-status').innerText = "Trabajo";
                 }
             },
 
             toggleRest: () => {
-                workoutManager.isResting = !workoutManager.isResting;
-                workoutManager.timeElapsed = 0; // Reset for rest or work
-                document.getElementById('btn-toggle-rest').innerHTML = workoutManager.isResting ? 
-                    '<i class="fa-solid fa-dumbbell"></i> Terminar Descanso' : 
-                    '<i class="fa-solid fa-stopwatch"></i> Iniciar Descanso';
+                workoutManager.isResting = !workoutManager.isResting; workoutManager.timeElapsed = 0; 
+                document.getElementById('btn-toggle-rest').innerHTML = workoutManager.isResting ? 'Terminar Descanso' : 'Iniciar Descanso';
                 workoutManager.updateTimerUI();
             },
 
             addSetToCurrent: () => {
-                const ex = workoutManager.activeExercises[workoutManager.currentExerciseIndex];
-                ex.sets.push({weight:0, reps:0, rir:2, done:false});
+                workoutManager.activeExercises[workoutManager.currentExerciseIndex].sets.push({weight:0, reps:0, rir:2, done:false});
                 renderActiveExercise();
             },
 
@@ -1709,7 +1718,6 @@
                 const ex = workoutManager.activeExercises[workoutManager.currentExerciseIndex];
                 ex.sets[idx].done = !ex.sets[idx].done;
                 if(ex.sets[idx].done) {
-                    // Guardar los valores tipeados en los inputs al confirmar
                     ex.sets[idx].weight = document.getElementById(`set-w-${idx}`).value;
                     ex.sets[idx].reps = document.getElementById(`set-r-${idx}`).value;
                     ex.sets[idx].rir = document.getElementById(`set-rir-${idx}`).value;
@@ -1717,26 +1725,9 @@
                 renderActiveExercise();
             },
             
-            nextExercise: () => {
-                if(workoutManager.currentExerciseIndex < workoutManager.activeExercises.length - 1) {
-                    workoutManager.currentExerciseIndex++;
-                    renderActiveExercise();
-                } else {
-                    ModalSystem.alert("Estás en el último ejercicio.");
-                }
-            },
-            
-            prevExercise: () => {
-                if(workoutManager.currentExerciseIndex > 0) {
-                    workoutManager.currentExerciseIndex--;
-                    renderActiveExercise();
-                }
-            },
-
-            contingency: (type) => {
-                if(type === 'fail') ModalSystem.alert("Fallo muscular registrado. ¡Esa es la señal de hipertrofia! Asegúrate de anotar el peso para calcular tu próximo aumento progresivo.");
-                if(type === 'home') ModalSystem.alert("Activando Modo Casa: Reemplaza con Flexiones al fallo, Sentadillas Búlgaras y Dominadas en puerta.");
-            },
+            nextExercise: () => { if(workoutManager.currentExerciseIndex < workoutManager.activeExercises.length - 1) { workoutManager.currentExerciseIndex++; renderActiveExercise(); } },
+            prevExercise: () => { if(workoutManager.currentExerciseIndex > 0) { workoutManager.currentExerciseIndex--; renderActiveExercise(); } },
+            contingency: (type) => { if(type === 'fail') ModalSystem.alert("Fallo muscular registrado."); },
             
             finishWorkout: async () => {
                 clearInterval(workoutManager.timerInterval);
@@ -1744,55 +1735,29 @@
                     try {
                         const bw = state.antropo.peso_actual || 70;
                         const cals = 4.5 * bw * (workoutManager.timeElapsed / 3600); // METS * Kg * Hrs
-                        
                         await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'workouts_daily', state.activeWorkoutDate), {
-                            date: state.activeWorkoutDate,
-                            duration: workoutManager.timeElapsed,
-                            exercises: workoutManager.activeExercises,
-                            burnedCalories: cals,
-                            completed: true
+                            date: state.activeWorkoutDate, duration: workoutManager.timeElapsed, exercises: workoutManager.activeExercises, burnedCalories: cals, completed: true
                         });
-                        ModalSystem.alert(`¡Entrenamiento guardado con éxito!<br>Calorías activas quemadas: <b class="text-orange-400">${cals.toFixed(0)} kcal</b>`);
-                    } catch(e) { ModalSystem.alert("Error guardando entrenamiento."); }
+                        ModalSystem.alert(`¡Entrenamiento guardado!<br>Calorías activas quemadas: <b class="text-orange-400">${cals.toFixed(0)} kcal</b>`);
+                    } catch(e) {}
                 }
-                workoutManager.activeExercises = [];
-                renderView('training');
+                workoutManager.activeExercises = []; renderView('training');
             }
         };
 
         function renderActiveExercise() {
-            const ex = workoutManager.activeExercises[workoutManager.currentExerciseIndex];
-            if(!ex) return;
-            
-            const html = `
+            const ex = workoutManager.activeExercises[workoutManager.currentExerciseIndex]; if(!ex) return;
+            document.getElementById('active-sets-container').innerHTML = `
                 <table class="w-full text-left">
-                    <thead>
-                        <tr class="text-gray-400 text-sm border-b border-gray-700">
-                            <th class="pb-2">Serie</th>
-                            <th class="pb-2">Carga (Kg)</th>
-                            <th class="pb-2">Reps</th>
-                            <th class="pb-2 text-center">RIR / % 1RM</th>
-                            <th class="pb-2 text-right">Done</th>
-                        </tr>
-                    </thead>
+                    <thead><tr class="text-gray-400 text-sm border-b border-gray-700"><th class="pb-2">Serie</th><th class="pb-2">Carga (Kg)</th><th class="pb-2">Reps</th><th class="pb-2 text-center">RIR</th><th class="pb-2 text-right">Done</th></tr></thead>
                     <tbody>
                         ${ex.sets.map((s, i) => `
                             <tr class="border-b border-gray-800 transition ${s.done?'opacity-50':''}">
                                 <td class="py-3 font-bold">${i+1}</td>
                                 <td class="py-3"><input type="number" id="set-w-${i}" value="${s.weight}" class="w-16 p-1 rounded glass-input text-center" ${s.done?'disabled':''}></td>
                                 <td class="py-3"><input type="number" id="set-r-${i}" value="${s.reps}" class="w-16 p-1 rounded glass-input text-center" ${s.done?'disabled':''}></td>
-                                <td class="py-3 text-center">
-                                    <select id="set-rir-${i}" class="p-1 rounded glass-input text-[10px] sm:text-xs text-center w-full" ${s.done?'disabled':''}>
-                                        <option value="2" ${s.rir==2?'selected':''}>RIR 2 (85%)</option>
-                                        <option value="1" ${s.rir==1?'selected':''}>RIR 1 (90%)</option>
-                                        <option value="0" ${s.rir==0?'selected':''}>RIR 0 (Fallo, 100%)</option>
-                                    </select>
-                                </td>
-                                <td class="py-3 text-right">
-                                    <button onclick="workoutManager.toggleSetDone(${i})" class="text-2xl ${s.done?'text-green-500':'text-gray-600 hover:text-green-500'} transition-colors">
-                                        <i class="fa-solid fa-circle-check"></i>
-                                    </button>
-                                </td>
+                                <td class="py-3 text-center"><select id="set-rir-${i}" class="p-1 rounded glass-input text-[10px] sm:text-xs text-center w-full" ${s.done?'disabled':''}><option value="2" ${s.rir==2?'selected':''}>RIR 2</option><option value="1" ${s.rir==1?'selected':''}>RIR 1</option><option value="0" ${s.rir==0?'selected':''}>RIR 0 (Fallo)</option></select></td>
+                                <td class="py-3 text-right"><button onclick="workoutManager.toggleSetDone(${i})" class="text-2xl ${s.done?'text-green-500':'text-gray-600 hover:text-green-500'}"><i class="fa-solid fa-circle-check"></i></button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1802,18 +1767,10 @@
                     <button onclick="workoutManager.addSetToCurrent()" class="text-sky-400 text-sm hover:underline">+ Agregar Serie Adicional</button>
                 </div>
             `;
-            document.getElementById('active-sets-container').innerHTML = html;
-            
             document.getElementById('active-ex-name').innerText = ex.name;
-            document.getElementById('active-ex-info').innerHTML = `
-                Músculo: <span class="text-white">${ex.muscle}</span> | Tipo: ${ex.type} | Enfoque: ${ex.focus} <br>
-                ${ex.desc ? `<span class="text-xs italic text-gray-500">"${ex.desc}"</span>` : ''}
-                ${ex.link ? `<br><a href="${ex.link}" target="_blank" class="text-sky-400 text-xs underline"><i class="fa-brands fa-youtube text-red-500"></i> Ver Video de Ejecución</a>` : ''}
-            `;
-            
+            document.getElementById('active-ex-info').innerHTML = `Músculo: <span class="text-white">${ex.muscle}</span> | Tipo: ${ex.type}`;
             document.getElementById('ex-counter-display').innerText = `Ejercicio ${workoutManager.currentExerciseIndex + 1} de ${workoutManager.activeExercises.length}`;
         }
-
         window.renderActiveExercise = renderActiveExercise;
 
         function buildTraining() {
@@ -1844,8 +1801,6 @@
 
             return `
                 <div class="max-w-6xl mx-auto h-full flex flex-col">
-                    
-                    <!-- Dashboard Pre-Entrenamiento -->
                     <div id="workout-dashboard" class="space-y-6">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                             <h2 class="text-3xl font-bold text-white">Planificación de Sesión</h2>
@@ -1884,32 +1839,23 @@
                         </div>
                     </div>
 
-                    <!-- Sesión Activa (Intra-Entrenamiento) -->
                     <div id="workout-active" class="hidden flex-1 flex flex-col space-y-4">
-                        
-                        <!-- Header & Timer -->
                         <div class="glass-panel p-6 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div class="flex-1">
                                 <h3 class="text-2xl font-bold text-sky-400" id="active-ex-name">Cargando...</h3>
                                 <p class="text-sm text-gray-400 mt-1" id="active-ex-info">Cargando info...</p>
                             </div>
-                            
                             <div class="text-center px-6">
                                 <div id="active-timer" class="text-5xl font-bold font-mono text-white tracking-wider timer-glow">00:00</div>
                                 <p id="timer-status" class="text-xs text-sky-300 mt-1 uppercase tracking-widest">Tiempo de Trabajo</p>
                             </div>
-
                             <button id="btn-toggle-rest" onclick="workoutManager.toggleRest()" class="glass-btn px-6 py-4 rounded-xl font-bold bg-slate-800 text-lg w-full md:w-auto">
                                 <i class="fa-solid fa-stopwatch"></i> Iniciar Descanso
                             </button>
                         </div>
 
-                        <!-- Editor/Registro de Series -->
-                        <div class="glass-panel p-6 flex-1 flex flex-col" id="active-sets-container">
-                            <!-- Se llena dinámicamente con renderActiveExercise -->
-                        </div>
+                        <div class="glass-panel p-6 flex-1 flex flex-col" id="active-sets-container"></div>
 
-                        <!-- Navegación de Ejercicios y Acciones Finales -->
                         <div class="glass-panel p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <div class="flex items-center gap-3 w-full sm:w-auto justify-center">
                                 <button onclick="workoutManager.prevExercise()" class="p-2 glass-btn rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
@@ -1924,7 +1870,6 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
             `;
         }
