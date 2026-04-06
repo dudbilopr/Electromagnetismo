@@ -266,6 +266,8 @@
             workoutSession: null,
             exercises: [],
             health: {}, // NUEVO: Estado Clínico y Biomarcadores
+            activeDate: new Date().toISOString().split('T')[0], // Gestor Global de Fecha Activa
+            unsubNutri: null, // Control de suscripción nutricional
             unsubscribers: []
         };
 
@@ -352,6 +354,20 @@
             navigate: (viewId) => {
                 renderView(viewId);
             },
+            subscribeNutrition: (dateStr) => {
+                if(!state.user) return;
+                if(state.unsubNutri) state.unsubNutri(); // Limpiar el listener anterior
+                const nutriRef = doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'nutrition', dateStr);
+                state.unsubNutri = onSnapshot(nutriRef, (docSnap) => {
+                    if(docSnap.exists()) {
+                        state.nutrition = docSnap.data();
+                        if(!state.nutrition.supplements) state.nutrition.supplements = { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 };
+                    } else {
+                        state.nutrition = { meals: [], water: 0, coffee: 0, supplements: { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 }};
+                    }
+                    if(currentViewId === 'nutrition') renderView('nutrition'); // Refresh si está en la vista
+                });
+            },
             // Generadores de Helpers de UI
             saveIndicator: (id) => {
                 const el = document.getElementById(id);
@@ -422,18 +438,8 @@
                 if(docSnap.exists()) state.antropo = docSnap.data();
             });
 
-            // 3. Nutrición Diaria
-            const today = new Date().toISOString().split('T')[0];
-            const nutriRef = doc(db, 'artifacts', APP_ID, 'users', uid, 'nutrition', today);
-            const unsubNutri = onSnapshot(nutriRef, (docSnap) => {
-                if(docSnap.exists()) {
-                    state.nutrition = docSnap.data();
-                    if(!state.nutrition.supplements) state.nutrition.supplements = { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 };
-                } else {
-                    state.nutrition = { meals: [], water: 0, coffee: 0, supplements: { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 }};
-                }
-                if(currentViewId === 'nutrition') renderView('nutrition'); // Refresh si está en la vista
-            });
+            // 3. Nutrición Diaria (Dinámica)
+            appManager.subscribeNutrition(state.activeDate);
 
             // 4. Ejercicios Personalizados
             const exercisesRef = collection(db, 'artifacts', APP_ID, 'users', uid, 'exercises');
@@ -447,7 +453,7 @@
                 if(docSnap.exists()) state.health = docSnap.data();
             });
 
-            state.unsubscribers.push(unsubProfile, unsubAntropo, unsubNutri, unsubExercises, unsubHealth);
+            state.unsubscribers.push(unsubProfile, unsubAntropo, unsubExercises, unsubHealth, () => { if(state.unsubNutri) state.unsubNutri(); });
         }
 
         function calculateTimeMetrics() {
@@ -791,6 +797,7 @@
                             ${createInputGroup('per_cintura', 'Cintura', 'Mínimo visible.', 'cm')}
                             ${createInputGroup('per_cadera', 'Cadera', 'Máxima prominencia.', 'cm')}
                             ${createInputGroup('per_muslo', 'Muslo', '', 'cm')}
+                            ${createInputGroup('per_muneca', 'Muñeca', 'Crucial para complexión ósea/somatotipo.', 'cm')}
                         </div>
 
                         <!-- Análisis y Fórmulas -->
@@ -809,9 +816,15 @@
                                     <h4 class="text-xs font-bold text-gray-300">TMB Basal <span class="text-[9px] text-gray-500">(Katch-McArdle)</span></h4>
                                     <p class="text-xl font-bold text-orange-400" id="calc-bmr">0 kcal</p>
                                 </div>
-                                <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
-                                    <h4 class="text-xs font-bold text-gray-300">Índice Cintura/Cadera</h4>
-                                    <p class="text-lg font-bold text-sky-400" id="calc-icc">0.00</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+                                        <h4 class="text-xs font-bold text-gray-300">ICC</h4>
+                                        <p class="text-sm font-bold text-sky-400" id="calc-icc">0.00</p>
+                                    </div>
+                                    <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+                                        <h4 class="text-xs font-bold text-gray-300">Complexión (r)</h4>
+                                        <p class="text-sm font-bold text-purple-400" id="calc-frame">Falta Muñeca</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -861,6 +874,23 @@
                     let risk = icc > (gender==='M'?0.9:0.85) ? '<span class="text-red-400 text-xs ml-1">(Riesgo)</span>' : '<span class="text-green-400 text-xs ml-1">(Óptimo)</span>';
                     document.getElementById('calc-icc').innerHTML = `${icc.toFixed(2)} ${risk}`;
                 }
+
+                // Complexión Ósea (r = estatura / muñeca)
+                const muneca = getVal('per_muneca');
+                if(estatura && muneca) {
+                    const r = estatura / muneca;
+                    let frame = "Mediana (Mesomorfo)";
+                    if (gender === 'M') {
+                        if(r > 10.4) frame = "Pequeña (Ecto)";
+                        else if(r < 9.6) frame = "Grande (Endo)";
+                    } else {
+                        if(r > 11.0) frame = "Pequeña (Ecto)";
+                        else if(r < 10.1) frame = "Grande (Endo)";
+                    }
+                    document.getElementById('calc-frame').innerHTML = `${r.toFixed(1)} <br><span class="text-white text-[10px]">${frame}</span>`;
+                } else {
+                    document.getElementById('calc-frame').innerHTML = 'Faltan datos';
+                }
                 
                 // Guardar en variable temporal para inyectar en Firestore
                 window._tempAntropoCalc = { calc_bf: bf, calc_lbm: lbm, calc_bmr: bmr };
@@ -894,6 +924,36 @@
         // VISTA 4: NUTRICIÓN AVANZADA
         // ==========================================
         window.nutriManager = {
+            changeDate: (ev) => {
+                state.activeDate = ev.target.value;
+                appManager.subscribeNutrition(state.activeDate);
+            },
+            copyYesterday: async () => {
+                if(!state.user) return;
+                // Parse exact date array to avoid timezone bug shifting days
+                const [y, m, d] = state.activeDate.split('-');
+                const current = new Date(y, m - 1, d);
+                current.setDate(current.getDate() - 1);
+                
+                const yesterdayStr = current.getFullYear() + '-' + String(current.getMonth()+1).padStart(2,'0') + '-' + String(current.getDate()).padStart(2,'0');
+                
+                try {
+                    const snap = await getDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'nutrition', yesterdayStr));
+                    if(snap.exists() && snap.data().meals && snap.data().meals.length > 0) {
+                        const data = snap.data();
+                        // Clonamos los ingredientes generando un ID nuevo y quitando el "checked"
+                        state.nutrition.meals = data.meals.map(meal => ({
+                            ...meal, 
+                            checked: false, 
+                            id: Date.now().toString() + Math.random().toString(36).substr(2, 5)
+                        }));
+                        await nutriManager.save();
+                        ModalSystem.alert("Se han copiado los alimentos de ayer (" + yesterdayStr + ") a la fecha actual (" + state.activeDate + ").");
+                    } else {
+                        ModalSystem.alert("No hay comidas registradas en el día anterior (" + yesterdayStr + ").");
+                    }
+                } catch(e) { ModalSystem.alert("Error al copiar: " + e.message); }
+            },
             addWater: async (amount) => {
                 state.nutrition.water = Math.max(0, (state.nutrition.water || 0) + amount);
                 await nutriManager.save();
@@ -912,9 +972,8 @@
             },
             save: async () => {
                 if(!state.user) return;
-                const today = new Date().toISOString().split('T')[0];
                 try {
-                    await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'nutrition', today), state.nutrition);
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'nutrition', state.activeDate), state.nutrition);
                 } catch(e) { console.error("Error guardando nutrición", e); }
             },
             checkBeverage: () => {
@@ -1039,11 +1098,20 @@
 
             return `
                 <div class="max-w-6xl mx-auto space-y-6">
-                    <div class="flex justify-between items-center">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-700/50 pb-4">
                         <h2 class="text-3xl font-bold text-white">Diario Nutricional Detallado</h2>
-                        <button onclick="nutriManager.showAddMeal()" class="glass-btn px-4 py-2 rounded-lg flex items-center gap-2 border-sky-500 bg-sky-900/20 text-white">
-                            <i class="fa-solid fa-plus"></i> Añadir Ingrediente
-                        </button>
+                        <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                            <div class="flex items-center gap-2 bg-gray-800/80 px-3 py-2 rounded-lg border border-sky-500/30 flex-1 sm:flex-none">
+                                <i class="fa-regular fa-calendar text-sky-400"></i>
+                                <input type="date" id="nutri-date-picker" value="${state.activeDate}" onchange="nutriManager.changeDate(event)" class="bg-transparent text-white font-bold focus:outline-none cursor-pointer text-sm w-full">
+                            </div>
+                            <button onclick="nutriManager.copyYesterday()" class="glass-btn px-3 py-2 rounded-lg flex items-center gap-2 text-xs border-sky-500" title="Copiar comidas de ayer">
+                                <i class="fa-solid fa-copy"></i> Copiar Ayer
+                            </button>
+                            <button onclick="nutriManager.showAddMeal()" class="glass-btn px-4 py-2 rounded-lg flex items-center gap-2 border-sky-500 bg-sky-900/20 text-white flex-1 sm:flex-none justify-center">
+                                <i class="fa-solid fa-plus"></i> Añadir Ingrediente
+                            </button>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1756,6 +1824,17 @@
 
                         <!-- Panel de Ciencia (Derecha) -->
                         <div class="space-y-6">
+                            
+                            <!-- Cero Tolerancia -->
+                            <div class="glass-panel p-6 border border-red-500/30 bg-red-900/10">
+                                <h3 class="text-lg font-bold text-red-500 mb-3"><i class="fa-solid fa-triangle-exclamation"></i> Reglas Cero Tolerancia</h3>
+                                <ul class="list-disc pl-5 text-sm text-gray-300 space-y-2">
+                                    <li><b class="text-white">Cero Alcohol:</b> Inhibe por completo la lipólisis (quema de grasa) y deprime el SNC.</li>
+                                    <li><b class="text-white">Cero Azúcar Líquido:</b> Jugos, gaseosas, tés azucarados. Generan picos masivos de insulina sin aportar saciedad.</li>
+                                    <li><b class="text-white">Cero Fritos en Aceite Sumergido:</b> Grasas trans oxidativas que destruyen el perfil lipídico y aportan calorías vacías extremas.</li>
+                                </ul>
+                            </div>
+
                             <!-- Ayuno -->
                             <div class="glass-panel p-6 border border-blue-500/20">
                                 <h3 class="text-lg font-bold text-blue-400 mb-2"><i class="fa-solid fa-stopwatch-20"></i> Protocolo de Ayuno Intermitente</h3>
@@ -1783,9 +1862,9 @@
                                         <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
                                             <p class="font-bold text-white mb-1">Gestión de Micronutrientes</p>
                                             <ul class="list-disc pl-4 text-xs space-y-1">
-                                                <li><b>Sodio (Sal):</b> No le tengas miedo. Tu cuerpo lo necesita para la contracción muscular y la bomba intra-entreno.</li>
-                                                <li><b>Potasio:</b> Clave para evitar calambres y retención hídrica. Presente en banano y pollo.</li>
-                                                <li><b>Magnesio:</b> Fundamental para el descanso profundo y recuperación del SNC. Presente en avena y suplementación ZMA.</li>
+                                                <li><b>Sodio (Sal):</b> No le tengas miedo. Tu cuerpo lo necesita para la contracción muscular.</li>
+                                                <li><b>Potasio:</b> Clave para evitar calambres y retención. Presente en banano y pollo.</li>
+                                                <li><b>Magnesio:</b> Fundamental para el descanso profundo. Presente en la avena y vegetales.</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -1794,7 +1873,7 @@
                                 <div class="pt-4 border-t border-gray-700">
                                     <h3 class="text-sm font-bold text-purple-400 uppercase tracking-wider mb-2">Ciencia de la Recomposición</h3>
                                     <p class="text-sm text-gray-300 leading-relaxed">
-                                        Al tener memoria muscular y conocer tu porcentaje de grasa actual, posees el escenario fisiológico perfecto para el "Holy Grail" del fitness: <b class="text-white">ganar masa muscular y perder grasa simultáneamente</b>. Esto requiere un déficit calórico estricto pero conservador, acompañado de un consumo de proteína elevado (mínimo 2g por Kg de masa magra) y entrenamiento de fuerza progresiva.
+                                        Al tener memoria muscular y porcentaje de grasa actual, posees el escenario fisiológico perfecto para el "Holy Grail" del fitness: <b class="text-white">ganar masa muscular y perder grasa simultáneamente</b>. Esto requiere déficit estricto y proteína elevada.
                                     </p>
                                 </div>
                             </div>
