@@ -181,6 +181,15 @@
                     <button onclick="appManager.navigate('training')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-slate-800/50 hover:text-sky-400 transition-colors nav-btn">
                         <i class="fa-solid fa-dumbbell w-5"></i> <span class="sidebar-text text-sm">Alto Rendimiento</span>
                     </button>
+                    
+                    <!-- NUEVOS MÓDULOS -->
+                    <button onclick="appManager.navigate('analytics')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-slate-800/50 hover:text-sky-400 transition-colors nav-btn">
+                        <i class="fa-solid fa-chart-line w-5"></i> <span class="sidebar-text text-sm">Historial & Sueño</span>
+                    </button>
+                    <button onclick="appManager.navigate('clinical')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-slate-800/50 hover:text-sky-400 transition-colors nav-btn">
+                        <i class="fa-solid fa-stethoscope w-5"></i> <span class="sidebar-text text-sm">Clínica & Ciencia</span>
+                    </button>
+
                     <button id="admin-nav-btn" onclick="appManager.navigate('admin')" class="hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl text-purple-400 hover:bg-purple-900/20 transition-colors nav-btn">
                         <i class="fa-solid fa-crown w-5"></i> <span class="sidebar-text text-sm">Admin Zone</span>
                     </button>
@@ -251,6 +260,7 @@
             nutrition: { meals: [], water: 0, coffee: 0, supplements: { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 } },
             workoutSession: null,
             exercises: [],
+            health: {}, // NUEVO: Estado Clínico y Biomarcadores
             unsubscribers: []
         };
 
@@ -424,7 +434,13 @@
                 state.exercises = snap.docs.map(d => ({id: d.id, ...d.data()}));
             });
 
-            state.unsubscribers.push(unsubProfile, unsubAntropo, unsubNutri, unsubExercises);
+            // 5. Control Clínico (Salud global)
+            const healthRef = doc(db, 'artifacts', APP_ID, 'users', uid, 'health', 'data');
+            const unsubHealth = onSnapshot(healthRef, (docSnap) => {
+                if(docSnap.exists()) state.health = docSnap.data();
+            });
+
+            state.unsubscribers.push(unsubProfile, unsubAntropo, unsubNutri, unsubExercises, unsubHealth);
         }
 
         function calculateTimeMetrics() {
@@ -455,6 +471,8 @@
                 case 'anthropometry': container.innerHTML = buildAntropo(); initAntropoListeners(); break;
                 case 'nutrition': container.innerHTML = buildNutrition(); break;
                 case 'training': container.innerHTML = buildTraining(); break;
+                case 'analytics': container.innerHTML = buildAnalytics(); initAnalyticsListeners(); break;
+                case 'clinical': container.innerHTML = buildClinical(); break;
                 case 'admin': 
                     if(state.user.email === ADMIN_EMAIL) container.innerHTML = buildAdmin(); 
                     else container.innerHTML = '<p class="text-red-500">Acceso Denegado</p>';
@@ -466,26 +484,54 @@
         // VISTA 1: DASHBOARD
         // ==========================================
         function buildDashboard() {
-            const dayText = state.profile.currentDay ? `Día ${state.profile.currentDay} de ${state.profile.cycleDays || 13}` : 'Iniciando...';
+            const currentDayNum = state.profile.currentDay || 1;
+            const dayText = `Día ${currentDayNum} de ${state.profile.cycleDays || 13} - Fase de Ejecución`;
             const macros = calcularMacros();
             
             // Cálculos base para dashboard (Usando Antropometría o Defaults)
             const baseWeight = state.antropo.peso_actual || 70;
             const bf = parseFloat(state.antropo.calc_bf) || (state.profile.gender === 'F' ? 25 : 15);
             const lbm = parseFloat(state.antropo.calc_lbm) || (baseWeight * (1 - bf/100));
+
+            // Motivación Dinámica
+            let motMsg = `"Día ${currentDayNum}: La inercia es tu mayor enemigo. Hoy rompes el estado de reposo."`;
+            if(currentDayNum > 1) motMsg = `"Día ${currentDayNum}: El progreso exige consistencia. Estás construyendo tu mejor versión."`;
             
             return `
                 <div class="space-y-6">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-700/50 pb-4">
                         <div>
                             <h2 class="text-3xl font-bold text-white">Centro de Control</h2>
-                            <p class="text-gray-400">Progreso del Protocolo IA: <span class="text-sky-400 font-semibold">${dayText}</span></p>
+                            <p class="text-sky-400 font-semibold tracking-wide uppercase text-sm mt-1">${dayText}</p>
                         </div>
                         <button onclick="appManager.navigate('training')" class="glass-btn px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
                             <i class="fa-solid fa-play"></i> Iniciar Entrenamiento Hoy
                         </button>
                     </div>
 
+                    <!-- Directriz y Guía -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass-panel p-6 border-l-4 border-l-sky-500">
+                            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Directriz Diaria</h3>
+                            <p class="text-lg text-white italic">${motMsg}</p>
+                            
+                            <div class="mt-4 pt-4 border-t border-gray-700">
+                                <h4 class="text-sm font-bold text-purple-400 mb-1"><i class="fa-solid fa-stethoscope"></i> Diagnóstico Biomecánico & Recuperación</h4>
+                                <p class="text-xs text-gray-300">Esperando datos del día... Ve a "Antropometría" o "Historial", registra la fecha, horas de sueño y medidas para tu diagnóstico preciso.</p>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel p-6 bg-slate-800/80">
+                            <h3 class="text-sm font-bold text-green-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-power-off"></i> Guía de Uso Diaria (Routine.start)</h3>
+                            <ul class="text-sm text-gray-300 space-y-3">
+                                <li><b class="text-white">1. Mañana:</b> Pésate en ayunas, registra tus horas de sueño en la pestaña <a onclick="appManager.navigate('analytics')" class="text-sky-400 underline cursor-pointer hover:text-sky-300">Historial & Sueño</a>.</li>
+                                <li><b class="text-white">2. Durante el día:</b> Usa los botones en Nutrición para registrar tu agua, café, suplementos y calorías consumidas.</li>
+                                <li><b class="text-white">3. Noche:</b> Antes de dormir, asegúrate de guardar tus sesiones para almacenar tu progreso histórico de hábitos.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Widgets de Data -->
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <!-- Card Calorías y Macros -->
                         <div class="glass-panel p-6 md:col-span-2">
@@ -1354,6 +1400,262 @@
                         </div>
                     </div>
 
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // VISTA HISTORIAL & SUEÑO (ANALYTICS)
+        // ==========================================
+        window.historyManager = {
+            fetchDate: async () => {
+                if(!state.user) return;
+                const dateStr = document.getElementById('hist-date').value;
+                const uid = state.user.uid;
+                
+                try {
+                    // Fetch Analytics/Sleep
+                    const anSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'analytics_daily', dateStr));
+                    const anData = anSnap.exists() ? anSnap.data() : { sleep: '', deepSleep: '', workSchedule: '', trainTime: '' };
+                    document.getElementById('hist-sleep').value = anData.sleep || '';
+                    document.getElementById('hist-deepsleep').value = anData.deepSleep || '';
+                    document.getElementById('hist-work').value = anData.workSchedule || '';
+                    document.getElementById('hist-train').value = anData.trainTime || '';
+
+                    // Fetch Nutrition History
+                    const nuSnap = await getDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'nutrition', dateStr));
+                    const nuData = nuSnap.exists() ? nuSnap.data() : null;
+                    if(nuData && nuData.meals && nuData.meals.length > 0) {
+                        const macros = nuData.meals.reduce((acc, m) => {
+                            acc.k += Number(m.kcal)||0; acc.p += Number(m.prot)||0; acc.c += Number(m.carb)||0; acc.f += Number(m.fat)||0;
+                            return acc;
+                        }, {k:0, p:0, c:0, f:0});
+                        document.getElementById('hist-nutri-result').innerHTML = `
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-sm bg-gray-800/50 p-3 rounded border border-gray-700">
+                                <div><p class="text-orange-400 font-bold">${macros.k} kcal</p><p class="text-xs text-gray-500">Total</p></div>
+                                <div><p class="text-blue-400 font-bold">${macros.p.toFixed(1)} g</p><p class="text-xs text-gray-500">Proteína</p></div>
+                                <div><p class="text-green-400 font-bold">${macros.c.toFixed(1)} g</p><p class="text-xs text-gray-500">Carbs</p></div>
+                                <div><p class="text-yellow-400 font-bold">${macros.f.toFixed(1)} g</p><p class="text-xs text-gray-500">Grasas</p></div>
+                            </div>
+                        `;
+                    } else {
+                        document.getElementById('hist-nutri-result').innerHTML = '<div class="text-sm text-gray-500 py-2">Sin registros nutricionales.</div>';
+                    }
+
+                    // Fetch Workout History
+                    // Using query on workouts collection is complex without index, so we do client-side filter or exact match if ID was date.
+                    // To comply with rules, we will fetch recent and filter.
+                    document.getElementById('hist-train-result').innerHTML = '<div class="text-sm text-gray-400 py-2">Para ver rutinas anteriores, ve a la pestaña de Alto Rendimiento (Próxima actualización de listado).</div>';
+                    
+                } catch(e) { console.error("Error fetching history", e); }
+            },
+            saveDay: async () => {
+                if(!state.user) return;
+                const dateStr = document.getElementById('hist-date').value;
+                const data = {
+                    sleep: document.getElementById('hist-sleep').value,
+                    deepSleep: document.getElementById('hist-deepsleep').value,
+                    workSchedule: document.getElementById('hist-work').value,
+                    trainTime: document.getElementById('hist-train').value,
+                    updatedAt: new Date().toISOString()
+                };
+                try {
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'analytics_daily', dateStr), data);
+                    appManager.saveIndicator('save-status-hist');
+                } catch(e) { ModalSystem.alert("Error guardando datos: " + e.message); }
+            }
+        };
+
+        function buildAnalytics() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            return `
+                <div class="max-w-4xl mx-auto space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-3xl font-bold text-white">Historial & Analítica de Sueño</h2>
+                        <button onclick="historyManager.saveDay()" class="glass-btn px-4 py-2 rounded-lg flex items-center gap-2">
+                            <i class="fa-solid fa-save"></i> Guardar Variables
+                        </button>
+                    </div>
+                    <p class="text-gray-400">Navega en el tiempo para comparar tu rendimiento y recuperar tus métricas de smartwatch. <span id="save-status-hist" class="ml-4 text-sm"></span></p>
+
+                    <div class="glass-panel p-6 border border-sky-500/30">
+                        <label class="block text-sm font-bold text-sky-400 mb-2">Selecciona la Fecha a Visualizar / Editar</label>
+                        <input type="date" id="hist-date" value="${todayStr}" class="w-full md:w-1/3 p-3 rounded-lg glass-input text-lg font-bold">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Sueño -->
+                        <div class="glass-panel p-6 space-y-4">
+                            <h3 class="text-xl font-bold text-purple-400 border-b border-gray-700 pb-2"><i class="fa-solid fa-moon"></i> Análisis de Sueño (Smartwatch)</h3>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Horas Totales Dormidas (Ej. 7.5)</label>
+                                <input type="number" step="0.1" id="hist-sleep" placeholder="0.0" class="w-full p-2 rounded glass-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Horas de Sueño Profundo / REM</label>
+                                <input type="number" step="0.1" id="hist-deepsleep" placeholder="0.0" class="w-full p-2 rounded glass-input">
+                            </div>
+                            <p class="text-[10px] text-gray-500">Crucial para la recuperación del SNC y la segregación de Testosterona/HGH.</p>
+                        </div>
+
+                        <!-- Horarios -->
+                        <div class="glass-panel p-6 space-y-4">
+                            <h3 class="text-xl font-bold text-blue-400 border-b border-gray-700 pb-2"><i class="fa-regular fa-clock"></i> Horarios de Vida</h3>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Horario de Trabajo / Estudio (Ej. 8am - 5pm)</label>
+                                <input type="text" id="hist-work" placeholder="Ej. 08:00 - 17:00" class="w-full p-2 rounded glass-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Horario de Entrenamiento (Ej. 6am - 7:30am)</label>
+                                <input type="text" id="hist-train" placeholder="Ej. 18:00 - 19:30" class="w-full p-2 rounded glass-input">
+                            </div>
+                        </div>
+
+                        <!-- Resumen Histórico -->
+                        <div class="glass-panel p-6 md:col-span-2 space-y-4">
+                            <h3 class="text-xl font-bold text-white border-b border-gray-700 pb-2"><i class="fa-solid fa-clock-rotate-left"></i> Comparación de Rendimiento</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h4 class="text-sm font-bold text-orange-400 mb-2">Nutrición Registrada</h4>
+                                    <div id="hist-nutri-result">Cargando...</div>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-sky-400 mb-2">Entrenamiento</h4>
+                                    <div id="hist-train-result">Cargando...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function initAnalyticsListeners() {
+            const dateInput = document.getElementById('hist-date');
+            dateInput.addEventListener('change', window.historyManager.fetchDate);
+            // Cargar data inicial (hoy)
+            window.historyManager.fetchDate();
+        }
+
+        // ==========================================
+        // VISTA CONTROL CLÍNICO Y CIENCIA (CLINICAL)
+        // ==========================================
+        window.clinicalManager = {
+            save: async () => {
+                if(!state.user) return;
+                const data = {
+                    labDate: document.getElementById('clin-labdate').value,
+                    glucose: document.getElementById('clin-glucose').value,
+                    cortisol: document.getElementById('clin-cortisol').value,
+                    testo: document.getElementById('clin-testo').value,
+                    ldl: document.getElementById('clin-ldl').value,
+                    hdl: document.getElementById('clin-hdl').value,
+                    purgeDate: document.getElementById('clin-purge').value,
+                    fastingState: document.getElementById('clin-fasting').value,
+                    updatedAt: new Date().toISOString()
+                };
+                try {
+                    await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'health', 'data'), data, {merge:true});
+                    state.health = data; // actualizar estado local
+                    appManager.saveIndicator('save-status-clin');
+                } catch(e) { ModalSystem.alert("Error guardando clínica: " + e.message); }
+            }
+        };
+
+        function buildClinical() {
+            const h = state.health || {};
+            
+            return `
+                <div class="max-w-6xl mx-auto space-y-8">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-3xl font-bold text-white">Control Clínico & Biblioteca Científica</h2>
+                        <button onclick="clinicalManager.save()" class="glass-btn px-4 py-2 rounded-lg flex items-center gap-2 border-red-500/50 text-red-400 hover:text-white hover:bg-red-500/20">
+                            <i class="fa-solid fa-notes-medical"></i> Archivar Examen Médico
+                        </button>
+                    </div>
+                    <span id="save-status-clin" class="text-sm text-green-400 block -mt-4"></span>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        
+                        <!-- Panel Clínico (Izquierda) -->
+                        <div class="space-y-6">
+                            <!-- Biomarcadores Hemáticos -->
+                            <div class="glass-panel p-6 border border-red-500/20">
+                                <h3 class="text-lg font-bold text-red-400 mb-4 border-b border-gray-700 pb-2"><i class="fa-solid fa-vial-virus"></i> Biomarcadores Hemáticos y Endocrinos</h3>
+                                <div class="mb-4">
+                                    <label class="block text-xs text-gray-400 mb-1">Fecha del Examen Lab</label>
+                                    <input type="date" id="clin-labdate" value="${h.labDate || ''}" class="w-full p-2 rounded glass-input">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3 text-sm">
+                                    <div><label class="text-xs text-gray-400">Glucosa Ayunas (mg/dL)</label><input type="number" id="clin-glucose" value="${h.glucose||''}" class="w-full p-2 rounded glass-input mt-1"></div>
+                                    <div><label class="text-xs text-gray-400">Cortisol Sérico (ug/dL)</label><input type="number" id="clin-cortisol" value="${h.cortisol||''}" class="w-full p-2 rounded glass-input mt-1"></div>
+                                    <div class="col-span-2"><label class="text-xs text-gray-400">Testosterona Total (ng/dL)</label><input type="number" id="clin-testo" value="${h.testo||''}" class="w-full p-2 rounded glass-input mt-1 border-purple-500/30"></div>
+                                    <div><label class="text-xs text-gray-400">Colesterol LDL (mg/dL)</label><input type="number" id="clin-ldl" value="${h.ldl||''}" class="w-full p-2 rounded glass-input mt-1"></div>
+                                    <div><label class="text-xs text-gray-400">Colesterol HDL (mg/dL)</label><input type="number" id="clin-hdl" value="${h.hdl||''}" class="w-full p-2 rounded glass-input mt-1"></div>
+                                </div>
+                            </div>
+
+                            <!-- Erradicación Parasitaria -->
+                            <div class="glass-panel p-6 border border-green-500/20">
+                                <h3 class="text-lg font-bold text-green-400 mb-2"><i class="fa-solid fa-bugs"></i> Erradicación Parasitaria (Purga)</h3>
+                                <p class="text-xs text-gray-300 mb-4 leading-relaxed">Un sistema digestivo comprometido "roba" hasta un 20% de las proteínas y micronutrientes ingeridos. Para un atleta, es indispensable una desparasitación profunda al menos 1 vez al año para asegurar máxima absorción de la dieta.</p>
+                                
+                                <div class="mb-3">
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Fecha de Última Purga</label>
+                                    <input type="date" id="clin-purge" value="${h.purgeDate || ''}" class="w-full p-2 rounded glass-input border-green-500/30">
+                                </div>
+                                <div class="p-3 bg-red-900/10 rounded border border-red-500/20">
+                                    <p class="text-[10px] text-gray-400 italic">*Nota Médica: Un protocolo estándar común es la combinación de Albendazol + Secnidazol (bajo recomendación médica), preferiblemente antes de iniciar fases de superávit o déficit extremo.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel de Ciencia (Derecha) -->
+                        <div class="space-y-6">
+                            <!-- Ayuno -->
+                            <div class="glass-panel p-6 border border-blue-500/20">
+                                <h3 class="text-lg font-bold text-blue-400 mb-2"><i class="fa-solid fa-stopwatch-20"></i> Protocolo de Ayuno Intermitente</h3>
+                                <p class="text-xs text-gray-300 mb-4 leading-relaxed">El ayuno (ej. 16:8) no es mágico para perder peso, pero <b>optimiza brutalmente la sensibilidad a la insulina</b> y promueve la autofagia (reciclaje celular).</p>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-400 mb-1">Estado del Ayuno Hoy</label>
+                                    <select id="clin-fasting" class="w-full p-2 rounded glass-input text-sm">
+                                        <option value="none" ${h.fastingState==='none'?'selected':''}>Sin ayuno / Dieta estándar</option>
+                                        <option value="12:12" ${h.fastingState==='12:12'?'selected':''}>12:12 (Básico / Mantenimiento)</option>
+                                        <option value="16:8" ${h.fastingState==='16:8'?'selected':''}>16:8 (Fase de Oxidación de Grasa)</option>
+                                        <option value="20:4" ${h.fastingState==='20:4'?'selected':''}>20:4 (Protocolo Extremo / Warrior)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Biblioteca Científica (Estática) -->
+                            <div class="glass-panel p-6 space-y-5">
+                                <div>
+                                    <h3 class="text-sm font-bold text-sky-400 uppercase tracking-wider mb-2">Hidratación, Bebidas Cero y Micronutrientes</h3>
+                                    <div class="space-y-3 text-sm text-gray-300">
+                                        <p><b class="text-white">¿Puedo tomar Coca-Cola Zero o Soda?</b><br>
+                                        <span class="text-green-400 font-bold">SÍ, ESTÁ PERMITIDO.</span> Las bebidas con cero calorías no rompen el déficit calórico ni la lipólisis.<br>
+                                        <i class="text-xs text-gray-400">Regla de Oro: Úsalas como herramienta táctica para calmar ansiedad, pero límitalas a 1-2 latas diarias para evitar hinchazón.</i></p>
+                                        
+                                        <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
+                                            <p class="font-bold text-white mb-1">Gestión de Micronutrientes</p>
+                                            <ul class="list-disc pl-4 text-xs space-y-1">
+                                                <li><b>Sodio (Sal):</b> No le tengas miedo. Tu cuerpo lo necesita para la contracción muscular y la bomba intra-entreno.</li>
+                                                <li><b>Potasio:</b> Clave para evitar calambres y retención hídrica. Presente en banano y pollo.</li>
+                                                <li><b>Magnesio:</b> Fundamental para el descanso profundo y recuperación del SNC. Presente en avena y suplementación ZMA.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="pt-4 border-t border-gray-700">
+                                    <h3 class="text-sm font-bold text-purple-400 uppercase tracking-wider mb-2">Ciencia de la Recomposición</h3>
+                                    <p class="text-sm text-gray-300 leading-relaxed">
+                                        Al tener memoria muscular y conocer tu porcentaje de grasa actual, posees el escenario fisiológico perfecto para el "Holy Grail" del fitness: <b class="text-white">ganar masa muscular y perder grasa simultáneamente</b>. Esto requiere un déficit calórico estricto pero conservador, acompañado de un consumo de proteína elevado (mínimo 2g por Kg de masa magra) y entrenamiento de fuerza progresiva.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
         }
