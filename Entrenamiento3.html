@@ -221,9 +221,14 @@
                 <!-- Footer -->
                 <footer class="glass absolute bottom-0 w-full p-3 text-center flex flex-col sm:flex-row justify-between items-center text-xs text-gray-400 z-20">
                     <p>&copy; 2026 Fitness10.easy. Todos los derechos reservados.</p>
-                    <a href="#" onclick="window.open('https://paypal.me/','_blank')" class="flex items-center gap-2 hover:text-sky-400 transition-colors mt-2 sm:mt-0">
-                        <i class="fa-brands fa-paypal"></i> Invítame un café / Apoya el proyecto
-                    </a>
+                    <div class="flex gap-4 mt-2 sm:mt-0 justify-center">
+                        <a href="https://wa.me/573000000000?text=Hola,%20vengo%20de%20Fitness10.easy.%20Necesito%20tutoría%20o%20soporte%20con%20la%20app" target="_blank" class="flex items-center gap-2 text-green-500 hover:text-green-400 transition-colors">
+                            <i class="fa-brands fa-whatsapp text-lg"></i> Soporte / Tutoría
+                        </a>
+                        <a href="#" onclick="window.open('https://paypal.me/','_blank')" class="flex items-center gap-2 hover:text-sky-400 transition-colors">
+                            <i class="fa-brands fa-paypal text-lg"></i> Invítame un café
+                        </a>
+                    </div>
                 </footer>
             </div>
         </div>
@@ -1408,6 +1413,7 @@
         // VISTA HISTORIAL & SUEÑO (ANALYTICS)
         // ==========================================
         window.historyManager = {
+            chartInstance: null,
             fetchDate: async () => {
                 if(!state.user) return;
                 const dateStr = document.getElementById('hist-date').value;
@@ -1443,8 +1449,6 @@
                     }
 
                     // Fetch Workout History
-                    // Using query on workouts collection is complex without index, so we do client-side filter or exact match if ID was date.
-                    // To comply with rules, we will fetch recent and filter.
                     document.getElementById('hist-train-result').innerHTML = '<div class="text-sm text-gray-400 py-2">Para ver rutinas anteriores, ve a la pestaña de Alto Rendimiento (Próxima actualización de listado).</div>';
                     
                 } catch(e) { console.error("Error fetching history", e); }
@@ -1462,7 +1466,106 @@
                 try {
                     await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'analytics_daily', dateStr), data);
                     appManager.saveIndicator('save-status-hist');
+                    // Actualizar las gráficas después de guardar
+                    window.historyManager.loadWeeklyTrends();
                 } catch(e) { ModalSystem.alert("Error guardando datos: " + e.message); }
+            },
+            loadWeeklyTrends: async () => {
+                if(!state.user) return;
+                const uid = state.user.uid;
+                const labels = [];
+                const sleepData = [];
+                const kcalData = [];
+                let totalSleep = 0, totalKcal = 0, daysWithData = 0;
+
+                // Generar los últimos 7 días
+                for(let i=6; i>=0; i--) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const dStr = d.toISOString().split('T')[0];
+                    labels.push(d.toLocaleDateString('es-ES', {weekday: 'short', day: 'numeric'}));
+
+                    try {
+                        const [anSnap, nuSnap] = await Promise.all([
+                            getDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'analytics_daily', dStr)),
+                            getDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'nutrition', dStr))
+                        ]);
+
+                        let sleep = 0, kcal = 0;
+                        if(anSnap.exists() && anSnap.data().sleep) {
+                            sleep = parseFloat(anSnap.data().sleep);
+                        }
+                        sleepData.push(sleep);
+                        if(sleep > 0) { totalSleep += sleep; daysWithData++; }
+
+                        if(nuSnap.exists() && nuSnap.data().meals) {
+                            kcal = nuSnap.data().meals.reduce((acc, m) => acc + (Number(m.kcal)||0), 0);
+                        }
+                        kcalData.push(kcal);
+                        if(kcal > 0) totalKcal += kcal;
+
+                    } catch(e) {
+                        sleepData.push(0); kcalData.push(0);
+                    }
+                }
+
+                // Renderizar Promedios
+                const avgSleep = daysWithData > 0 ? (totalSleep/daysWithData).toFixed(1) : '0.0';
+                const avgKcal = daysWithData > 0 ? Math.round(totalKcal/daysWithData) : 0;
+                document.getElementById('trend-avg-sleep').innerText = avgSleep + ' hrs';
+                document.getElementById('trend-avg-kcal').innerText = avgKcal + ' kcal';
+
+                // Renderizar Gráfica
+                const ctx = document.getElementById('weekly-chart');
+                if(!ctx) return;
+                
+                if(window.historyManager.chartInstance) {
+                    window.historyManager.chartInstance.destroy();
+                }
+
+                window.historyManager.chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Consumo Calórico (kcal)',
+                                data: kcalData,
+                                backgroundColor: 'rgba(56, 189, 248, 0.5)',
+                                borderColor: 'rgba(56, 189, 248, 1)',
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'Horas de Sueño (hrs)',
+                                data: sleepData,
+                                type: 'line',
+                                borderColor: 'rgba(168, 85, 247, 1)',
+                                backgroundColor: 'rgba(168, 85, 247, 0.2)',
+                                borderWidth: 3,
+                                pointBackgroundColor: 'rgba(168, 85, 247, 1)',
+                                fill: true,
+                                tension: 0.4,
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        color: '#94a3b8',
+                        scales: {
+                            y: { type: 'linear', display: true, position: 'left', title: {display: true, text: 'Calorías (Kcal)', color: '#38bdf8'}, grid: { color: 'rgba(255,255,255,0.05)' } },
+                            y1: { type: 'linear', display: true, position: 'right', title: {display: true, text: 'Horas de Sueño', color: '#a855f7'}, grid: { drawOnChartArea: false } },
+                            x: { grid: { display: false } }
+                        },
+                        plugins: {
+                            legend: { labels: { color: '#e2e8f0', usePointStyle: true } },
+                            tooltip: { mode: 'index', intersect: false }
+                        }
+                    }
+                });
             }
         };
 
@@ -1513,7 +1616,7 @@
 
                         <!-- Resumen Histórico -->
                         <div class="glass-panel p-6 md:col-span-2 space-y-4">
-                            <h3 class="text-xl font-bold text-white border-b border-gray-700 pb-2"><i class="fa-solid fa-clock-rotate-left"></i> Comparación de Rendimiento</h3>
+                            <h3 class="text-xl font-bold text-white border-b border-gray-700 pb-2"><i class="fa-solid fa-clock-rotate-left"></i> Comparación de Rendimiento Diaria</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <h4 class="text-sm font-bold text-orange-400 mb-2">Nutrición Registrada</h4>
@@ -1526,6 +1629,29 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Tendencias y Gráficas -->
+                    <div class="glass-panel p-6 mt-6">
+                        <h3 class="text-xl font-bold text-white border-b border-gray-700 pb-2 mb-4"><i class="fa-solid fa-chart-area"></i> Tendencias Semanales (Últimos 7 Días)</h3>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-gray-800/50 p-4 rounded-lg border border-purple-500/30 text-center">
+                                <p class="text-xs text-gray-400">Promedio de Sueño</p>
+                                <p class="text-2xl font-bold text-purple-400" id="trend-avg-sleep">-- hrs</p>
+                            </div>
+                            <div class="bg-gray-800/50 p-4 rounded-lg border border-sky-500/30 text-center">
+                                <p class="text-xs text-gray-400">Promedio Calórico</p>
+                                <p class="text-2xl font-bold text-sky-400" id="trend-avg-kcal">-- kcal</p>
+                            </div>
+                            <div class="bg-gray-800/50 p-4 rounded-lg border border-green-500/30 text-center col-span-2 flex items-center justify-center">
+                                <p class="text-sm text-gray-300 italic"><i class="fa-solid fa-quote-left text-gray-500 mr-2"></i>Lo que no se mide, no se puede mejorar.<i class="fa-solid fa-quote-right text-gray-500 ml-2"></i></p>
+                            </div>
+                        </div>
+                        
+                        <div class="h-80 w-full relative">
+                            <canvas id="weekly-chart"></canvas>
+                        </div>
+                    </div>
                 </div>
             `;
         }
@@ -1535,6 +1661,8 @@
             dateInput.addEventListener('change', window.historyManager.fetchDate);
             // Cargar data inicial (hoy)
             window.historyManager.fetchDate();
+            // Cargar Gráfica Semanal
+            window.historyManager.loadWeeklyTrends();
         }
 
         // ==========================================
