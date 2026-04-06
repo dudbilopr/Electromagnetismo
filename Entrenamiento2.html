@@ -1,0 +1,2442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-LAB SYS | Recomposición Profesional</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Estilos Glassmorphism y UI Base -->
+    <style>
+        :root {
+            --glass-bg: rgba(15, 23, 42, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-highlight: rgba(255, 255, 255, 0.05);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg-color: #020617;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(30, 58, 138, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(15, 23, 42, 0.8) 0%, transparent 50%);
+            background-attachment: fixed;
+            color: #f8fafc;
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        .glass-panel:hover {
+            border-color: rgba(255,255,255,0.15);
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--glass-border);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
+        .glass-btn {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(29, 78, 216, 0.9));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .glass-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--primary-glow);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 1), rgba(37, 99, 235, 1));
+        }
+
+        .glass-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Botones Icono Minimalistas */
+        .glass-icon-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--primary);
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .glass-icon-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--primary-glow);
+            color: white;
+            box-shadow: 0 0 15px var(--primary-glow);
+            transform: scale(1.05);
+        }
+        
+        .glass-icon-btn:active {
+            transform: scale(0.95);
+        }
+
+        .nav-item {
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            border-radius: 0.5rem;
+            margin: 0 0.5rem;
+        }
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            left: -0.5rem; top: 0; bottom: 0; width: 3px;
+            background: var(--primary);
+            transform: scaleY(0);
+            transition: transform 0.2s ease;
+            border-radius: 0 4px 4px 0;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: var(--glass-highlight);
+        }
+        .nav-item.active::before {
+            transform: scaleY(1);
+        }
+        .nav-item.active i {
+            color: var(--primary);
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        /* Scrollbars */
+        .scroll-container {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            scrollbar-width: none;
+            gap: 0.5rem;
+            padding-bottom: 0.2rem;
+            scroll-snap-type: x mandatory;
+        }
+        .scroll-container::-webkit-scrollbar { display: none; }
+        .scroll-item { flex: 0 0 auto; scroll-snap-align: start; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
+        
+        .loader-spinner {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Timer Float */
+        .timer-float {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+        }
+        
+        @media (min-width: 640px) {
+            .timer-float { bottom: 30px; }
+        }
+
+        /* Checkbox styling */
+        .set-checkbox {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border: 2px solid #4b5563;
+            border-radius: 6px;
+            background-color: rgba(0,0,0,0.2);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+        .set-checkbox:checked {
+            background-color: var(--success);
+            border-color: var(--success);
+        }
+        .set-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .edit-icon {
+            cursor: pointer;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        .edit-icon:hover {
+            opacity: 1;
+            color: var(--primary);
+        }
+
+        /* Blur class for privacy */
+        .privacy-blur {
+            filter: blur(5px);
+            opacity: 0.6;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- Auth Guard UI -->
+    <div id="auth-screen" class="absolute inset-0 z-50 flex items-center justify-center bg-[#020617]/95 backdrop-blur-xl transition-opacity duration-500">
+        <div class="glass-panel p-8 w-full max-w-md mx-4 relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="text-center mb-8 relative z-10">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 mb-4">
+                    <i class="ph ph-barbell text-4xl text-blue-500"></i>
+                </div>
+                <h2 class="text-2xl font-bold tracking-tight text-white">C-LAB SYSTEM</h2>
+                <p class="text-blue-400 text-xs font-semibold tracking-widest uppercase mt-2">Protocolo Élite</p>
+                <div class="mt-2 text-[9px] font-mono text-gray-500">System13.core</div>
+            </div>
+            
+            <form id="login-form" class="space-y-4 relative z-10">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1 uppercase tracking-wider">Credenciales</label>
+                    <div class="relative">
+                        <i class="ph ph-envelope absolute left-3 top-3 text-gray-500"></i>
+                        <input type="email" id="email" required class="glass-input w-full pl-10 pr-4 py-2.5 rounded-lg text-sm" placeholder="usuario@ejemplo.com">
+                    </div>
+                </div>
+                <div>
+                    <div class="relative mt-2">
+                        <i class="ph ph-lock absolute left-3 top-3 text-gray-500"></i>
+                        <input type="password" id="password" required class="glass-input w-full pl-10 pr-4 py-2.5 rounded-lg text-sm" placeholder="••••••••">
+                    </div>
+                </div>
+                <button type="submit" id="btn-login-submit" class="glass-btn w-full py-3 rounded-lg font-bold mt-6 flex justify-center items-center gap-2 text-sm uppercase tracking-wide">
+                    <span>Ingresar</span><i class="ph ph-arrow-right font-bold"></i>
+                </button>
+            </form>
+            
+            <div class="mt-6 pt-4 relative z-10">
+                <button id="btn-google" class="w-full glass-input py-2.5 rounded-lg font-medium flex justify-center items-center gap-2 hover:bg-white/5 text-sm border-gray-700">
+                    <i class="ph ph-google-logo text-lg"></i> Acceso con Google
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pantalla de Carga -->
+    <div id="loading-screen" class="hidden absolute inset-0 z-40 flex flex-col items-center justify-center bg-[#020617]/95 backdrop-blur-md">
+        <div class="loader-spinner mb-4"></div>
+        <p class="text-blue-400 font-mono text-sm tracking-widest animate-pulse" id="loading-text">SINCRONIZANDO...</p>
+        <p class="text-gray-600 font-mono text-[9px] mt-2">Sync.protocol</p>
+    </div>
+
+    <!-- Main Sidebar -->
+    <aside class="w-64 glass-panel m-4 mb-20 sm:mb-4 flex flex-col hidden sm:flex z-30 transition-all duration-300 shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden" id="sidebar">
+        <div class="p-6 border-b border-gray-800/50 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/30 to-blue-900/30 flex items-center justify-center border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                <i class="ph ph-hexagon text-xl text-blue-400"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm tracking-wide text-white">C-LAB SYS</h1>
+                <div class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                    <span class="text-[10px] text-gray-400 uppercase tracking-wider">Online</span>
+                </div>
+            </div>
+        </div>
+
+        <nav class="flex-1 py-4 flex flex-col gap-1 overflow-y-auto">
+            <div onclick="navigate('dashboard')" class="nav-item active px-4 py-3 flex items-center gap-3 text-sm text-gray-300 font-medium">
+                <i class="ph ph-squares-four text-lg"></i> Centro de Control
+            </div>
+            <div onclick="navigate('nutrition')" class="nav-item px-4 py-3 flex items-center gap-3 text-sm text-gray-300 font-medium">
+                <i class="ph ph-apple-pod text-lg"></i> Nutrición Clínica
+            </div>
+            <div onclick="navigate('training')" class="nav-item px-4 py-3 flex items-center gap-3 text-sm text-gray-300 font-medium">
+                <i class="ph ph-person-simple-run text-lg"></i> Protocolo Físico
+            </div>
+            <div onclick="navigate('metrics')" class="nav-item px-4 py-3 flex items-center gap-3 text-sm text-gray-300 font-medium">
+                <i class="ph ph-chart-line-up text-lg"></i> Analítica Corporal
+            </div>
+            <div onclick="navigate('clinical')" class="nav-item px-4 py-3 flex items-center gap-3 text-sm text-emerald-300 font-medium bg-emerald-900/10">
+                <i class="ph ph-flask text-lg text-emerald-400"></i> Control Clínico
+            </div>
+            <div onclick="navigate('academy')" class="nav-item px-4 py-3 flex items-center gap-3 text-sm text-gray-300 font-medium">
+                <i class="ph ph-graduation-cap text-lg"></i> Base de Conocimiento
+            </div>
+        </nav>
+
+        <div class="p-5 border-t border-gray-800/50 bg-black/20 relative group">
+            <button onclick="toggleProfilePrivacy()" class="absolute top-2 right-2 text-gray-500 hover:text-white transition z-10" title="Ocultar Datos Personales">
+                <i class="ph ph-eye" id="profile-eye-icon"></i>
+            </button>
+            <div class="flex items-center gap-3 transition-all duration-300" id="profile-data-container">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 flex items-center justify-center border border-gray-500/30 shrink-0">
+                    <i class="ph ph-user text-white"></i>
+                </div>
+                <div class="flex-1 truncate">
+                    <div id="user-display-email" class="truncate text-white text-xs font-semibold">usuario@...</div>
+                    <div class="text-[10px] text-blue-400 font-mono mt-0.5" id="user-display-age">-- AÑOS</div>
+                </div>
+                <button onclick="logout()" class="glass-icon-btn text-gray-500 hover:text-red-400 shrink-0" title="Desconectar">
+                    <i class="ph ph-power text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Mobile Nav -->
+    <nav class="sm:hidden fixed bottom-0 left-0 right-0 glass-panel rounded-none border-b-0 z-40 flex justify-around p-2 bg-[#020617]/90 backdrop-blur-xl border-t border-gray-800">
+        <button onclick="navigate('dashboard')" class="p-3 text-blue-400 flex flex-col items-center gap-1"><i class="ph ph-squares-four text-xl"></i><span class="text-[9px]">Inicio</span></button>
+        <button onclick="navigate('nutrition')" class="p-3 text-gray-400 hover:text-gray-200 flex flex-col items-center gap-1"><i class="ph ph-apple-pod text-xl"></i><span class="text-[9px]">Dieta</span></button>
+        <button onclick="navigate('training')" class="p-3 text-gray-400 hover:text-gray-200 flex flex-col items-center gap-1"><i class="ph ph-person-simple-run text-xl"></i><span class="text-[9px]">Rutina</span></button>
+        <button onclick="navigate('metrics')" class="p-3 text-gray-400 hover:text-gray-200 flex flex-col items-center gap-1"><i class="ph ph-chart-line-up text-xl"></i><span class="text-[9px]">Datos</span></button>
+        <button onclick="navigate('clinical')" class="p-3 text-emerald-400 hover:text-emerald-200 flex flex-col items-center gap-1"><i class="ph ph-flask text-xl"></i><span class="text-[9px]">Clínica</span></button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto relative flex flex-col h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-900/10 via-transparent to-transparent sm:pt-4 sm:pr-4">
+        
+        <div class="p-4 sm:p-4 pb-24 sm:pb-8 flex-1">
+            <header class="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-8 gap-4">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()" class="glass-icon-btn hidden sm:flex text-2xl text-gray-400 hover:text-white" title="Expandir/Contraer Menú">
+                        <i class="ph ph-list"></i>
+                    </button>
+                    <div>
+                        <h2 class="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400" id="page-title">Centro de Control</h2>
+                        <p class="text-blue-400 text-sm font-medium mt-1 tracking-wide" id="page-subtitle">Día 1 de 13 - Fase de Adaptación</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="openSettings()" class="glass-icon-btn text-xl text-gray-400 hover:text-white" title="Configuración del Plan y Diagnóstico Inicial">
+                        <i class="ph ph-gear"></i>
+                    </button>
+                    <button onclick="exportarDatos()" class="glass-icon-btn text-xl" title="Exportar Data JSON">
+                        <i class="ph ph-download-simple"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- VIEW: DASHBOARD -->
+            <div id="view-dashboard" class="space-y-6">
+                <div class="glass-panel p-4 mb-2 border border-blue-500/30 bg-blue-900/10 flex items-start gap-3">
+                    <i class="ph ph-info text-2xl text-blue-400 mt-1"></i>
+                    <div>
+                        <h4 class="text-sm font-bold text-blue-300 uppercase tracking-wide">Guía de Uso Diaria <span class="text-[9px] bg-blue-900 text-blue-200 px-1 rounded ml-1 font-mono">Routine.start</span></h4>
+                        <p class="text-xs text-gray-300 mt-1 leading-relaxed">
+                            <strong>1. Mañana:</strong> Pésate en ayunas, registra tus horas de sueño en la pestaña <span class="text-blue-400 font-bold cursor-pointer hover:underline" onclick="navigate('metrics')">Analítica</span>.<br>
+                            <strong>2. Durante el día:</strong> Usa los botones <span class="text-blue-400 font-bold">+</span> y <span class="text-red-400 font-bold">-</span> de este panel para registrar tu agua, café, suplementos y calorías consumidas.<br>
+                            <strong>3. Noche:</strong> Antes de dormir, presiona <strong class="text-white bg-black/40 px-1 rounded border border-gray-700">Guardar Sesión Diaria</strong> para almacenar tu progreso histórico de hábitos.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-5 border-l-4 border-blue-500 bg-gradient-to-r from-blue-900/20 to-transparent relative overflow-hidden">
+                    <div class="absolute -right-5 -top-5 opacity-10"><i class="ph ph-lightning text-8xl text-blue-400"></i></div>
+                    <h3 class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <i class="ph ph-quotes"></i> Directriz Diaria (Día <span id="dash-day-indicator">1</span>)
+                    </h3>
+                    <p class="text-base text-gray-200 italic leading-relaxed" id="dash-motivation-text">Cargando directriz...</p>
+                </div>
+
+                <div class="glass-panel p-5 border-l-4 border-indigo-500 bg-gradient-to-r from-indigo-900/20 to-transparent">
+                    <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <i class="ph ph-heartbeat text-lg"></i> Diagnóstico Biomecánico & Recuperación
+                    </h3>
+                    <div class="text-sm text-gray-200 leading-relaxed" id="diagnostic-text">
+                        Esperando datos del día... Ve a "Analítica Corporal", registra tus horas y medidas bilaterales para generar tu diagnóstico de asimetría y recuperación.
+                    </div>
+                    <div id="daily-summary-alert" class="mt-3 text-xs font-bold px-3 py-2 rounded hidden"></div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div class="glass-panel p-5 relative overflow-hidden group">
+                        <div class="flex justify-between text-gray-400 mb-1 text-xs font-semibold uppercase tracking-wider"><span>Peso Actual</span></div>
+                        <div class="text-3xl font-bold text-white mt-1" id="dash-weight">-- <span class="text-sm text-gray-500">kg</span></div>
+                        <div class="text-[10px] text-green-400 mt-2 flex items-center gap-1 font-mono bg-green-500/10 w-fit px-2 py-0.5 rounded"><i class="ph ph-target"></i> Meta: 75.0 kg</div>
+                    </div>
+                    
+                    <div class="glass-panel p-5 relative overflow-hidden group">
+                        <div class="flex justify-between text-gray-400 mb-1 text-xs font-semibold uppercase tracking-wider"><span>Kcal Diarias</span></div>
+                        <div class="text-3xl font-bold text-white mt-1"><span id="kcal-count">0</span><span class="text-lg text-gray-500"> / 1900</span> <span class="text-sm text-gray-500">kcal</span></div>
+                        <div class="w-full bg-gray-800/80 rounded-full h-1.5 mt-3 overflow-hidden"><div id="kcal-bar" class="bg-gradient-to-r from-orange-600 to-yellow-500 h-1.5 rounded-full" style="width: 0%"></div></div>
+                        <div class="flex items-center justify-end mt-2 gap-1">
+                            <button onclick="removeCalories()" class="glass-icon-btn text-red-400 text-xl" title="Restar Calorías"><i class="ph ph-minus"></i></button>
+                            <button onclick="addCalories()" class="glass-icon-btn text-orange-400 text-xl" title="Agregar Calorías"><i class="ph ph-plus"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 flex flex-col justify-between border border-emerald-900/30">
+                        <div class="flex justify-between text-emerald-500 mb-1 text-xs font-semibold uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><i class="ph ph-battery-charging"></i> Energía SNC</span>
+                            <span id="recovery-status-text">--</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="text-2xl font-bold text-white"><span id="recovery-score">100</span><span class="text-xs text-gray-500 ml-1">%</span></div>
+                            <i class="ph ph-activity text-2xl text-emerald-500 opacity-50"></i>
+                        </div>
+                        <div class="w-full bg-gray-800/80 rounded-full h-1 mt-2 overflow-hidden"><div id="recovery-bar" class="bg-emerald-400 h-1 rounded-full" style="width: 100%"></div></div>
+                        <p class="text-[9px] text-emerald-400 mt-2 italic text-right" id="snc-time-stamp">Ajustado por hora</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 border-t border-gray-800/50 pt-6">
+                    <div class="col-span-2 md:col-span-3 lg:col-span-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Suplementación y Hábitos Diarios</h3></div>
+                    
+                    <div class="glass-panel p-4 flex flex-col justify-between border border-purple-900/30">
+                        <div class="flex justify-between text-purple-400 mb-1 text-xs font-semibold uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><i class="ph ph-flask"></i> Creatina</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="text-2xl font-bold text-white"><span id="creatine-count">0</span><span class="text-xs text-gray-500 ml-1">g</span></div>
+                            <div class="flex gap-1">
+                                <button onclick="removeCreatine()" class="glass-icon-btn text-red-400 text-xl" title="Restar 5g"><i class="ph ph-minus"></i></button>
+                                <button onclick="addCreatine()" class="glass-icon-btn text-purple-400 text-xl" title="Agregar 5g"><i class="ph ph-plus"></i></button>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-800/80 rounded-full h-1 mt-2 overflow-hidden"><div id="creatine-bar" class="bg-purple-400 h-1 rounded-full" style="width: 0%"></div></div>
+                        <p class="text-[9px] text-gray-500 mt-2">Meta: 5g diarios.</p>
+                    </div>
+
+                    <div class="glass-panel p-4 flex flex-col justify-between border border-pink-900/30">
+                        <div class="flex justify-between text-pink-400 mb-1 text-xs font-semibold uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><i class="ph ph-shaker"></i> Whey Protein</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="text-2xl font-bold text-white"><span id="protein-count">0</span><span class="text-xs text-gray-500 ml-1">sc.</span></div>
+                            <div class="flex gap-1">
+                                <button onclick="removeProtein()" class="glass-icon-btn text-red-400 text-xl" title="Restar 1 Scoop"><i class="ph ph-minus"></i></button>
+                                <button onclick="addProtein()" class="glass-icon-btn text-pink-400 text-xl" title="Agregar 1 Scoop"><i class="ph ph-plus"></i></button>
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-gray-500 mt-2">Opcional. 1 Sc. ≈ 25g prot.</p>
+                    </div>
+
+                    <div class="glass-panel p-4 flex flex-col justify-between border border-teal-900/30">
+                        <div class="flex justify-between text-teal-400 mb-1 text-xs font-semibold uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><i class="ph ph-pill"></i> Omega-3</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="text-2xl font-bold text-white"><span id="omega-count">0</span><span class="text-xs text-gray-500 ml-1">caps</span></div>
+                            <div class="flex gap-1">
+                                <button onclick="removeOmega()" class="glass-icon-btn text-red-400 text-xl" title="Restar 1 Cápsula"><i class="ph ph-minus"></i></button>
+                                <button onclick="addOmega()" class="glass-icon-btn text-teal-400 text-xl" title="Agregar 1 Cápsula"><i class="ph ph-plus"></i></button>
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-gray-500 mt-2">Opcional. Antinflamatorio.</p>
+                    </div>
+
+                    <div class="glass-panel p-4 flex flex-col justify-between border border-zinc-900/30">
+                        <div class="flex justify-between text-zinc-400 mb-1 text-xs font-semibold uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><i class="ph ph-moon-stars"></i> Magnesio</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="text-2xl font-bold text-white"><span id="magnesium-count">0</span><span class="text-xs text-gray-500 ml-1">dosis</span></div>
+                            <div class="flex gap-1">
+                                <button onclick="removeMagnesium()" class="glass-icon-btn text-red-400 text-xl" title="Restar 1 Dosis"><i class="ph ph-minus"></i></button>
+                                <button onclick="addMagnesium()" class="glass-icon-btn text-zinc-400 text-xl" title="Agregar 1 Dosis"><i class="ph ph-plus"></i></button>
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-gray-500 mt-2">Opcional. Para el SNC.</p>
+                    </div>
+
+                    <div class="glass-panel p-4 flex flex-col justify-between border border-blue-900/30">
+                        <div class="flex justify-between text-blue-400 mb-1 text-xs font-semibold uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><i class="ph ph-drop"></i> Hidratación</span>
+                            <span id="water-count-text">0 / 12 V.</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="text-2xl font-bold text-white" id="water-liters">0.0<span class="text-xs text-gray-500 ml-1">L</span></div>
+                            <div class="flex gap-1">
+                                <button onclick="removeWater()" class="glass-icon-btn text-red-400 text-xl" title="Restar 250ml"><i class="ph ph-minus"></i></button>
+                                <button onclick="addWater()" class="glass-icon-btn text-blue-400 text-xl" title="Agregar 250ml"><i class="ph ph-plus"></i></button>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-800/80 rounded-full h-1 mt-2 overflow-hidden"><div id="water-bar" class="bg-blue-400 h-1 rounded-full" style="width: 0%"></div></div>
+                    </div>
+
+                    <div class="glass-panel p-4 flex flex-col justify-between border border-amber-900/30">
+                        <div class="flex justify-between text-amber-500 mb-1 text-xs font-semibold uppercase tracking-wider">
+                            <span class="flex items-center gap-1"><i class="ph ph-coffee"></i> Café Negro</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="text-2xl font-bold text-white"><span id="coffee-count">0</span><span class="text-xs text-gray-500 ml-1">T.</span></div>
+                            <div class="flex gap-1">
+                                <button onclick="removeCoffee()" class="glass-icon-btn text-red-400 text-xl" title="Restar 1 Taza"><i class="ph ph-minus"></i></button>
+                                <button onclick="addCoffee()" class="glass-icon-btn text-amber-500 text-xl" title="Agregar 1 Taza"><i class="ph ph-plus"></i></button>
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-gray-500 mt-2">Máx 4/día. No cuenta como agua.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end -mt-2">
+                    <button id="btn-save-habits" onclick="saveDailyHabits()" class="glass-btn px-6 py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                        <i class="ph ph-cloud-arrow-up text-lg"></i> Guardar Sesión Diaria
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 glass-panel p-0 overflow-hidden flex flex-col">
+                        <div class="p-4 border-b border-gray-800/50 bg-white/5 flex justify-between items-center">
+                            <h3 class="text-sm font-bold text-gray-200 uppercase tracking-wide">Evolución de Macronutrientes (7 Días)</h3>
+                            <span class="text-[10px] text-green-400 font-mono bg-green-900/20 px-2 py-1 rounded border border-green-500/30"><i class="ph ph-activity"></i> Datos Reales BD</span>
+                        </div>
+                        <div class="p-6 flex-1 h-64"><canvas id="macrosChart"></canvas></div>
+                    </div>
+                    
+                    <div class="glass-panel p-0 flex flex-col overflow-hidden border-red-900/30">
+                        <div class="p-4 border-b border-red-900/30 bg-gradient-to-r from-red-950/40 to-transparent flex items-center gap-2">
+                            <i class="ph ph-warning-octagon text-red-500 text-lg"></i>
+                            <h3 class="text-sm font-bold text-red-100 uppercase tracking-wide">Reglas Cero Tolerancia</h3>
+                        </div>
+                        <div class="p-6 flex-1 bg-black/40 flex flex-col justify-center space-y-4">
+                            <ul class="text-sm space-y-3 text-gray-300">
+                                <li class="flex items-center gap-3"><div class="p-1 bg-red-500/20 rounded text-red-500"><i class="ph ph-beer-bottle"></i></div> Cero Alcohol (inhibe lipólisis)</li>
+                                <li class="flex items-center gap-3"><div class="p-1 bg-red-500/20 rounded text-red-500"><i class="ph ph-drop-slash"></i></div> Cero Azúcar Líquido</li>
+                                <li class="flex items-center gap-3"><div class="p-1 bg-red-500/20 rounded text-red-500"><i class="ph ph-hamburger"></i></div> Cero Fritos en Aceite Sumergido</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: NUTRITION -->
+            <div id="view-nutrition" class="hidden flex flex-col h-full gap-6">
+                <div id="admin-usda-panel" class="hidden glass-panel p-6 border-t-4 border-t-green-500 relative overflow-hidden">
+                    <div class="absolute -right-5 -bottom-5 opacity-5"><i class="ph ph-database text-9xl"></i></div>
+                    <div class="relative z-10">
+                        <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2"><i class="ph ph-leaf text-green-400"></i> Importador Global USDA (Solo Admin)</h3>
+                        <p class="text-xs text-gray-400 mb-4 max-w-2xl">Carga el JSON del USDA para enviar ingredientes curados a la base de datos global.</p>
+                        
+                        <div class="flex items-center gap-3">
+                            <label for="usda-file-input" class="glass-btn px-4 py-2 rounded cursor-pointer text-sm font-bold flex items-center gap-2 hover:scale-105 transition-transform">
+                                <i class="ph ph-upload-simple"></i> Seleccionar JSON
+                            </label>
+                            <input type="file" id="usda-file-input" accept=".json" class="hidden" onchange="importarUSDA(event)">
+                            <span id="usda-file-name" class="text-xs text-gray-500 italic">Ningún archivo...</span>
+                        </div>
+                        <div id="usda-results" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2"></div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 border-t-4 border-t-purple-500 relative">
+                    <div class="absolute -right-5 -bottom-5 opacity-5"><i class="ph ph-magnifying-glass text-9xl"></i></div>
+                    <div class="relative z-10 flex flex-col md:flex-row gap-6">
+                        <div class="flex-1">
+                            <h3 class="text-sm font-bold text-white uppercase mb-3 flex items-center gap-2"><i class="ph ph-magnifying-glass"></i> Buscar en Despensa</h3>
+                            <input type="text" id="food-search-input" onkeyup="searchFoods(this.value)" class="glass-input w-full p-3 rounded-lg text-sm" placeholder="Ej: Pollo, Avena, Huevos...">
+                            <div id="food-search-results" class="mt-3 space-y-2 max-h-40 overflow-y-auto pr-2">
+                                <p class="text-xs text-gray-500 italic">Usa el buscador para encontrar alimentos globales o de tu despensa privada.</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Formulario Manual Mejorado con Unidades (Media Taza) -->
+                        <div class="flex-1 border-t md:border-t-0 md:border-l border-gray-700 pt-4 md:pt-0 md:pl-6">
+                            <h3 class="text-sm font-bold text-purple-400 uppercase mb-3 flex items-center gap-2"><i class="ph ph-plus-circle"></i> Añadir a Mi Despensa (Privado)</h3>
+                            <form id="form-add-pantry" class="grid grid-cols-5 gap-2">
+                                <div class="col-span-5 md:col-span-3">
+                                    <input type="text" id="pantry-name" required class="glass-input w-full p-2 rounded text-xs bg-black/40" placeholder="Nombre del Alimento">
+                                </div>
+                                <div class="col-span-3 md:col-span-1">
+                                    <input type="number" id="pantry-qty" required class="glass-input w-full p-2 rounded text-xs bg-black/40" placeholder="Cantidad Base" value="100">
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <select id="pantry-unit" class="glass-input w-full p-2 rounded text-xs bg-black/40">
+                                        <option value="g">g/ml</option>
+                                        <option value="unidad">Unidad</option>
+                                        <option value="taza">Taza</option>
+                                        <option value="1/2 taza">1/2 taza</option>
+                                        <option value="cda">Cucharada</option>
+                                    </select>
+                                </div>
+                                <div class="col-span-1 mt-2">
+                                    <input type="number" id="pantry-kcal" required class="glass-input w-full p-2 rounded text-xs text-center bg-black/40" placeholder="Kcal">
+                                </div>
+                                <div class="col-span-1 mt-2">
+                                    <input type="number" id="pantry-p" step="0.1" required class="glass-input w-full p-2 rounded text-xs text-center bg-black/40" placeholder="Prot(g)">
+                                </div>
+                                <div class="col-span-1 mt-2">
+                                    <input type="number" id="pantry-c" step="0.1" required class="glass-input w-full p-2 rounded text-xs text-center bg-black/40" placeholder="Carb(g)">
+                                </div>
+                                <div class="col-span-2 mt-2">
+                                    <input type="number" id="pantry-f" step="0.1" required class="glass-input w-full p-2 rounded text-xs text-center bg-black/40" placeholder="Gras(g)">
+                                </div>
+                                <div class="col-span-5 mt-1 flex gap-2">
+                                    <button type="submit" id="btn-pantry-submit" class="glass-btn flex-1 py-2 rounded font-bold text-xs uppercase flex justify-center items-center gap-1"><i class="ph ph-floppy-disk"></i> Guardar en Despensa</button>
+                                    <button type="button" onclick="cancelPantryEdit()" id="btn-pantry-cancel" class="hidden glass-btn bg-gradient-to-r from-gray-600 to-gray-700 flex-1 py-2 rounded font-bold text-xs uppercase flex justify-center items-center gap-1"><i class="ph ph-x"></i> Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-2">
+                    <div class="scroll-container day-selector" id="nutrition-day-selector"></div>
+                </div>
+                
+                <div class="glass-panel p-4 border border-blue-500/30 bg-blue-900/10 flex items-start gap-3">
+                    <i class="ph ph-lightbulb text-xl text-yellow-400 mt-1"></i>
+                    <p class="text-xs text-gray-300 leading-relaxed">
+                        <strong>¿Cómo usar este panel?</strong> Marca la casilla <strong class="text-white">"Marcar Consumo"</strong> en cada comida para sumar al progreso de hoy. Usa el ícono <i class="ph ph-pencil-simple text-blue-400 text-sm"></i> para editar la comida con los ingredientes exactos (con gramos) buscándolos de la base de datos.
+                    </p>
+                </div>
+
+                <div id="nutrition-day-detail" class="flex-1 space-y-6"></div>
+            </div>
+
+            <!-- VIEW: TRAINING -->
+            <div id="view-training" class="hidden flex flex-col h-full gap-6 relative">
+                
+                <div id="training-overview">
+                    <div class="glass-panel p-2 mb-6 flex justify-between items-center gap-4">
+                        <div class="scroll-container day-selector flex-1" id="training-day-selector"></div>
+                    </div>
+
+                    <div class="glass-panel p-4 mb-4 border border-blue-500/30 bg-blue-900/10 flex items-start gap-3">
+                        <i class="ph ph-lightbulb text-xl text-yellow-400 mt-1"></i>
+                        <p class="text-xs text-gray-300 leading-relaxed">
+                            <strong>¿Cómo entrenar?</strong> Revisa tu rutina del día. Cuando estés listo, presiona <strong class="text-white">"Iniciar Rutina"</strong>. Te permitirá marcar serie por serie, medir tus descansos con el temporizador automático y anotar los pesos levantados para registrar tu sobrecarga. Si no vas al gimnasio, edita (<i class="ph ph-pencil-simple text-blue-400 text-sm"></i>) o añade un ejercicio y selecciona una opción de "Casa".
+                        </p>
+                    </div>
+
+                    <div id="training-medical-warnings"></div>
+
+                    <div id="training-day-detail" class="space-y-6"></div>
+                </div>
+
+                <!-- Modo Entrenamiento Activo -->
+                <div id="workout-active-container" class="hidden flex-col h-full gap-4">
+                    <div class="glass-panel p-4 flex justify-between items-center bg-blue-900/20 border-blue-500/30">
+                        <div class="flex items-center gap-3">
+                            <button onclick="abortWorkout()" class="glass-icon-btn text-red-400 bg-red-500/10 hover:bg-red-500/20 border-red-500/30"><i class="ph ph-x text-lg"></i></button>
+                            <div>
+                                <h3 class="font-bold text-white uppercase tracking-wide">Modo Ejecución</h3>
+                                <p class="text-xs text-blue-400 font-mono" id="workout-active-title">Día 1 - Empuje</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="skipWorkout()" class="glass-btn px-3 py-2 rounded-lg text-xs font-bold text-red-200 border-red-500/30 bg-gradient-to-r from-red-900/50 to-red-800/50 hover:from-red-600 hover:to-red-700 shadow-lg" title="Marcar como No Realizado">No Entrené</button>
+                            <button onclick="finishWorkout()" class="glass-btn px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg">Finalizar</button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 border-l-4 border-blue-500 bg-gradient-to-r from-blue-900/10 to-transparent">
+                         <div class="flex justify-between items-center mb-2">
+                             <h4 class="text-sm font-bold text-white uppercase flex items-center gap-2"><i class="ph ph-chart-line-up"></i> Progreso de la Rutina</h4>
+                             <div class="text-xs text-blue-400 font-mono" id="workout-progress-text">0% (0/0)</div>
+                         </div>
+                         <div class="w-full bg-gray-800/80 rounded-full h-2 overflow-hidden border border-gray-700">
+                             <div id="workout-progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                         </div>
+                    </div>
+
+                    <div id="workout-exercises-list" class="space-y-4 pb-24"></div>
+
+                    <div id="workout-timer-float" class="timer-float glass-panel p-4 flex items-center gap-4 bg-gray-900/90 border-gray-700 shadow-2xl hidden">
+                        <div class="bg-black/50 p-3 rounded-lg border border-gray-700 flex items-center gap-3">
+                            <i class="ph ph-timer text-2xl text-blue-400" id="timer-icon"></i>
+                            <div>
+                                <div class="text-[10px] text-gray-400 uppercase font-bold" id="timer-label">Descanso</div>
+                                <div class="text-2xl font-mono font-bold text-white" id="timer-display">00:00</div>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-400 max-w-[120px]" id="timer-target-text">Objetivo: 90s</div>
+                        <button onclick="resetTimer()" class="glass-icon-btn text-gray-300 bg-gray-800"><i class="ph ph-arrow-counter-clockwise"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: METRICS -->
+            <div id="view-metrics" class="hidden space-y-6">
+                <div class="glass-panel p-4 border border-blue-500/30 bg-blue-900/10 flex items-start gap-3">
+                    <i class="ph ph-info text-2xl text-blue-400 mt-1"></i>
+                    <div>
+                        <h4 class="text-sm font-bold text-blue-300 uppercase tracking-wide">Optimización Científica de Datos</h4>
+                        <p class="text-xs text-gray-300 mt-1 leading-relaxed">
+                            El <strong>Peso, Sueño y Trabajo</strong> deben llenarse idealmente <em>todos los días</em> en la mañana. <br>
+                            Los <strong>Perímetros y Pliegues</strong> llénalos solo <em>1 vez a la semana o quincena</em> (siempre en ayunas).
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-1 glass-panel p-6 flex flex-col border-t-2 border-primary">
+                        <h3 class="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2 text-blue-400">
+                            <i class="ph ph-plus-circle text-lg"></i> Inyección Científica de Datos
+                        </h3>
+                        <form id="metrics-form" class="space-y-4 flex-1 overflow-y-auto pr-2 pb-2">
+                            <div class="bg-blue-900/10 p-3 rounded border border-blue-900/30 mb-4">
+                                <label class="block text-[10px] font-bold text-blue-300 mb-1 uppercase tracking-wider"><i class="ph ph-calendar"></i> Fecha de la Muestra</label>
+                                <input type="date" id="input-date" required class="glass-input w-full p-2 rounded text-sm bg-black/40 text-blue-100" style="color-scheme: dark;">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Peso Corporal (kg)</label>
+                                    <input type="number" id="input-weight" step="0.1" required class="glass-input w-full p-2.5 rounded-lg text-sm font-bold text-white bg-black/30" placeholder="Ej: 77.5">
+                                </div>
+                                <div class="col-span-1">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Sueño (h)</label>
+                                    <input type="number" id="input-sleep" step="0.5" required class="glass-input w-full p-2 rounded-lg text-sm bg-black/30" placeholder="Ej: 7.5">
+                                </div>
+                                <div class="col-span-1">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Trabajo (h)</label>
+                                    <input type="number" id="input-work" step="0.5" required class="glass-input w-full p-2 rounded-lg text-sm bg-black/30" placeholder="Ej: 8.0">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Hora Ideal de Entrenamiento</label>
+                                    <input type="time" id="input-train-time" required class="glass-input w-full p-2 rounded-lg text-sm bg-black/30" style="color-scheme: dark;">
+                                </div>
+                                
+                                <div class="col-span-2 mt-3 border-t border-gray-800 pt-3"><span class="text-xs text-emerald-400 font-bold uppercase tracking-widest"><i class="ph ph-arrows-out-line-horizontal"></i> Perímetros Bilaterales (CM)</span></div>
+                                
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Brazo Izq.</label>
+                                    <input type="number" id="input-brazo-izq" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Brazo Der.</label>
+                                    <input type="number" id="input-brazo-der" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Muslo Izq.</label>
+                                    <input type="number" id="input-muslo-izq" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Muslo Der.</label>
+                                    <input type="number" id="input-muslo-der" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Gemelo Izq.</label>
+                                    <input type="number" id="input-gemelo-izq" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Gemelo Der.</label>
+                                    <input type="number" id="input-gemelo-der" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+
+                                <div class="col-span-2 mt-3 border-t border-gray-800 pt-3"><span class="text-xs text-blue-400 font-bold uppercase tracking-widest"><i class="ph ph-circle"></i> Perímetros Centrales (CM)</span></div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Cuello</label>
+                                    <input type="number" id="input-cuello" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Cintura</label>
+                                    <input type="number" id="input-cintura" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Pecho</label>
+                                    <input type="number" id="input-pecho" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Cadera</label>
+                                    <input type="number" id="input-cadera" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Muñeca (Hueso - Somatotipo)</label>
+                                    <input type="number" id="input-muneca" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20 border-emerald-500/30" placeholder="0.0">
+                                </div>
+
+                                <div class="col-span-2 mt-3 border-t border-gray-800 pt-3"><span class="text-xs text-purple-400 font-bold uppercase tracking-widest"><i class="ph ph-scissors"></i> Pliegues Cutáneos ISAK (MM)</span></div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Tricipital</label>
+                                    <input type="number" id="input-pliegue-tri" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Bicipital</label>
+                                    <input type="number" id="input-pliegue-bici" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Subescapular</label>
+                                    <input type="number" id="input-pliegue-sub" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Torácica</label>
+                                    <input type="number" id="input-pliegue-tor" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Axilar Media</label>
+                                    <input type="number" id="input-pliegue-axi" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Suprailíaco</label>
+                                    <input type="number" id="input-pliegue-supra" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Abdominal</label>
+                                    <input type="number" id="input-pliegue-abd" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Muslo</label>
+                                    <input type="number" id="input-pliegue-muslo" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Pantorrilla Medial</label>
+                                    <input type="number" id="input-pliegue-pan" step="0.1" class="glass-input w-full p-2 rounded text-sm bg-black/20" placeholder="0.0">
+                                </div>
+                            </div>
+                            <div class="pt-6 mt-auto">
+                                <button type="submit" id="btn-save-metrics" class="glass-btn w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                                    <i class="ph ph-floppy-disk text-xl"></i> Confirmar Inyección de Datos
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="md:col-span-2 flex flex-col gap-6">
+                        <div class="glass-panel p-0 overflow-hidden flex flex-col h-72">
+                            <div class="p-4 border-b border-gray-800/50 bg-white/5">
+                                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-200">Evolución de Masa Corporal</h3>
+                            </div>
+                            <div class="p-6 flex-1"><canvas id="weightChart"></canvas></div>
+                        </div>
+
+                        <div class="glass-panel p-6 flex-1">
+                            <h3 class="text-sm font-bold uppercase tracking-wider mb-4 text-gray-300 border-b border-gray-800 pb-2 flex items-center gap-2"><i class="ph ph-table"></i> Historial Integral (Últimos Días)</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs text-left text-gray-400 whitespace-nowrap">
+                                    <thead class="text-[10px] uppercase bg-black/40 text-gray-300">
+                                        <tr>
+                                            <th class="px-3 py-3 rounded-l-lg">Fecha Ref.</th>
+                                            <th class="px-3 py-3 text-blue-300">Peso</th>
+                                            <th class="px-3 py-3">B. Izq</th>
+                                            <th class="px-3 py-3">B. Der</th>
+                                            <th class="px-3 py-3">M. Izq</th>
+                                            <th class="px-3 py-3">M. Der</th>
+                                            <th class="px-3 py-3">Cintura</th>
+                                            <th class="px-3 py-3">Cuello</th>
+                                            <th class="px-3 py-3 rounded-r-lg text-purple-400">Σ Pliegues</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="metrics-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-panel p-6 border-t-4 border-t-emerald-500 relative overflow-hidden mt-6">
+                    <div class="absolute -right-5 -bottom-5 opacity-5"><i class="ph ph-ruler text-9xl"></i></div>
+                    <h3 class="text-xl font-bold mb-4 text-white uppercase flex items-center gap-2">
+                        <i class="ph ph-body-scan text-emerald-400"></i> Somatotipos y Antropometría Avanzada
+                    </h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
+                        <div>
+                            <h4 class="text-sm font-bold text-emerald-400 mb-2 border-b border-gray-800 pb-1">¿Qué es el Somatotipo?</h4>
+                            <p class="text-sm text-gray-300 leading-relaxed mb-3">Tu somatotipo describe tu predisposición genética. Al ingresar la medida de tu muñeca en Analítica Corporal, el sistema lo calculará usando tu altura. Por tu fuerza previa de 100kg, tienes una altísima probabilidad de tener genética <strong>Mesomorfa</strong> pura o combinada.</p>
+                            <ul class="text-xs text-gray-400 space-y-2 bg-black/30 p-3 rounded border border-gray-800">
+                                <li><strong class="text-blue-300">Ectomorfo:</strong> Estructura ósea fina, extremidades largas. Metabolismo ultra rápido, ganan peso con dificultad.</li>
+                                <li><strong class="text-green-300">Mesomorfo:</strong> Atléticos por naturaleza, hombros anchos, ganan músculo muy rápido. Perfectos para deportes de fuerza.</li>
+                                <li><strong class="text-red-300">Endomorfo:</strong> Estructura ósea grande, ganan fuerza fácil pero acumulan grasa rápidamente. Requieren control estricto de carbohidratos.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-emerald-400 mb-2 border-b border-gray-800 pb-1">Herramientas Profesionales Requeridas</h4>
+                            <ul class="text-xs text-gray-300 space-y-3 mb-3">
+                                <li><strong class="text-white flex items-center gap-1"><i class="ph ph-circle text-emerald-500"></i> Cinta Métrica Antropométrica (Inelástica):</strong> Preferiblemente metálica o de fibra de vidrio. Cinta de costurera NO sirve porque se estira y da falsos progresos. Mide los perímetros.</li>
+                                <li><strong class="text-white flex items-center gap-1"><i class="ph ph-scissors text-emerald-500"></i> Plicómetro (Caliper):</strong> Herramienta tipo pinza que mide los milímetros de los pliegues cutáneos (la grasa subcutánea aislada del músculo). Modelos recomendados: Lange, Harpenden o un SlimGuide económico.</li>
+                                <li><strong class="text-white flex items-center gap-1"><i class="ph ph-scales text-emerald-500"></i> Báscula de Bioimpedancia:</strong> Además del peso, tira impulsos eléctricos para medir masa magra, ósea y agua. Recomendada: Omron o Xiaomi Mi Scale.</li>
+                            </ul>
+                            
+                            <div class="mt-4 bg-red-900/10 p-3 rounded border border-red-900/30">
+                                <h4 class="text-xs font-bold text-red-400 uppercase tracking-widest"><i class="ph ph-warning-circle"></i> Error Técnico de Medición (TEM)</h4>
+                                <p class="text-xs text-gray-300 mt-1 leading-relaxed"><strong>Variabilidad de la Medición y Control de Calidad:</strong> La variabilidad debe controlarse estrictamente. Calibra el plicómetro regularmente y toma 3 medidas rotativas por cada punto, promediando los resultados para reducir el TEM. Jamás midas después de entrenar (el flujo sanguíneo engrosa la piel).</p>
+                            </div>
+                        </div>
+                        
+                        <div class="lg:col-span-2 mt-4">
+                            <h4 class="text-sm font-bold text-blue-400 mb-2 border-b border-gray-800 pb-1"><i class="ph ph-circle"></i> Protocolo de Perímetros Centrales</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-300">
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Cintura:</strong> Parte más estrecha del abdomen. Final de exhalación, sin meter barriga.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Cadera:</strong> Pies juntos. Máxima prominencia glútea lateral. Cinta paralela al piso.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Pecho:</strong> Nivel mesoesternal (pezones). Brazos relajados, final de exhalación.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800 border-l-2 border-l-blue-500"><strong>Cuello:</strong> Perímetro mínimo por debajo de la prominencia laríngea (Nuez de Adán). Fundamental para calcular el % de grasa con cintas.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800 border-l-2 border-l-blue-500"><strong>Brazo (Izq/Der):</strong> Punto medio acromion-olécranon. Medir flexionado haciendo fuerza máxima (pico del bíceps).</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800 border-l-2 border-l-blue-500"><strong>Muslo (Izq/Der):</strong> 1 cm bajo el pliegue glúteo transversal. Peso distribuido en ambas piernas.</div>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 mt-4">
+                            <h4 class="text-sm font-bold text-purple-400 mb-2 border-b border-gray-800 pb-1"><i class="ph ph-scissors"></i> Protocolo de Pliegues Cutáneos (ISAK)</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-300">
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Pliegue Tricipital:</strong> Se puede medir en la parte posterior de los brazos, en forma paralela al eje longitudinal en un punto medio entre el olécranon y el borde del lateral superior del acromion. Pide a tu paciente que deje el brazo relajado para obtener el resultado lo más preciso posible.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Pliegue Bicipital:</strong> Se encuentra en la línea media anterior del brazo y superior al músculo principal del bíceps. Debe medirse en el punto medio de 1 cm por encima del músculo, al mismo nivel del pliegue cutáneo tricipial.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Pliegue Subescapular:</strong> Se localiza entre 1 a 2 cm por debajo del ángulo inferior de la escápula. Lo ideal es pedir que el evaluado levante el brazo, dejando así la escápula más expuesta.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Axilar Media:</strong> Oblicuo al eje longitudinal, con el brazo hacia atrás. Punto medio entre la altura de la apófisis xifoide del esternón y la línea axilar media.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Torácica:</strong> Punto medio entre la línea axilar anterior y el pezón en hombres. Las mujeres a 1/3 de la línea axilar anterior.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Pliegue Suprailíaco:</strong> En dirección oblicua, medido por el lateral abdominal, en un punto a 1 cm sobre la cresta ilíaca anterior superior, sobre la cadera y en posición diagonal.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Pliegue Abdominal:</strong> Distancia aproximada de 2 cm a la derecha del ombligo, de forma paralela al eje longitudinal.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800"><strong>Pliegue del Muslo:</strong> Paralelo al eje longitudinal. Pedir al paciente desplazar ligeramente el miembro inferior al frente, manteniendo el peso sobre la pierna opuesta.</div>
+                                <div class="bg-black/20 p-3 rounded border border-gray-800 md:col-span-2"><strong>Pantorrilla Medial:</strong> El evaluado sentado, rodilla a 90°. Tobillo en posición anatómica y pie sin apoyo. En el lugar de mayor perímetro de la pierna.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: CLINICAL -->
+            <div id="view-clinical" class="hidden space-y-6">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 border-t-4 border-t-red-500 relative">
+                        <div class="absolute -right-5 -bottom-5 opacity-5"><i class="ph ph-drop text-9xl"></i></div>
+                        <h3 class="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2 text-red-400">
+                            <i class="ph ph-test-tube text-lg"></i> Biomarcadores Hemáticos y Endocrinos
+                        </h3>
+                        <form id="clinical-form" class="space-y-4 relative z-10">
+                            <div class="bg-red-900/10 p-3 rounded border border-red-900/30 mb-4">
+                                <label class="block text-[10px] font-bold text-red-300 mb-1 uppercase tracking-wider"><i class="ph ph-calendar"></i> Fecha del Examen Lab</label>
+                                <input type="date" id="input-clinical-date" required class="glass-input w-full p-2 rounded text-sm bg-black/40 text-red-100" style="color-scheme: dark;">
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider" title="Ayuda a conocer la sensibilidad a la insulina">Glucosa Ayunas (mg/dL)</label>
+                                    <input type="number" id="input-glucose" step="0.1" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/30" placeholder="Ej: 85">
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider" title="Hormona del estrés. Si está alta, catabolizas.">Cortisol Sérico (ug/dL)</label>
+                                    <input type="number" id="input-cortisol" step="0.1" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/30" placeholder="Ej: 15">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider" title="Hormona anabólica principal. Base para recuperación.">Testosterona Total (ng/dL)</label>
+                                    <input type="number" id="input-testo" step="0.1" class="glass-input w-full p-2.5 rounded-lg text-sm font-bold text-white bg-black/30 border-blue-500/30" placeholder="Ej: 600">
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Colesterol LDL (mg/dL)</label>
+                                    <input type="number" id="input-ldl" step="0.1" class="glass-input w-full p-2 rounded-lg text-sm bg-black/30" placeholder="Ej: 110">
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Colesterol HDL (mg/dL)</label>
+                                    <input type="number" id="input-hdl" step="0.1" class="glass-input w-full p-2 rounded-lg text-sm bg-black/30" placeholder="Ej: 55">
+                                </div>
+                            </div>
+                            <div class="pt-4">
+                                <button type="submit" id="btn-save-clinical" class="glass-btn w-full py-3 rounded-lg font-bold text-sm uppercase tracking-wide flex justify-center items-center gap-2">
+                                    <i class="ph ph-floppy-disk text-lg"></i> Archivar Examen Médico
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="flex flex-col gap-6">
+                        <div class="glass-panel p-6 border-l-4 border-amber-500 bg-gradient-to-r from-amber-900/10 to-transparent flex-1">
+                            <h3 class="text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-2 text-amber-400">
+                                <i class="ph ph-bug text-lg"></i> Erradicación Parasitaria (Purga)
+                            </h3>
+                            <p class="text-sm text-gray-300 leading-relaxed mb-4">
+                                Un sistema digestivo comprometido "roba" hasta un 20% de las proteínas y micronutrientes ingeridos. Para un atleta, es indispensable una desparasitación profunda al menos 1 vez al año para asegurar máxima absorción de la dieta.
+                            </p>
+                            <div class="bg-black/30 p-4 rounded-lg border border-amber-900/30">
+                                <form id="purgante-form" class="flex flex-col gap-3">
+                                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Fecha de Última Purga</label>
+                                    <div class="flex gap-2">
+                                        <input type="date" id="input-purga-date" class="glass-input w-full p-2 rounded text-sm bg-black/40" style="color-scheme: dark;">
+                                        <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white px-4 rounded font-bold transition">Guardar</button>
+                                    </div>
+                                </form>
+                                <div class="mt-3 text-xs text-amber-200/70 italic border-t border-amber-900/30 pt-2">
+                                    *Nota Médica: Un protocolo estándar común es la combinación de Albendazol + Secnidazol (bajo recomendación médica), preferiblemente antes de iniciar fases de superávit o déficit extremo.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel p-6 border-l-4 border-indigo-500 bg-gradient-to-r from-indigo-900/10 to-transparent flex-1">
+                            <h3 class="text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-2 text-indigo-400">
+                                <i class="ph ph-hourglass text-lg"></i> Protocolo de Ayuno Intermitente
+                            </h3>
+                            <p class="text-sm text-gray-300 leading-relaxed mb-3">
+                                El ayuno (ej. 16:8) no es mágico para perder peso, pero <strong>optimiza brutalmente la sensibilidad a la insulina</strong> y promueve la autofagia (reciclaje celular).
+                            </p>
+                            <div class="bg-black/30 p-3 rounded-lg border border-indigo-900/30">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-gray-300 uppercase">Estado del Ayuno Hoy</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="toggle-fasting" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                                    </label>
+                                </div>
+                                <div class="text-[10px] text-indigo-200 mt-2 hidden" id="fasting-active-msg">
+                                    <i class="ph ph-check-circle"></i> Ayuno Activo. Mantén 0 calorías durante 16h. Agua, café negro y té permitidos. Rompe el ayuno con proteína magra.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: ACADEMY -->
+            <div id="view-academy" class="hidden space-y-6">
+                <div class="glass-panel p-6 border-l-4 border-purple-500 bg-gradient-to-r from-purple-900/10 to-transparent">
+                    <div class="flex items-center gap-3 mb-4 border-b border-gray-800 pb-3">
+                        <div class="p-2 bg-purple-500/20 rounded text-purple-400"><i class="ph ph-drop text-2xl"></i></div>
+                        <h3 class="font-bold text-white tracking-wide uppercase">Hidratación, Bebidas Cero y Micronutrientes</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-200 mb-2 border-b border-gray-800 pb-1">¿Puedo tomar Coca-Cola Zero o Soda?</h4>
+                            <p class="text-sm text-gray-300 leading-relaxed mb-3"><strong>SÍ, ESTÁ PERMITIDO.</strong> Las bebidas con cero calorías no rompen el déficit calórico ni la lipólisis.</p>
+                            <p class="text-xs text-gray-400 bg-black/30 p-2 rounded border border-gray-800">
+                                <em>Regla de Oro:</em> Úsalas como herramienta táctica para calmar ansiedad, pero límitalas a 1-2 latas diarias para evitar hinchazón.
+                            </p>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-200 mb-2 border-b border-gray-800 pb-1">Gestión de Micronutrientes</h4>
+                            <ul class="text-xs text-gray-300 space-y-2">
+                                <li><strong class="text-blue-400">Sodio (Sal):</strong> No le tengas miedo. Tu cuerpo lo necesita para la contracción muscular.</li>
+                                <li><strong class="text-yellow-400">Potasio:</strong> Clave para evitar calambres y retención. Presente en banano y pollo.</li>
+                                <li><strong class="text-gray-200">Magnesio:</strong> Fundamental para el descanso profundo. Presente en la avena y vegetales.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-panel p-6">
+                    <h3 class="text-xl font-bold mb-2 text-white">Ciencia de la Recomposición</h3>
+                    <p class="text-sm text-gray-300 mb-6">Al tener memoria muscular y porcentaje de grasa actual, posees el escenario fisiológico perfecto para el "Holy Grail" del fitness: ganar masa muscular y perder grasa simultáneamente. Esto requiere déficit estricto y proteína elevada.</p>
+                    <div class="bg-black/40 p-6 rounded-xl flex justify-center shadow-inner overflow-x-auto">
+                        <div class="mermaid">
+                            graph TD
+                                A[Déficit Calórico Estricto] --> B(Uso de Grasa como Energía)
+                                A --> C(Alta Proteína 160g)
+                                B --> D[Reducción Cintura/Grasa]
+                                C --> E(Síntesis Proteica)
+                                E -.-> F[Activación Memoria Muscular]
+                                F -.-> E
+                                E --> G[Aumento de Masa Magra]
+                                D --> H{Recomposición Exitosa}
+                                G --> H
+                                style A fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff
+                                style H fill:#064e3b,stroke:#10b981,stroke-width:3px,color:#fff
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <footer class="mt-auto border-t border-gray-800/50 bg-black/20 p-4 text-center z-10">
+            <p class="text-[10px] text-gray-500 font-medium tracking-widest uppercase">
+                &copy; 2026 C-LAB SYS. Todos los derechos reservados. <br>
+                <span class="opacity-50">Build v17.0.0 (SNC Decay & Full Scale Live Macros)</span>
+            </p>
+        </footer>
+    </main>
+
+    <!-- Modal Editar Comida Profesional -->
+    <div id="edit-meal-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/90 backdrop-blur-sm hidden">
+        <div class="glass-panel p-6 w-full max-w-lg mx-4 shadow-2xl border border-gray-700 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-800 pb-3">
+                <h3 class="font-bold text-white uppercase tracking-wider flex items-center gap-2"><i class="ph ph-pencil-simple text-blue-400"></i> Editar Comida & Macros</h3>
+                <button onclick="closeMealEditor()" class="glass-icon-btn text-gray-400 hover:text-white"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Nombre de la Comida</label>
+                    <input type="text" id="edit-meal-name" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white font-bold">
+                </div>
+
+                <div class="bg-black/20 p-3 rounded-lg border border-gray-700">
+                    <label class="block text-[10px] font-semibold text-orange-400 mb-2 uppercase tracking-wider flex items-center gap-1"><i class="ph ph-shopping-cart"></i> Ingredientes Exactos</label>
+                    
+                    <div class="relative mb-3">
+                        <input type="text" id="ing-search-input" onkeyup="searchIngForMeal(this.value)" class="glass-input w-full p-2 rounded-lg text-xs bg-black/60 text-white" placeholder="Buscar alimento en Base de Datos para añadir...">
+                        <div id="ing-search-results" class="absolute z-10 w-full bg-gray-900 border border-gray-700 rounded-lg mt-1 hidden max-h-60 overflow-y-auto shadow-xl"></div>
+                    </div>
+                    
+                    <div id="active-ingredients-list" class="space-y-2 mb-2 max-h-40 overflow-y-auto pr-1"></div>
+
+                    <textarea id="edit-meal-ing" rows="2" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white leading-relaxed hidden"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider flex items-center gap-1"><i class="ph ph-cooking-pot"></i> Instrucciones de Preparación</label>
+                    <textarea id="edit-meal-prep" rows="3" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white leading-relaxed"></textarea>
+                </div>
+                
+                <div class="border-t border-gray-800 pt-4 mt-2">
+                    <label class="block text-[10px] font-semibold text-blue-400 mb-3 uppercase tracking-wider flex items-center gap-1"><i class="ph ph-calculator"></i> Macros de esta comida (Auto-Calculado)</label>
+                    <div class="grid grid-cols-4 gap-3">
+                        <div>
+                            <label class="block text-[9px] text-gray-500 font-bold mb-1">Kcal</label>
+                            <input type="number" id="edit-meal-day-kcal" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-center font-bold text-orange-400">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-gray-500 font-bold mb-1">Prot (g)</label>
+                            <input type="number" id="edit-meal-day-p" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-center text-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-gray-500 font-bold mb-1">Carb (g)</label>
+                            <input type="number" id="edit-meal-day-c" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-center text-yellow-400">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-gray-500 font-bold mb-1">Gras (g)</label>
+                            <input type="number" id="edit-meal-day-f" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-center text-red-400">
+                        </div>
+                    </div>
+                </div>
+                <button onclick="saveMealEdit()" class="glass-btn w-full py-3.5 rounded-xl font-black uppercase tracking-widest text-xs mt-6 flex justify-center items-center gap-2 shadow-lg">
+                    <i class="ph ph-floppy-disk text-lg"></i> Guardar Comida
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Ejercicio Profesional -->
+    <div id="edit-exercise-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/90 backdrop-blur-sm hidden">
+        <div class="glass-panel p-6 w-full max-w-md mx-4 shadow-2xl border border-gray-700 h-[95vh] sm:h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-800 pb-3">
+                <h3 class="font-bold text-white uppercase tracking-wider flex items-center gap-2"><i class="ph ph-barbell text-blue-400"></i> Editor Biomecánico Avanzado</h3>
+                <button onclick="closeExerciseEditor()" class="glass-icon-btn text-gray-400 hover:text-white"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <div class="space-y-4">
+                
+                <div id="home-workout-options" class="hidden border-b border-gray-800 pb-4 mb-4">
+                    <label class="block text-[10px] font-semibold text-emerald-400 mb-2 uppercase tracking-wider flex items-center gap-1">
+                        <i class="ph ph-house"></i> Catálogo de Alternativas en Casa
+                    </label>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="quickFillEx('Flexiones de Pecho', 4, 'Al fallo', 60, 'Mantener el core apretado. Rango completo.', 'Pecho', 'Compuesto', 'Peso Corporal', '3-1-1-0')" class="bg-emerald-900/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded text-xs hover:bg-emerald-800/40 transition shadow-sm">Flexiones</button>
+                        <button type="button" onclick="quickFillEx('Sentadilla Búlgara', 4, '10-12 p/p', 90, 'Pie trasero elevado. Bajar lento. Torso ligeramente inclinado.', 'Piernas', 'Compuesto', 'Peso Corporal', '3-1-1-0')" class="bg-emerald-900/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded text-xs hover:bg-emerald-800/40 transition shadow-sm">S. Búlgara</button>
+                        <button type="button" onclick="quickFillEx('Remo Invertido (Sábana/Mesa)', 4, '10-15', 60, 'Traccionar el pecho hacia arriba. Apretar escápulas.', 'Espalda', 'Compuesto', 'Peso Corporal', '2-0-1-1')" class="bg-emerald-900/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded text-xs hover:bg-emerald-800/40 transition shadow-sm">Remo Invertido</button>
+                        <button type="button" onclick="quickFillEx('Flexiones Pike (Hombros)', 3, '8-12', 90, 'Cuerpo en V. Bajar la coronilla hacia el piso formando un triángulo con las manos.', 'Hombros', 'Compuesto', 'Peso Corporal', '3-1-1-0')" class="bg-emerald-900/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded text-xs hover:bg-emerald-800/40 transition shadow-sm">Pike Pushups</button>
+                        <button type="button" onclick="quickFillEx('Fondos en Silla/Sofá', 3, '12-15', 60, 'Codos apuntando hacia atrás, pecho hacia afuera. Bajar controlado.', 'Tríceps', 'Aislado', 'Peso Corporal', '2-0-1-0')" class="bg-emerald-900/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded text-xs hover:bg-emerald-800/40 transition shadow-sm">Fondos Tríceps</button>
+                        <button type="button" onclick="quickFillEx('Zancadas (Lunges)', 4, '12 p/p', 60, 'Paso largo, la rodilla trasera roza el suelo. Pecho erguido.', 'Piernas', 'Compuesto', 'Peso Corporal', '2-0-1-0')" class="bg-emerald-900/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded text-xs hover:bg-emerald-800/40 transition shadow-sm">Zancadas</button>
+                        <button type="button" onclick="quickFillEx('Elevación de Pelvis (Puente)', 4, '15-20', 45, 'Apretar glúteos arriba y sostener por 2 segundos enteros.', 'Piernas', 'Aislado', 'Peso Corporal', '2-0-1-2')" class="bg-emerald-900/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded text-xs hover:bg-emerald-800/40 transition shadow-sm">Elev. Pelvis</button>
+                        <button type="button" onclick="quickFillEx('Plancha Isométrica', 4, '45-60s', 45, 'Glúteos contraídos, sin hundir lumbar. Respiración controlada.', 'Core', 'Isométrico', 'Peso Corporal', 'Isométrico')" class="bg-emerald-900/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded text-xs hover:bg-emerald-800/40 transition shadow-sm">Plancha Abdominal</button>
+                        <button type="button" onclick="quickFillEx('Burpees', 4, '15-20', 60, 'Movimiento explosivo. Amortiguar la caída al suelo suavemente.', 'Cardio', 'Pliométrico', 'Peso Corporal', 'Explosivo')" class="bg-emerald-900/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded text-xs hover:bg-emerald-800/40 transition shadow-sm">Burpees</button>
+                    </div>
+                    <p class="text-[9px] text-gray-500 mt-2 italic bg-black/20 p-2 rounded">Haz clic en una opción para rellenar instantáneamente la biomecánica, ritmo (tempo) y tiempos de descanso ideales para hipertrofia sin pesas.</p>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Nombre del Ejercicio</label>
+                    <input type="text" id="edit-ex-name" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white font-bold">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mt-3 border-t border-gray-800/50 pt-3">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-blue-400 mb-1 uppercase tracking-wider"><i class="ph ph-target"></i> Grupo Muscular</label>
+                        <select id="edit-ex-muscle" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white">
+                            <option value="Pecho">Pecho</option>
+                            <option value="Espalda">Espalda</option>
+                            <option value="Piernas">Piernas</option>
+                            <option value="Hombros">Hombros</option>
+                            <option value="Bíceps">Bíceps</option>
+                            <option value="Tríceps">Tríceps</option>
+                            <option value="Core">Core (Abdomen)</option>
+                            <option value="Cardio">Cardio / LISS</option>
+                            <option value="Full Body">Full Body</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-purple-400 mb-1 uppercase tracking-wider"><i class="ph ph-git-branch"></i> Clasificación</label>
+                        <select id="edit-ex-type" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white">
+                            <option value="Compuesto">Compuesto (Multiarticular)</option>
+                            <option value="Aislado">Aislado (Monoarticular)</option>
+                            <option value="Isométrico">Isométrico (Estático)</option>
+                            <option value="Pliométrico">Pliométrico (Explosivo)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-emerald-400 mb-1 uppercase tracking-wider"><i class="ph ph-barbell"></i> Equipamiento</label>
+                        <select id="edit-ex-equip" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white">
+                            <option value="Máquina">Máquina Guiada</option>
+                            <option value="Polea">Polea / Cables</option>
+                            <option value="Mancuernas">Mancuernas Libres</option>
+                            <option value="Barra">Barra Olímpica/Libre</option>
+                            <option value="Peso Corporal">Peso Corporal (Casa)</option>
+                            <option value="Bandas">Bandas Elásticas</option>
+                            <option value="Kettlebell">Pesa Rusa (Kettlebell)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-orange-400 mb-1 uppercase tracking-wider" title="Fase Excéntrica - Pausa Abajo - Fase Concéntrica - Pausa Arriba"><i class="ph ph-metronome"></i> Ritmo (Tempo)</label>
+                        <select id="edit-ex-tempo" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white">
+                            <option value="2-0-1-0">2-0-1-0 (Fuerza Estándar)</option>
+                            <option value="3-1-1-0">3-1-1-0 (Hipertrofia Clásica)</option>
+                            <option value="4-0-1-0">4-0-1-0 (Tensión Mecánica MAX)</option>
+                            <option value="2-0-2-0">2-0-2-0 (Control / Tendones)</option>
+                            <option value="2-0-1-2">2-0-1-2 (Pico de Contracción)</option>
+                            <option value="Explosivo">Explosivo (Potencia)</option>
+                            <option value="Isométrico">Isométrico (Sostenido)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 mt-3 border-t border-gray-800/50 pt-3">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Series</label>
+                        <input type="number" id="edit-ex-sets" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-center text-white font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Reps</label>
+                        <input type="text" id="edit-ex-reps" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-center text-white" placeholder="Ej: 10-12">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider" title="Descanso en segundos">Rest (s)</label>
+                        <input type="number" id="edit-ex-rest" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-center text-blue-400 font-bold" placeholder="60">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider flex items-center gap-1"><i class="ph ph-brain"></i> Conexión Mente-Músculo / Técnica</label>
+                    <textarea id="edit-ex-tip" rows="2" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white leading-relaxed"></textarea>
+                </div>
+                <button onclick="saveExerciseEdit()" class="glass-btn w-full py-4 rounded-xl font-black uppercase tracking-widest text-xs mt-6 flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.4)]">
+                    <i class="ph ph-floppy-disk text-xl"></i> Guardar Biomecánica
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuración Global -->
+    <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/90 backdrop-blur-sm hidden">
+        <div class="glass-panel p-6 w-full max-w-sm mx-4 shadow-2xl border border-gray-700 h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-800 pb-3">
+                <h3 class="font-bold text-white uppercase tracking-wider flex items-center gap-2"><i class="ph ph-gear text-blue-400"></i> Ajustes de Plan</h3>
+                <button onclick="closeSettings()" class="glass-icon-btn text-gray-400 hover:text-white"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <div class="space-y-4">
+                
+                <div class="border-b border-gray-800 pb-4 mb-4 space-y-3">
+                    <h4 class="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-1"><i class="ph ph-user-circle"></i> Perfil Atleta & Diagnóstico Base</h4>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase">Nombre o Alias</label>
+                        <input type="text" id="input-profile-name" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-white" placeholder="Ej: Atleta Avanzado">
+                    </div>
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase">F. Nacimiento</label>
+                            <input type="date" id="input-profile-dob" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-white" style="color-scheme: dark;">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase">Género</label>
+                            <select id="input-profile-gender" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-white">
+                                <option value="M">Masculino</option>
+                                <option value="F">Femenino</option>
+                                <option value="O">Otro</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase">Estatura (cm)</label>
+                            <input type="number" id="input-profile-height" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-white" placeholder="Ej: 160">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 pt-3 border-t border-gray-800 border-dashed">
+                        <label class="block text-[10px] font-semibold text-purple-400 mb-1 uppercase"><i class="ph ph-brain"></i> Diagnóstico de Experiencia (IA)</label>
+                        <select id="input-profile-inactivity" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-white mb-2">
+                            <option value="0">Entrenando actualmente (0 meses)</option>
+                            <option value="1">Desentrenado: 1 a 3 meses</option>
+                            <option value="3">Desentrenado: 3 a 6 meses</option>
+                            <option value="6">Desentrenado: Más de 6 meses</option>
+                        </select>
+                        
+                        <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase mt-2">Marcas Previas (1RM Estimado)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="input-profile-squat" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-white" placeholder="Sentadilla (kg)">
+                            <input type="number" id="input-profile-bench" class="glass-input w-full p-2 rounded text-sm bg-black/40 text-white" placeholder="P. Banca (kg)">
+                        </div>
+                        <label class="flex items-center gap-2 mt-2 cursor-pointer group">
+                            <input type="checkbox" id="input-profile-forgot" class="set-checkbox" onchange="toggleForgotWeights(this)" style="width: 16px; height: 16px;">
+                            <span class="text-xs text-gray-400 group-hover:text-white transition-colors">No lo recuerdo / Principiante</span>
+                        </label>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-t border-gray-800 border-dashed">
+                        <label class="block text-[10px] font-semibold text-red-400 mb-2 uppercase tracking-wide flex items-center gap-1"><i class="ph ph-warning-octagon"></i> Condiciones Médicas / Restricciones</label>
+                        <div class="space-y-2 pl-1">
+                            <label class="flex items-center gap-3 cursor-pointer group">
+                                <input type="checkbox" id="input-profile-inj-spine" class="set-checkbox" style="width: 18px; height: 18px;">
+                                <span class="text-xs text-gray-300 group-hover:text-white transition-colors">Columna / Zona Lumbar <span class="text-[9px] text-gray-500 block">(Evitar carga axial pesada)</span></span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer group">
+                                <input type="checkbox" id="input-profile-inj-knees" class="set-checkbox" style="width: 18px; height: 18px;">
+                                <span class="text-xs text-gray-300 group-hover:text-white transition-colors">Rodillas <span class="text-[9px] text-gray-500 block">(Evitar impacto y flexión extrema)</span></span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer group">
+                                <input type="checkbox" id="input-profile-inj-shoulders" class="set-checkbox" style="width: 18px; height: 18px;">
+                                <span class="text-xs text-gray-300 group-hover:text-white transition-colors">Hombros / Manguito <span class="text-[9px] text-gray-500 block">(Evitar empujes pesados tras nuca)</span></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Duración del Protocolo (Días)</label>
+                    <input type="number" id="input-plan-duration" class="glass-input w-full p-2.5 rounded-lg text-sm bg-black/40 text-white" placeholder="Ej: 30" min="1" max="180">
+                    <p class="text-[9px] text-gray-500 mt-1">Por defecto es 13. Puedes ampliarlo. La inteligencia del sistema escribirá y adaptará todos los días faltantes.</p>
+                </div>
+                <button onclick="saveSettings()" class="glass-btn w-full py-3 rounded-lg font-bold uppercase tracking-widest text-xs mt-6 flex justify-center items-center gap-2">
+                    <i class="ph ph-arrows-clockwise text-lg"></i> Aplicar y Regenerar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK & App Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp, getDocs, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        window.updateDoc = updateDoc;
+        window.deleteDoc = deleteDoc;
+        window.doc = doc;
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+            authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+            databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+            projectId: "laboratorio-de-coulomb",
+            storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+            messagingSenderId: "525944850850",
+            appId: "1:525944850850:web:eca9c0b79809358e8d8afb"
+        };
+
+        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.appId;
+        
+        let app, auth, db;
+        let currentUser = null;
+        let globalPlanData = null;
+        let planDuration = 13;
+        
+        let userProfile = { 
+            name: '', dob: '', gender: 'M', height: 160, 
+            inactivity: 0, squat: null, bench: null, forgotWeights: false,
+            injuries: { spine: true, knees: false, shoulders: false } 
+        };
+        let exerciseHistory = {}; 
+        
+        let dailyWaterGlasses = 0;
+        let dailyCoffeeCups = 0;
+        let dailyCalories = 0;
+        let dailyP = 0;
+        let dailyC = 0;
+        let dailyF = 0;
+
+        let dailyCreatineGrams = 0;
+        let dailyProteinScoops = 0;
+        let dailyOmega = 0; 
+        let dailyMagnesium = 0; 
+
+        let workoutInterval = null;
+        let workoutSeconds = 0;
+        let currentTargetSeconds = 90;
+        let activeWorkoutData = null;
+
+        let currentEditDay = null;
+        let currentEditMealIdx = null;
+        let currentEditExIdx = null;
+        let isAddingExercise = false;
+        let currentMealIngredients = []; 
+
+        window.availableFoods = [];
+        window.editingPantryId = null;
+
+        const MOTIVACIONES_DIARIAS = [
+            "Día 1: La inercia es tu mayor enemigo. Hoy rompes el estado de reposo.",
+            "Día 2: El dolor muscular es debilidad abandonando tu cuerpo. Mantén el déficit.",
+            "Día 3: La mente se rinde antes que el cuerpo. Si sientes fatiga, bebe agua y sigue.",
+            "Día 4: Fase crítica. Tu cuerpo clama por azúcar. Niégasela.",
+            "Día 5: Tu memoria muscular está despertando. El sistema nervioso recuerda los 100kg.",
+            "Día 6: La disciplina es hacer lo que odias como si lo amaras.",
+            "Día 7: Mitad del camino. Mírate al espejo, la inflamación ha bajado.",
+            "Día 8: No negocies contigo mismo. El plan está escrito.",
+            "Día 9: Tu metabolismo basal se ha acelerado. La quema de grasa en reposo es real.",
+            "Día 10: Recta final. La fuerza sube, la grasa baja.",
+            "Día 11: Ignora la fatiga. Protege tu columna. Ejecuta con precisión militar.",
+            "Día 12: Eres un atleta avanzado recuperando su trono.",
+            "Día 13: Día final del choque. Máxima intensidad. Rompe tus límites."
+        ];
+
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            window.db = getFirestore(app);
+            db = window.db;
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                signInWithCustomToken(auth, __initial_auth_token).catch(e => console.warn(e));
+            }
+        } catch (error) {
+            console.error("Firebase Error:", error);
+        }
+
+        window.navigate = (viewId) => {
+            const views = document.querySelectorAll('main div[id^="view-"]');
+            if(views) views.forEach(el => el.classList.add('hidden'));
+            
+            const targetView = document.getElementById(`view-${viewId}`);
+            if(targetView) targetView.classList.remove('hidden');
+            
+            const navItems = document.querySelectorAll('.nav-item');
+            if(navItems) navItems.forEach(el => el.classList.remove('active'));
+            
+            const targetNav = Array.from(document.querySelectorAll('.nav-item')).find(el => {
+                const attr = el.getAttribute('onclick');
+                return attr && attr.includes(`Maps('${viewId}')`); 
+            });
+            if(targetNav) targetNav.classList.add('active');
+
+            if(viewId === 'metrics') {
+                const dInput = document.getElementById('input-date');
+                if(dInput) dInput.valueAsDate = new Date();
+            }
+            if(viewId === 'clinical') {
+                const cInput = document.getElementById('input-clinical-date');
+                if(cInput) cInput.valueAsDate = new Date();
+            }
+            if(viewId === 'academy') setTimeout(() => mermaid.init(undefined, document.querySelectorAll('.mermaid')), 100);
+        };
+
+        window.showToast = (msg, type = 'success') => {
+            const container = document.getElementById('toast-container');
+            if(!container) return;
+            const toast = document.createElement('div');
+            const colors = type === 'error' ? 'bg-red-900/90 border-red-500/50 text-red-100' : (type === 'info' ? 'bg-blue-900/90 border-blue-500/50 text-blue-100' : 'bg-emerald-900/90 border-emerald-500/50 text-emerald-100');
+            const icon = type === 'error' ? 'ph-warning-circle' : (type === 'info' ? 'ph-info' : 'ph-check-circle');
+            toast.className = `glass-panel ${colors} border px-5 py-3 rounded-lg shadow-2xl flex items-center gap-3 transform transition-all duration-300 translate-x-full backdrop-blur-xl z-50`;
+            toast.innerHTML = `<i class="ph ${icon} text-2xl drop-shadow"></i><span class="text-sm font-semibold tracking-wide">${msg}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+            setTimeout(() => { toast.classList.add('translate-x-full'); setTimeout(() => toast.remove(), 300); }, 3500);
+        };
+
+        window.logout = () => signOut(auth);
+
+        window.toggleSidebar = () => {
+            const sidebar = document.getElementById('sidebar');
+            if(sidebar) {
+                if(sidebar.classList.contains('sm:flex')) {
+                    sidebar.classList.remove('sm:flex');
+                    sidebar.classList.add('sm:hidden', 'hidden');
+                } else {
+                    sidebar.classList.add('sm:flex');
+                    sidebar.classList.remove('sm:hidden', 'hidden');
+                }
+            }
+        };
+
+        window.toggleProfilePrivacy = () => {
+            const container = document.getElementById('profile-data-container');
+            const icon = document.getElementById('profile-eye-icon');
+            if(container && icon) {
+                if(container.classList.contains('privacy-blur')) {
+                    container.classList.remove('privacy-blur');
+                    icon.classList.replace('ph-eye-slash', 'ph-eye');
+                    showToast("Datos personales visibles", "success");
+                } else {
+                    container.classList.add('privacy-blur');
+                    icon.classList.replace('ph-eye', 'ph-eye-slash');
+                    showToast("Modo incógnito activado", "success");
+                }
+            }
+        };
+
+        const calculateAge = (dobString) => {
+            if(!dobString) return null;
+            const dob = new Date(dobString);
+            const diff_ms = Date.now() - dob.getTime();
+            const age_dt = new Date(diff_ms); 
+            return Math.abs(age_dt.getUTCFullYear() - 1970);
+        };
+
+        window.exportarDatos = async () => {
+            if(!currentUser) return showToast("Debes iniciar sesión primero", "error");
+            try {
+                showToast("Generando reporte de base de datos...");
+                const metricsSnap = await getDocs(collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'metrics'));
+                let metricsData = [];
+                metricsSnap.forEach(d => metricsData.push(d.data()));
+                
+                const exportData = {
+                    planConfig: globalPlanData,
+                    historialMetricas: metricsData,
+                    fechaExportacion: new Date().toISOString()
+                };
+                
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "C-LAB_SYS_Data_" + new Date().getTime() + ".json");
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+                showToast("Datos exportados a JSON correctamente.");
+            } catch(e) {
+                showToast("Error exportando: " + e.message, "error");
+            }
+        };
+
+        window.addCalories = () => {
+            let val = prompt("¿Cuántas calorías consumiste en esta comida o bebida?", "300");
+            if(val && !isNaN(val)) {
+                dailyCalories += parseInt(val);
+                updateCaloriesUI();
+            }
+        };
+
+        window.removeCalories = () => {
+            let val = prompt("¿Cuántas calorías deseas restar (corrección)?", "100");
+            if(val && !isNaN(val)) {
+                dailyCalories = Math.max(0, dailyCalories - parseInt(val));
+                updateCaloriesUI();
+            }
+        };
+
+        function updateCaloriesUI() {
+            const kcalCount = document.getElementById('kcal-count');
+            const kcalBar = document.getElementById('kcal-bar');
+            if(kcalCount) kcalCount.innerText = dailyCalories;
+            if(kcalBar) {
+                let pct = Math.min((dailyCalories / 1900) * 100, 100);
+                kcalBar.style.width = `${pct}%`;
+            }
+        }
+
+        window.addWater = () => {
+            if(dailyWaterGlasses >= 12) return showToast("¡Meta de agua de 3L alcanzada!", "success");
+            dailyWaterGlasses++;
+            updateWaterUI();
+        };
+
+        window.removeWater = () => {
+            if(dailyWaterGlasses > 0) {
+                dailyWaterGlasses--;
+                updateWaterUI();
+            }
+        };
+
+        function updateWaterUI() {
+            document.getElementById('water-count-text').innerText = `${dailyWaterGlasses} / 12 V.`;
+            document.getElementById('water-liters').innerHTML = `${(dailyWaterGlasses * 0.25).toFixed(2)}<span class="text-xs text-gray-500 ml-1">L</span>`;
+            document.getElementById('water-bar').style.width = `${(dailyWaterGlasses / 12) * 100}%`;
+        }
+
+        window.addCoffee = () => {
+            dailyCoffeeCups++;
+            updateCoffeeUI();
+            if(dailyCoffeeCups >= 4) showToast("Atención: Has alcanzado el límite recomendado de cafeína.", "error");
+        };
+
+        window.removeCoffee = () => {
+            if(dailyCoffeeCups > 0) {
+                dailyCoffeeCups--;
+                updateCoffeeUI();
+            }
+        };
+
+        function updateCoffeeUI() {
+            document.getElementById('coffee-count').innerText = dailyCoffeeCups;
+        }
+
+        window.addCreatine = () => {
+            if(dailyCreatineGrams >= 10) return showToast("Dosis máxima recomendada alcanzada.", "info");
+            dailyCreatineGrams += 5;
+            updateCreatineUI();
+        };
+        window.removeCreatine = () => {
+            if(dailyCreatineGrams > 0) dailyCreatineGrams -= 5;
+            updateCreatineUI();
+        };
+        function updateCreatineUI() {
+            document.getElementById('creatine-count').innerText = dailyCreatineGrams;
+            let bar = document.getElementById('creatine-bar');
+            if(bar) bar.style.width = `${Math.min((dailyCreatineGrams / 5) * 100, 100)}%`;
+        }
+
+        window.addProtein = () => {
+            dailyProteinScoops++;
+            updateProteinUI();
+        };
+        window.removeProtein = () => {
+            if(dailyProteinScoops > 0) dailyProteinScoops--;
+            updateProteinUI();
+        };
+        function updateProteinUI() {
+            document.getElementById('protein-count').innerText = dailyProteinScoops;
+        }
+
+        window.addOmega = () => { dailyOmega++; updateOmegaUI(); };
+        window.removeOmega = () => { if(dailyOmega > 0) dailyOmega--; updateOmegaUI(); };
+        function updateOmegaUI() { document.getElementById('omega-count').innerText = dailyOmega; }
+
+        window.addMagnesium = () => { dailyMagnesium++; updateMagnesiumUI(); };
+        window.removeMagnesium = () => { if(dailyMagnesium > 0) dailyMagnesium--; updateMagnesiumUI(); };
+        function updateMagnesiumUI() { document.getElementById('magnesium-count').innerText = dailyMagnesium; }
+
+        const getTodayStr = () => {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        };
+
+        window.saveDailyHabits = async () => {
+            if(!currentUser) return;
+            const btn = document.getElementById('btn-save-habits');
+            let ogText = '';
+            if (btn) {
+                ogText = btn.innerHTML;
+                btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin text-lg"></i> Guardando...';
+                btn.disabled = true;
+            }
+
+            try {
+                const todayStr = getTodayStr();
+                const habitsRef = doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'daily_habits', todayStr);
+                await setDoc(habitsRef, {
+                    water: dailyWaterGlasses,
+                    coffee: dailyCoffeeCups,
+                    calories: dailyCalories,
+                    creatine: dailyCreatineGrams,
+                    protein: dailyProteinScoops,
+                    omega: dailyOmega, 
+                    magnesium: dailyMagnesium,
+                    macros: { p: dailyP, c: dailyC, f: dailyF }, 
+                    lastUpdated: serverTimestamp()
+                }, { merge: true });
+                
+                if (btn) {
+                    btn.innerHTML = '<i class="ph ph-check-circle text-lg"></i> ¡Guardado!';
+                    btn.classList.replace('bg-blue-600', 'bg-green-600');
+                    showToast("Sesión diaria guardada. Gráfica actualizada.", "success");
+                    setTimeout(() => {
+                        btn.innerHTML = ogText;
+                        btn.classList.replace('bg-green-600', 'bg-blue-600');
+                        btn.disabled = false;
+                    }, 2000);
+                }
+            } catch (e) {
+                showToast("Error guardando sesión: " + e.message, "error");
+                if (btn) {
+                    btn.innerHTML = ogText;
+                    btn.disabled = false;
+                }
+            }
+        };
+
+        // --- SISTEMA DESPENSA E IMPORTACIÓN DE USDA (JSON) ---
+        window.importarUSDA = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('usda-file-name').innerText = file.name;
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    const foods = json.FoundationFoods || json.SRLegacyFoods || json.BrandedFoods;
+                    if (!foods) throw new Error("Formato no reconocido. Busca el array 'FoundationFoods' del USDA.");
+                    
+                    let count = 0;
+                    let htmlResults = '';
+
+                    const dic = {
+                        "chicken": "Pollo", "beef": "Res", "pork": "Cerdo", "raw": "Crudo", "cooked": "Cocido",
+                        "cheese": "Queso", "milk": "Leche", "egg": "Huevo", "white": "Blanco", "whole": "Entero",
+                        "beans": "Frijoles", "green": "Verde", "roasted": "Tostado", "salt": "Sal", "water": "Agua",
+                        "apple": "Manzana", "orange": "Naranja", "juice": "Jugo", "breast": "Pechuga", "skinless": "Sin piel",
+                        "boneless": "Deshuesado", "tomato": "Tomate", "onion": "Cebolla", "garlic": "Ajo", "commercial": "Comercial",
+                        "yolk": "Yema", "dried": "Seco", "fluid": "Líquido", "oil": "Aceite", "seed": "Semilla"
+                    };
+
+                    function translateName(name) {
+                        let translated = name.toLowerCase();
+                        for (const [en, es] of Object.entries(dic)) {
+                            translated = translated.replace(new RegExp(`\\b${en}\\b`, 'g'), es.toLowerCase());
+                        }
+                        return translated.charAt(0).toUpperCase() + translated.slice(1);
+                    }
+
+                    foods.forEach(food => {
+                        if(count > 50) return; 
+                        
+                        let fName = translateName(food.description);
+                        let fKcal=0, fP=0, fC=0, fFat=0;
+
+                        if (food.foodNutrients) {
+                            food.foodNutrients.forEach(fn => {
+                                if (!fn.nutrient) return;
+                                const nName = fn.nutrient.name.toLowerCase();
+                                if (nName.includes('energy') && fn.nutrient.unitName === 'kcal') fKcal = Math.round(fn.amount);
+                                if (nName.includes('protein')) fP = Math.round(fn.amount);
+                                if (nName.includes('carbohydrate')) fC = Math.round(fn.amount);
+                                if (nName.includes('total lipid') || nName.includes('fat')) fFat = Math.round(fn.amount);
+                            });
+                        }
+
+                        const escName = fName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                        htmlResults += `
+                            <div class="bg-black/40 p-3 rounded border border-gray-800 flex justify-between items-center group hover:bg-gray-900 transition">
+                                <div>
+                                    <h4 class="text-xs font-bold text-white truncate max-w-[200px]" title="${fName}">${fName} <span class="text-[9px] text-gray-500">(100g)</span></h4>
+                                    <div class="text-[10px] font-mono text-gray-400 mt-1">
+                                        <span class="text-orange-400">${fKcal} kcal</span> | 
+                                        <span class="text-blue-400">P:${fP}g</span> | 
+                                        <span class="text-yellow-400">C:${fC}g</span> | 
+                                        <span class="text-red-400">G:${fFat}g</span>
+                                    </div>
+                                </div>
+                                <button onclick="saveToGlobalDB('${escName}', ${fKcal}, ${fP}, ${fC}, ${fFat}, 100, 'g')" class="glass-icon-btn text-green-400 text-sm border border-green-500/30" title="Guardar en Global"><i class="ph ph-cloud-arrow-up"></i></button>
+                            </div>
+                        `;
+                        count++;
+                    });
+
+                    document.getElementById('usda-results').innerHTML = htmlResults;
+                    showToast(`Se cargaron y procesaron ${count} alimentos. Listos para inyectar a la base de datos Global.`, 'success');
+                } catch (err) {
+                    showToast("Error procesando USDA JSON: " + err.message, "error");
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        window.saveToGlobalDB = async (name, kcal, p, c, f, baseQty = 100, unit = 'g') => {
+            if(!currentUser) return;
+            try {
+                await addDoc(collection(db, 'artifacts', currentAppId, 'public', 'data', 'foods'), {
+                    name, kcal, p, c, f, baseQty, unit, addedBy: currentUser.uid, createdAt: serverTimestamp()
+                });
+                showToast(`"${name}" añadido a la Base de Datos Global.`, 'success');
+                loadAvailableFoods();
+            } catch(e) {
+                showToast("Error subiendo a Global: " + e.message, "error");
+            }
+        };
+
+        // CRUD Despensa Privada
+        window.editPantryItem = (id) => {
+            const item = window.availableFoods.find(f => f.id === id);
+            if(!item) return;
+            document.getElementById('pantry-name').value = item.name;
+            document.getElementById('pantry-qty').value = item.baseQty || 100;
+            document.getElementById('pantry-unit').value = item.unit || 'g';
+            document.getElementById('pantry-kcal').value = item.kcal;
+            document.getElementById('pantry-p').value = item.p;
+            document.getElementById('pantry-c').value = item.c;
+            document.getElementById('pantry-f').value = item.f;
+            
+            window.editingPantryId = id;
+            document.getElementById('btn-pantry-submit').innerHTML = '<i class="ph ph-arrows-clockwise"></i> Actualizar';
+            document.getElementById('btn-pantry-cancel').classList.remove('hidden');
+        };
+
+        window.cancelPantryEdit = () => {
+            window.editingPantryId = null;
+            document.getElementById('form-add-pantry').reset();
+            document.getElementById('pantry-qty').value = 100;
+            document.getElementById('pantry-unit').value = 'g';
+            document.getElementById('btn-pantry-submit').innerHTML = '<i class="ph ph-floppy-disk"></i> Guardar en Despensa';
+            document.getElementById('btn-pantry-cancel').classList.add('hidden');
+        };
+
+        window.deletePantryItem = async (id, name) => {
+            if(!confirm(`¿Estás seguro de eliminar "${name}" de tu despensa?`)) return;
+            try {
+                await window.deleteDoc(window.doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'pantry', id));
+                showToast("Alimento eliminado de la despensa.", "info");
+                loadAvailableFoods();
+            } catch(e) {
+                showToast("Error al eliminar: " + e.message, "error");
+            }
+        };
+
+        document.getElementById('form-add-pantry')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if(!currentUser) return;
+
+            const name = document.getElementById('pantry-name').value;
+            const baseQty = parseFloat(document.getElementById('pantry-qty').value) || 100;
+            const unit = document.getElementById('pantry-unit').value || 'g';
+            const kcal = parseInt(document.getElementById('pantry-kcal').value) || 0;
+            const p = parseFloat(document.getElementById('pantry-p').value) || 0;
+            const c = parseFloat(document.getElementById('pantry-c').value) || 0;
+            const f = parseFloat(document.getElementById('pantry-f').value) || 0;
+
+            try {
+                if(window.editingPantryId) {
+                    await window.updateDoc(window.doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'pantry', window.editingPantryId), {
+                        name, baseQty, unit, kcal, p, c, f, updatedAt: serverTimestamp()
+                    });
+                    showToast("Alimento actualizado correctamente.", "success");
+                    window.cancelPantryEdit();
+                } else {
+                    await addDoc(collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'pantry'), {
+                        name, baseQty, unit, kcal, p, c, f, createdAt: serverTimestamp()
+                    });
+                    showToast("Alimento guardado en tu Despensa Privada.", "success");
+                    e.target.reset();
+                    document.getElementById('pantry-qty').value = 100;
+                    document.getElementById('pantry-unit').value = 'g';
+                }
+                loadAvailableFoods();
+            } catch (error) {
+                showToast("Error en despensa: " + error.message, 'error');
+            }
+        });
+
+        async function loadAvailableFoods() {
+            if(!currentUser || !db) return;
+            window.availableFoods = [];
+            try {
+                const globalSnap = await getDocs(collection(db, 'artifacts', currentAppId, 'public', 'data', 'foods'));
+                globalSnap.forEach(d => window.availableFoods.push({ ...d.data(), id: d.id, source: 'Global' }));
+                
+                const pantrySnap = await getDocs(collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'pantry'));
+                pantrySnap.forEach(d => window.availableFoods.push({ ...d.data(), id: d.id, source: 'Privado' }));
+
+                searchFoods(''); 
+            } catch(e) {
+                console.warn("No se pudieron cargar alimentos (Puede faltar permisos si no eres admin para Global).", e);
+            }
+        }
+
+        window.searchFoods = (queryStr) => {
+            const resultsContainer = document.getElementById('food-search-results');
+            if(!resultsContainer) return;
+            
+            if(!window.availableFoods || window.availableFoods.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-xs text-gray-500 italic">No hay alimentos en la base de datos aún.</p>';
+                return;
+            }
+
+            const q = queryStr.toLowerCase().trim();
+            const filtered = window.availableFoods.filter(f => f.name.toLowerCase().includes(q)).slice(0, 20); 
+
+            if(filtered.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-xs text-gray-500 italic">No se encontraron coincidencias.</p>';
+                return;
+            }
+
+            let html = '';
+            filtered.forEach((f, idx) => {
+                const escName = f.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                let bQty = f.baseQty || 100;
+                let fUnit = f.unit || 'g';
+                
+                let actionAdd = `
+                    <div class="flex items-center gap-1 mt-2 md:mt-0 md:ml-auto">
+                        <input type="number" id="search-qty-${idx}" value="${bQty}" class="glass-input w-14 text-xs p-1 text-center" placeholder="Cant.">
+                        <select id="search-unit-${idx}" class="glass-input text-xs p-1">
+                            <option value="g" ${fUnit === 'g' ? 'selected':''}>g/ml</option>
+                            <option value="unidad" ${fUnit === 'unidad' ? 'selected':''}>und</option>
+                            <option value="taza" ${fUnit === 'taza' ? 'selected':''}>taza</option>
+                            <option value="1/2 taza" ${fUnit === '1/2 taza' ? 'selected':''}>1/2 taza</option>
+                            <option value="cda" ${fUnit === 'cda' ? 'selected':''}>cda</option>
+                        </select>
+                        <button onclick="addIngToMealFromSearch('${escName}', ${f.kcal}, ${f.p}, ${f.c}, ${f.f}, ${bQty}, ${idx})" class="glass-icon-btn text-green-400 text-sm border border-green-500/30" title="Añadir a Comida Actual"><i class="ph ph-plus"></i></button>
+                    </div>`;
+                
+                let actionsPriv = '';
+                if (f.source === 'Privado') {
+                    actionsPriv = `
+                        <div class="flex gap-1 ml-2">
+                            <button onclick="editPantryItem('${f.id}')" class="text-blue-400 hover:text-white" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                            <button onclick="deletePantryItem('${f.id}', '${escName}')" class="text-red-400 hover:text-white" title="Eliminar"><i class="ph ph-trash"></i></button>
+                        </div>
+                    `;
+                }
+
+                html += `
+                    <div class="bg-black/40 p-2 rounded border border-gray-800 flex flex-col md:flex-row md:items-center justify-between group hover:bg-gray-900 transition">
+                        <div class="flex-1 flex flex-col">
+                            <div class="flex items-center">
+                                <h4 class="text-xs font-bold text-white truncate max-w-[180px]" title="${f.name}">${f.name}</h4>
+                                <span class="text-[8px] bg-gray-800 px-1 rounded text-gray-400 ml-1">${f.source}</span>
+                                ${actionsPriv}
+                            </div>
+                            <div class="text-[10px] font-mono text-gray-400 mt-1 flex gap-2">
+                                <span class="text-gray-500">(${bQty}${fUnit})</span>
+                                <span class="text-orange-400">${f.kcal} kcal</span>
+                                <span class="text-blue-400">P:${f.p}</span>
+                                <span class="text-yellow-400">C:${f.c}</span>
+                                <span class="text-red-400">G:${f.f}</span>
+                            </div>
+                        </div>
+                        ${actionAdd}
+                    </div>
+                `;
+            });
+            resultsContainer.innerHTML = html;
+        };
+
+        window.searchIngForMeal = window.searchFoods; 
+
+        window.addIngToMealFromSearch = (name, kcal, p, c, f, baseQty, idx) => {
+            let qtyInput = document.getElementById(`search-qty-${idx}`);
+            let unitInput = document.getElementById(`search-unit-${idx}`);
+            
+            let qty = parseFloat(qtyInput.value);
+            let unit = unitInput.value;
+
+            if(isNaN(qty) || qty <= 0) return showToast("Cantidad inválida", "error");
+
+            currentMealIngredients.push({ name, baseKcal: kcal, baseP: p, baseC: c, baseF: f, baseQty: baseQty, qty: qty, unit: unit });
+            
+            const resultsDiv = document.getElementById('ing-search-results');
+            if(resultsDiv) resultsDiv.classList.add('hidden');
+            
+            const searchInput = document.getElementById('ing-search-input');
+            if(searchInput) searchInput.value = '';
+            
+            const legacyIng = document.getElementById('edit-meal-ing');
+            if(legacyIng) legacyIng.classList.add('hidden');
+
+            renderActiveIngredients();
+            recalculateMacros();
+            showToast(`Añadidos ${qty} ${unit} de ${name}.`, "success");
+        };
+
+        // --- MANEJO DE CONFIGURACIÓN, DURACIÓN FLEXIBLE E IA ---
+        window.toggleForgotWeights = (cb) => {
+            document.getElementById('input-profile-squat').disabled = cb.checked;
+            document.getElementById('input-profile-bench').disabled = cb.checked;
+            if(cb.checked) {
+                document.getElementById('input-profile-squat').value = '';
+                document.getElementById('input-profile-bench').value = '';
+            }
+        };
+
+        window.openSettings = () => {
+            const modal = document.getElementById('settings-modal');
+            if(modal) {
+                modal.classList.remove('hidden');
+                document.getElementById('input-plan-duration').value = planDuration;
+                document.getElementById('input-profile-name').value = userProfile.name || '';
+                
+                document.getElementById('input-profile-dob').value = userProfile.dob || '';
+                document.getElementById('input-profile-gender').value = userProfile.gender || 'M';
+                
+                document.getElementById('input-profile-height').value = userProfile.height || 160;
+                document.getElementById('input-profile-inactivity').value = userProfile.inactivity || 0;
+                document.getElementById('input-profile-squat').value = userProfile.squat || '';
+                document.getElementById('input-profile-bench').value = userProfile.bench || '';
+                document.getElementById('input-profile-forgot').checked = userProfile.forgotWeights || false;
+                window.toggleForgotWeights(document.getElementById('input-profile-forgot'));
+
+                document.getElementById('input-profile-inj-spine').checked = userProfile.injuries?.spine || false;
+                document.getElementById('input-profile-inj-knees').checked = userProfile.injuries?.knees || false;
+                document.getElementById('input-profile-inj-shoulders').checked = userProfile.injuries?.shoulders || false;
+            }
+        };
+
+        window.closeSettings = () => {
+            const modal = document.getElementById('settings-modal');
+            if(modal) modal.classList.add('hidden');
+        };
+
+        window.saveSettings = async () => {
+            let pName = document.getElementById('input-profile-name').value;
+            let pDob = document.getElementById('input-profile-dob').value;
+            let pGender = document.getElementById('input-profile-gender').value;
+            let pHeight = parseInt(document.getElementById('input-profile-height').value);
+            
+            let pInactivity = parseInt(document.getElementById('input-profile-inactivity').value) || 0;
+            let pSquat = parseFloat(document.getElementById('input-profile-squat').value) || null;
+            let pBench = parseFloat(document.getElementById('input-profile-bench').value) || null;
+            let pForgot = document.getElementById('input-profile-forgot').checked;
+            
+            let pInjSpine = document.getElementById('input-profile-inj-spine').checked;
+            let pInjKnees = document.getElementById('input-profile-inj-knees').checked;
+            let pInjShoulders = document.getElementById('input-profile-inj-shoulders').checked;
+
+            let calculatedAge = calculateAge(pDob);
+
+            userProfile = { 
+                name: pName, dob: pDob, gender: pGender, age: calculatedAge, height: pHeight,
+                inactivity: pInactivity, squat: pSquat, bench: pBench, forgotWeights: pForgot,
+                injuries: { spine: pInjSpine, knees: pInjKnees, shoulders: pInjShoulders }
+            };
+            
+            if(currentUser) {
+                setDoc(doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'profile', 'data'), userProfile, { merge: true });
+                document.getElementById('user-display-email').innerText = userProfile.name || currentUser.email;
+                if (calculatedAge) {
+                    document.getElementById('user-display-age').innerText = `${calculatedAge} AÑOS`;
+                }
+            }
+
+            let newDuration = parseInt(document.getElementById('input-plan-duration').value);
+            if(newDuration && newDuration > 0 && currentUser) {
+                planDuration = newDuration;
+                globalPlanData.duration = planDuration;
+                
+                if(globalPlanData.nutrition.length < planDuration) {
+                    let newData = generatePlanSeedData(planDuration);
+                    for(let i = globalPlanData.nutrition.length; i < planDuration; i++) {
+                         globalPlanData.nutrition.push(newData.nutrition[i]);
+                         globalPlanData.training.push(newData.training[i]);
+                    }
+                } else if(globalPlanData.nutrition.length > planDuration) {
+                    globalPlanData.nutrition = globalPlanData.nutrition.slice(0, planDuration);
+                    globalPlanData.training = globalPlanData.training.slice(0, planDuration);
+                }
+                
+                const btn = document.querySelector('#settings-modal .glass-btn');
+                let ogText = '';
+                if(btn) {
+                    ogText = btn.innerHTML;
+                    btn.innerHTML = '<i class="ph ph-spinner-gap animate-spin"></i> Procesando...';
+                }
+                
+                try {
+                    await setDoc(doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'plan_13_dias', 'current'), {
+                        data: JSON.stringify(globalPlanData),
+                        duration: planDuration,
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
+                    
+                    renderDaySelectors();
+                    updateDashboardDay(1);
+                    showToast(`Protocolo ajustado con éxito y diagnóstico guardado.`, 'success');
+                    closeSettings();
+                } catch(e) {
+                    showToast("Error actualizando plan: " + e.message, "error");
+                } finally {
+                    if (btn) btn.innerHTML = ogText;
+                }
+            }
+        };
+
+        function renderDaySelectors() {
+            let htmlN = '', htmlT = '';
+            for(let i=1; i<=planDuration; i++) {
+                const baseCls = 'scroll-item px-4 py-2 rounded-lg text-sm font-bold border border-gray-700 bg-gray-800/50 text-gray-400 hover:bg-gray-700 transition cursor-pointer min-w-max';
+                htmlN += `<div onclick="selectDay('nutrition', ${i})" id="btn-nut-day-${i}" class="${baseCls}">${i === 1 ? 'DÍA 1 (HOY)' : 'DÍA '+i}</div>`;
+                htmlT += `<div onclick="selectDay('training', ${i})" id="btn-tra-day-${i}" class="${baseCls}">${i === 1 ? 'DÍA 1 (HOY)' : 'DÍA '+i}</div>`;
+            }
+            const nutSelector = document.getElementById('nutrition-day-selector');
+            const traSelector = document.getElementById('training-day-selector');
+            if(nutSelector) nutSelector.innerHTML = htmlN;
+            if(traSelector) traSelector.innerHTML = htmlT;
+            
+            const pageSubtitle = document.getElementById('page-subtitle');
+            if(pageSubtitle) pageSubtitle.innerText = `Día 1 de ${planDuration} - Fase de Ejecución`;
+        }
+
+        window.getSuggestedWeight = (exName) => {
+            if (!userProfile) return null;
+            let inactivity = parseInt(userProfile.inactivity) || 0;
+            let squat = parseFloat(userProfile.squat) || 0;
+            let bench = parseFloat(userProfile.bench) || 0;
+            let forgot = userProfile.forgotWeights;
+
+            let multiplier = 1.0;
+            if (inactivity >= 6) multiplier = 0.60;
+            else if (inactivity >= 3) multiplier = 0.75;
+            else if (inactivity >= 1) multiplier = 0.90;
+
+            let suggested = 0;
+            const nameLower = exName.toLowerCase();
+
+            if (nameLower.includes('press pecho') || nameLower.includes('press inclinado') || nameLower.includes('press banca') || nameLower.includes('flexiones')) {
+                if (forgot || bench === 0) suggested = 20; 
+                else suggested = Math.round((bench * multiplier) * 0.65 / 2.5) * 2.5; 
+            } else if (nameLower.includes('prensa') || nameLower.includes('sentadilla') || nameLower.includes('cuádriceps')) {
+                if (forgot || squat === 0) suggested = 30; 
+                else suggested = Math.round((squat * multiplier) * 0.65 / 2.5) * 2.5;
+            } else if (nameLower.includes('jalón') || nameLower.includes('remo')) {
+                if (forgot || bench === 0) suggested = 25; 
+                else suggested = Math.round((bench * multiplier * 0.8) * 0.65 / 2.5) * 2.5; 
+            } else {
+                return null; 
+            }
+            return suggested > 0 ? suggested : null;
+        };
+
+        // --- GENERACIÓN DE DATOS REFINADOS ---
+        function generatePlanSeedData(duration) {
+            const plan = { nutrition: [], training: [], duration: duration };
+            const rutinasBase = [
+                { type: 'Empuje', focus: 'Pectoral, Deltoides, Tríceps', desc: 'Máquinas y mancuernas. Cero carga axial.', exercises: [
+                    { name: 'Press Pecho Máquina Sentado', sets: 4, reps: '10-12', rest: 90, tip: 'Retracción escapular estricta.', muscle: 'Pecho', type: 'Compuesto', equip: 'Máquina', tempo: '3-1-1-0'},
+                    { name: 'Press Inclinado Mancuernas', sets: 3, reps: '10-12', rest: 90, tip: 'Control excéntrico de 3 segundos.', muscle: 'Pecho', type: 'Compuesto', equip: 'Mancuernas', tempo: '4-0-1-0'},
+                    { name: 'Elevaciones Laterales Sentado', sets: 4, reps: '15', rest: 60, tip: 'Anular el balanceo lumbar.', muscle: 'Hombros', type: 'Aislado', equip: 'Mancuernas', tempo: '2-0-1-0'},
+                    { name: 'Extensión Tríceps Polea', sets: 4, reps: '12-15', rest: 60, tip: 'Codos pegados a las costillas.', muscle: 'Tríceps', type: 'Aislado', equip: 'Polea', tempo: '2-0-2-0'}
+                ]},
+                { type: 'Tracción', focus: 'Dorsal, Bíceps, Core', desc: 'Tracción con soporte para anular cizalla lumbar.', exercises: [
+                    { name: 'Jalón al Pecho Polea Alta', sets: 4, reps: '10-12', rest: 90, tip: 'Juntar escápulas al iniciar.', muscle: 'Espalda', type: 'Compuesto', equip: 'Polea', tempo: '3-1-1-0'},
+                    { name: 'Remo Máquina (Apoyo Pecho)', sets: 4, reps: '10-12', rest: 90, tip: 'El pecho no se despega del cojín.', muscle: 'Espalda', type: 'Compuesto', equip: 'Máquina', tempo: '2-0-1-0'},
+                    { name: 'Pullover Polea Alta', sets: 3, reps: '15', rest: 60, tip: 'Rodillas semi flexionadas.', muscle: 'Espalda', type: 'Aislado', equip: 'Polea', tempo: '4-0-1-0'},
+                    { name: 'Curl Bíceps Alterno Mancuerna', sets: 4, reps: '12', rest: 60, tip: 'Giro de muñeca (supinación) al subir.', muscle: 'Bíceps', type: 'Aislado', equip: 'Mancuernas', tempo: '2-0-2-0'}
+                ]},
+                { type: 'Pierna Segura', focus: 'Cuádriceps, Isquios, Gemelos', desc: 'Aislamiento sin compresión vertebral.', exercises: [
+                    { name: 'Prensa 45 Grados', sets: 4, reps: '10-15', rest: 120, tip: 'NO bloquees rodillas al final.', muscle: 'Piernas', type: 'Compuesto', equip: 'Máquina', tempo: '3-1-1-0'},
+                    { name: 'Extensión de Cuádriceps', sets: 4, reps: '15', rest: 60, tip: 'Pausa isométrica de 1 segundo arriba.', muscle: 'Piernas', type: 'Aislado', equip: 'Máquina', tempo: '2-0-2-0'},
+                    { name: 'Curl Isquios (Acostado/Sentado)', sets: 4, reps: '12', rest: 60, tip: 'Punta del pie hacia ti.', muscle: 'Piernas', type: 'Aislado', equip: 'Máquina', tempo: '3-1-1-0'},
+                    { name: 'Elevación Gemelos en Prensa', sets: 4, reps: '20', rest: 45, tip: 'Baja hasta sentir estiramiento.', muscle: 'Piernas', type: 'Aislado', equip: 'Máquina', tempo: '2-0-2-0'}
+                ]},
+                { type: 'Descanso Activo', focus: 'Cardio LISS y Movilidad', desc: 'Recuperación del sistema nervioso.', exercises: [
+                    { name: 'Caminata Cinta Inclinada', sets: 1, reps: '30 min', rest: 0, tip: 'Velocidad 5, Inclinación 10.', muscle: 'Cardio', type: 'Compuesto', equip: 'Máquina', tempo: '2-0-1-0'},
+                    { name: 'Estiramiento Pectoral/Cadera', sets: 1, reps: '10 min', rest: 0, tip: 'Sostenido por 30s.', muscle: 'Full Body', type: 'Isométrico', equip: 'Peso Corporal', tempo: 'Isométrico'}
+                ]}
+            ];
+
+            const menusBase = [
+                {
+                    name: 'Día Fuerte', kcal: 1950, p: 165, c: 210, f: 50,
+                    meals: [
+                        { type: 'Desayuno', name: 'Huevos y Arepa', ing: '300g de Huevo Entero, 50g de Arepa Delgada.', prep: 'Huevos revueltos sin aceite. Arepa asada.', tip: 'Toma agua antes.' },
+                        { type: 'Almuerzo', name: 'Pollo + Arroz', ing: '200g de Pechuga Cruda, 150g de Arroz Blanco, 100g de Ensalada.', prep: 'Pollo a la plancha (cero aceite).', tip: 'Arroz cocido refrigerado es mejor.' },
+                        { type: 'Snack', name: 'Yogur Protéico', ing: '150g de Yogur Griego, 30g de Arándanos, 5g Creatina.', prep: 'Mezclar yogur y creatina.', tip: 'Creatina innegociable.' },
+                        { type: 'Cena', name: 'Res y Vegetales', ing: '150g de Res Lomo, 100g de Vegetales Mixtos.', prep: 'Asar en sartén caliente 3 mins.', tip: 'Aporta hierro.' }
+                    ]
+                },
+                {
+                    name: 'Carga Moderada', kcal: 1850, p: 160, c: 170, f: 55,
+                    meals: [
+                        { type: 'Desayuno', name: 'Avena Proteica', ing: '40g de Avena, 25g de Whey Protein, 100g de Banano.', prep: 'Hervir avena y mezclar polvo.', tip: 'Carga rápida de glucógeno.' },
+                        { type: 'Almuerzo', name: 'Cerdo Air Fryer', ing: '200g de Cerdo Magro, 50g de Arepa, 50g de Tomate.', prep: 'Air Fryer a 190°C x 15 mins.', tip: 'Cerdo magro excelente.' },
+                        { type: 'Snack', name: 'Empanadas Air Fryer', ing: '100g de Empanada de Carne, 200ml de Soda.', prep: 'Al Air Fryer a 200°C x 12 mins.', tip: 'Mata el antojo sin freir.' },
+                        { type: 'Cena', name: 'Corazones Pollo', ing: '150g de Corazones de Pollo, 10g de Ajo, 30g de Cebolla.', prep: 'Limpiar grasa y sofreír.', tip: 'Alta Coenzima Q10.' }
+                    ]
+                },
+                {
+                    name: 'Descanso Ligero', kcal: 1750, p: 155, c: 110, f: 75,
+                    meals: [
+                        { type: 'Desayuno', name: 'Omelette Ligero', ing: '200g de Huevo Entero, 60g de Claras, 30g de Galletas Saladas.', prep: 'Omelette en sartén.', tip: 'Menos carbos hoy.' },
+                        { type: 'Almuerzo', name: 'Pollo y Chicharrón', ing: '150g de Pollo, 50g de Chicharrón, 50g de Espinaca.', prep: 'Chicharrón en Air Fryer x 20m para quitar grasa.', tip: 'Grasa crocante controlada.' },
+                        { type: 'Snack', name: 'Gelatina Cero', ing: '100g de Gelatina Dietética, 100g de Manzana.', prep: 'Comer fría.', tip: 'Frena el antojo.' },
+                        { type: 'Cena', name: 'Huevos y Jamón', ing: '300g de Huevos, 50g de Jamón, 5g Creatina.', prep: 'Sofreír con espinaca.', tip: 'Digestión rápida.' }
+                    ]
+                }
+            ];
+
+            for (let i = 1; i <= duration; i++) {
+                plan.training.push(JSON.parse(JSON.stringify(rutinasBase[(i - 1) % 4])));
+                plan.nutrition.push(JSON.parse(JSON.stringify({ day: i, ...menusBase[(i - 1) % 3] })));
+            }
+            return plan;
+        }
+
+        async function savePlanToFirebase() {
+            if(!currentUser) return;
+            try {
+                const planRef = doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'plan_13_dias', 'current');
+                await setDoc(planRef, { data: JSON.stringify(globalPlanData) }, { merge: true });
+                showToast("Cambios guardados exitosamente en la BD.");
+            } catch(e) {
+                showToast("Error guardando cambios: " + e.message, "error");
+            }
+        }
+
+        // --- FUNCIONES DE VENTANAS Y MODALES ---
+        window.removeIngFromMeal = (idx) => {
+            currentMealIngredients.splice(idx, 1);
+            renderActiveIngredients();
+            recalculateMacros();
+        };
+
+        window.updateIngQty = (idx, val) => {
+            currentMealIngredients[idx].qty = parseFloat(val) || 0;
+            recalculateMacros();
+        };
+
+        window.renderActiveIngredients = () => {
+            const list = document.getElementById('active-ingredients-list');
+            if(currentMealIngredients.length === 0) {
+                list.innerHTML = '<p class="text-[10px] text-gray-500 italic px-2">No hay ingredientes calculables. Busca arriba para añadir macros reales a tu dieta.</p>';
+                return;
+            }
+            list.innerHTML = currentMealIngredients.map((ing, idx) => `
+                <div class="flex items-center justify-between bg-black/40 p-2 rounded border border-gray-700">
+                    <span class="text-xs text-gray-200 truncate flex-1 font-semibold" title="${ing.name}">${ing.name}</span>
+                    <div class="flex items-center gap-1">
+                        <input type="number" class="glass-input w-16 text-center text-xs p-1" value="${ing.qty}" onchange="updateIngQty(${idx}, this.value)">
+                        <span class="text-[9px] text-gray-500 uppercase">${ing.unit || 'g'}</span>
+                        <button onclick="removeIngFromMeal(${idx})" class="text-red-400 hover:text-red-300 ml-2 bg-red-900/20 p-1 rounded"><i class="ph ph-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        window.recalculateMacros = () => {
+            let tKcal=0, tP=0, tC=0, tF=0;
+            currentMealIngredients.forEach(ing => {
+                let baseQty = ing.baseQty || 100;
+                let factor = ing.qty / baseQty;
+                tKcal += ing.baseKcal * factor;
+                tP += ing.baseP * factor;
+                tC += ing.baseC * factor;
+                tF += ing.baseF * factor;
+            });
+            document.getElementById('edit-meal-day-kcal').value = Math.round(tKcal);
+            document.getElementById('edit-meal-day-p').value = Math.round(tP);
+            document.getElementById('edit-meal-day-c').value = Math.round(tC);
+            document.getElementById('edit-meal-day-f').value = Math.round(tF);
+        };
+
+        window.saveMealEdit = async () => {
+            const data = globalPlanData.nutrition[currentEditDay - 1];
+            const meal = data.meals[currentEditMealIdx];
+            
+            meal.name = document.getElementById('edit-meal-name').value;
+            meal.prep = document.getElementById('edit-meal-prep').value;
+            
+            if(currentMealIngredients.length > 0) {
+                meal.ingredients = currentMealIngredients;
+                meal.ing = currentMealIngredients.map(i => `${i.qty}${i.unit || 'g'} de ${i.name}`).join(', ');
+            } else {
+                meal.ing = document.getElementById('edit-meal-ing').value;
+            }
+            
+            meal.kcal = parseInt(document.getElementById('edit-meal-day-kcal').value) || 0;
+            meal.p = parseInt(document.getElementById('edit-meal-day-p').value) || 0;
+            meal.c = parseInt(document.getElementById('edit-meal-day-c').value) || 0;
+            meal.f = parseInt(document.getElementById('edit-meal-day-f').value) || 0;
+            
+            let dayKcal = 0, dayP = 0, dayC = 0, dayF = 0;
+            data.meals.forEach(m => {
+                dayKcal += m.kcal !== undefined ? m.kcal : Math.round(data.kcal / data.meals.length);
+                dayP += m.p !== undefined ? m.p : Math.round(data.p / data.meals.length);
+                dayC += m.c !== undefined ? m.c : Math.round(data.c / data.meals.length);
+                dayF += m.f !== undefined ? m.f : Math.round(data.f / data.meals.length);
+            });
+            
+            data.kcal = dayKcal;
+            data.p = dayP;
+            data.c = dayC;
+            data.f = dayF;
+            
+            window.closeMealEditor();
+            await savePlanToFirebase();
+            window.selectDay('nutrition', currentEditDay);
+            showToast("Receta y macros del día actualizados correctamente.", "success");
+        };
+
+        window.skipWorkout = async () => {
+            if(confirm('¿Estás seguro que deseas marcar este día como NO ENTRENADO (Fallo)?')) {
+                window.resetTimer();
+                if(currentUser) {
+                    try {
+                        await addDoc(collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'workouts_log'), {
+                            date: serverTimestamp(),
+                            routine: activeWorkoutData.type,
+                            status: 'skipped',
+                            exercises: []
+                        });
+                        showToast("Entrenamiento marcado como NO REALIZADO.", "info");
+                    } catch(e) { console.error("No se pudo guardar el fallo", e); }
+                }
+                document.getElementById('workout-active-container').classList.add('hidden');
+                document.getElementById('workout-active-container').classList.remove('flex');
+                document.getElementById('training-overview').classList.remove('hidden');
+            }
+        };
+
+        // --- DASHBOARD REAL MACRO CHART ---
+        function updateMacrosChart(habitsData) {
+            const ctx = document.getElementById('macrosChart');
+            if(!ctx) return;
+            if(window.macrosChartInstance) window.macrosChartInstance.destroy();
+            
+            Chart.defaults.color = '#64748b';
+            Chart.defaults.font.family = 'Inter';
+
+            // Extraer info real y ordenar cronológicamente de izquierda a derecha (el más antiguo primero)
+            // habitsData ya viene ordenado de más reciente a más antiguo desde Firebase, lo invertimos
+            const dataChronological = [...habitsData].reverse();
+
+            const labels = dataChronological.map(d => d.dateStr);
+            const dataP = dataChronological.map(d => d.p);
+            const dataC = dataChronological.map(d => d.c);
+            const dataF = dataChronological.map(d => d.f);
+
+            window.macrosChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Proteína (g)', data: dataP, backgroundColor: 'rgba(59, 130, 246, 0.9)', borderRadius: 4 },
+                        { label: 'Carbos (g)', data: dataC, backgroundColor: 'rgba(234, 179, 8, 0.9)', borderRadius: 4 },
+                        { label: 'Grasas (g)', data: dataF, backgroundColor: 'rgba(239, 68, 68, 0.9)', borderRadius: 4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+            });
+        }
+
+        async function loadUserData(user) {
+            document.getElementById('user-display-email').innerText = user.email;
+            
+            if(user.email === 'dudbilopr@gmail.com') {
+                const adminPanel = document.getElementById('admin-usda-panel');
+                if(adminPanel) adminPanel.classList.remove('hidden');
+            }
+
+            try {
+                const profileSnap = await getDoc(doc(db, 'artifacts', currentAppId, 'users', user.uid, 'profile', 'data'));
+                if(profileSnap.exists()) {
+                    userProfile = { ...userProfile, ...profileSnap.data() };
+                    document.getElementById('user-display-email').innerText = userProfile.name || user.email;
+                    if(userProfile.age) {
+                        document.getElementById('user-display-age').innerText = `${userProfile.age} AÑOS`;
+                    }
+                }
+            } catch(e) { console.warn("Error cargando perfil", e); }
+
+            // Historial de ejercicios (Max Weights)
+            try {
+                const workQuery = query(collection(db, 'artifacts', currentAppId, 'users', user.uid, 'workouts_log'), orderBy('date', 'desc'));
+                onSnapshot(workQuery, (snap) => {
+                    exerciseHistory = {};
+                    const docs = snap.docs.slice().reverse();
+                    docs.forEach(docObj => {
+                        const data = docObj.data();
+                        if(data.exercises && data.status !== 'skipped') {
+                            data.exercises.forEach(ex => {
+                                if(ex.maxWeight > 0) exerciseHistory[ex.name] = ex.maxWeight; 
+                            });
+                        }
+                    });
+                });
+            } catch(e) { console.warn("Error cargando historial de rutina", e); }
+
+            // Datos de Plan (13+ días)
+            try {
+                const planRef = doc(db, 'artifacts', currentAppId, 'users', user.uid, 'plan_13_dias', 'current');
+                let planSnap = await getDoc(planRef);
+                
+                if (!planSnap.exists()) {
+                    globalPlanData = generatePlanSeedData(planDuration);
+                    await setDoc(planRef, { createdAt: serverTimestamp(), data: JSON.stringify(globalPlanData), duration: planDuration });
+                } else {
+                    let pData = planSnap.data();
+                    globalPlanData = JSON.parse(pData.data);
+                    planDuration = pData.duration || globalPlanData.nutrition.length || 13;
+                }
+
+                renderDaySelectors();
+                selectDay('nutrition', 1);
+                selectDay('training', 1);
+                updateDashboardDay(1);
+                setupMetricsListener(user.uid);
+                
+                getDoc(doc(db, 'artifacts', currentAppId, 'users', user.uid, 'clinical', 'purgante')).then(snap => {
+                    if(snap.exists() && document.getElementById('input-purga-date')) {
+                        document.getElementById('input-purga-date').value = snap.data().lastDate;
+                    }
+                });
+
+                // Cargar hábitos de HOY
+                try {
+                    const todayStr = getTodayStr();
+                    const habitsRef = doc(db, 'artifacts', currentAppId, 'users', user.uid, 'daily_habits', todayStr);
+                    const habitsSnap = await getDoc(habitsRef);
+                    if(habitsSnap.exists()) {
+                        const hData = habitsSnap.data();
+                        dailyWaterGlasses = hData.water || 0;
+                        dailyCoffeeCups = hData.coffee || 0;
+                        dailyCalories = hData.calories || 0;
+                        dailyCreatineGrams = hData.creatine || 0;
+                        dailyProteinScoops = hData.protein || 0;
+                        dailyOmega = hData.omega || 0; 
+                        dailyMagnesium = hData.magnesium || 0;
+                        
+                        dailyP = hData.macros?.p || 0;
+                        dailyC = hData.macros?.c || 0;
+                        dailyF = hData.macros?.f || 0;
+
+                        updateWaterUI();
+                        updateCoffeeUI();
+                        updateCaloriesUI();
+                        updateCreatineUI();
+                        updateProteinUI();
+                        updateOmegaUI();
+                        updateMagnesiumUI();
+                    }
+                } catch(e) { console.warn("No se encontraron hábitos hoy:", e); }
+
+                // Cargar Historial de Hábitos para Chart (últimos 7 días)
+                try {
+                    const habitsHistQuery = query(collection(db, 'artifacts', currentAppId, 'users', user.uid, 'daily_habits'), orderBy('lastUpdated', 'desc'), limit(7));
+                    onSnapshot(habitsHistQuery, (snap) => {
+                        let chartHabits = [];
+                        snap.forEach(d => {
+                            let obj = d.data();
+                            chartHabits.push({ // guardamos tal cual, invertiremos en updateMacrosChart
+                                dateStr: d.id.substring(5), 
+                                p: obj.macros?.p || 0,
+                                c: obj.macros?.c || 0,
+                                f: obj.macros?.f || 0
+                            });
+                        });
+                        
+                        if (chartHabits.length === 0) {
+                            chartHabits = [
+                                { dateStr: 'Día 1', p: 165, c: 210, f: 50 },
+                                { dateStr: 'Día 2', p: 160, c: 170, f: 55 },
+                                { dateStr: 'Día 3', p: 155, c: 110, f: 75 }
+                            ];
+                        }
+                        updateMacrosChart(chartHabits);
+                    });
+                } catch (e) { console.warn("Error cargando gráfica de macros", e); }
+
+                loadAvailableFoods();
+
+                setTimeout(() => { document.getElementById('loading-screen').classList.add('hidden'); }, 800);
+
+            } catch (error) {
+                console.error("Error BD:", error);
+                showToast("Error de lectura: " + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
