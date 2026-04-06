@@ -321,7 +321,9 @@
                 try {
                     const provider = new GoogleAuthProvider();
                     await signInWithPopup(auth, provider);
-                } catch (e) { ModalSystem.alert("Error en login: " + e.message); }
+                } catch (e) { 
+                    ModalSystem.alert("Error en login con Google: Es posible que el navegador bloquee las ventanas emergentes por seguridad. Intenta con Correo/Contraseña.<br><br><span class='text-xs text-red-400'>" + e.message + "</span>"); 
+                }
             },
             loginEmail: async () => {
                 const email = document.getElementById('auth-email').value;
@@ -430,7 +432,7 @@
                 } else {
                     state.nutrition = { meals: [], water: 0, coffee: 0, supplements: { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 }};
                 }
-                if(currentViewId === 'nutrition') renderNutrition(); // Refresh si está en la vista
+                if(currentViewId === 'nutrition') renderView('nutrition'); // Refresh si está en la vista
             });
 
             // 4. Ejercicios Personalizados
@@ -916,15 +918,26 @@
                 } catch(e) { console.error("Error guardando nutrición", e); }
             },
             checkBeverage: () => {
-                const item = prompt("¿Qué bebida deseas verificar? (Ej. Coca Cola Zero, Agua con gas, Jugo)").toLowerCase();
-                if(!item) return;
-                if(item.includes("zero") || item.includes("agua con gas") || item.includes("soda")) {
-                    ModalSystem.alert(`<i class="fa-solid fa-check-circle text-green-400 text-2xl"></i><br><b>${item}</b> está PERMITIDO. No aporta calorías significativas ni afecta picos de insulina.`);
-                } else if(item.includes("jugo") || item.includes("azucar") || item.includes("normal")) {
-                    ModalSystem.alert(`<i class="fa-solid fa-xmark-circle text-red-400 text-2xl"></i><br><b>${item}</b> NO RECOMENDADO. Contiene calorías líquidas que sabotean el déficit o recomposición.`);
-                } else {
-                    ModalSystem.alert("Consulta la etiqueta: Si tiene menos de 5 kcal por porción, es aceptable.");
-                }
+                const html = `
+                    <div class="space-y-3 text-left">
+                        <input type="text" id="bev-input" placeholder="Ej. Coca Cola Zero, Agua con gas, Jugo" class="w-full p-2 rounded glass-input">
+                    </div>
+                `;
+                ModalSystem.show("Verificador de Bebidas", html, 'confirm', () => {
+                    const inputEl = document.getElementById('bev-input');
+                    if(!inputEl || !inputEl.value) return;
+                    const item = inputEl.value.toLowerCase();
+                    const originalName = inputEl.value;
+                    setTimeout(() => { // slight delay to allow first modal to close
+                        if(item.includes("zero") || item.includes("agua con gas") || item.includes("soda")) {
+                            ModalSystem.alert(`<i class="fa-solid fa-check-circle text-green-400 text-2xl"></i><br><b>${originalName}</b> está PERMITIDO. No aporta calorías significativas ni afecta picos de insulina.`);
+                        } else if(item.includes("jugo") || item.includes("azucar") || item.includes("normal")) {
+                            ModalSystem.alert(`<i class="fa-solid fa-xmark-circle text-red-400 text-2xl"></i><br><b>${originalName}</b> NO RECOMENDADO. Contiene calorías líquidas que sabotean el déficit o recomposición.`);
+                        } else {
+                            ModalSystem.alert("Consulta la etiqueta: Si tiene menos de 5 kcal por porción, es aceptable.");
+                        }
+                    }, 300);
+                });
             },
             showAddMeal: () => {
                 const html = `
@@ -1512,8 +1525,11 @@
                 // Renderizar Promedios
                 const avgSleep = daysWithData > 0 ? (totalSleep/daysWithData).toFixed(1) : '0.0';
                 const avgKcal = daysWithData > 0 ? Math.round(totalKcal/daysWithData) : 0;
-                document.getElementById('trend-avg-sleep').innerText = avgSleep + ' hrs';
-                document.getElementById('trend-avg-kcal').innerText = avgKcal + ' kcal';
+                
+                const elSleep = document.getElementById('trend-avg-sleep');
+                const elKcal = document.getElementById('trend-avg-kcal');
+                if(elSleep) elSleep.innerText = avgSleep + ' hrs';
+                if(elKcal) elKcal.innerText = avgKcal + ' kcal';
 
                 // Renderizar Gráfica
                 const ctx = document.getElementById('weekly-chart');
