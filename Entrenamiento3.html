@@ -4,10 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fitness10.easy - Alto Rendimiento</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js para gráficas -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
         body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #020617, #0f172a, #1e293b); background-attachment: fixed; color: #f8fafc; min-height: 100vh; overflow-x: hidden; }
         .glass { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
@@ -84,9 +89,7 @@
                     <button onclick="appManager.navigate('analytics')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-slate-800/50 hover:text-sky-400 transition-colors nav-btn"><i class="fa-solid fa-chart-line w-5"></i> <span class="sidebar-text text-sm">Historial & Sueño</span></button>
                     <button onclick="appManager.navigate('clinical')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-slate-800/50 hover:text-sky-400 transition-colors nav-btn"><i class="fa-solid fa-stethoscope w-5"></i> <span class="sidebar-text text-sm">Clínica & Ciencia</span></button>
                     
-                    <!-- Trainer / Admin Buttons -->
-                    <button id="trainer-nav-btn" onclick="appManager.navigate('trainer')" class="hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl text-yellow-400 hover:bg-yellow-900/20 transition-colors nav-btn"><i class="fa-solid fa-chalkboard-user w-5"></i> <span class="sidebar-text text-sm">Trainer Zone</span></button>
-                    <button id="admin-nav-btn" onclick="appManager.navigate('admin')" class="hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl text-purple-400 hover:bg-purple-900/20 transition-colors nav-btn"><i class="fa-solid fa-crown w-5"></i> <span class="sidebar-text text-sm">Admin Setup</span></button>
+                    <button id="admin-nav-btn" onclick="appManager.navigate('admin')" class="hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl text-purple-400 hover:bg-purple-900/20 transition-colors nav-btn"><i class="fa-solid fa-crown w-5"></i> <span class="sidebar-text text-sm">Admin Zone</span></button>
                 </nav>
                 <div class="p-4 border-t border-gray-700/50"><button onclick="appManager.logout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-red-900/20 hover:text-red-400 transition-colors"><i class="fa-solid fa-sign-out-alt w-5"></i> <span class="sidebar-text text-sm">Cerrar Sesión</span></button></div>
             </aside>
@@ -136,11 +139,28 @@
         window.appManager = {
             loginGoogle: async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { ModalSystem.alert("Error login: "+e.message); } },
             loginEmail: async () => { const e = document.getElementById('auth-email').value, p = document.getElementById('auth-password').value; if(!e || !p) return ModalSystem.alert("Ingresa datos."); try { await signInWithEmailAndPassword(auth, e, p); } catch (err) { if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') ModalSystem.confirm("¿Registrar usuario?", async () => { try { await createUserWithEmailAndPassword(auth, e, p); } catch (ex) { ModalSystem.alert(ex.message); } }); else ModalSystem.alert(err.message); } },
-            logout: () => ModalSystem.confirm("¿Salir?", () => signOut(auth)), 
-            toggleSidebar: () => document.getElementById('sidebar').classList.toggle('sidebar-closed'), 
-            navigate: (id) => renderView(id),
-            subscribeNutrition: (dStr) => { if(!state.user) return; if(state.unsubNutri) state.unsubNutri(); state.unsubNutri = onSnapshot(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'nutrition', dStr), (snap) => { state.nutrition = snap.exists() ? snap.data() : { meals: [], water: 0, coffee: 0, supplements: { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 }}; if(!state.nutrition.supplements) state.nutrition.supplements = { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 }; if(currentViewId === 'nutrition') renderView('nutrition'); }); },
-            subscribeWorkout: (dStr) => { if(!state.user) return; if(state.unsubWorkout) state.unsubWorkout(); state.unsubWorkout = onSnapshot(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'workouts_daily', dStr), (snap) => { state.dailyWorkout = snap.exists() ? snap.data() : null; if(currentViewId === 'training' || currentViewId === 'dashboard') renderView(currentViewId); }); },
+            logout: () => ModalSystem.confirm("¿Salir?", () => signOut(auth)), toggleSidebar: () => document.getElementById('sidebar').classList.toggle('sidebar-closed'), navigate: (id) => renderView(id),
+            
+            subscribeNutrition: (dStr) => { 
+                if(!state.user) return; if(state.unsubNutri) state.unsubNutri(); 
+                state.unsubNutri = onSnapshot(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'nutrition', dStr), (snap) => { 
+                    state.nutrition = snap.exists() ? snap.data() : { meals: [], water: 0, coffee: 0, supplements: { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 }}; 
+                    if(!state.nutrition.supplements) state.nutrition.supplements = { protein: 0, creatine: 0, magnesium: 0, zinc: 0, omega3: 0 }; 
+                    if(currentViewId === 'nutrition') renderView('nutrition'); 
+                }); 
+            },
+            subscribeWorkout: (dStr) => { 
+                if(!state.user) return; if(state.unsubWorkout) state.unsubWorkout(); 
+                state.unsubWorkout = onSnapshot(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'workouts_daily', dStr), (snap) => { 
+                    state.dailyWorkout = snap.exists() ? snap.data() : null; 
+                    // Auto-cargar la cola si no está completada, no estamos editando y la cola está vacía
+                    if(state.dailyWorkout && !state.dailyWorkout.completed && workoutManager.activeExercises.length === 0 && !workoutManager.isEditing) {
+                        workoutManager.activeExercises = state.dailyWorkout.exercises || [];
+                        workoutManager.timeElapsed = state.dailyWorkout.duration || 0;
+                    }
+                    if(currentViewId === 'training' || currentViewId === 'dashboard') renderView(currentViewId); 
+                }); 
+            },
             saveIndicator: (id) => { const el = document.getElementById(id); if(el) { el.innerHTML = '<i class="fa-solid fa-check text-green-400"></i> Guardado'; setTimeout(() => el.innerHTML = '', 2000); } }
         };
 
@@ -162,10 +182,9 @@
                         state.profile=snap.data(); calculateTimeMetrics(); 
                         const roleName = state.profile.role === 'admin' ? 'Admin Supremo' : (state.profile.role === 'teacher' ? 'Docente' : 'Estudiante');
                         document.getElementById('user-role-badge').innerText = roleName;
-                        if(state.profile.role === 'admin' || state.profile.role === 'teacher' || state.user.email === ADMIN_EMAIL) {
-                            document.getElementById('trainer-nav-btn').classList.remove('hidden');
+                        if(state.profile.role === 'admin' || state.user.email === ADMIN_EMAIL) {
+                            document.getElementById('admin-nav-btn').classList.remove('hidden');
                         }
-                        setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'directory', uid), { uid: uid, name: state.user.displayName || state.user.email, email: state.user.email, role: state.profile.role, lastLogin: new Date().toISOString() }, {merge: true}).catch(e=>{});
                     } else {
                         const initRole = state.user.email === ADMIN_EMAIL ? 'admin' : 'student';
                         setDoc(doc(db, 'artifacts', APP_ID, 'users', uid, 'profile', 'data'), {createdAt: new Date().toISOString(), cycleDays: 13, startDate: new Date().toISOString().split('T')[0], role: initRole}); 
@@ -175,8 +194,6 @@
                 onSnapshot(collection(db, 'artifacts', APP_ID, 'users', uid, 'exercises'), snap => { state.exercises = snap.docs.map(d => ({id: d.id, ...d.data()})); }),
                 onSnapshot(collection(db, 'artifacts', APP_ID, 'users', uid, 'routines'), snap => { state.routines = snap.docs.map(d => ({id: d.id, ...d.data()})); }),
                 onSnapshot(doc(db, 'artifacts', APP_ID, 'users', uid, 'health', 'data'), snap => { if(snap.exists()) state.health=snap.data(); }),
-                onSnapshot(collection(db, 'artifacts', APP_ID, 'public', 'data', 'courses'), snap => { state.globalCatalog = snap.docs.map(d => ({id: d.id, ...d.data()})); }),
-                onSnapshot(collection(db, 'artifacts', APP_ID, 'public', 'data', 'directory'), snap => { state.directory = snap.docs.map(d => ({uid: d.id, ...d.data()})); if(currentViewId==='trainer') renderView('trainer'); }),
                 () => { if(state.unsubNutri) state.unsubNutri(); }, () => { if(state.unsubWorkout) state.unsubWorkout(); }
             );
             appManager.subscribeNutrition(state.activeDate); appManager.subscribeWorkout(state.activeWorkoutDate);
@@ -187,17 +204,7 @@
         let currentViewId = '';
         function renderView(viewId) {
             currentViewId = viewId; const container = document.getElementById('view-container'); container.innerHTML = ''; container.classList.add('animate-fade-in'); container.style.animation='none'; container.offsetHeight; container.style.animation=null;
-            switch(viewId) { 
-                case 'dashboard': container.innerHTML = buildDashboard(); break; 
-                case 'profile': container.innerHTML = buildProfile(); initProfileListeners(); break; 
-                case 'anthropometry': container.innerHTML = buildAntropo(); initAntropoListeners(); break; 
-                case 'nutrition': container.innerHTML = buildNutrition(); break; 
-                case 'training': container.innerHTML = buildTraining(); break; 
-                case 'analytics': container.innerHTML = buildAnalytics(); initAnalyticsListeners(); break; 
-                case 'clinical': container.innerHTML = buildClinical(); break; 
-                case 'trainer': container.innerHTML = buildTrainer(); break;
-                case 'admin': container.innerHTML = state.user.email===ADMIN_EMAIL ? buildAdmin() : '<p class="text-red-500">Denegado</p>'; break; 
-            }
+            switch(viewId) { case 'dashboard': container.innerHTML = buildDashboard(); break; case 'profile': container.innerHTML = buildProfile(); initProfileListeners(); break; case 'anthropometry': container.innerHTML = buildAntropo(); initAntropoListeners(); break; case 'nutrition': container.innerHTML = buildNutrition(); break; case 'training': container.innerHTML = buildTraining(); break; case 'analytics': container.innerHTML = buildAnalytics(); initAnalyticsListeners(); break; case 'clinical': container.innerHTML = buildClinical(); break; case 'admin': container.innerHTML = state.user.email===ADMIN_EMAIL ? buildAdmin() : '<p class="text-red-500">Denegado</p>'; break; }
         }
 
         function calcularMacros() { if(!state.nutrition || !state.nutrition.meals) return {k:0,p:0,c:0,f:0}; return state.nutrition.meals.reduce((a,m)=>{a.k+=Number(m.kcal)||0;a.p+=Number(m.prot)||0;a.c+=Number(m.carb)||0;a.f+=Number(m.fat)||0;return a;},{k:0,p:0,c:0,f:0}); }
@@ -207,97 +214,74 @@
         // ==========================================
         function buildDashboard() {
             const p = state.profile, a = state.antropo, bw = a.peso_actual||70, bf = parseFloat(a.calc_bf)||(p.gender==='F'?25:15), lbm = parseFloat(a.calc_lbm)||(bw*(1-bf/100)), tdee = parseFloat(a.calc_tdee)||2000, somato = a.somatotype||"Desconocido", dNum = p.currentDay||1, m = calcularMacros(), w = state.dailyWorkout, bc = w ? (w.burnedCalories||0) : 0, msg = dNum>1 ? `"Día ${dNum}: El progreso exige consistencia."` : `"Día 1: Rompe el estado de reposo."`;
-            return `
-                <div class="space-y-6">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-700/50 pb-4">
-                        <div>
-                            <h2 class="text-3xl font-bold text-white">Centro de Control</h2>
-                            <p class="text-sky-400 font-semibold tracking-wide uppercase text-sm mt-1">Día ${dNum} de ${p.cycleDays||13} - Fase de Ejecución</p>
-                        </div>
-                        <div class="flex gap-2">
-                            ${bc>0 ? `
-                                <div class="bg-red-900/30 px-4 py-2 rounded-xl border border-red-500/30 text-center">
-                                    <p class="text-red-400 font-bold leading-none">${bc.toFixed(0)} kcal</p>
-                                    <p class="text-[10px] text-gray-400">Activas Quemadas</p>
-                                </div>
-                            ` : ''}
-                            <button onclick="appManager.navigate('training')" class="glass-btn px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
-                                <i class="fa-solid fa-play"></i> Iniciar Entrenamiento Hoy
-                            </button>
-                        </div>
-                    </div>
+            return `<div class="space-y-6"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-700/50 pb-4"><div><h2 class="text-3xl font-bold text-white">Centro de Control</h2><p class="text-sky-400 font-semibold tracking-wide uppercase text-sm mt-1">Día ${dNum} de ${p.cycleDays||13} - Fase de Ejecución</p></div><div class="flex gap-2">${bc>0 ? `<div class="bg-red-900/30 px-4 py-2 rounded-xl border border-red-500/30 text-center"><p class="text-red-400 font-bold leading-none">${bc.toFixed(0)} kcal</p><p class="text-[10px] text-gray-400">Activas Quemadas</p></div>` : ''}<button onclick="appManager.navigate('training')" class="glass-btn px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2"><i class="fa-solid fa-play"></i> Iniciar Entrenamiento Hoy</button></div></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="glass-panel p-6 border-l-4 border-l-sky-500"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Directriz Diaria</h3><p class="text-lg text-white italic">${msg}</p><div class="mt-4 pt-4 border-t border-gray-700"><h4 class="text-sm font-bold text-purple-400 mb-1"><i class="fa-solid fa-stethoscope"></i> Diagnóstico IA</h4><p class="text-xs text-gray-300 mb-2">GET: <b class="text-orange-400">${Math.round(tdee)} kcal</b>. Somatotipo: <b class="text-sky-400">${somato}</b></p></div></div><div class="glass-panel p-6 bg-slate-800/80"><h3 class="text-sm font-bold text-green-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-power-off"></i> Guía (Routine.start)</h3><ul class="text-sm text-gray-300 space-y-3"><li><b class="text-white">1. Mañana:</b> Peso y sueño en <a onclick="appManager.navigate('analytics')" class="text-sky-400 underline cursor-pointer">Historial</a>.</li><li><b class="text-white">2. Día:</b> Registra agua, macros y suplementos en Nutrición.</li><li><b class="text-white">3. Noche:</b> Guarda sesiones para la analítica.</li></ul></div></div><div class="grid grid-cols-1 md:grid-cols-4 gap-6"><div class="glass-panel p-6 md:col-span-2 relative overflow-hidden">${m.k>tdee ? `<div class="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg z-10"><i class="fa-solid fa-triangle-exclamation"></i> Exceso Calórico</div>` : ''}<h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-fire text-orange-500"></i> Nutrición Diaria</h3><div class="text-3xl font-bold text-white mb-2">${m.k.toFixed(0)} <span class="text-sm text-gray-500">/ ${Math.round(tdee)} Kcal</span></div><div class="w-full bg-gray-700 rounded-full h-2.5 mb-4"><div class="bg-orange-500 h-2.5 rounded-full transition-all" style="width: ${Math.min(100, (m.k/tdee)*100)}%"></div></div><div class="grid grid-cols-3 gap-2 text-center text-sm"><div class="bg-gray-800/50 rounded p-2 border border-blue-500/30"><p class="text-blue-400 font-bold">${m.p.toFixed(1)}g</p><p class="text-xs text-gray-400">Proteína</p></div><div class="bg-gray-800/50 rounded p-2 border border-green-500/30"><p class="text-green-400 font-bold">${m.c.toFixed(1)}g</p><p class="text-xs text-gray-400">Carbs</p></div><div class="bg-gray-800/50 rounded p-2 border border-yellow-500/30"><p class="text-yellow-400 font-bold">${m.f.toFixed(1)}g</p><p class="text-xs text-gray-400">Grasas</p></div></div></div><div class="glass-panel p-6"><h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-dna text-purple-400"></i> Biomarcadores</h3><div class="space-y-3 mt-4 text-sm"><div class="flex justify-between border-b border-gray-700 pb-1"><span class="text-gray-400">Peso Total</span><span class="font-bold text-white">${bw.toFixed(1)} kg</span></div><div class="flex justify-between border-b border-gray-700 pb-1"><span class="text-gray-400">Grasa Corp.</span><span class="font-bold text-sky-400">${bf.toFixed(1)} %</span></div><div class="flex justify-between"><span class="text-gray-400">Masa Magra</span><span class="font-bold text-green-400">${lbm.toFixed(1)} kg</span></div></div></div><div class="glass-panel p-6"><h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-droplet text-blue-400"></i> Vasos Agua</h3><div class="text-3xl font-bold text-white mb-2">${state.nutrition.water||0} <span class="text-sm text-gray-500">/ 8</span></div><div class="flex gap-1 mt-3">${[1,2,3,4,5,6,7,8].map(i => `<div class="h-8 flex-1 rounded ${i<=(state.nutrition.water||0)?'bg-blue-500':'bg-gray-700'}"></div>`).join('')}</div></div></div></div>`;
+        }
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="glass-panel p-6 border-l-4 border-l-sky-500">
-                            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Directriz Diaria</h3>
-                            <p class="text-lg text-white italic">${msg}</p>
-                            <div class="mt-4 pt-4 border-t border-gray-700">
-                                <h4 class="text-sm font-bold text-purple-400 mb-1"><i class="fa-solid fa-stethoscope"></i> Diagnóstico IA</h4>
-                                <p class="text-xs text-gray-300 mb-2">GET: <b class="text-orange-400">${Math.round(tdee)} kcal</b>. Somatotipo: <b class="text-sky-400">${somato}</b></p>
-                            </div>
-                        </div>
+        // ==========================================
+        // VISTA 2: ONBOARDING & PERFIL
+        // ==========================================
+        function buildProfile() {
+            const p = state.profile || {}; const d = new Date().toISOString().split('T')[0];
+            return `<div class="max-w-6xl mx-auto space-y-6"><div class="flex justify-between items-center"><h2 class="text-3xl font-bold text-white">Perfil Algorítmico</h2><button id="btn-save-profile" class="glass-btn px-4 py-2 rounded-lg flex items-center gap-2"><i class="fa-solid fa-save"></i> Guardar</button></div><span id="save-status-profile" class="text-sm"></span><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div class="glass-panel p-6 space-y-4"><h3 class="text-xl font-bold text-sky-400 border-b border-gray-700 pb-2">Base</h3><div><label class="block text-xs text-gray-400 mb-1">Nacimiento</label><input type="date" id="prof-dob" value="${p.dob||''}" class="w-full p-2 glass-input text-sm"><p class="text-xs text-sky-300 mt-1" id="age-calc"></p></div><div><label class="block text-xs text-gray-400 mb-1">Género</label><select id="prof-gender" class="w-full p-2 glass-input text-sm"><option value="">Sel...</option><option value="M" ${p.gender==='M'?'selected':''}>Masculino</option><option value="F" ${p.gender==='F'?'selected':''}>Femenino</option></select></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs text-gray-400 mb-1">Inicio</label><input type="date" id="prof-startdate" value="${p.startDate||d}" class="w-full p-2 glass-input text-sm"></div><div><label class="block text-xs text-gray-400 mb-1">Días</label><input type="number" id="prof-cycledays" value="${p.cycleDays||13}" class="w-full p-2 glass-input text-sm"></div></div><div><label class="block text-xs text-gray-400 mb-1">Actividad</label><select id="prof-activity" class="w-full p-2 glass-input text-sm"><option value="1.2" ${p.activityLevel=='1.2'?'selected':''}>Sedentario</option><option value="1.375" ${p.activityLevel=='1.375'?'selected':''}>Ligero</option><option value="1.55" ${p.activityLevel=='1.55'?'selected':''}>Moderado</option><option value="1.725" ${p.activityLevel=='1.725'?'selected':''}>Activo</option><option value="1.9" ${p.activityLevel=='1.9'?'selected':''}>Atleta</option></select></div></div><div class="glass-panel p-6 space-y-4"><h3 class="text-xl font-bold text-sky-400 border-b border-gray-700 pb-2">Metas IA</h3><div><label class="block text-xs text-gray-400 mb-1">Objetivo</label><select id="prof-goal" class="w-full p-2 glass-input text-sm border-purple-500/30"><option value="recomp" ${p.goal==='recomp'?'selected':''}>Recomposición</option><option value="cut" ${p.goal==='cut'?'selected':''}>Corte</option><option value="bulk" ${p.goal==='bulk'?'selected':''}>Volumen</option></select></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs text-gray-400 mb-1">% Grasa Meta</label><input type="number" step="0.1" id="prof-targetbf" value="${p.targetBf||12}" class="w-full p-2 glass-input text-sm"></div><div><label class="block text-xs text-gray-400 mb-1">Peso Meta (Kg)</label><input type="number" step="0.1" id="prof-targetweight" value="${p.targetWeight||75}" class="w-full p-2 glass-input text-sm"></div></div></div><div class="glass-panel p-6 space-y-4"><h3 class="text-xl font-bold text-sky-400 border-b border-gray-700 pb-2">Clínica</h3><div><label class="block text-xs text-gray-400 mb-1">Experiencia Fuerza</label><select id="prof-maxweight" class="w-full p-2 glass-input text-sm"><option value="norecord" ${p.maxweight==='norecord'?'selected':''}>Principiante</option><option value="moderate" ${p.maxweight==='moderate'?'selected':''}>Intermedio</option><option value="advanced" ${p.maxweight==='advanced'?'selected':''}>Avanzado</option></select></div><div><label class="block text-xs text-gray-400 mb-3 text-red-400"><i class="fa-solid fa-truck-medical"></i> Restricciones</label><div class="space-y-3"><label class="flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" id="med-lumbar" ${p.medLumbar?'checked':''} class="rounded"> Columna/Lumbar</label><label class="flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" id="med-rodillas" ${p.medRodillas?'checked':''} class="rounded"> Rodillas</label><label class="flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" id="med-hombros" ${p.medHombros?'checked':''} class="rounded"> Hombros</label></div></div></div></div></div>`;
+        }
 
-                        <div class="glass-panel p-6 bg-slate-800/80">
-                            <h3 class="text-sm font-bold text-green-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-power-off"></i> Guía (Routine.start)</h3>
-                            <ul class="text-sm text-gray-300 space-y-3">
-                                <li><b class="text-white">1. Mañana:</b> Peso y sueño en <a onclick="appManager.navigate('analytics')" class="text-sky-400 underline cursor-pointer">Historial</a>.</li>
-                                <li><b class="text-white">2. Día:</b> Registra agua, macros y suplementos en Nutrición.</li>
-                                <li><b class="text-white">3. Noche:</b> Guarda sesiones para la analítica.</li>
-                            </ul>
-                        </div>
-                    </div>
+        function initProfileListeners() {
+            const d = document.getElementById('prof-dob');
+            d.addEventListener('change', () => { if(d.value) document.getElementById('age-calc').innerText = `Edad: ${Math.floor((new Date() - new Date(d.value)) / 3.15576e+10)} años`; });
+            if(d.value) d.dispatchEvent(new Event('change'));
+            document.getElementById('btn-save-profile').onclick = async () => {
+                if(!state.user) return;
+                const data = { dob: d.value, gender: document.getElementById('prof-gender').value, startDate: document.getElementById('prof-startdate').value, cycleDays: parseInt(document.getElementById('prof-cycledays').value)||13, activityLevel: parseFloat(document.getElementById('prof-activity').value)||1.2, goal: document.getElementById('prof-goal').value, targetBf: parseFloat(document.getElementById('prof-targetbf').value)||12, targetWeight: parseFloat(document.getElementById('prof-targetweight').value)||75, maxweight: document.getElementById('prof-maxweight').value, medLumbar: document.getElementById('med-lumbar').checked, medRodillas: document.getElementById('med-rodillas').checked, medHombros: document.getElementById('med-hombros').checked, updatedAt: new Date().toISOString() };
+                try { await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'profile', 'data'), data, {merge:true}); appManager.saveIndicator('save-status-profile'); loadUserData(); } catch(e) {}
+            };
+        }
 
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div class="glass-panel p-6 md:col-span-2 relative overflow-hidden">
-                            ${m.k>tdee ? `<div class="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg z-10"><i class="fa-solid fa-triangle-exclamation"></i> Exceso Calórico</div>` : ''}
-                            <h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-fire text-orange-500"></i> Nutrición Diaria</h3>
-                            <div class="text-3xl font-bold text-white mb-2">
-                                ${m.k.toFixed(0)} <span class="text-sm text-gray-500">/ ${Math.round(tdee)} Kcal</span>
-                            </div>
-                            <div class="w-full bg-gray-700 rounded-full h-2.5 mb-4">
-                                <div class="bg-orange-500 h-2.5 rounded-full transition-all" style="width: ${Math.min(100, (m.k/tdee)*100)}%"></div>
-                            </div>
-                            <div class="grid grid-cols-3 gap-2 text-center text-sm">
-                                <div class="bg-gray-800/50 rounded p-2 border border-blue-500/30">
-                                    <p class="text-blue-400 font-bold">${m.p.toFixed(1)}g</p><p class="text-xs text-gray-400">Proteína</p>
-                                </div>
-                                <div class="bg-gray-800/50 rounded p-2 border border-green-500/30">
-                                    <p class="text-green-400 font-bold">${m.c.toFixed(1)}g</p><p class="text-xs text-gray-400">Carbs</p>
-                                </div>
-                                <div class="bg-gray-800/50 rounded p-2 border border-yellow-500/30">
-                                    <p class="text-yellow-400 font-bold">${m.f.toFixed(1)}g</p><p class="text-xs text-gray-400">Grasas</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="glass-panel p-6">
-                            <h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-dna text-purple-400"></i> Biomarcadores</h3>
-                            <div class="space-y-3 mt-4 text-sm">
-                                <div class="flex justify-between border-b border-gray-700 pb-1">
-                                    <span class="text-gray-400">Peso Total</span>
-                                    <span class="font-bold text-white">${bw.toFixed(1)} kg</span>
-                                </div>
-                                <div class="flex justify-between border-b border-gray-700 pb-1">
-                                    <span class="text-gray-400">Grasa Corporal</span>
-                                    <span class="font-bold text-sky-400">${bf.toFixed(1)} %</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-400">Masa Magra</span>
-                                    <span class="font-bold text-green-400">${lbm.toFixed(1)} kg</span>
-                                </div>
-                            </div>
-                        </div>
+        function buildAntropo() {
+            const a = state.antropo || {}, ig = (id, lab, u) => `<div class="mb-2"><label class="block text-[10px] font-semibold text-gray-400 mb-1">${lab}</label><div class="flex gap-2"><input type="number" id="ant-${id}" value="${a[id]||''}" step="0.1" class="w-full p-1.5 rounded glass-input text-xs"><span class="text-[10px] text-gray-500 self-center">${u}</span></div></div>`;
+            return `<div class="max-w-6xl mx-auto space-y-6"><div class="flex justify-between items-center"><h2 class="text-3xl font-bold text-white">Laboratorio ISAK</h2><button id="btn-save-antropo" class="glass-btn px-6 py-3 rounded-lg font-bold bg-sky-900/20 border-sky-500"><i class="fa-solid fa-microchip"></i> Procesar IA</button></div><span id="save-status-antropo" class="text-green-400 font-bold"></span><div class="grid grid-cols-1 lg:grid-cols-12 gap-6"><div class="lg:col-span-4 space-y-6"><div class="glass-panel p-5"><h3 class="text-sm font-bold text-sky-400 mb-3 border-b border-gray-700 pb-2">Básicos</h3><div class="grid grid-cols-2 gap-4">${ig('peso_actual','Peso','kg')}${ig('estatura','Estatura','cm')}</div></div><div class="glass-panel p-5"><h3 class="text-sm font-bold text-sky-400 mb-3 border-b border-gray-700 pb-2">Perímetros</h3><div class="grid grid-cols-2 gap-2">${ig('per_cuello','Cuello','cm')}${ig('per_hombros','Hombros','cm')}${ig('per_torax_rel','Tórax Rel.','cm')}${ig('per_torax_exp','Tórax Exp.','cm')}${ig('per_brazo_rel','Brazo Rel.','cm')}${ig('per_brazo_con','Brazo Con.','cm')}${ig('per_antebrazo','Antebrazo','cm')}${ig('per_muneca','Muñeca','cm')}${ig('per_cintura','Cintura','cm')}${ig('per_cadera','Cadera','cm')}${ig('per_muslo','Muslo','cm')}${ig('per_pantorrilla','Pantorrilla','cm')}</div></div><div class="glass-panel p-5 border border-purple-500/20"><h3 class="text-sm font-bold text-purple-400 mb-3 border-b border-gray-700 pb-2">Pliegues</h3><div class="grid grid-cols-2 gap-2">${ig('pl_pectoral','Pectoral','mm')}${ig('pl_axilar','Axilar','mm')}${ig('pl_tricipital','Tricipital','mm')}${ig('pl_bicipital','Bicipital','mm')}${ig('pl_subescapular','Subescap.','mm')}${ig('pl_suprailiaco','Suprailíaco','mm')}${ig('pl_supraespinal','Supraespinal','mm')}${ig('pl_abdominal','Abdominal','mm')}${ig('pl_muslo','Muslo','mm')}${ig('pl_pantorrilla','Pantor.','mm')}</div></div><div class="glass-panel p-5 bg-gray-800/30"><h3 class="text-sm font-bold text-gray-400 mb-3 border-b border-gray-700 pb-2">Diámetros</h3><div class="grid grid-cols-2 gap-2">${ig('dia_humero','Húmero','cm')}${ig('dia_femur','Fémur','cm')}</div></div></div><div class="lg:col-span-8 space-y-6"><div id="ai-alerts-container" class="space-y-2"></div><div class="glass-panel p-6 border-t-4 border-t-sky-500"><h3 class="text-xl font-bold text-white mb-4">Composición</h3><div class="grid grid-cols-2 md:grid-cols-4 gap-4"><div class="bg-gray-800/50 p-4 rounded-xl border border-sky-500/20 text-center"><p class="text-xs text-gray-400 mb-1">% Grasa</p><p class="text-3xl font-bold text-sky-400" id="res-bf">0.0%</p><p class="text-[9px] text-gray-500 mt-1" id="res-bf-formula"></p></div><div class="bg-gray-800/50 p-4 rounded-xl border border-yellow-500/20 text-center"><p class="text-xs text-gray-400 mb-1">FM</p><p class="text-2xl font-bold text-yellow-400" id="res-fm">0.0 kg</p></div><div class="bg-gray-800/50 p-4 rounded-xl border border-green-500/20 text-center"><p class="text-xs text-gray-400 mb-1">FFM</p><p class="text-2xl font-bold text-green-400" id="res-ffm">0.0 kg</p></div><div class="bg-gray-800/50 p-4 rounded-xl border border-purple-500/20 text-center"><p class="text-xs text-gray-400 mb-1">SMM</p><p class="text-2xl font-bold text-purple-400" id="res-smm">0.0 kg</p></div></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="glass-panel p-6"><h3 class="text-sm font-bold text-orange-400 mb-4 border-b border-gray-700 pb-2">Metabolismo</h3><div class="space-y-4 text-sm"><div class="flex justify-between"><span class="text-gray-400">TMB Basal</span><span class="font-bold text-white text-lg" id="res-bmr">0 kcal</span></div><div class="flex justify-between"><span class="text-gray-400">GET Total</span><span class="font-bold text-orange-400 text-lg" id="res-tdee">0 kcal</span></div><div class="flex justify-between text-xs text-gray-500"><span>NEAT Estimado</span><span id="res-neat">0 kcal extras</span></div></div></div><div class="glass-panel p-6"><h3 class="text-sm font-bold text-red-400 mb-4 border-b border-gray-700 pb-2">Índices Salud</h3><div class="grid grid-cols-2 gap-4 text-center"><div class="bg-gray-800/30 p-2 rounded border border-gray-700"><p class="text-xs text-gray-400">IMC</p><p class="text-lg font-bold text-white" id="res-bmi">0.0</p></div><div class="bg-gray-800/30 p-2 rounded border border-gray-700"><p class="text-xs text-gray-400">WHtR</p><p class="text-lg font-bold text-white" id="res-whtr">0.0</p></div><div class="bg-gray-800/30 p-2 rounded border border-gray-700"><p class="text-xs text-gray-400">ICC</p><p class="text-lg font-bold text-white" id="res-icc">0.0</p></div><div class="bg-gray-800/30 p-2 rounded border border-gray-700"><p class="text-xs text-gray-400">BAI</p><p class="text-lg font-bold text-white" id="res-bai">0.0</p></div></div></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="glass-panel p-6 border-l-4 border-l-purple-500 bg-purple-900/10"><h3 class="text-sm font-bold text-purple-400 mb-4">Biomecánica</h3><div class="space-y-4"><div><div class="flex justify-between items-center mb-1"><span class="text-xs text-gray-300 font-bold">FFMI Index</span><span class="font-bold text-purple-400 text-xl" id="res-ffmi">0.0</span></div><p class="text-[10px] text-gray-500" id="res-ffmi-desc"></p></div><div class="border-t border-purple-500/20 pt-3"><p class="text-xs text-gray-300 font-bold mb-1">Somatotipo</p><div class="flex gap-2"><div class="flex-1 text-center bg-black/30 p-1 rounded"><p class="text-[9px] text-gray-400">Endo</p><p class="text-sm font-bold text-yellow-500" id="som-endo">0.0</p></div><div class="flex-1 text-center bg-black/30 p-1 rounded"><p class="text-[9px] text-gray-400">Meso</p><p class="text-sm font-bold text-red-500" id="som-meso">0.0</p></div><div class="flex-1 text-center bg-black/30 p-1 rounded"><p class="text-[9px] text-gray-400">Ecto</p><p class="text-sm font-bold text-sky-500" id="som-ecto">0.0</p></div></div><p class="text-[10px] text-gray-400 text-center mt-2 font-bold" id="res-somatotype-text"></p></div><div class="border-t border-purple-500/20 pt-3 flex justify-between items-center"><span class="text-xs text-gray-300 font-bold">Rel. Torso/Pierna</span><span class="text-sm font-bold text-white" id="res-propor">0.00</span></div></div></div><div class="glass-panel p-6 border border-green-500/30"><h3 class="text-sm font-bold text-green-400 mb-4">Proyección IA</h3><div class="space-y-4"><div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700"><p class="text-xs text-gray-400">Grasa a Perder</p><p class="text-lg font-bold text-white" id="pred-fat-loss">0.0 kg</p></div><div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700"><p class="text-xs text-gray-400">Músculo a Ganar</p><p class="text-lg font-bold text-white" id="pred-musc-gain">0.0 kg</p></div><div class="bg-green-900/20 p-3 rounded-lg border border-green-500/50"><p class="text-xs text-green-400 font-bold mb-1">Tiempo Estimado</p><p class="text-2xl font-bold text-white" id="pred-time">0 Semanas</p></div></div></div></div></div></div></div>`;
+        }
 
-                        <div class="glass-panel p-6">
-                            <h3 class="text-gray-400 font-semibold mb-2"><i class="fa-solid fa-droplet text-blue-400"></i> Vasos Agua</h3>
-                            <div class="text-3xl font-bold text-white mb-2">${state.nutrition.water || 0} <span class="text-sm text-gray-500">/ 8</span></div>
-                            <div class="flex gap-1 mt-3">
-                                ${[1,2,3,4,5,6,7,8].map(i => `<div class="h-8 flex-1 rounded ${i <= (state.nutrition.water||0) ? 'bg-blue-500' : 'bg-gray-700'}"></div>`).join('')}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
+        function initAntropoListeners() {
+            const calc = () => {
+                const g = id => parseFloat(document.getElementById(`ant-${id}`)?.value)||0;
+                const wt = g('peso_actual')||70, ht = g('estatura')||170, hm = ht/100, p = state.profile||{}, gen = p.gender||'M', act = parseFloat(p.activityLevel)||1.2;
+                let age = 30; if(p.dob) age = Math.floor((new Date() - new Date(p.dob))/3.15576e+10);
+                const pe=g('pl_pectoral'), ax=g('pl_axilar'), tr=g('pl_tricipital'), bi=g('pl_bicipital'), sb=g('pl_subescapular'), si=g('pl_suprailiaco'), se=g('pl_supraespinal'), ab=g('pl_abdominal'), mu=g('pl_muslo'), pa=g('pl_pantorrilla');
+                const sum7 = pe+ax+tr+sb+ab+si+mu, sum4 = tr+bi+sb+si, sum3 = gen==='M' ? (pe+ab+mu) : (tr+si+mu);
+                let bf=0, form="Base", dD=0;
+                if(sum7>0 && pe>0 && ab>0){ dD = gen==='M' ? 1.112-(0.00043499*sum7)+(0.00000055*Math.pow(sum7,2))-(0.00028826*age) : 1.097-(0.00046971*sum7)+(0.00000056*Math.pow(sum7,2))-(0.00012828*age); bf=(4.95/dD-4.5)*100; form="JP-7"; }
+                else if(sum3>0){ dD = gen==='M' ? 1.10938-(0.0008267*sum3)+(0.0000016*Math.pow(sum3,2))-(0.0002574*age) : 1.0994921-(0.0009929*sum3)+(0.0000023*Math.pow(sum3,2))-(0.0001392*age); bf=(4.95/dD-4.5)*100; form="JP-3"; }
+                else if(sum4>0){ let c=0,m=0; const lg=Math.log10(sum4); if(gen==='M'){if(age<30){c=1.162;m=0.063;}else if(age<40){c=1.1422;m=0.0544;}else{c=1.162;m=0.07;}}else{if(age<30){c=1.1549;m=0.0678;}else if(age<40){c=1.1423;m=0.0632;}else{c=1.1333;m=0.0612;}} dD=c-(m*lg); bf=(4.95/dD-4.5)*100; form="Durnin"; }
+                else { bf = gen==='M'?15:25; }
+                bf = Math.max(3, Math.min(60, bf));
+                const fm = wt*(bf/100), ffm = wt-fm, smm = ffm*0.5, bmi = wt/(hm*hm), waist = g('per_cintura'), hip = g('per_cadera'), whtr = waist&&ht ? waist/ht : 0, bai = hip&&hm ? (hip/Math.pow(hm,1.5))-18 : 0, icc = waist&&hip ? waist/hip : 0, bmr = 370+(21.6*ffm), tdee = bmr*act, neat = tdee-bmr;
+                const ffmi = ffm/(hm*hm), nFfmi = ffmi+6.1*(1.8-hm);
+                let fDesc = gen==='M' ? (nFfmi<20?"Promedio":nFfmi<=25?"Excelente Natural":"Élite") : (nFfmi<=21?"Natural Femenino":"Élite");
+                let endo=0.1, meso=0.1, ecto=0.1, sTxt="Faltan datos"; const sE = (tr+sb+(se||si))*(170.18/ht); if(sE>0) endo = -0.7182+0.1451*sE-0.00068*Math.pow(sE,2)+0.0000014*Math.pow(sE,3);
+                const hwr = ht/Math.cbrt(wt); if(hwr>=40.75) ecto=0.732*hwr-28.58; else if(hwr>38.25&&hwr<40.75) ecto=0.463*hwr-17.63;
+                let dH = g('dia_humero')||g('per_muneca')*0.38, dF = g('dia_femur')||g('per_pantorrilla')*0.28, bc = g('per_brazo_con'), pt = g('per_pantorrilla');
+                if(dH&&dF&&bc&&pt&&tr&&pa) meso = 0.858*dH + 0.601*dF + 0.188*(bc-(tr/10)) + 0.161*(pt-(pa/10)) - 0.131*ht + 4.5;
+                endo=Math.max(0.1,endo); meso=Math.max(0.1,meso); ecto=Math.max(0.1,ecto); if(endo>0&&meso>0&&ecto>0){ if(endo>meso&&endo>ecto)sTxt="Endomorfo"; else if(meso>endo&&meso>ecto)sTxt="Mesomorfo"; else if(ecto>endo&&ecto>meso)sTxt="Ectomorfo"; else sTxt="Central"; }
+                const tor = g('per_torax_rel')||g('per_torax_exp'), thi = g('per_muslo'), prp = tor&&thi ? (tor/thi).toFixed(2) : '0.00';
+                const tBf = parseFloat(p.targetBf)||12, tWt = parseFloat(p.targetWeight)||wt, tFm = tWt*(tBf/100), fL = fm-tFm, mG = (tWt-tFm)-ffm, wks = Math.max(fL>0?fL/0.5:0, mG>0?mG/0.2:0);
+                
+                document.getElementById('res-bf').innerHTML=`${bf.toFixed(1)}%`; document.getElementById('res-bf-formula').innerText=form;
+                document.getElementById('res-fm').innerText=`${fm.toFixed(1)} kg`; document.getElementById('res-ffm').innerText=`${ffm.toFixed(1)} kg`; document.getElementById('res-smm').innerText=`${smm.toFixed(1)} kg`;
+                document.getElementById('res-bmr').innerText=`${Math.round(bmr)} kcal`; document.getElementById('res-tdee').innerText=`${Math.round(tdee)} kcal`; document.getElementById('res-neat').innerText=`${Math.round(neat)} kcal extras`;
+                document.getElementById('res-bmi').innerText=bmi?bmi.toFixed(1):'0.0'; document.getElementById('res-whtr').innerText=whtr?whtr.toFixed(2):'0.0'; document.getElementById('res-icc').innerText=icc?icc.toFixed(2):'0.0'; document.getElementById('res-bai').innerText=bai?bai.toFixed(1):'0.0';
+                document.getElementById('res-ffmi').innerText=nFfmi?nFfmi.toFixed(1):'0.0'; document.getElementById('res-ffmi-desc').innerText=fDesc;
+                document.getElementById('som-endo').innerText=endo.toFixed(1); document.getElementById('som-meso').innerText=meso.toFixed(1); document.getElementById('som-ecto').innerText=ecto.toFixed(1); document.getElementById('res-somatotype-text').innerText=sTxt; document.getElementById('res-propor').innerText=prp;
+                document.getElementById('pred-fat-loss').innerHTML = fL>0 ? `${fL.toFixed(1)} kg ↓` : 'En meta'; document.getElementById('pred-musc-gain').innerHTML = mG>0 ? `${mG.toFixed(1)} kg ↑` : 'En meta'; document.getElementById('pred-time').innerText = wks>0 ? `${Math.ceil(wks)} Semanas` : 'Completado';
+                let al = ''; if(whtr>0.5) al+=`<div class="bg-red-900/30 p-2 text-red-400 text-xs border border-red-500 rounded">Riesgo Cardio (WHtR>0.5)</div>`; if(icc>(gen==='M'?0.9:0.85)) al+=`<div class="bg-orange-900/30 p-2 text-orange-400 text-xs border border-orange-500 rounded">ICC Elevado</div>`; if(al==='') al=`<div class="bg-green-900/30 p-2 text-green-400 text-xs border border-green-500 rounded">Marcadores Óptimos</div>`; document.getElementById('ai-alerts-container').innerHTML = al;
+                window._tAC = { calc_bf: bf, calc_lbm: ffm, calc_bmr: bmr, calc_tdee: tdee, calc_ffmi: nFfmi, somatotype: sTxt };
+            };
+            document.querySelectorAll('input[id^="ant-"]').forEach(i => i.addEventListener('input', calc)); setTimeout(calc, 200);
+            document.getElementById('btn-save-antropo').onclick = async () => {
+                if(!state.user) return; const d = { updatedAt: new Date().toISOString() };
+                document.querySelectorAll('input[id^="ant-"]').forEach(i => { d[i.id.replace('ant-', '')] = parseFloat(i.value)||0; });
+                if(window._tAC) Object.assign(d, window._tAC);
+                try { await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'antropometria', 'latest'), d); state.antropo = d; appManager.saveIndicator('save-status-antropo'); } catch(e){}
+            };
         }
 
         // ==========================================
@@ -342,6 +326,7 @@
                 }; 
                 r.readAsText(f);
             },
+
             copyYesterday: async () => {
                 if(!state.user) return; 
                 const [y,m,d] = state.activeDate.split('-'); const c = new Date(y,m-1,d); c.setDate(c.getDate()-1); 
@@ -372,7 +357,7 @@
                 if(!state.nutrition.meals || state.nutrition.meals.length === 0) return ModalSystem.alert("Tu día está vacío.");
                 ModalSystem.show("Publicar Dieta Global", `<input type="text" id="cat-name" placeholder="Nombre (Ej. Keto 1500kcal)" class="w-full p-2 glass-input">`, 'confirm', async () => {
                     const name = document.getElementById('cat-name').value; if(!name) return;
-                    try { await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'courses'), { type: 'nutrition', name: name, author: state.user.email, meals: state.nutrition.meals, createdAt: new Date().toISOString() }); ModalSystem.alert("Dieta publicada para todos los alumnos."); } catch(e) {}
+                    try { await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'courses'), { type: 'nutrition', name: name, author: state.user.email, meals: state.nutrition.meals, createdAt: new Date().toISOString() }); ModalSystem.alert("Dieta publicada."); } catch(e) {}
                 });
             },
             addWater: async (a) => { state.nutrition.water = Math.max(0, (state.nutrition.water||0)+a); await nutriManager.save(); renderView('nutrition'); },
@@ -508,9 +493,35 @@
         // VISTA 5: ENTRENAMIENTO DE ALTO RENDIMIENTO
         // ==========================================
         window.workoutManager = {
-            timerInterval: null, timeElapsed: 0, isResting: false, restTarget: 90, currentExerciseIndex: 0, activeExercises: [], isEditing: false,
-            changeDate: (e) => { state.activeWorkoutDate = e.target.value; appManager.subscribeWorkout(state.activeWorkoutDate); },
+            timerInterval: null, timeElapsed: 0, isResting: false, restTarget: 90, currentExerciseIndex: 0, activeExercises: [], isEditing: false, editingRoutineId: null,
             
+            // NUEVO AUTO-GUARDADO DE LA COLA
+            saveQueue: async () => { if(state.user) { try { await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'workouts_daily', state.activeWorkoutDate), { date: state.activeWorkoutDate, duration: workoutManager.timeElapsed, exercises: workoutManager.activeExercises, completed: state.dailyWorkout?.completed || false }, {merge:true}); } catch(e){} } },
+            
+            changeDate: (e) => { 
+                state.activeWorkoutDate = e.target.value; 
+                workoutManager.activeExercises = [];
+                workoutManager.isEditing = false; 
+                appManager.subscribeWorkout(state.activeWorkoutDate); 
+            },
+
+            uploadJSON: (e) => {
+                const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+                r.onload=async(ev)=>{ 
+                    try { 
+                        const d=JSON.parse(ev.target.result); 
+                        if(!Array.isArray(d)) throw new Error("Debe ser array de ejercicios."); 
+                        const nE = d.map(ex=>({id:ex.id||Date.now().toString()+Math.random().toString(36).substr(2,5), name:ex.name||'Ej', muscle:ex.muscle||'Varios', type:ex.type||'Compuesto', focus:ex.focus||'Hipertrofia', equip:ex.equip||'', desc:ex.desc||'', sets:Array.isArray(ex.sets)?ex.sets.map(s=>({weight:Number(s.weight)||0, reps:Number(s.reps)||0, rir:Number(s.rir)||2, done:!!s.done})):[{weight:0,reps:0,rir:2,done:false}]})); 
+                        workoutManager.activeExercises.push(...nE); 
+                        workoutManager.saveQueue(); 
+                        ModalSystem.alert(`Cargados ${nE.length} ejercicios.`); 
+                        renderView('training'); 
+                    } catch(err){ ModalSystem.alert("Error: "+err.message); } 
+                    e.target.value=''; 
+                }; 
+                r.readAsText(f);
+            },
+
             showJSONExample: () => {
                 const example = [
                     { "name": "Sentadilla Libre", "muscle": "Piernas", "type": "Compuesto", "focus": "Hipertrofia", "equip": "Barra", "desc": "Bajar controlado", "sets": [ {"weight": 100, "reps": 10, "rir": 2, "done": true}, {"weight": 100, "reps": 8, "rir": 0, "done": false} ] }
@@ -519,7 +530,7 @@
             },
 
             downloadJSON: () => {
-                const dataToDownload = state.dailyWorkout && state.dailyWorkout.completed ? state.dailyWorkout.exercises : workoutManager.activeExercises;
+                const dataToDownload = state.dailyWorkout?.completed && !workoutManager.isEditing ? state.dailyWorkout.exercises : workoutManager.activeExercises;
                 if(!dataToDownload || dataToDownload.length === 0) return ModalSystem.alert("No hay ejercicios para descargar.");
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToDownload, null, 2));
                 const dl = document.createElement('a');
@@ -530,33 +541,18 @@
                 dl.remove();
             },
 
-            uploadJSON: (e) => {
-                const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-                r.onload=async(ev)=>{ 
-                    try { 
-                        const d=JSON.parse(ev.target.result); 
-                        if(!Array.isArray(d)) throw new Error("Debe ser un array de ejercicios."); 
-                        const nE = d.map(ex=>({id:ex.id||Date.now().toString()+Math.random().toString(36).substr(2,5), name:ex.name||'Ej', muscle:ex.muscle||'Varios', type:ex.type||'Compuesto', focus:ex.focus||'Hipertrofia', equip:ex.equip||'', desc:ex.desc||'', sets:Array.isArray(ex.sets)?ex.sets.map(s=>({weight:Number(s.weight)||0, reps:Number(s.reps)||0, rir:Number(s.rir)||2, done:!!s.done})):[{weight:0,reps:0,rir:2,done:false}]})); 
-                        workoutManager.activeExercises.push(...nE); 
-                        ModalSystem.alert(`Cargados ${nE.length} ejercicios.`); 
-                        renderView('training'); 
-                    } catch(err){ ModalSystem.alert("Error: "+err.message); } 
-                    e.target.value=''; 
-                }; 
-                r.readAsText(f);
-            },
-
-            // CORE FIX: Editing Daily Workout allows returning to the planner dashboard
+            // FIX: Edit sets isEditing flag before re-rendering so planner shows
             editDailyWorkout: () => { 
                 if(state.dailyWorkout && state.dailyWorkout.exercises){ 
-                    // Set active exercises from the saved database state
                     workoutManager.activeExercises = JSON.parse(JSON.stringify(state.dailyWorkout.exercises)); 
                     workoutManager.timeElapsed = state.dailyWorkout.duration || 0; 
                     workoutManager.currentExerciseIndex = 0; 
-                    
-                    // Activate editing flag so buildTraining shows the planner, not the summary
                     workoutManager.isEditing = true; 
                     renderView('training'); 
+                    document.getElementById('workout-dashboard').classList.add('hidden'); 
+                    document.getElementById('workout-active').classList.remove('hidden'); 
+                    workoutManager.startTimer(); 
+                    renderActiveExercise(); 
                 } 
             },
 
@@ -569,11 +565,12 @@
                 const c = state.globalCatalog.find(x => x.id === id);
                 if(c && c.exercises) {
                     workoutManager.activeExercises = JSON.parse(JSON.stringify(c.exercises));
+                    workoutManager.saveQueue();
                     renderView('training'); ModalSystem.alert("Rutina cargada a tu sesión actual.");
                 }
             },
             publishToCatalog: () => {
-                if(workoutManager.activeExercises.length === 0) return ModalSystem.alert("Tu cola de ejercicios está vacía.");
+                if(workoutManager.activeExercises.length === 0) return ModalSystem.alert("Tu cola está vacía.");
                 ModalSystem.show("Publicar Rutina Global", `<input type="text" id="cat-rout-name" placeholder="Nombre (Ej. Pierna Avanzado)" class="w-full p-2 glass-input">`, 'confirm', async () => {
                     const name = document.getElementById('cat-rout-name').value; if(!name) return;
                     try {
@@ -585,38 +582,191 @@
             },
 
             showExerciseEditor: () => ModalSystem.show("Librería Local", `<div class="space-y-2"><input type="text" id="ex-n" placeholder="Nombre" class="w-full p-2 glass-input"><select id="ex-m" class="w-full p-2 glass-input"><option>Pecho</option><option>Espalda</option><option>Piernas</option><option>Hombros</option><option>Brazos</option><option>Core</option></select><select id="ex-t" class="w-full p-2 glass-input"><option>Compuesto</option><option>Aislado</option></select></div>`, 'confirm', async () => { if(state.user){ const n = document.getElementById('ex-n').value; if(n) try { await addDoc(collection(db, 'artifacts', APP_ID, 'users', state.user.uid, 'exercises'), { name: n, muscle: document.getElementById('ex-m').value, type: document.getElementById('ex-t').value, createdAt: new Date().toISOString() }); renderView('training'); } catch(e){} } }),
-            addExerciseToWorkout: () => { if(!state.exercises.length) return ModalSystem.alert("Librería local vacía. Usa el Catálogo o Crea Ejercicios."); const opts = state.exercises.map(e => `<option value="${e.id}">${e.name} (${e.muscle})</option>`).join(''); ModalSystem.show("Agregar a Sesión", `<select id="sel-ex" class="w-full p-2 glass-input">${opts}</select>`, 'confirm', () => { const ex = state.exercises.find(e => e.id===document.getElementById('sel-ex').value); if(ex){ workoutManager.activeExercises.push({...ex, sets:[{weight:0,reps:0,rir:2,done:false}]}); renderView('training'); } }); },
-            removeExercise: (index) => { workoutManager.activeExercises.splice(index, 1); renderView('training'); },
+            
+            addExerciseToWorkout: () => { 
+                if(!state.exercises.length) return ModalSystem.alert("Librería local vacía. Usa el Catálogo o Crea Ejercicios."); 
+                const opts = state.exercises.map(e => `<option value="${e.id}">${e.name} (${e.muscle})</option>`).join(''); 
+                ModalSystem.show("Agregar a Sesión", `<select id="sel-ex" class="w-full p-2 glass-input">${opts}</select>`, 'confirm', () => { 
+                    const ex = state.exercises.find(e => e.id===document.getElementById('sel-ex').value); 
+                    if(ex){ 
+                        workoutManager.activeExercises.push({...ex, sets:[{weight:0,reps:0,rir:2,done:false}]}); 
+                        workoutManager.saveQueue(); 
+                        renderView('training'); 
+                    } 
+                }); 
+            },
+
+            removeExercise: (index) => { 
+                workoutManager.activeExercises.splice(index, 1); 
+                workoutManager.saveQueue(); 
+                renderView('training'); 
+            },
             
             showRoutinesManager: () => {
                 if(!state.user) return;
-                const rHtml = state.routines && state.routines.length > 0 ? state.routines.map(r => `<div class="flex justify-between items-center bg-gray-800 p-2 rounded mb-2 border border-gray-700"><span class="text-sm font-bold text-sky-400">${r.name} <span class="text-[10px] text-gray-500">(${r.exercises.length} ej.)</span></span><div class="flex gap-2"><button onclick="workoutManager.loadRoutine('${r.id}')" class="text-xs bg-sky-900/50 text-sky-300 px-2 py-1 rounded">Cargar</button><button onclick="workoutManager.deleteRoutine('${r.id}')" class="text-xs bg-red-900/50 text-red-400 px-2 py-1 rounded"><i class="fa-solid fa-trash"></i></button></div></div>`).join('') : '<p class="text-xs text-gray-500">No tienes rutinas locales guardadas.</p>';
-                const html = `<div class="space-y-4"><div class="bg-gray-800/50 p-4 rounded border border-gray-700"><p class="text-xs text-gray-400 mb-2">Guardar como tu rutina personal:</p><div class="flex gap-2"><input type="text" id="rt-name" placeholder="Ej. Pierna Pesado" class="flex-1 p-2 text-sm glass-input rounded"><button onclick="workoutManager.saveCurrentAsRoutine()" class="glass-btn px-3 py-1 rounded text-sm font-bold">Guardar</button></div></div><div><h4 class="text-sm font-bold text-white mb-2">Tus Plantillas Personales</h4><div class="max-h-40 overflow-y-auto pr-2">${rHtml}</div></div></div>`;
-                ModalSystem.show("Mis Rutinas", html, 'info');
+                const rHtml = state.routines && state.routines.length > 0 ? state.routines.map(r => `
+                    <div class="flex justify-between items-center bg-gray-800 p-2 rounded mb-2 border border-gray-700">
+                        <span class="text-sm font-bold text-sky-400">${r.name} <span class="text-[10px] text-gray-500">(${r.exercises.length} ej.)</span></span>
+                        <div class="flex gap-2">
+                            <button onclick="workoutManager.editRoutine('${r.id}')" class="text-xs bg-yellow-900/50 text-yellow-400 px-2 py-1 rounded" title="Editar Contenido"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="workoutManager.loadRoutine('${r.id}')" class="text-xs bg-sky-900/50 text-sky-300 px-2 py-1 rounded"><i class="fa-solid fa-download"></i></button>
+                            <button onclick="workoutManager.deleteRoutine('${r.id}')" class="text-xs bg-red-900/50 text-red-400 px-2 py-1 rounded"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-xs text-gray-500">No tienes grupos guardados.</p>';
+                
+                const html = `
+                    <div class="space-y-4">
+                        <div class="bg-gray-800/50 p-4 rounded border border-gray-700">
+                            <p class="text-xs text-gray-400 mb-2">Guardar los ejercicios de la cola actual como Grupo:</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="rt-name" placeholder="Ej. Día 1 Pecho" class="flex-1 p-2 text-sm glass-input rounded">
+                                <button onclick="workoutManager.saveCurrentAsRoutine()" class="glass-btn px-3 py-1 rounded text-sm font-bold">Guardar</button>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-white mb-2">Tus Grupos Locales</h4>
+                            <div class="max-h-40 overflow-y-auto pr-2">${rHtml}</div>
+                        </div>
+                    </div>
+                `;
+                ModalSystem.show("Grupos / Rutinas", html, 'info');
+                
+                // Si estaba editando una rutina, pre-llenar el nombre
+                setTimeout(()=>{ 
+                    if(workoutManager.editingRoutineId){ 
+                        const r = state.routines.find(x=>x.id===workoutManager.editingRoutineId); 
+                        if(r) document.getElementById('rt-name').value = r.name; 
+                    } 
+                }, 100);
             },
-            saveCurrentAsRoutine: async () => { const name = document.getElementById('rt-name').value; if(!name) return; if(workoutManager.activeExercises.length === 0) return; try { const cEx = workoutManager.activeExercises.map(ex => ({...ex, sets: [{weight:0, reps:0, rir:2, done:false}]})); await addDoc(collection(db, 'artifacts', APP_ID, 'users', state.user.uid, 'routines'), { name: name, exercises: cEx, createdAt: new Date().toISOString() }); ModalSystem.alert("Rutina personal guardada."); } catch(e) {} },
-            loadRoutine: (id) => { const r = state.routines.find(x => x.id === id); if(r) { workoutManager.activeExercises = JSON.parse(JSON.stringify(r.exercises)); renderView('training'); ModalSystem.alert("Cargada."); } },
-            deleteRoutine: async (id) => { try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'routines', id)); ModalSystem.alert("Borrada."); } catch(e) {} },
+
+            editRoutine: (id) => { 
+                const r = state.routines.find(x=>x.id===id); 
+                if(r) { 
+                    workoutManager.activeExercises = JSON.parse(JSON.stringify(r.exercises)); 
+                    workoutManager.editingRoutineId = id; 
+                    workoutManager.saveQueue(); 
+                    renderView('training'); 
+                    workoutManager.showRoutinesManager(); 
+                } 
+            },
+
+            saveCurrentAsRoutine: async () => { 
+                const name = document.getElementById('rt-name').value; 
+                if(!name || workoutManager.activeExercises.length === 0) return; 
+                try { 
+                    const cleanEx = workoutManager.activeExercises.map(ex => ({...ex, sets: [{weight:0, reps:0, rir:2, done:false}]})); 
+                    if(workoutManager.editingRoutineId) { 
+                        await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'routines', workoutManager.editingRoutineId), { name: name, exercises: cleanEx, updatedAt: new Date().toISOString() }, {merge:true}); 
+                        workoutManager.editingRoutineId = null; 
+                    } else { 
+                        await addDoc(collection(db, 'artifacts', APP_ID, 'users', state.user.uid, 'routines'), { name: name, exercises: cleanEx, createdAt: new Date().toISOString() }); 
+                    } 
+                    ModalSystem.alert("Grupo guardado correctamente."); 
+                    workoutManager.showRoutinesManager(); 
+                } catch(e) {} 
+            },
+
+            loadRoutine: (id) => { 
+                const r = state.routines.find(x => x.id === id); 
+                if(r) { 
+                    workoutManager.activeExercises = JSON.parse(JSON.stringify(r.exercises)); 
+                    workoutManager.saveQueue(); 
+                    renderView('training'); 
+                    ModalSystem.alert("Grupo cargado a la cola de hoy."); 
+                } 
+            },
+
+            deleteRoutine: async (id) => { 
+                try { 
+                    await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'routines', id)); 
+                    workoutManager.showRoutinesManager(); 
+                } catch(e) {} 
+            },
             
             startWorkout: () => { 
                 if(!workoutManager.activeExercises.length) return ModalSystem.alert("Agrega ejercicios."); 
                 document.getElementById('workout-dashboard').classList.add('hidden'); 
                 document.getElementById('workout-active').classList.remove('hidden'); 
-                // Don't reset time elapsed if we are editing a previously active session
-                if(!workoutManager.isEditing) {
+                if(!workoutManager.isEditing) { 
                     workoutManager.timeElapsed=0; 
                     workoutManager.currentExerciseIndex=0; 
-                }
+                } 
                 workoutManager.startTimer(); 
                 renderActiveExercise(); 
             },
-            startTimer: () => { if(workoutManager.timerInterval) clearInterval(workoutManager.timerInterval); workoutManager.timerInterval = setInterval(()=>{ workoutManager.timeElapsed++; workoutManager.updateTimerUI(); }, 1000); },
-            updateTimerUI: () => { const el = document.getElementById('active-timer'); if(!el) return clearInterval(workoutManager.timerInterval); const m = Math.floor(workoutManager.timeElapsed/60), s = workoutManager.timeElapsed%60; el.innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`; if(workoutManager.isResting){ if(workoutManager.timeElapsed>workoutManager.restTarget){ el.classList.add('timer-penalty'); document.getElementById('timer-status').innerText="¡PENALIZACIÓN!"; } else { el.classList.remove('timer-penalty'); document.getElementById('timer-status').innerText="Descanso"; } } else { el.classList.remove('timer-penalty'); document.getElementById('timer-status').innerText="Trabajo"; } },
-            toggleRest: () => { workoutManager.isResting = !workoutManager.isResting; workoutManager.timeElapsed=0; document.getElementById('btn-toggle-rest').innerText = workoutManager.isResting ? 'Terminar Descanso' : 'Descanso'; workoutManager.updateTimerUI(); },
-            addSetToCurrent: () => { workoutManager.activeExercises[workoutManager.currentExerciseIndex].sets.push({weight:0,reps:0,rir:2,done:false}); renderActiveExercise(); },
-            toggleSetDone: (i) => { const ex = workoutManager.activeExercises[workoutManager.currentExerciseIndex]; ex.sets[i].done = !ex.sets[i].done; ex.sets[i].weight = document.getElementById(`set-w-${i}`).value; ex.sets[i].reps = document.getElementById(`set-r-${i}`).value; renderActiveExercise(); },
-            nextExercise: () => { if(workoutManager.currentExerciseIndex < workoutManager.activeExercises.length-1){ workoutManager.currentExerciseIndex++; renderActiveExercise(); } },
-            prevExercise: () => { if(workoutManager.currentExerciseIndex > 0){ workoutManager.currentExerciseIndex--; renderActiveExercise(); } },
+
+            startTimer: () => { 
+                if(workoutManager.timerInterval) clearInterval(workoutManager.timerInterval); 
+                workoutManager.timerInterval = setInterval(()=>{ 
+                    workoutManager.timeElapsed++; 
+                    workoutManager.updateTimerUI(); 
+                    if(workoutManager.timeElapsed % 10 === 0) workoutManager.saveQueue(); // Auto save every 10s
+                }, 1000); 
+            },
+
+            updateTimerUI: () => { 
+                const el = document.getElementById('active-timer'); 
+                if(!el) return clearInterval(workoutManager.timerInterval); 
+                const m = Math.floor(workoutManager.timeElapsed/60), s = workoutManager.timeElapsed%60; 
+                el.innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`; 
+                if(workoutManager.isResting){ 
+                    if(workoutManager.timeElapsed>workoutManager.restTarget){ 
+                        el.classList.add('timer-penalty'); 
+                        document.getElementById('timer-status').innerText="¡PENALIZACIÓN!"; 
+                    } else { 
+                        el.classList.remove('timer-penalty'); 
+                        document.getElementById('timer-status').innerText="Descanso"; 
+                    } 
+                } else { 
+                    el.classList.remove('timer-penalty'); 
+                    document.getElementById('timer-status').innerText="Trabajo"; 
+                } 
+            },
+
+            toggleRest: () => { 
+                workoutManager.isResting = !workoutManager.isResting; 
+                workoutManager.timeElapsed=0; 
+                document.getElementById('btn-toggle-rest').innerText = workoutManager.isResting ? 'Terminar Descanso' : 'Descanso'; 
+                workoutManager.updateTimerUI(); 
+            },
+
+            addSetToCurrent: () => { 
+                workoutManager.activeExercises[workoutManager.currentExerciseIndex].sets.push({weight:0,reps:0,rir:2,done:false}); 
+                workoutManager.saveQueue(); 
+                renderActiveExercise(); 
+            },
+
+            updateSet: (i, field, val) => { 
+                workoutManager.activeExercises[workoutManager.currentExerciseIndex].sets[i][field] = Number(val); 
+                workoutManager.saveQueue(); 
+                renderActiveExercise(); 
+            },
+
+            toggleSetDone: (i) => { 
+                const ex = workoutManager.activeExercises[workoutManager.currentExerciseIndex]; 
+                ex.sets[i].done = !ex.sets[i].done; 
+                ex.sets[i].weight = document.getElementById(`set-w-${i}`).value; 
+                ex.sets[i].reps = document.getElementById(`set-r-${i}`).value; 
+                workoutManager.saveQueue(); 
+                renderActiveExercise(); 
+            },
+
+            nextExercise: () => { 
+                if(workoutManager.currentExerciseIndex < workoutManager.activeExercises.length-1){ 
+                    workoutManager.currentExerciseIndex++; 
+                    renderActiveExercise(); 
+                } 
+            },
+
+            prevExercise: () => { 
+                if(workoutManager.currentExerciseIndex > 0){ 
+                    workoutManager.currentExerciseIndex--; 
+                    renderActiveExercise(); 
+                } 
+            },
+
             contingency: (t) => { if(t==='fail') ModalSystem.alert("Fallo registrado."); },
             
             finishWorkout: async () => { 
@@ -624,21 +774,34 @@
                 if(state.user){ 
                     try { 
                         let tVol = 0, tSet = 0; 
-                        workoutManager.activeExercises.forEach(ex => { ex.sets.forEach(s => { if(s.done) { tVol += (Number(s.weight) * Number(s.reps)); tSet++; } }); }); 
+                        workoutManager.activeExercises.forEach(ex => { 
+                            ex.sets.forEach(s => { 
+                                // Auto-detectar si se ingresaron datos y no se marcó el check (Entrada Post-entreno manual)
+                                if(Number(s.weight) > 0 || Number(s.reps) > 0) s.done = true;
+                                if(s.done) { 
+                                    tVol += (Number(s.weight) * Number(s.reps)); 
+                                    tSet++; 
+                                } 
+                            }); 
+                        }); 
+                        
                         const bw = state.antropo.peso_actual || 70; 
                         let aSec = workoutManager.timeElapsed; 
-                        if(aSec < 60 && tSet > 0) aSec = tSet * 120; // Auto-estimate if manual entry post-workout
+                        // Estimación si es manual: 2 mins por cada serie completada
+                        if(aSec < 60 && tSet > 0) aSec = tSet * 120; 
+                        
                         const aHrs = aSec / 3600; 
                         const cTotal = (3.5 * bw * aHrs) + (tVol * 0.06); 
                         
                         await setDoc(doc(db, 'artifacts', APP_ID, 'users', state.user.uid, 'workouts_daily', state.activeWorkoutDate), { 
                             date: state.activeWorkoutDate, duration: aSec, exercises: workoutManager.activeExercises, burnedCalories: cTotal, completed: true 
                         }); 
-                        ModalSystem.alert(`¡Entrenamiento guardado!<br><br>Volumen: <b class="text-purple-400">${tVol} kg</b><br>Quemadas: <b class="text-orange-400">${cTotal.toFixed(0)} kcal</b>`); 
+                        
+                        ModalSystem.alert(`¡Entrenamiento guardado!<br><br>Volumen Movido: <b class="text-purple-400">${tVol} kg</b><br>Quemadas: <b class="text-orange-400">${cTotal.toFixed(0)} kcal</b><br><span class="text-[10px] text-gray-500">(Fórmula: Tiempo Activo + Carga Mecánica)</span>`); 
                     } catch(e){} 
                 } 
-                workoutManager.activeExercises=[]; 
-                workoutManager.isEditing = false; // Remove edit flag
+                workoutManager.activeExercises = []; 
+                workoutManager.isEditing = false; 
                 renderView('training'); 
             }
         };
@@ -648,16 +811,17 @@
             let exVol = 0, best1RM = 0; 
             ex.sets.forEach(s => { 
                 const w = Number(s.weight), r = Number(s.reps); 
-                if(s.done && w>0 && r>0) { 
+                if(w>0 && r>0) { 
                     exVol += (w * r); 
                     const c1RM = w * (1 + (r / 30)); 
                     if(c1RM > best1RM) best1RM = c1RM; 
                 } 
             });
+            
             document.getElementById('active-sets-container').innerHTML = `
                 <div class="flex justify-around mb-4 bg-gray-800/40 p-3 rounded-lg border border-sky-500/20">
                     <div class="text-center">
-                        <p class="text-[10px] text-gray-400 uppercase tracking-widest">Volumen</p>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-widest">Volumen Total</p>
                         <p class="text-lg font-bold text-sky-400">${exVol} <span class="text-xs font-normal">kg</span></p>
                     </div>
                     <div class="text-center">
@@ -673,8 +837,8 @@
                         ${ex.sets.map((s,i)=>`
                             <tr class="border-b border-gray-800 py-2 ${s.done?'opacity-50':''}">
                                 <td class="py-3 font-bold">${i+1}</td>
-                                <td><input type="number" id="set-w-${i}" value="${s.weight}" class="w-16 p-1 glass-input text-center rounded bg-gray-900 border border-gray-600"></td>
-                                <td><input type="number" id="set-r-${i}" value="${s.reps}" class="w-16 p-1 glass-input text-center rounded bg-gray-900 border border-gray-600"></td>
+                                <td><input type="number" id="set-w-${i}" value="${s.weight}" onchange="workoutManager.updateSet(${i}, 'weight', this.value)" class="w-16 p-1 glass-input text-center rounded bg-gray-900 border border-gray-600"></td>
+                                <td><input type="number" id="set-r-${i}" value="${s.reps}" onchange="workoutManager.updateSet(${i}, 'reps', this.value)" class="w-16 p-1 glass-input text-center rounded bg-gray-900 border border-gray-600"></td>
                                 <td class="text-right"><button onclick="workoutManager.toggleSetDone(${i})" class="text-3xl ${s.done?'text-green-500':'text-gray-600'} hover:scale-110 transition"><i class="fa-solid fa-circle-check"></i></button></td>
                             </tr>
                         `).join('')}
@@ -692,7 +856,7 @@
             const h = workoutManager.activeExercises.length > 0;
             const w = state.dailyWorkout;
 
-            // Mostrar el resumen solo si está completado, no hay ejercicios activos Y no estamos en modo edición
+            // Only show completed screen if it IS completed, there are no active exercises, and we are NOT in editing mode.
             if(w && w.completed && !h && !workoutManager.isEditing) {
                 return `
                     <div class="max-w-6xl mx-auto space-y-6">
@@ -704,9 +868,8 @@
                             <i class="fa-solid fa-circle-check text-5xl text-green-500 mb-4"></i>
                             <h3 class="text-xl font-bold text-white mb-2">Sesión Completada</h3>
                             <p class="text-gray-300">Calorías Activas Quemadas: <b class="text-orange-400 text-xl">${(w.burnedCalories||0).toFixed(0)} kcal</b></p>
-                            <p class="text-xs text-gray-500 mt-1">Cálculo basado en volumen + tiempo mecánico.</p>
-                            <div class="mt-6 flex gap-4 justify-center">
-                                <button onclick="workoutManager.downloadJSON()" class="glass-btn px-6 py-2 rounded-lg font-bold border-blue-500 text-blue-400"><i class="fa-solid fa-file-arrow-down"></i> Descargar Sesión</button>
+                            <div class="mt-6 flex flex-wrap gap-4 justify-center">
+                                <button onclick="workoutManager.downloadJSON()" class="glass-btn px-6 py-2 rounded-lg font-bold border-blue-500 text-blue-400"><i class="fa-solid fa-file-arrow-down"></i> Bajar JSON</button>
                                 <button onclick="workoutManager.editDailyWorkout()" class="glass-btn px-6 py-2 rounded-lg font-bold border-yellow-500 text-yellow-400"><i class="fa-solid fa-pen"></i> Editar Sesión</button>
                             </div>
                         </div>
@@ -725,11 +888,11 @@
                                 <button onclick="workoutManager.showCatalog()" class="glass-btn px-3 py-2 rounded text-xs border-green-500 text-green-400"><i class="fa-solid fa-earth-americas"></i> Catálogo</button>
                                 ${isTrainer ? `<button onclick="workoutManager.publishToCatalog()" class="glass-btn px-3 py-2 rounded text-xs border-yellow-500 text-yellow-400"><i class="fa-solid fa-upload"></i> Publicar Global</button>` : ''}
                                 
-                                <button onclick="workoutManager.showRoutinesManager()" class="glass-btn p-2 rounded px-3 text-xs text-sky-400 bg-sky-900/20"><i class="fa-solid fa-list-ul"></i> Locales</button>
+                                <button onclick="workoutManager.showRoutinesManager()" class="glass-btn p-2 rounded px-3 text-xs text-sky-400 bg-sky-900/20"><i class="fa-solid fa-list-ul"></i> Grupos</button>
                                 
                                 <button onclick="workoutManager.showJSONExample()" class="glass-btn px-3 py-2 rounded text-xs border-indigo-500 text-indigo-400" title="Ver estructura JSON"><i class="fa-solid fa-code"></i> Ej.</button>
                                 <input type="file" id="workout-json-file" accept=".json" class="hidden" onchange="workoutManager.uploadJSON(event)">
-                                <label for="workout-json-file" class="glass-btn p-2 rounded px-3 text-xs text-purple-400 bg-purple-900/20 border-purple-500/50 cursor-pointer flex items-center gap-2" title="Cargar JSON de ejercicios">
+                                <label for="workout-json-file" class="glass-btn p-2 rounded px-3 text-xs text-purple-400 bg-purple-900/20 border-purple-500/50 cursor-pointer flex items-center gap-2" title="Cargar JSON">
                                     <i class="fa-solid fa-file-import"></i> JSON
                                 </label>
                                 <button onclick="workoutManager.downloadJSON()" class="glass-btn px-3 py-2 rounded text-xs border-blue-500 text-blue-400" title="Exportar Día"><i class="fa-solid fa-file-arrow-down"></i> Bajar</button>
@@ -743,12 +906,12 @@
                             
                             <ul class="text-sm text-gray-300 mb-6 space-y-2 max-w-md mx-auto text-left">
                                 ${workoutManager.activeExercises.map((e,i)=>`
-                                    <li class="flex justify-between items-center bg-gray-800/50 p-3 rounded border border-gray-700">
-                                        <span><b class="text-sky-400">${i+1}.</b> ${e.name} <span class="text-[10px] text-gray-500">(${e.muscle})</span></span>
-                                        <button onclick="workoutManager.removeExercise(${i})" class="text-red-400 hover:text-red-300 p-2 transition"><i class="fa-solid fa-trash"></i></button>
+                                    <li class="flex justify-between items-center bg-gray-800/50 p-3 rounded border border-gray-700 mb-1">
+                                        <span><b class="text-sky-400">${i+1}.</b> ${e.name}</span>
+                                        <button onclick="workoutManager.removeExercise(${i})" class="text-red-400 hover:text-red-300 p-2"><i class="fa-solid fa-trash"></i></button>
                                     </li>
                                 `).join('')}
-                                ${!h?'<li class="text-gray-500 italic text-center p-4 border border-dashed border-gray-700 rounded">No hay ejercicios en la cola de hoy.</li>':''}
+                                ${!h?'<li class="text-gray-500 italic text-center p-4 border border-dashed border-gray-700 rounded">Vacio.</li>':''}
                             </ul>
 
                             <div class="max-w-md mx-auto space-y-3">
