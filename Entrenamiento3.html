@@ -160,7 +160,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, onSnapshot, addDoc, updateDoc, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Configuración de Firebase
@@ -173,6 +173,12 @@
         const app = initializeApp(firebaseConfig); 
         const auth = getAuth(app); 
         const db = getFirestore(app);
+        
+        // Manejador del resultado de la redirección segura
+        getRedirectResult(auth).catch((error) => {
+            console.error("Error en redirección de Google:", error);
+            window.ModalSystem.alert("Error de autenticación con Google: " + error.message);
+        });
         
         const ADMIN_EMAIL = 'dudbilopr@gmail.com'; 
         const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'fitness10-prod';
@@ -210,40 +216,17 @@
         };
         window.CustomAlert = window.ModalSystem.alert;
 
-        window.showIsakGuide = (key, title) => {
-            const guides = {
-                peso: "Pesarse en la mañana, en ayunas y luego de evacuar. Usar la mínima ropa posible. No medir después de entrenar.",
-                estatura: "Descalzo, talones juntos, glúteos y espalda apoyados en la pared. Cabeza en plano de Frankfort (mirando al frente). Inhalar profundo.",
-                per_cu: "Perímetro mínimo por debajo de la prominencia laríngea (Nuez de Adán).",
-                per_ho: "Perímetro máximo alrededor de los hombros, justo por debajo del acromion. Sujeto relajado.",
-                per_tr: "Nivel mesoesternal (pezones). Tomar la medida al final de una espiración normal (tórax relajado).",
-                per_te: "Nivel mesoesternal (pezones). Tomar la medida al final de una inspiración máxima (tórax expandido).",
-                per_br: "Punto medio entre el acromion (hombro) y el olécranon (codo). Brazo colgando relajado.",
-                per_bc: "Perímetro máximo del bíceps. Brazo levantado a 90° lateral, con el codo flexionado y contraído al máximo.",
-                per_an: "Perímetro máximo por debajo de la articulación del codo, brazo relajado.",
-                per_mu: "Perímetro mínimo de la muñeca, justo por debajo de las apófisis estiloides del cúbito y radio.",
-                per_ci: "Perímetro mínimo visible entre el reborde costal inferior y la cresta ilíaca superior. Al final de exhalación.",
-                per_ca: "Sujeto de pie, pies juntos. Perímetro máximo alrededor de la prominencia glútea. Cinta paralela al piso.",
-                per_ml: "Perímetro del muslo a 1 cm por debajo del pliegue glúteo.",
-                per_pa: "Perímetro máximo en la zona medial de la pierna (gemelo).",
-                pl_pe: "Pliegue diagonal. Mitad de la distancia entre pliegue axilar anterior y pezón (hombres) o a un tercio (mujeres).",
-                pl_ax: "Pliegue vertical en línea medio-axilar, a la altura del apéndice xifoides (esternón inferior).",
-                pl_tr: "Pliegue vertical en línea media posterior del brazo (sobre tríceps), a medio camino entre acromion y olécranon.",
-                pl_bi: "Pliegue vertical en línea media anterior del brazo (sobre bíceps), mismo nivel marca tricipital.",
-                pl_sb: "Pliegue diagonal (45° hacia abajo/afuera) a 2 cm por debajo del ángulo inferior de la escápula.",
-                pl_si: "Pliegue diagonal justo por encima de la cresta ilíaca en la línea axilar media.",
-                pl_se: "Pliegue diagonal en la intersección del borde anterior de la espina ilíaca y línea horizontal desde marca suprailíaca.",
-                pl_ab: "Pliegue vertical a 5 cm a la derecha del ombligo.",
-                pl_mu: "Pliegue vertical parte anterior del muslo, a medio camino entre pliegue inguinal y rótula. Relajar la pierna.",
-                pl_pa: "Pliegue vertical en cara medial interna de la pantorrilla a nivel de circunferencia máxima. Rodilla a 90°.",
-                dia_hu: "Distancia entre epicóndilos medial y lateral del húmero (codo). Codo a 90°.",
-                dia_fe: "Distancia entre epicóndilos medial y lateral del fémur (rodilla). Sentado a 90°."
-            };
-            window.ModalSystem.alert(`<b>Guía ISAK: ${title}</b><br><br><span class='text-gray-300 text-sm leading-relaxed'>${guides[key] || "Utilice equipo calibrado y mida en el lado derecho del cuerpo."}</span>`);
-        };
-
+        // --- GESTOR PRINCIPAL ---
         window.appManager = {
-            loginGoogle: async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { window.ModalSystem.alert("Error login: "+e.message); } },
+            loginGoogle: async () => { 
+                try { 
+                    const provider = new GoogleAuthProvider();
+                    // Usamos signInWithRedirect para cumplir con normativas de seguridad COOP
+                    await signInWithRedirect(auth, provider); 
+                } catch (e) { 
+                    window.ModalSystem.alert("Error de redirección: "+e.message); 
+                } 
+            },
             loginEmail: async () => { 
                 const e = document.getElementById('auth-email').value, p = document.getElementById('auth-password').value; 
                 if(!e || !p) return window.ModalSystem.alert("Ingresa datos."); 
