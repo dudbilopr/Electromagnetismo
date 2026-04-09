@@ -70,8 +70,12 @@
         .hotspot-zone { position: absolute; border: 2px dashed rgba(220, 38, 38, 0.6); cursor: pointer; transition: all 0.2s; background: rgba(220, 38, 38, 0.05); border-radius: 4px; }
         .hotspot-zone:hover, .hotspot-zone.selected { border-color: rgba(220, 38, 38, 1); background: rgba(220, 38, 38, 0.2); transform: scale(1.02); }
         
-        .float-wpp { position: fixed; bottom: 80px; right: 20px; background-color: #25D366; color: white; border-radius: 50%; padding: 12px; box-shadow: 0 4px 10px rgba(37, 211, 102, 0.4); z-index: 1000; transition: transform 0.3s; }
+        .float-wpp { position: fixed; bottom: 90px; right: 20px; background-color: #25D366; color: white; border-radius: 50%; padding: 12px; box-shadow: 0 4px 10px rgba(37, 211, 102, 0.4); z-index: 1000; transition: transform 0.3s; }
         .float-wpp:hover { transform: scale(1.1); }
+        
+        @media (min-width: 768px) {
+            .float-wpp { bottom: 30px; }
+        }
 
         /* Animación para la línea punteada del diagrama */
         .animate-dash {
@@ -81,6 +85,9 @@
         @keyframes dashMove {
             to { stroke-dashoffset: -16; }
         }
+
+        /* Ajuste de área segura para el Bottom Nav en dispositivos móviles (Novedad App-like) */
+        .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 8px); }
     </style>
 </head>
 <body>
@@ -89,10 +96,12 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, createContext, useContext, useMemo } from 'react';
         import { createRoot } from 'react-dom/client';
+        // SE AGREGARON ICONOS PARA LA NAVEGACIÓN APP-LIKE (Home, LayoutDashboard, Menu)
         import { 
             BookOpen, Scale, Shield, FileText, ChevronRight, ChevronLeft, ChevronDown, LogOut, User, CheckCircle, 
             AlertTriangle, Play, BrainCircuit, MessageSquare, Settings, HelpCircle, Award, Search, 
-            Lightbulb, Users, Gavel, BarChart3, Clock, AlertOctagon, Phone, X, Edit3, Plus, ArrowRight, Target, Info, Briefcase
+            Lightbulb, Users, Gavel, BarChart3, Clock, AlertOctagon, Phone, X, Edit3, Plus, ArrowRight, Target, Info, Briefcase,
+            Home, LayoutDashboard, Menu
         } from 'lucide-react';
         import { 
             BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, 
@@ -103,7 +112,6 @@
         // --- FIREBASE CONFIGURATION ---
         import { initializeApp } from 'firebase/app';
         import { getAuth, signInWithPopup, GoogleAuthProvider, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-        // SE AGREGÓ 'deleteDoc' PARA PERMITIR AL ADMINISTRADOR BORRAR REGISTROS
         import { getFirestore, collection, doc, setDoc, getDoc, addDoc, getDocs, query, serverTimestamp, orderBy, limit, deleteDoc } from 'firebase/firestore';
 
         const firebaseConfig = { 
@@ -123,7 +131,6 @@
             { id: "q5", type: "adaptive_radio", category: "analisis_jurisprudencial", difficulty: 4, text: "Un trabajador omite un protocolo de seguridad causando un daño menor. En la audiencia demuestra que la empresa nunca le brindó la capacitación específica. Desde el enfoque pedagógico, ¿qué acción procede?", options: [ { id: "o1", text: "Despido por justa causa basado en la presunción de mala fe." }, { id: "o2", text: "Sanción máxima pecuniaria para resarcir el daño." }, { id: "o3", text: "Abstención de sanción punitiva, ordenando una capacitación correctiva y un plan de mejora." }, { id: "o4", text: "Suspensión de 2 meses sin derecho a remuneración." } ], correctOption: "o3" },
             { id: "q6", type: "cloze_text", category: "principios_derecho", difficulty: 5, text: "La Corte Constitucional ha reiterado que rige el principio de {1}, que prohíbe sancionar dos veces por el mismo hecho (Non bis in idem). Si hay dudas razonables sobre la culpabilidad, se debe aplicar el principio {2}.", blanks: [ { id: "b1", options: ["legalidad", "inmediatez", "tipicidad"], correct: "legalidad" }, { id: "b2", options: ["pacta sunt servanda", "in dubio pro operario", "solve et repete"], correct: "in dubio pro operario" } ] },
             { id: "q7", type: "adaptive_radio", category: "principios_derecho", difficulty: 3, text: "¿A quién corresponde fundamentalmente la 'Carga de la Prueba' dentro de un proceso disciplinario laboral para demostrar la comisión de la falta?", options: [ { id: "o1", text: "Al trabajador, quien debe demostrar su inocencia a toda costa." }, { id: "o2", text: "Al Ministerio de Trabajo, quien debe enviar un inspector." }, { id: "o3", text: "Al empleador, quien acusa y tiene el deber de aportar los medios probatorios que demuestren la falta." }, { id: "o4", text: "A los compañeros de trabajo del acusado." } ], correctOption: "o3" },
-            // Salto explícito de la pregunta 8.
             { id: "q9", type: "sequence_sorter", category: "procedimiento", difficulty: 3, text: "Si un trabajador se niega a recibir o firmar la carta de citación a descargos, ¿cuál es el orden procesal correcto y garantista para actuar?", items: [ { id: "s1", text: "Intentar notificar de forma presencial explicando el contenido." }, { id: "s2", text: "Ante la negativa, llamar a dos testigos (preferiblemente compañeros)." }, { id: "s3", text: "Leer el documento frente a los testigos y el trabajador." }, { id: "s4", text: "Hacer que los testigos firmen como constancia de la negativa." } ], correctSequence: ["s1", "s2", "s3", "s4"] },
             { id: "q10", type: "adaptive_radio", category: "analisis_jurisprudencial", difficulty: 4, text: "¿Qué ocurre jurídicamente si un trabajador, debidamente notificado, no asiste a la audiencia de descargos sin justificación válida?", options: [ { id: "o1", text: "Se considera automáticamente como una confesión de culpabilidad." }, { id: "o2", text: "El proceso se anula y la empresa pierde el derecho a sancionar." }, { id: "o3", text: "Se deja constancia de la inasistencia y el empleador toma la decisión basándose únicamente en las pruebas aportadas al expediente." }, { id: "o4", text: "Se debe solicitar autorización a un juez laboral para continuar." } ], correctOption: "o3" },
             { id: "q11", type: "cloze_text", category: "principios_derecho", difficulty: 4, text: "Las sanciones disciplinarias no pueden consistir en penas corporales, ni en medidas lesivas de la {1} del trabajador. Según el Código Sustantivo del Trabajo, las suspensiones por primera vez no pueden exceder de {2} días.", blanks: [ { id: "b1", options: ["economía", "dignidad", "productividad"], correct: "dignidad" }, { id: "b2", options: ["ocho", "quince", "treinta"], correct: "ocho" } ] },
@@ -160,16 +167,14 @@
             </div>
         );
 
-        // --- SUBCOMPONENTES DE PREGUNTAS (RESTAURADOS PARA SOLUCIONAR EL ERROR) ---
+        // --- SUBCOMPONENTES DE PREGUNTAS ---
         const AdaptiveRadio = ({ q, onAnswer, sel }) => <div className="flex flex-col gap-3 mt-6">{q.options.map(o => <button key={o.id} onClick={()=>onAnswer(o.id)} className={`text-left p-5 rounded-xl border-2 flex gap-4 transition-all ${sel===o.id?'bg-law-50 border-law-600 shadow-md':'bg-white border-slate-200 hover:border-law-300'}`}><div className={`mt-1 min-w-[20px] h-5 rounded-full border-2 flex items-center justify-center ${sel===o.id?'border-law-600':'border-slate-300'}`}>{sel===o.id && <div className="w-2.5 h-2.5 bg-law-600 rounded-full"/>}</div><span className={`text-[15px] ${sel===o.id?'text-law-900 font-medium':'text-slate-700'}`}>{o.text}</span></button>)}</div>;
-        
         const SequenceSorter = ({ q, onAnswer, sel }) => {
             const [items, setItems] = useState(sel || q.items);
             useEffect(()=>onAnswer(items.map(i=>i.id)), [items]);
             const move = (idx, dir) => { const n=[...items]; [n[idx], n[idx+dir]] = [n[idx+dir], n[idx]]; setItems(n); };
             return <div className="flex flex-col gap-3 mt-6"><p className="text-sm text-slate-500 font-medium mb-2">Utiliza las flechas para ordenar cronológicamente:</p>{items.map((it, i) => <div key={it.id} className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><div className="flex flex-col gap-1"><button onClick={()=>move(i,-1)} disabled={i===0} className="text-slate-400 hover:text-law-600 disabled:opacity-20 transition-colors"><ChevronLeft className="rotate-90" size={20}/></button><button onClick={()=>move(i,1)} disabled={i===items.length-1} className="text-slate-400 hover:text-law-600 disabled:opacity-20 transition-colors"><ChevronLeft className="-rotate-90" size={20}/></button></div><div className="bg-law-100 text-law-800 w-8 h-8 flex items-center justify-center rounded-full font-bold">{i+1}</div><span className="text-slate-700">{it.text}</span></div>)}</div>;
         };
-        
         const ClozeText = ({ q, onAnswer, sel={} }) => (
             <div className="mt-6 p-8 bg-slate-50 rounded-2xl border border-slate-200 text-lg leading-loose text-slate-700 shadow-inner">
                 {q.text.split(/({[0-9]+})/g).map((pt, i) => {
@@ -179,22 +184,18 @@
                 })}
             </div>
         );
-        
         const ImageHotspot = ({ q, onAnswer, sel }) => (
             <div className="mt-6"><div className="hotspot-container bg-white shadow-md"><div className="font-bold text-center border-b border-slate-200 pb-3 mb-5 text-law-900">{q.imageDoc.header}</div><div className="whitespace-pre-wrap text-slate-700 mb-8 leading-relaxed">{q.imageDoc.body}</div><div className="text-right text-xs italic border-t border-slate-200 pt-3 text-slate-500">{q.imageDoc.footer}</div>{q.hotspots.map(hs => <div key={hs.id} className={`hotspot-zone ${sel===hs.id?'selected':''}`} style={{top:hs.top,left:hs.left,width:hs.width,height:hs.height}} onClick={()=>onAnswer(hs.id)}/>)}</div></div>
         );
 
-        // --- GLOBAL HEADER WITH PROFILE EDIT ---
+        // --- GLOBAL HEADER ---
         const Header = ({ title }) => {
-            const { setView, view } = useContext(AppContext);
             return (
                 <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
                     <div className="flex items-center gap-3">
                         <Shield className="text-law-800" size={28} />
                         <h1 className="text-xl md:text-2xl font-serif font-bold text-slate-800 hidden md:block">{title}</h1>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => setView('profile')} className="py-2 px-4 text-sm" icon={Edit3}>Mi Perfil</Button>
+                        <h1 className="text-lg font-serif font-bold text-slate-800 md:hidden truncate">{title}</h1>
                     </div>
                 </header>
             );
@@ -213,7 +214,75 @@
             </footer>
         );
 
-        // --- VISTAS ---
+        // --- NAVIGATION COMPONENTS (NOVEDAD APP-LIKE) ---
+        const DesktopSidebar = () => {
+            const { view, setView, user } = useContext(AppContext);
+            const navItems = [
+                { id: 'intro', label: 'Inicio', icon: Home },
+                { id: 'theory', label: 'Teoría', icon: BookOpen },
+                { id: 'evaluation', label: 'Evaluación', icon: BrainCircuit },
+                { id: 'results', label: 'Resultados', icon: Award },
+                { id: 'profile', label: 'Mi Perfil', icon: User }
+            ];
+            if (user?.isMaster) navItems.push({ id: 'dashboard', label: 'Panel Admin', icon: LayoutDashboard });
+
+            return (
+                <div className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 border-r border-slate-800 shadow-2xl z-40 shrink-0">
+                    <div className="p-6 flex items-center gap-3 text-white border-b border-slate-800">
+                        <Scale size={28} className="text-gold-500" />
+                        <span className="font-serif font-bold text-xl tracking-wide">LunaAcademy</span>
+                    </div>
+                    <div className="flex-1 py-6 px-4 flex flex-col gap-2 overflow-y-auto">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-2">Navegación</p>
+                        {navItems.map(item => (
+                            <button key={item.id} onClick={() => setView(item.id)}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${view === item.id ? 'bg-law-600 text-white shadow-lg shadow-law-600/30' : 'hover:bg-slate-800 hover:text-white'}`}>
+                                <item.icon size={20} className={view === item.id ? 'text-white' : 'text-slate-400'} />
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="p-4 border-t border-slate-800">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-slate-800 rounded-xl mb-4">
+                            <div className="bg-law-500 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">{user?.nombre?.charAt(0) || user?.displayName?.charAt(0) || 'U'}</div>
+                            <div className="flex-1 overflow-hidden">
+                                <p className="text-sm font-bold text-white truncate">{user?.nombre || user?.displayName || 'Usuario'}</p>
+                                <p className="text-[10px] text-slate-400 truncate uppercase tracking-wider">{user?.role || 'Estudiante'}</p>
+                            </div>
+                        </div>
+                        <Button variant="outline" onClick={() => { auth.signOut(); setView('login'); }} className="w-full border-slate-700 text-slate-400 hover:bg-red-500 hover:text-white hover:border-red-500 text-sm py-2">
+                            <LogOut size={16} /> Cerrar Sesión
+                        </Button>
+                    </div>
+                </div>
+            );
+        };
+
+        const MobileBottomNav = () => {
+            const { view, setView, user } = useContext(AppContext);
+            const navItems = [
+                { id: 'intro', label: 'Inicio', icon: Home },
+                { id: 'theory', label: 'Teoría', icon: BookOpen },
+                { id: 'evaluation', label: 'Eval', icon: BrainCircuit },
+                { id: 'profile', label: 'Perfil', icon: User }
+            ];
+            if (user?.isMaster) navItems.push({ id: 'dashboard', label: 'Admin', icon: LayoutDashboard });
+
+            return (
+                <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 px-2 py-2 flex justify-around items-center safe-area-pb shrink-0">
+                    {navItems.slice(0, 5).map(item => (
+                        <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 rounded-xl min-w-[60px] transition-colors ${view === item.id ? 'text-law-600' : 'text-slate-400 hover:text-slate-600'}`}>
+                            <div className={`p-1.5 rounded-full mb-1 transition-all ${view === item.id ? 'bg-law-100' : 'bg-transparent'}`}>
+                                <item.icon size={20} strokeWidth={view === item.id ? 2.5 : 2} />
+                            </div>
+                            <span className="text-[10px] font-bold tracking-wide">{item.label}</span>
+                        </button>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- VISTAS MAIN CONTENT ---
         const AuthView = () => {
             const { setUser, setView } = useContext(AppContext);
             const [mode, setMode] = useState('login'); 
@@ -252,7 +321,7 @@
             };
 
             return (
-                <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-100">
+                <div className="min-h-full flex items-center justify-center p-4 relative overflow-hidden bg-slate-100 w-full">
                     <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] bg-law-600/10 blur-[120px] rounded-full mix-blend-multiply"></div>
                     <GlassCard className="w-full max-w-md text-center z-10 border-t-8 border-t-law-900">
                         <Scale size={56} className="text-law-900 mx-auto mb-4" />
@@ -309,7 +378,7 @@
             };
 
             return (
-                <div className="min-h-screen flex items-center justify-center p-4 py-12 bg-slate-50">
+                <div className="min-h-full flex items-center justify-center p-4 py-8 bg-slate-50 w-full">
                     <GlassCard className="w-full max-w-3xl shadow-2xl border-t-8 border-t-gold-500">
                         <div className="flex items-center justify-between mb-6 border-b border-slate-200 pb-4">
                             <div className="flex items-center gap-4">
@@ -319,9 +388,6 @@
                                     <p className="text-slate-500 text-sm">Tus datos sociodemográficos darán contexto a los resultados de la investigación.</p>
                                 </div>
                             </div>
-                            {isEditing && (
-                                <button onClick={() => setView('intro')} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
-                            )}
                         </div>
                         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
                             <div className="md:col-span-2"><FormField label="Nombre Completo / Alias" value={formData.nombre} onChange={e=>setFormData({...formData, nombre: e.target.value})} required /></div>
@@ -341,12 +407,10 @@
             );
         };
 
-        // --- INTERACTIVE GENIALLY-STYLE FLOWCHART COMPONENT ---
         const InteractiveProcessMap = ({ onProgressUpdate }) => {
             const [activeNode, setActiveNode] = useState(null);
             const [visitedNodes, setVisitedNodes] = useState(new Set());
 
-            // Nodos enriquecidos con información detallada, pedagógica y preguntas clave
             const nodes = [
                 { 
                     id: 1, title: "Inicio: Noticia Disciplinaria", icon: FileText, color: "bg-law-600", shadow: "shadow-law-600/40",
@@ -410,11 +474,9 @@
 
             return (
                 <div className="relative w-full py-8 md:py-12">
-                    {/* Contenedor Flex para el Flujo */}
                     <div className="flex flex-col md:flex-row flex-wrap justify-center items-center gap-6 md:gap-4 max-w-5xl mx-auto">
                         {nodes.map((node, index) => (
                             <React.Fragment key={node.id}>
-                                {/* NODO */}
                                 <div className="relative group cursor-pointer w-40 flex flex-col items-center" onClick={() => handleNodeClick(node)}>
                                     <div className={`w-[84px] h-[84px] rounded-full flex items-center justify-center text-white shadow-lg ${node.shadow} ${node.color} relative transition-transform duration-300 transform group-hover:-translate-y-2 group-hover:scale-105 z-10`}>
                                         <node.icon size={36} />
@@ -430,16 +492,12 @@
                                     </p>
                                 </div>
 
-                                {/* CONECTOR DINÁMICO (Flecha Punteada Animada) */}
                                 {index < nodes.length - 1 && (
                                     <div className="flex items-center justify-center -mx-4 md:-mx-2 z-0">
-                                        {/* Línea Horizontal (Desktop) - Oculta si hay wrap, pero flex maneja razonablemente bien el layout */}
                                         <svg className="hidden md:block w-16 lg:w-24 h-8" viewBox="0 0 100 24" preserveAspectRatio="none">
                                             <line x1="0" y1="12" x2="90" y2="12" stroke="#64748b" strokeWidth="2.5" className="animate-dash" strokeLinecap="round"/>
                                             <polygon points="90,6 100,12 90,18" fill="#64748b" />
                                         </svg>
-                                        
-                                        {/* Línea Vertical (Mobile) */}
                                         <svg className="md:hidden h-12 w-8" viewBox="0 0 24 100" preserveAspectRatio="none">
                                             <line x1="12" y1="0" x2="12" y2="90" stroke="#64748b" strokeWidth="2.5" className="animate-dash" strokeLinecap="round"/>
                                             <polygon points="6,90 12,100 18,90" fill="#64748b" />
@@ -450,12 +508,9 @@
                         ))}
                     </div>
 
-                    {/* Modal Educativo Estilo Genially */}
                     {activeNode && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setActiveNode(null)}>
                             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                                
-                                {/* Header Modal */}
                                 <div className={`${activeNode.color} p-6 sm:p-8 text-white flex justify-between items-start shrink-0`}>
                                     <div className="flex items-center gap-4 sm:gap-6">
                                         <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md shadow-inner hidden sm:block">
@@ -473,14 +528,10 @@
                                     </button>
                                 </div>
 
-                                {/* Content Modal (Scrollable) */}
                                 <div className="p-6 sm:p-8 overflow-y-auto bg-slate-50 flex-1 space-y-6 scroll-smooth">
-                                    <p className="text-slate-800 text-lg leading-relaxed font-medium">
-                                        {activeNode.desc}
-                                    </p>
+                                    <p className="text-slate-800 text-lg leading-relaxed font-medium">{activeNode.desc}</p>
                                     
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                        {/* Bloque: Preguntas Clave */}
                                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                                             <h4 className="flex items-center gap-2 font-bold text-law-800 mb-3"><HelpCircle size={20}/> Cuestionamientos Clave</h4>
                                             <ul className="space-y-2">
@@ -491,25 +542,17 @@
                                                 ))}
                                             </ul>
                                         </div>
-
-                                        {/* Bloque: Ejemplo Práctico */}
                                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                                             <h4 className="flex items-center gap-2 font-bold text-slate-800 mb-3"><Briefcase size={20} className="text-slate-500"/> Ejemplo Práctico</h4>
-                                            <p className="text-sm text-slate-600 leading-relaxed italic border-l-4 border-slate-300 pl-3">
-                                                "{activeNode.ejemplo}"
-                                            </p>
+                                            <p className="text-sm text-slate-600 leading-relaxed italic border-l-4 border-slate-300 pl-3">"{activeNode.ejemplo}"</p>
                                         </div>
                                     </div>
 
-                                    {/* Bloque: Recomendación */}
                                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                                         <h4 className="flex items-center gap-2 font-bold text-slate-800 mb-2"><Target size={20} className="text-green-600"/> Recomendación Universal</h4>
-                                        <p className="text-sm text-slate-600 leading-relaxed">
-                                            {activeNode.recomendacion}
-                                        </p>
+                                        <p className="text-sm text-slate-600 leading-relaxed">{activeNode.recomendacion}</p>
                                     </div>
 
-                                    {/* Bloque: Pedagogía del Descargo (Enfoque Especial) */}
                                     <div className="bg-gold-50 border-2 border-gold-200 p-6 rounded-2xl flex gap-4 shadow-sm">
                                         <Lightbulb className="text-gold-600 shrink-0" size={32} />
                                         <div>
@@ -519,7 +562,6 @@
                                     </div>
                                 </div>
                                 
-                                {/* Footer Modal */}
                                 <div className="bg-white p-4 border-t border-slate-200 flex justify-end shrink-0">
                                     <Button variant="primary" onClick={() => setActiveNode(null)} className="px-8 py-3 w-full sm:w-auto">Comprendido</Button>
                                 </div>
@@ -536,7 +578,6 @@
             const [totalNodesCount, setTotalNodesCount] = useState(6);
             const [timeSeconds, setTimeSeconds] = useState(0);
 
-            // Timer para registrar la permanencia en la teoría
             useEffect(() => {
                 const interval = setInterval(() => setTimeSeconds(s => s + 1), 1000);
                 return () => clearInterval(interval);
@@ -545,17 +586,15 @@
             const progressPerc = Math.round((visitedCount / totalNodesCount) * 100) || 0;
 
             const handleFinish = () => {
-                // Se guardan los datos antes de pasar a la evaluación
                 setTheoryStats({ timeSeconds, nodesExplored: visitedCount });
                 setView('evaluation');
             };
             
             return (
-                <div className="min-h-screen bg-slate-50 py-8 px-4 md:px-8">
+                <div className="min-h-full bg-slate-50 py-8 px-4 md:px-8 w-full">
                     <div className="max-w-6xl mx-auto">
                         <Header title="Marco Teórico: Mapa de Proceso Disciplinario" />
 
-                        {/* BARRA DE PROGRESO DE INMERSIÓN PEDAGÓGICA (NUEVO) */}
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mb-8 flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
                             <div className="flex-1">
                                 <div className="flex justify-between items-end mb-2">
@@ -588,7 +627,7 @@
                         </div>
 
                         <div className="flex justify-center mt-10 mb-8">
-                            <Button variant="primary" onClick={handleFinish} className="text-xl px-12 py-5 shadow-2xl hover:scale-105 transition-all">
+                            <Button variant="primary" onClick={handleFinish} className="text-xl px-12 py-5 shadow-2xl hover:scale-105 transition-all w-full md:w-auto">
                                 Comenzar Evaluación Diagnóstica <ArrowRight size={24} className="ml-2"/>
                             </Button>
                         </div>
@@ -600,8 +639,6 @@
         const EvaluationView = () => {
             const { user, setView, setEvaluationData, theoryStats } = useContext(AppContext);
             
-            // LÓGICA DE PERSISTENCIA (ANTI-CAÍDAS DE INTERNET)
-            // Carga los datos desde localStorage si existen, o usa los valores por defecto
             const loadSaved = (key, defaultVal) => {
                 const saved = localStorage.getItem(`luna_${key}_${user.uid}`);
                 return saved ? JSON.parse(saved) : defaultVal;
@@ -614,7 +651,6 @@
             const [msg, setMsg] = useState(""); 
             const [start, setStart] = useState(() => loadSaved('start', Date.now()));
 
-            // Efecto para autoguardar cada vez que el usuario avanza o responde
             useEffect(() => {
                 if (qs.length > 0) {
                     localStorage.setItem(`luna_idx_${user.uid}`, JSON.stringify(idx));
@@ -630,7 +666,7 @@
                 .catch(() => setQs(DEFAULT_QUESTIONS));
             }, []);
 
-            if(!qs.length) return <div className="min-h-screen flex items-center justify-center text-law-600 font-semibold text-xl">Cargando batería de preguntas...</div>;
+            if(!qs.length) return <div className="min-h-full flex items-center justify-center text-law-600 font-semibold text-xl w-full">Cargando batería de preguntas...</div>;
             const q = qs[idx];
 
             const finish = async () => {
@@ -680,13 +716,10 @@
                 
                 try { 
                     await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat_results'), payload); 
-                    
-                    // LIMPIEZA DE PERSISTENCIA AL FINALIZAR CON ÉXITO
                     localStorage.removeItem(`luna_idx_${user.uid}`);
                     localStorage.removeItem(`luna_ans_${user.uid}`);
                     localStorage.removeItem(`luna_hints_${user.uid}`);
                     localStorage.removeItem(`luna_start_${user.uid}`);
-                    
                 } catch(e){ console.error("Error guardando resultados", e); }
                 
                 setEvaluationData(payload); setView('results');
@@ -698,7 +731,7 @@
             };
 
             return (
-                <div className="min-h-screen bg-slate-50 p-4 md:p-8 pb-24">
+                <div className="min-h-full bg-slate-50 p-4 md:p-8 pb-24 w-full">
                     <div className="max-w-7xl mx-auto">
                         <Header title="Módulo de Análisis Jurídico" />
                         
@@ -747,8 +780,8 @@
                                     </div>
 
                                     <div className="mt-10 pt-6 border-t border-slate-200 flex justify-between items-center">
-                                        <div className="text-slate-400 text-sm font-bold flex items-center gap-1">Dificultad: <span className="text-gold-500">{Array(q.difficulty).fill('★').join('')}</span></div>
-                                        <Button variant="primary" onClick={()=>idx<qs.length-1?setIdx(idx+1):finish()} disabled={!ans[q.id]||(q.type==='cloze_text'&&Object.keys(ans[q.id]).length<q.blanks.length)} icon={ChevronRight}>
+                                        <div className="text-slate-400 text-sm font-bold flex items-center gap-1 hidden sm:flex">Dificultad: <span className="text-gold-500">{Array(q.difficulty).fill('★').join('')}</span></div>
+                                        <Button variant="primary" onClick={()=>idx<qs.length-1?setIdx(idx+1):finish()} disabled={!ans[q.id]||(q.type==='cloze_text'&&Object.keys(ans[q.id]).length<q.blanks.length)} icon={ChevronRight} className="w-full sm:w-auto">
                                             {idx===qs.length-1?'Generar Diagnóstico':'Siguiente Caso'}
                                         </Button>
                                     </div>
@@ -792,16 +825,16 @@
             const sendSurvey = async () => { try { await addDoc(collection(db,'artifacts',APP_ID,'public','data','reviews'), {...survey, uid:user.uid, ts:serverTimestamp()}); setSent(true); } catch(e){} };
 
             return (
-                <div className="min-h-screen bg-slate-50 p-4 md:p-8 flex flex-col items-center pb-24">
+                <div className="min-h-full bg-slate-50 p-4 md:p-8 flex flex-col items-center pb-24 w-full">
                     <div className="w-full max-w-5xl mb-6">
                         <Header title="Resultados del Estudio Diagnóstico" />
                     </div>
 
-                    <div className="text-center mb-10 mt-2">
+                    <div className="text-center mb-10 mt-2 px-4">
                         <div className="inline-block p-4 bg-gold-100 rounded-full mb-4 border-4 border-white shadow-lg">
                             <Award size={56} className="text-gold-600" />
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-serif font-bold text-law-900 mb-4">Reporte de Competencias</h1>
+                        <h1 className="text-3xl md:text-5xl font-serif font-bold text-law-900 mb-4">Reporte de Competencias</h1>
                         <p className="text-slate-600 text-lg">Investigador: {user.displayName || user.nombre || 'Anónimo'} | Perfil: {user.role}</p>
                     </div>
 
@@ -816,13 +849,13 @@
                             </div>
                         </GlassCard>
 
-                        <GlassCard className="bg-white shadow-2xl h-80 flex flex-col items-center">
+                        <GlassCard className="bg-white shadow-2xl h-80 flex flex-col items-center overflow-hidden">
                             <h3 className="font-bold text-slate-800 mb-2">Desglose por Competencias (Radar)</h3>
-                            <div className="w-full flex-1">
+                            <div className="w-full flex-1 min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data.radarData || []}>
                                         <PolarGrid stroke="#e2e8f0" />
-                                        <PolarAngleAxis dataKey="subject" tick={{fill: '#475569', fontSize: 10, fontWeight: 'bold'}} />
+                                        <PolarAngleAxis dataKey="subject" tick={{fill: '#475569', fontSize: 9, fontWeight: 'bold'}} />
                                         <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                                         <Radar name="Usuario" dataKey="A" stroke="#2563eb" fill="#3b82f6" fillOpacity={0.5} />
                                         <RechartsTooltip contentStyle={{borderRadius: '8px', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}/>
@@ -856,8 +889,8 @@
                         )}
                         
                         <div className="mt-10 pt-6 border-t border-slate-200 flex flex-wrap justify-center gap-4">
-                            {user.isMaster && <Button variant="gold" onClick={()=>setView('dashboard')} icon={BarChart3}>Ir al Panel Analítico</Button>}
-                            <Button variant="outline" onClick={()=>{auth.signOut();setView('login');}} icon={LogOut}>Cerrar Sesión Segura</Button>
+                            {user.isMaster && <Button variant="gold" onClick={()=>setView('dashboard')} icon={BarChart3} className="w-full sm:w-auto">Ir al Panel Analítico</Button>}
+                            <Button variant="outline" onClick={()=>{auth.signOut();setView('login');}} icon={LogOut} className="w-full sm:w-auto">Cerrar Sesión Segura</Button>
                         </div>
                     </GlassCard>
                 </div>
@@ -869,25 +902,20 @@
             const [res, setRes] = useState([]); const [dbt, setDbt] = useState([]);
             
             useEffect(() => {
-                getDocs(query(collection(db,'artifacts',APP_ID,'public','data','chat_results'), orderBy('timestamp','desc'))).then(s=>{let d=[]; s.forEach(x=>d.push(x.data())); setRes(d);});
+                getDocs(query(collection(db,'artifacts',APP_ID,'public','data','chat_results'), orderBy('timestamp','desc'))).then(s=>{let d=[]; s.forEach(x=>d.push({id:x.id, ...x.data()})); setRes(d);});
                 getDocs(query(collection(db,'artifacts',APP_ID,'public','data','chat_doubts'), orderBy('ts','desc'), limit(50))).then(s=>{let d=[]; s.forEach(x=>d.push(x.data())); setDbt(d);});
             }, []);
 
-            // 1. Usuarios Únicos
             const uniqueUsersCount = useMemo(() => new Set(res.map(r => r.userId)).size, [res]);
-
-            // 2. Data de Roles
             const rolesData = useMemo(() => {
                 const counts = res.reduce((acc, curr) => { acc[curr.role] = (acc[curr.role] || 0) + 1; return acc; }, {});
                 return Object.entries(counts).map(([name, value]) => ({ name, value })).filter(x => x.name && x.name !== 'undefined');
             }, [res]);
 
-            // 3. Data de Evolución (Trend)
             const trendData = useMemo(() => {
                 return [...res].reverse().map((r, i) => ({ Evaluacion: `E${i+1}`, Puntaje: r.perc }));
             }, [res]);
 
-            // 4. NUEVO: Data de Sectores Económicos (Para usar toda la data recolectada)
             const sectorData = useMemo(() => {
                 const counts = res.reduce((acc, curr) => { 
                     const s = curr.sector && curr.sector !== 'No especificado' ? curr.sector : 'Otro';
@@ -897,7 +925,6 @@
                 return Object.entries(counts).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }));
             }, [res]);
 
-            // 5. NUEVO: Data de Género
             const generoData = useMemo(() => {
                 const counts = res.reduce((acc, curr) => {
                     let g = curr.genero === 'm' ? 'Masculino' : curr.genero === 'f' ? 'Femenino' : curr.genero === 'o' ? 'Otro' : 'No espec.';
@@ -907,7 +934,6 @@
                 return Object.entries(counts).map(([name, value]) => ({ name, value }));
             }, [res]);
 
-            // 6. Estadísticas Rápidas Adicionales y Promedios (Modificado)
             const promediosPerfil = useMemo(() => {
                 if(!res.length) return { edad: 0, exp: 0, theoryTime: 0, theoryExplored: 0 };
                 const validEdades = res.filter(r => r.edad && r.edad > 0).map(r => Number(r.edad));
@@ -928,19 +954,18 @@
             const GENDER_COLORS = ['#eab308', '#ec4899', '#94a3b8', '#cbd5e1'];
 
             return (
-                <div className="min-h-screen bg-slate-100 p-4 md:p-8 pb-24">
+                <div className="min-h-full bg-slate-100 p-4 md:p-8 pb-24 w-full">
                     <div className="max-w-7xl mx-auto">
                         <header className="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <div className="flex items-center gap-4 mb-4 md:mb-0">
-                                <div className="bg-law-900 p-3 rounded-xl"><Settings size={28} className="text-white" /></div>
-                                <div>
-                                    <h1 className="text-2xl font-serif font-bold text-law-900">Mando Analítico de Investigación</h1>
-                                    <p className="text-sm text-slate-500 font-medium">Dashboard Administrativo | Análisis Sociodemográfico Completo</p>
+                            <div className="flex items-center gap-4 mb-4 md:mb-0 w-full md:w-auto">
+                                <div className="bg-law-900 p-3 rounded-xl hidden sm:block"><Settings size={28} className="text-white" /></div>
+                                <div className="flex-1 text-center md:text-left">
+                                    <h1 className="text-xl sm:text-2xl font-serif font-bold text-law-900">Mando Analítico de Investigación</h1>
+                                    <p className="text-xs sm:text-sm text-slate-500 font-medium">Dashboard Administrativo | Análisis Sociodemográfico Completo</p>
                                 </div>
                             </div>
-                            <div className="flex gap-3">
-                                <Button variant="secondary" onClick={()=>setView('intro')} className="py-2 text-sm shadow-sm" icon={Play}>Ver Simulador</Button>
-                                <Button variant="outline" onClick={()=>{auth.signOut();setView('login');}} className="py-2 text-sm bg-white" icon={LogOut}>Salir</Button>
+                            <div className="flex gap-3 w-full md:w-auto justify-center">
+                                <Button variant="secondary" onClick={()=>setView('intro')} className="py-2 text-sm shadow-sm w-full md:w-auto" icon={Play}>Ver Simulador</Button>
                             </div>
                         </header>
 
@@ -1013,14 +1038,14 @@
 
                         {/* Fila 2 Gráficos: Data Sociodemográfica Profunda */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            <GlassCard className="h-80 bg-white shadow-md flex flex-col">
+                            <GlassCard className="h-80 bg-white shadow-md flex flex-col overflow-hidden">
                                 <h3 className="font-bold text-slate-800 mb-4 font-serif text-lg">Sectores Económicos</h3>
-                                <div className="flex-1 w-full">
+                                <div className="flex-1 w-full min-h-0">
                                     {sectorData.length > 0 ? (
                                         <ResponsiveContainer width="100%" height="100%">
                                             <BarChart data={sectorData} margin={{top: 20, right: 20, left: -20, bottom: 5}}>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
-                                                <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 11}} tickLine={false} axisLine={false}/>
+                                                <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 10}} tickLine={false} axisLine={false}/>
                                                 <YAxis tick={{fill: '#64748b', fontSize: 11}} tickLine={false} axisLine={false}/>
                                                 <RechartsTooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '8px', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}/>
                                                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
@@ -1032,9 +1057,9 @@
                                 </div>
                             </GlassCard>
 
-                            <GlassCard className="h-80 bg-white shadow-md flex flex-col">
+                            <GlassCard className="h-80 bg-white shadow-md flex flex-col overflow-hidden">
                                 <h3 className="font-bold text-slate-800 mb-4 font-serif text-lg">Distribución de Género</h3>
-                                <div className="flex-1 w-full">
+                                <div className="flex-1 w-full min-h-0">
                                     {generoData.length > 0 ? (
                                         <ResponsiveContainer width="100%" height="100%">
                                             <PieChart>
@@ -1109,7 +1134,6 @@
                                                                 if(window.confirm(`¿Estás seguro de eliminar el registro de ${r.nombre || 'este usuario'}? Esto recalculará las estadísticas.`)) {
                                                                     try {
                                                                         await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'chat_results', r.id));
-                                                                        // Actualizar estado local para reflejar cambios en gráficas de inmediato
                                                                         setRes(prev => prev.filter(item => item.id !== r.id));
                                                                         alert("Registro eliminado exitosamente.");
                                                                     } catch (error) {
@@ -1183,40 +1207,52 @@
 
             return (
                 <AppContext.Provider value={{ user, setUser, setView, evaluationData: evalData, setEvaluationData, theoryStats, setTheoryStats }}>
-                    <div className="min-h-screen relative selection:bg-law-200 selection:text-law-900 flex flex-col">
+                    {/* APP-LIKE CANVAS ENCAPSULATION */}
+                    <div className="h-[100dvh] w-full flex overflow-hidden bg-slate-50 selection:bg-law-200 selection:text-law-900">
                         
-                        <div className="flex-1">
-                            {view==='login'&&<AuthView/>}
-                            {view==='profile'&&<ProfileView/>}
-                            {view==='intro'&&
-                                <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-center p-4">
-                                    <div className="w-full max-w-4xl mb-6"><Header title="Bienvenido/a al Estudio Diagnóstico" /></div>
-                                    <div className="max-w-3xl mx-auto bg-white p-10 rounded-3xl shadow-2xl border-t-8 border-t-law-800">
-                                        <Scale size={72} className="text-law-800 mb-6 mx-auto drop-shadow-md"/>
-                                        <h1 className="text-4xl md:text-5xl font-serif font-black mb-6 text-slate-800">Hola, {user?.nombre || user?.displayName || 'Investigador'}</h1>
-                                        <p className="text-lg text-slate-600 leading-relaxed mb-10 font-medium">
-                                            A continuación iniciarás un recorrido inmersivo sobre la <strong>Pedagogía del Descargo</strong> aplicada al derecho laboral colombiano. Agradecemos tu rigor y honestidad en las respuestas.
-                                        </p>
-                                        <Button variant="primary" onClick={()=>setView('theory')} className="text-xl px-10 py-4 mx-auto w-full md:w-auto shadow-xl">
-                                            Iniciar Trayecto Académico <ChevronRight size={24} className="ml-2"/>
-                                        </Button>
+                        {/* 1. NAVEGACIÓN DESKTOP (SIDEBAR) */}
+                        {view !== 'login' && <DesktopSidebar />}
+                        
+                        {/* 2. ÁREA PRINCIPAL SCROLLABLE (CONTENIDO) */}
+                        <div className="flex-1 h-full overflow-y-auto relative flex flex-col scroll-smooth">
+                            <div className="flex-1 pb-24 md:pb-8">
+                                {view==='login'&&<AuthView/>}
+                                {view==='profile'&&<ProfileView/>}
+                                {view==='intro'&&
+                                    <div className="min-h-full bg-slate-50 flex flex-col items-center justify-center text-center p-4 py-12">
+                                        <div className="w-full max-w-4xl mb-6"><Header title="Bienvenido/a al Estudio Diagnóstico" /></div>
+                                        <div className="max-w-3xl mx-auto bg-white p-6 md:p-10 rounded-3xl shadow-2xl border-t-8 border-t-law-800 w-full">
+                                            <Scale size={72} className="text-law-800 mb-6 mx-auto drop-shadow-md"/>
+                                            <h1 className="text-4xl md:text-5xl font-serif font-black mb-6 text-slate-800 break-words">Hola, {user?.nombre || user?.displayName || 'Investigador'}</h1>
+                                            <p className="text-base md:text-lg text-slate-600 leading-relaxed mb-10 font-medium px-2">
+                                                A continuación iniciarás un recorrido inmersivo sobre la <strong>Pedagogía del Descargo</strong> aplicada al derecho laboral colombiano. Agradecemos tu rigor y honestidad en las respuestas.
+                                            </p>
+                                            <Button variant="primary" onClick={()=>setView('theory')} className="text-lg md:text-xl px-10 py-4 mx-auto w-full md:w-auto shadow-xl">
+                                                Iniciar Trayecto Académico <ChevronRight size={24} className="ml-2"/>
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
-                            }
-                            {view==='theory'&&<TheoryView/>}
-                            {view==='evaluation'&&<EvaluationView/>}
-                            {view==='results'&&<ResultsView/>}
-                            {view==='dashboard'&&<AdminDashboardView/>}
+                                }
+                                {view==='theory'&&<TheoryView/>}
+                                {view==='evaluation'&&<EvaluationView/>}
+                                {view==='results'&&<ResultsView/>}
+                                {view==='dashboard'&&<AdminDashboardView/>}
+                            </div>
+
+                            {/* WhatsApp Floating Button */}
+                            {view !== 'login' && (
+                                <a href="https://wa.me/573168648343?text=Hola,%20vengo%20de%20la%20plataforma%20LunaAcademy%20y%20me%20gustar%C3%ADa%20hacer%20una%20consulta%20sobre%20la%20Pedagog%C3%ADa%20del%20Descargo." target="_blank" rel="noopener noreferrer" className="float-wpp" title="Contacto por WhatsApp">
+                                    <Phone size={28} />
+                                </a>
+                            )}
+
+                            {/* Global Footer (solo dentro del canvas) */}
+                            {view !== 'login' && <Footer />}
                         </div>
 
-                        {/* WhatsApp Floating Button */}
-                        <a href="https://wa.me/573168648343?text=Hola,%20vengo%20de%20la%20plataforma%20LunaAcademy%20y%20me%20gustar%C3%ADa%20hacer%20una%20consulta%20sobre%20la%20Pedagog%C3%ADa%20del%20Descargo." target="_blank" rel="noopener noreferrer" className="float-wpp" title="Contacto por WhatsApp">
-                            <Phone size={28} />
-                        </a>
+                        {/* 3. NAVEGACIÓN MÓVIL (BOTTOM BAR) */}
+                        {view !== 'login' && <MobileBottomNav />}
 
-                        {/* Global Footer */}
-                        {view !== 'login' && <Footer />}
-                        
                     </div>
                 </AppContext.Provider>
             );
