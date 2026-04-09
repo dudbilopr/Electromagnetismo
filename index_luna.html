@@ -73,14 +73,13 @@
         .float-wpp { position: fixed; bottom: 80px; right: 20px; background-color: #25D366; color: white; border-radius: 50%; padding: 12px; box-shadow: 0 4px 10px rgba(37, 211, 102, 0.4); z-index: 1000; transition: transform 0.3s; }
         .float-wpp:hover { transform: scale(1.1); }
 
-        /* Estilos específicos para el conector del diagrama */
-        .diagram-connector { position: absolute; background-color: #cbd5e1; z-index: 0; }
-        @media (min-width: 768px) {
-            .horizontal-line { height: 4px; top: 50%; left: 50%; right: -50%; transform: translateY(-50%); }
-            .vertical-line { width: 4px; left: 50%; top: 50%; bottom: -50%; transform: translateX(-50%); }
+        /* Animación para la línea punteada del diagrama */
+        .animate-dash {
+            stroke-dasharray: 8;
+            animation: dashMove 1.5s linear infinite;
         }
-        @media (max-width: 767px) {
-            .mobile-line { width: 4px; left: 50%; top: 50%; bottom: -50%; transform: translateX(-50%); }
+        @keyframes dashMove {
+            to { stroke-dashoffset: -16; }
         }
     </style>
 </head>
@@ -91,9 +90,9 @@
         import React, { useState, useEffect, createContext, useContext, useMemo } from 'react';
         import { createRoot } from 'react-dom/client';
         import { 
-            BookOpen, Scale, Shield, FileText, ChevronRight, ChevronLeft, LogOut, User, CheckCircle, 
+            BookOpen, Scale, Shield, FileText, ChevronRight, ChevronLeft, ChevronDown, LogOut, User, CheckCircle, 
             AlertTriangle, Play, BrainCircuit, MessageSquare, Settings, HelpCircle, Award, Search, 
-            Lightbulb, Users, Gavel, BarChart3, Clock, AlertOctagon, Phone, X, Edit3, Plus, ArrowRight
+            Lightbulb, Users, Gavel, BarChart3, Clock, AlertOctagon, Phone, X, Edit3, Plus, ArrowRight, Target, Info, Briefcase
         } from 'lucide-react';
         import { 
             BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, 
@@ -256,7 +255,7 @@
 
         const ProfileView = () => {
             const { user, setUser, setView } = useContext(AppContext);
-            const isEditing = !!user?.role && user?.role !== 'anonimo'; // Check if already has data
+            const isEditing = !!user?.role && user?.role !== 'anonimo';
             
             const [formData, setFormData] = useState({ 
                 nombre: user?.nombre || user?.displayName || '', 
@@ -279,7 +278,6 @@
                     await setDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'profile', 'data'), userData, { merge: true });
                     setUser({ ...user, ...userData }); 
                     
-                    // Si estaba editando, devolvemos a intro o theory, por simplicidad: intro
                     setView('intro');
                 } catch (err) { alert("Error al guardar. Verifica conexión."); } 
                 finally { setSaving(false); }
@@ -322,79 +320,172 @@
         const InteractiveProcessMap = () => {
             const [activeNode, setActiveNode] = useState(null);
 
+            // Nodos enriquecidos con información detallada, pedagógica y preguntas clave
             const nodes = [
-                { id: 1, title: "Inicio: Noticia Disciplinaria", icon: FileText, color: "bg-law-600", desc: "El proceso inicia cuando la empresa recibe un informe, queja o evidencia sobre una presunta falta laboral cometida por el trabajador.", tip: "Pedagogía: No asumas culpabilidad desde este momento. Es solo el inicio de una indagación para conocer la verdad." },
-                { id: 2, title: "Indagación y Pruebas", icon: Search, color: "bg-gold-500", desc: "La etapa donde se recolectan las evidencias (documentos, testimonios, videos). El trabajador tiene derecho a conocer y controvertir estas pruebas.", tip: "Pedagogía: Ocultar pruebas anula el proceso. Transparencia total es el principio rector." },
-                { id: 3, title: "Formulación de Cargos", icon: AlertOctagon, color: "bg-red-500", desc: "Si hay mérito, se emite una citación a descargos clara y detallada, indicando exactamente qué norma se presuntamente vulneró y las pruebas que lo sustentan.", tip: "Pedagogía: La carta debe ser neutral. Decir 'Se le cita para despedirlo' es prejuzgamiento y viola el debido proceso." },
-                { id: 4, title: "Audiencia de Descargos", icon: Users, color: "bg-law-800", desc: "El núcleo de la defensa. Un espacio donde el trabajador, acompañado si lo desea, expone su versión de los hechos ante recursos humanos o la oficina jurídica.", tip: "Pedagogía: Es un espacio de 'Escucha Activa', no un interrogatorio. Entiende el contexto organizativo del error." },
-                { id: 5, title: "Decisión (Fallo)", icon: Gavel, color: "bg-green-600", desc: "Análisis objetivo de las pruebas y los descargos para emitir un fallo que puede ser absolutorio o sancionatorio, debidamente motivado.", tip: "Pedagogía: La sanción es la 'Última Ratio'. Evalúa aplicar medidas formativas o planes de mejora antes de castigar." },
-                { id: 6, title: "Segunda Instancia", icon: Scale, color: "bg-purple-600", desc: "Garantía de que un superior jerárquico o dirección nacional revise la decisión si el trabajador presenta recurso de apelación.", tip: "Pedagogía: Fomenta la doble revisión para evitar sesgos personales de los jefes inmediatos." }
+                { 
+                    id: 1, title: "Inicio: Noticia Disciplinaria", icon: FileText, color: "bg-law-600", shadow: "shadow-law-600/40",
+                    desc: "El proceso inicia de oficio o cuando la empresa recibe un informe, queja o evidencia sobre una presunta falta laboral cometida por el trabajador.", 
+                    preguntasClave: ["¿Quién reporta la falta y qué intereses tiene?", "¿Existen sesgos o acoso laboral detrás del reporte inicial?", "¿Hay pruebas sumarias adjuntas al reporte?"],
+                    ejemplo: "Un supervisor envía un correo indicando que un operario 'siempre es irrespetuoso'. No se debe asumir como verdad absoluta; es solo el inicio de una indagación.",
+                    recomendacion: "Recibir la noticia con neutralidad. El área encargada debe evitar emitir juicios de valor antes de verificar objetivamente la existencia del hecho.",
+                    tip: "Enfoque Garantista: No asumas culpabilidad desde el momento cero. Inicia una indagación para conocer la verdad material, no para buscar excusas para despedir." 
+                },
+                { 
+                    id: 2, title: "Indagación y Pruebas", icon: Search, color: "bg-gold-500", shadow: "shadow-gold-500/40",
+                    desc: "Etapa donde se recolectan las evidencias (documentos, testimonios, videos, correos). El trabajador tiene el derecho absoluto a conocer y controvertir estas pruebas.", 
+                    preguntasClave: ["¿Las pruebas se obtuvieron legalmente?", "¿El trabajador tiene acceso irrestricto al expediente probatorio?", "¿Se garantiza la cadena de custodia?"],
+                    ejemplo: "Se revisan las cámaras de seguridad para verificar un hurto. Si la cámara fue instalada en un baño o casillero sin aviso, la prueba es ilícita e inconstitucional.",
+                    recomendacion: "Organizar un expediente claro y foliado. Informar al trabajador que tiene derecho a pedir copias de todo lo que obre en su contra.",
+                    tip: "Enfoque Garantista: Ocultar pruebas anula el proceso por violación al derecho de contradicción. La transparencia total es el principio rector." 
+                },
+                { 
+                    id: 3, title: "Formulación de Cargos", icon: AlertOctagon, color: "bg-red-500", shadow: "shadow-red-500/40",
+                    desc: "Si de la indagación surge mérito, se emite una citación a descargos clara y detallada, indicando la norma presuntamente vulnerada y las pruebas que sustentan el cargo.", 
+                    preguntasClave: ["¿La carta describe los hechos con precisión (modo, tiempo, lugar)?", "¿Se evidencia algún sesgo de prejuzgamiento en la redacción?", "¿Se otorga tiempo razonable para preparar la defensa?"],
+                    ejemplo: "Incorrecto: 'Se le cita para notificarle su despido por robo'. Correcto: 'Se le cita a descargos para que exponga su versión sobre el faltante de inventario reportado el día X'.",
+                    recomendacion: "Asegurarse de que el trabajador reciba y entienda la citación. Si se niega a firmar, leerla en presencia de dos testigos idóneos.",
+                    tip: "Enfoque Garantista: La carta debe ser neutral. Emitir conclusiones anticipadas es prejuzgamiento y vicia de nulidad todo el proceso disciplinario." 
+                },
+                { 
+                    id: 4, title: "Audiencia de Descargos", icon: Users, color: "bg-law-800", shadow: "shadow-law-800/40",
+                    desc: "Es el núcleo del derecho a la defensa. Un espacio donde el trabajador, acompañado si lo desea (sindicato, abogado o compañeros), expone su versión de los hechos.", 
+                    preguntasClave: ["¿El ambiente de la audiencia es intimidatorio?", "¿Se le permite al trabajador aportar sus propias pruebas y testigos?", "¿La persona que escucha es imparcial?"],
+                    ejemplo: "El trabajador justifica una llegada tarde mostrando un certificado médico de urgencias de su hijo. La empresa debe valorar esta situación de fuerza mayor.",
+                    recomendacion: "Grabar la audiencia (con consentimiento) o levantar un acta detallada y fiel que el trabajador debe leer íntegramente antes de firmar.",
+                    tip: "Enfoque Garantista: Es un espacio de 'Escucha Activa', no un interrogatorio policial. Busca entender el contexto organizativo o humano detrás del error." 
+                },
+                { 
+                    id: 5, title: "Decisión (Fallo)", icon: Gavel, color: "bg-green-600", shadow: "shadow-green-600/40",
+                    desc: "Análisis objetivo de las pruebas y los descargos para emitir un fallo que puede ser absolutorio (archivo) o sancionatorio, debidamente motivado en los hechos.", 
+                    preguntasClave: ["¿La sanción es proporcional a la falta?", "¿Se aplicó el principio de inmediatez?", "¿El trabajador tenía antecedentes disciplinarios?"],
+                    ejemplo: "Ante un primer error operativo sin intención dolosa, en lugar de una suspensión de 8 días, se decide aplicar un plan de re-capacitación técnica.",
+                    recomendacion: "La decisión escrita debe refutar o aceptar lógicamente los argumentos que dio el trabajador en sus descargos (motivación real).",
+                    tip: "Enfoque Garantista: La sanción es la 'Última Ratio'. El objetivo primario es corregir, educar y prevenir la reincidencia, protegiendo la dignidad del trabajador." 
+                },
+                { 
+                    id: 6, title: "Segunda Instancia", icon: Scale, color: "bg-purple-600", shadow: "shadow-purple-600/40",
+                    desc: "Garantía procesal de que un superior jerárquico revise la decisión si el trabajador no está de acuerdo y presenta un recurso de apelación dentro de los tiempos de ley.", 
+                    preguntasClave: ["¿El superior jerárquico es realmente independiente?", "¿Se resolvió la apelación en un tiempo prudencial?", "¿Se garantizó el principio de 'no reformatio in pejus' (no empeorar la sanción inicial)?"],
+                    ejemplo: "El jefe inmediato impuso un despido por un choque personal. El Gerente de RRHH (2da instancia) revisa, nota el sesgo, y revoca la decisión a una amonestación.",
+                    recomendacion: "Siempre indicar en la carta de sanción inicial cuántos días tiene el trabajador para apelar y ante quién debe presentar el recurso.",
+                    tip: "Enfoque Garantista: La doble instancia es vital para evitar arbitrariedades, persecución laboral o sesgos personales de los mandos medios." 
+                }
             ];
 
             return (
-                <div className="relative w-full py-8">
-                    {/* Contenedor del Diagrama */}
-                    <div className="relative flex flex-col md:flex-row flex-wrap justify-center items-center gap-8 md:gap-12 max-w-4xl mx-auto z-10">
+                <div className="relative w-full py-8 md:py-12">
+                    {/* Contenedor Flex para el Flujo */}
+                    <div className="flex flex-col md:flex-row flex-wrap justify-center items-center gap-6 md:gap-4 max-w-5xl mx-auto">
                         {nodes.map((node, index) => (
-                            <div key={node.id} className="relative group cursor-pointer" onClick={() => setActiveNode(node)}>
-                                {/* Conectores (CSS) */}
-                                {index < nodes.length - 1 && (
-                                    <>
-                                        <div className="diagram-connector mobile-line md:hidden"></div>
-                                        {/* Simplificación de conector desktop: Una línea de fondo continua manejada por un div absoluto detrás de los nodos */}
-                                    </>
-                                )}
-                                
-                                <div className="flex flex-col items-center relative z-10 bg-white p-2 rounded-2xl transition-transform transform group-hover:scale-105">
-                                    <div className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-xl ${node.color} relative animate-pulse-glow`}>
-                                        <node.icon size={32} />
+                            <React.Fragment key={node.id}>
+                                {/* NODO */}
+                                <div className="relative group cursor-pointer w-40 flex flex-col items-center" onClick={() => setActiveNode(node)}>
+                                    <div className={`w-[84px] h-[84px] rounded-full flex items-center justify-center text-white shadow-lg ${node.shadow} ${node.color} relative transition-transform duration-300 transform group-hover:-translate-y-2 group-hover:scale-105 z-10`}>
+                                        <node.icon size={36} />
                                         <div className="absolute -top-1 -right-1 bg-white text-law-900 border-2 border-law-200 rounded-full w-8 h-8 flex items-center justify-center shadow-md font-black hover:bg-law-100 transition-colors">
                                             <Plus size={20} />
                                         </div>
                                     </div>
-                                    <div className="mt-4 bg-slate-800 text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm text-center max-w-[120px]">
+                                    <div className="mt-4 bg-slate-900 text-white text-[11px] font-bold px-3 py-1 rounded-full shadow-sm text-center uppercase tracking-widest z-10">
                                         Paso {node.id}
                                     </div>
-                                    <p className="mt-2 text-sm font-semibold text-slate-700 text-center w-28 leading-tight">
+                                    <p className="mt-3 text-[13px] font-bold text-slate-700 text-center leading-snug z-10">
                                         {node.title}
                                     </p>
                                 </div>
-                            </div>
+
+                                {/* CONECTOR DINÁMICO (Flecha Punteada Animada) */}
+                                {index < nodes.length - 1 && (
+                                    <div className="flex items-center justify-center -mx-4 md:-mx-2 z-0">
+                                        {/* Línea Horizontal (Desktop) - Oculta si hay wrap, pero flex maneja razonablemente bien el layout */}
+                                        <svg className="hidden md:block w-16 lg:w-24 h-8" viewBox="0 0 100 24" preserveAspectRatio="none">
+                                            <line x1="0" y1="12" x2="90" y2="12" stroke="#64748b" strokeWidth="2.5" className="animate-dash" strokeLinecap="round"/>
+                                            <polygon points="90,6 100,12 90,18" fill="#64748b" />
+                                        </svg>
+                                        
+                                        {/* Línea Vertical (Mobile) */}
+                                        <svg className="md:hidden h-12 w-8" viewBox="0 0 24 100" preserveAspectRatio="none">
+                                            <line x1="12" y1="0" x2="12" y2="90" stroke="#64748b" strokeWidth="2.5" className="animate-dash" strokeLinecap="round"/>
+                                            <polygon points="6,90 12,100 18,90" fill="#64748b" />
+                                        </svg>
+                                    </div>
+                                )}
+                            </React.Fragment>
                         ))}
                     </div>
 
-                    {/* Modal Estilo Genially */}
+                    {/* Modal Educativo Estilo Genially */}
                     {activeNode && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setActiveNode(null)}>
-                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-                                <div className={`${activeNode.color} p-6 text-white flex justify-between items-start`}>
-                                    <div className="flex items-center gap-4">
-                                        <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
-                                            <activeNode.icon size={32} />
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setActiveNode(null)}>
+                            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                                
+                                {/* Header Modal */}
+                                <div className={`${activeNode.color} p-6 sm:p-8 text-white flex justify-between items-start shrink-0`}>
+                                    <div className="flex items-center gap-4 sm:gap-6">
+                                        <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md shadow-inner hidden sm:block">
+                                            <activeNode.icon size={40} />
                                         </div>
                                         <div>
-                                            <p className="text-white/80 font-bold uppercase tracking-wider text-xs mb-1">Etapa Procesal {activeNode.id}</p>
-                                            <h2 className="text-2xl font-serif font-bold">{activeNode.title}</h2>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="bg-white/30 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-white backdrop-blur-md">Etapa {activeNode.id}</span>
+                                            </div>
+                                            <h2 className="text-2xl sm:text-3xl font-serif font-bold leading-tight drop-shadow-md">{activeNode.title}</h2>
                                         </div>
                                     </div>
-                                    <button onClick={() => setActiveNode(null)} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-colors">
+                                    <button onClick={() => setActiveNode(null)} className="text-white hover:text-white bg-black/10 hover:bg-black/30 rounded-full p-2 transition-all">
                                         <X size={24} />
                                     </button>
                                 </div>
-                                <div className="p-8">
-                                    <p className="text-slate-700 text-lg leading-relaxed mb-6">
+
+                                {/* Content Modal (Scrollable) */}
+                                <div className="p-6 sm:p-8 overflow-y-auto bg-slate-50 flex-1 space-y-6 scroll-smooth">
+                                    <p className="text-slate-800 text-lg leading-relaxed font-medium">
                                         {activeNode.desc}
                                     </p>
-                                    <div className="bg-gold-50 border border-gold-200 p-5 rounded-2xl flex gap-4">
-                                        <Lightbulb className="text-gold-600 shrink-0" size={28} />
+                                    
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        {/* Bloque: Preguntas Clave */}
+                                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                            <h4 className="flex items-center gap-2 font-bold text-law-800 mb-3"><HelpCircle size={20}/> Cuestionamientos Clave</h4>
+                                            <ul className="space-y-2">
+                                                {activeNode.preguntasClave.map((pregunta, i) => (
+                                                    <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                                                        <span className="text-law-400 font-bold">•</span> <span>{pregunta}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+
+                                        {/* Bloque: Ejemplo Práctico */}
+                                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                            <h4 className="flex items-center gap-2 font-bold text-slate-800 mb-3"><Briefcase size={20} className="text-slate-500"/> Ejemplo Práctico</h4>
+                                            <p className="text-sm text-slate-600 leading-relaxed italic border-l-4 border-slate-300 pl-3">
+                                                "{activeNode.ejemplo}"
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Bloque: Recomendación */}
+                                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                        <h4 className="flex items-center gap-2 font-bold text-slate-800 mb-2"><Target size={20} className="text-green-600"/> Recomendación Universal</h4>
+                                        <p className="text-sm text-slate-600 leading-relaxed">
+                                            {activeNode.recomendacion}
+                                        </p>
+                                    </div>
+
+                                    {/* Bloque: Pedagogía del Descargo (Enfoque Especial) */}
+                                    <div className="bg-gold-50 border-2 border-gold-200 p-6 rounded-2xl flex gap-4 shadow-sm">
+                                        <Lightbulb className="text-gold-600 shrink-0" size={32} />
                                         <div>
-                                            <h4 className="font-bold text-gold-900 mb-1">Enfoque de Pedagogía del Descargo</h4>
-                                            <p className="text-slate-700 text-sm leading-relaxed">{activeNode.tip}</p>
+                                            <h4 className="font-bold text-gold-900 mb-1 text-lg font-serif">La Pedagogía del Descargo</h4>
+                                            <p className="text-slate-800 text-sm leading-relaxed font-medium">{activeNode.tip}</p>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-end">
-                                    <Button variant="secondary" onClick={() => setActiveNode(null)} className="px-6 py-2">Entendido</Button>
+                                
+                                {/* Footer Modal */}
+                                <div className="bg-white p-4 border-t border-slate-200 flex justify-end shrink-0">
+                                    <Button variant="primary" onClick={() => setActiveNode(null)} className="px-8 py-3 w-full sm:w-auto">Comprendido</Button>
                                 </div>
                             </div>
                         </div>
@@ -411,19 +502,19 @@
                     <div className="max-w-6xl mx-auto">
                         <Header title="Marco Teórico: Mapa de Proceso Disciplinario" />
 
-                        <div className="bg-white border border-slate-200 rounded-3xl p-6 md:p-10 shadow-xl mb-8 text-center relative overflow-hidden">
+                        <div className="bg-white border border-slate-200 rounded-[2rem] p-6 md:p-10 shadow-xl mb-8 text-center relative overflow-hidden">
                             <div className="relative z-10">
                                 <h2 className="text-3xl md:text-4xl font-serif font-bold text-law-900 mb-4">El Flujo Garantista</h2>
                                 <p className="text-slate-600 max-w-2xl mx-auto text-lg mb-8">
-                                    Explora el mapa interactivo del proceso disciplinario. Haz clic en el ícono <strong className="bg-law-100 text-law-800 px-2 rounded-md">+</strong> de cada nodo para descubrir la diferencia entre un trámite punitivo y una verdadera experiencia educativa.
+                                    Explora el mapa interactivo del proceso disciplinario. Haz clic en el ícono <strong className="bg-law-100 text-law-800 px-2 rounded-md font-black">+</strong> de cada etapa procesal para desplegar cuestionamientos clave, ejemplos prácticos y descubrir la diferencia entre un trámite punitivo y una verdadera experiencia educativa.
                                 </p>
                                 
                                 <InteractiveProcessMap />
                             </div>
                         </div>
 
-                        <div className="flex justify-center mt-8">
-                            <Button variant="primary" onClick={() => setView('evaluation')} className="text-xl px-12 py-5 shadow-2xl hover:scale-105">
+                        <div className="flex justify-center mt-10 mb-8">
+                            <Button variant="primary" onClick={() => setView('evaluation')} className="text-xl px-12 py-5 shadow-2xl hover:scale-105 transition-all">
                                 Comenzar Evaluación Diagnóstica <ArrowRight size={24} className="ml-2"/>
                             </Button>
                         </div>
@@ -477,8 +568,15 @@
                     fullMark: 100
                 })).filter(r => r.A > 0 || r.subject);
 
+                // IMPORTANTE: Aquí se adjunta toda la data de perfil al resultado de la evaluación
                 const payload = { 
-                    userId: user.uid, role: user.role, score, perc: Math.round((score/max)*100)||0, 
+                    userId: user.uid, 
+                    role: user.role || 'No especificado', 
+                    sector: user.sector || 'No especificado',
+                    experiencia: user.experiencia || 0,
+                    edad: user.edad || 0,
+                    genero: user.genero || 'No especificado',
+                    score, perc: Math.round((score/max)*100)||0, 
                     time: Math.floor((Date.now()-start)/1000), hints: hints.length, details, radarData, timestamp: serverTimestamp() 
                 };
                 
@@ -662,16 +760,53 @@
                 getDocs(query(collection(db,'artifacts',APP_ID,'public','data','chat_doubts'), orderBy('ts','desc'), limit(50))).then(s=>{let d=[]; s.forEach(x=>d.push(x.data())); setDbt(d);});
             }, []);
 
+            // 1. Usuarios Únicos
+            const uniqueUsersCount = useMemo(() => new Set(res.map(r => r.userId)).size, [res]);
+
+            // 2. Data de Roles
             const rolesData = useMemo(() => {
                 const counts = res.reduce((acc, curr) => { acc[curr.role] = (acc[curr.role] || 0) + 1; return acc; }, {});
                 return Object.entries(counts).map(([name, value]) => ({ name, value })).filter(x => x.name && x.name !== 'undefined');
             }, [res]);
 
+            // 3. Data de Evolución (Trend)
             const trendData = useMemo(() => {
                 return [...res].reverse().map((r, i) => ({ Evaluacion: `E${i+1}`, Puntaje: r.perc }));
             }, [res]);
 
+            // 4. NUEVO: Data de Sectores Económicos (Para usar toda la data recolectada)
+            const sectorData = useMemo(() => {
+                const counts = res.reduce((acc, curr) => { 
+                    const s = curr.sector && curr.sector !== 'No especificado' ? curr.sector : 'Otro';
+                    acc[s] = (acc[s] || 0) + 1; 
+                    return acc; 
+                }, {});
+                return Object.entries(counts).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }));
+            }, [res]);
+
+            // 5. NUEVO: Data de Género
+            const generoData = useMemo(() => {
+                const counts = res.reduce((acc, curr) => {
+                    let g = curr.genero === 'm' ? 'Masculino' : curr.genero === 'f' ? 'Femenino' : curr.genero === 'o' ? 'Otro' : 'No espec.';
+                    acc[g] = (acc[g] || 0) + 1; return acc;
+                }, {});
+                return Object.entries(counts).map(([name, value]) => ({ name, value }));
+            }, [res]);
+
+            // 6. Estadísticas Rápidas Adicionales
+            const promediosPerfil = useMemo(() => {
+                if(!res.length) return { edad: 0, exp: 0 };
+                const validEdades = res.filter(r => r.edad && r.edad > 0).map(r => Number(r.edad));
+                const validExp = res.filter(r => r.experiencia && r.experiencia > 0).map(r => Number(r.experiencia));
+                
+                const avgEdad = validEdades.length ? Math.round(validEdades.reduce((a,b)=>a+b,0) / validEdades.length) : 0;
+                const avgExp = validExp.length ? Math.round(validExp.reduce((a,b)=>a+b,0) / validExp.length) : 0;
+                return { edad: avgEdad, exp: avgExp };
+            }, [res]);
+
             const COLORS = ['#1e3a8a', '#d97706', '#047857', '#b91c1c', '#4f46e5', '#0f766e'];
+            const SECTOR_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#64748b'];
+            const GENDER_COLORS = ['#eab308', '#ec4899', '#94a3b8', '#cbd5e1'];
 
             return (
                 <div className="min-h-screen bg-slate-100 p-4 md:p-8 pb-24">
@@ -681,7 +816,7 @@
                                 <div className="bg-law-900 p-3 rounded-xl"><Settings size={28} className="text-white" /></div>
                                 <div>
                                     <h1 className="text-2xl font-serif font-bold text-law-900">Mando Analítico de Investigación</h1>
-                                    <p className="text-sm text-slate-500 font-medium">Dashboard Administrativo | Acceso Restringido</p>
+                                    <p className="text-sm text-slate-500 font-medium">Dashboard Administrativo | Análisis Sociodemográfico Completo</p>
                                 </div>
                             </div>
                             <div className="flex gap-3">
@@ -690,30 +825,36 @@
                             </div>
                         </header>
 
-                        {/* KPIs */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        {/* KPIs Principales */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                             <GlassCard className="bg-white border-l-4 border-l-law-600 shadow-md">
-                                <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider">Muestra Total</h3>
-                                <p className="text-4xl font-black text-law-900 mt-2">{res.length}</p>
+                                <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider">Muestra Total (Únicos)</h3>
+                                <p className="text-4xl font-black text-law-900 mt-2">{uniqueUsersCount}</p>
+                                <div className="mt-2 text-xs font-bold text-law-700 bg-law-50 inline-block px-2 py-1 rounded-md border border-law-100">
+                                    {res.length} Ev. Registradas
+                                </div>
                             </GlassCard>
                             <GlassCard className="bg-white border-l-4 border-l-gold-500 shadow-md">
                                 <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider">Índice Promedio</h3>
                                 <p className="text-4xl font-black text-gold-600 mt-2">{res.length?Math.round(res.reduce((a,b)=>a+b.perc,0)/res.length):0}%</p>
+                                <p className="text-xs text-slate-500 mt-2">Nivel de Garantismo Global</p>
                             </GlassCard>
                             <GlassCard className="bg-white border-l-4 border-l-green-600 shadow-md">
                                 <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider">Aportes Cualitativos</h3>
                                 <p className="text-4xl font-black text-green-700 mt-2">{dbt.length}</p>
+                                <p className="text-xs text-slate-500 mt-2">Dudas y debates en foro</p>
                             </GlassCard>
                             <GlassCard className="bg-white border-l-4 border-l-purple-600 shadow-md">
                                 <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider">Aprobación (>80%)</h3>
                                 <p className="text-4xl font-black text-purple-700 mt-2">{res.length?Math.round((res.filter(r=>r.perc>=80).length/res.length)*100):0}%</p>
+                                <p className="text-xs text-slate-500 mt-2">Población con alto dominio</p>
                             </GlassCard>
                         </div>
 
-                        {/* Gráficos */}
+                        {/* Fila 1 Gráficos: Evolución y Roles */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                             <GlassCard className="lg:col-span-2 h-96 bg-white shadow-md flex flex-col">
-                                <h3 className="font-bold text-slate-800 mb-4 font-serif">Evolución Cronológica del Índice de Garantismo</h3>
+                                <h3 className="font-bold text-slate-800 mb-4 font-serif text-lg">Evolución Cronológica del Índice de Garantismo</h3>
                                 <div className="flex-1 w-full">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -734,7 +875,7 @@
                             </GlassCard>
 
                             <GlassCard className="lg:col-span-1 h-96 bg-white shadow-md flex flex-col">
-                                <h3 className="font-bold text-slate-800 mb-4 font-serif">Distribución por Rol Profesional</h3>
+                                <h3 className="font-bold text-slate-800 mb-4 font-serif text-lg">Distribución por Rol Profesional</h3>
                                 <div className="flex-1 w-full">
                                     {rolesData.length > 0 ? (
                                         <ResponsiveContainer width="100%" height="100%">
@@ -743,10 +884,62 @@
                                                     {rolesData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                                                 </Pie>
                                                 <RechartsTooltip contentStyle={{borderRadius: '8px', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}} />
-                                                <Legend verticalAlign="bottom" height={36} wrapperStyle={{fontSize: '12px', fontWeight: 'bold'}} />
+                                                <Legend verticalAlign="bottom" height={36} wrapperStyle={{fontSize: '11px', fontWeight: 'bold'}} />
                                             </PieChart>
                                         </ResponsiveContainer>
                                     ) : <div className="h-full flex items-center justify-center text-slate-400">Sin datos demográficos</div>}
+                                </div>
+                            </GlassCard>
+                        </div>
+
+                        {/* Fila 2 Gráficos: Data Sociodemográfica Profunda */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <GlassCard className="h-80 bg-white shadow-md flex flex-col">
+                                <h3 className="font-bold text-slate-800 mb-4 font-serif text-lg">Sectores Económicos</h3>
+                                <div className="flex-1 w-full">
+                                    {sectorData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={sectorData} margin={{top: 20, right: 20, left: -20, bottom: 5}}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
+                                                <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 11}} tickLine={false} axisLine={false}/>
+                                                <YAxis tick={{fill: '#64748b', fontSize: 11}} tickLine={false} axisLine={false}/>
+                                                <RechartsTooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '8px', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}/>
+                                                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                                                    {sectorData.map((entry, index) => <Cell key={`cell-${index}`} fill={SECTOR_COLORS[index % SECTOR_COLORS.length]} />)}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    ) : <div className="h-full flex items-center justify-center text-slate-400">Sin datos</div>}
+                                </div>
+                            </GlassCard>
+
+                            <GlassCard className="h-80 bg-white shadow-md flex flex-col">
+                                <h3 className="font-bold text-slate-800 mb-4 font-serif text-lg">Distribución de Género</h3>
+                                <div className="flex-1 w-full">
+                                    {generoData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie data={generoData} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                                                    {generoData.map((entry, index) => <Cell key={`cell-${index}`} fill={GENDER_COLORS[index % GENDER_COLORS.length]} />)}
+                                                </Pie>
+                                                <RechartsTooltip contentStyle={{borderRadius: '8px', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    ) : <div className="h-full flex items-center justify-center text-slate-400">Sin datos</div>}
+                                </div>
+                            </GlassCard>
+
+                            <GlassCard className="h-80 bg-white shadow-md flex flex-col items-center justify-center text-center">
+                                <h3 className="font-bold text-slate-800 mb-6 font-serif text-lg w-full text-left">Perfil Demográfico Promedio</h3>
+                                <div className="flex flex-col gap-6 w-full">
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Edad Promedio</p>
+                                        <p className="text-4xl font-black text-slate-700">{promediosPerfil.edad > 0 ? `${promediosPerfil.edad} años` : 'N/A'}</p>
+                                    </div>
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Experiencia Laboral Promedio</p>
+                                        <p className="text-4xl font-black text-law-700">{promediosPerfil.exp > 0 ? `${promediosPerfil.exp} años` : 'N/A'}</p>
+                                    </div>
                                 </div>
                             </GlassCard>
                         </div>
