@@ -103,7 +103,8 @@
         // --- FIREBASE CONFIGURATION ---
         import { initializeApp } from 'firebase/app';
         import { getAuth, signInWithPopup, GoogleAuthProvider, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-        import { getFirestore, collection, doc, setDoc, getDoc, addDoc, getDocs, query, serverTimestamp, orderBy, limit } from 'firebase/firestore';
+        // SE AGREGÓ 'deleteDoc' PARA PERMITIR AL ADMINISTRADOR BORRAR REGISTROS
+        import { getFirestore, collection, doc, setDoc, getDoc, addDoc, getDocs, query, serverTimestamp, orderBy, limit, deleteDoc } from 'firebase/firestore';
 
         const firebaseConfig = { 
             apiKey: "AIzaSyDAhJNYS_XTcmKE9fZzVEX9_o0cJ1-dnUk", authDomain: "lunaexplica-60035.firebaseapp.com", databaseURL: "https://lunaexplica-60035-default-rtdb.firebaseio.com", 
@@ -598,8 +599,30 @@
 
         const EvaluationView = () => {
             const { user, setView, setEvaluationData, theoryStats } = useContext(AppContext);
-            const [qs, setQs] = useState([]); const [idx, setIdx] = useState(0); const [ans, setAns] = useState({});
-            const [hints, setHints] = useState([]); const [msg, setMsg] = useState(""); const [start] = useState(Date.now());
+            
+            // LÓGICA DE PERSISTENCIA (ANTI-CAÍDAS DE INTERNET)
+            // Carga los datos desde localStorage si existen, o usa los valores por defecto
+            const loadSaved = (key, defaultVal) => {
+                const saved = localStorage.getItem(`luna_${key}_${user.uid}`);
+                return saved ? JSON.parse(saved) : defaultVal;
+            };
+
+            const [qs, setQs] = useState([]); 
+            const [idx, setIdx] = useState(() => loadSaved('idx', 0)); 
+            const [ans, setAns] = useState(() => loadSaved('ans', {}));
+            const [hints, setHints] = useState(() => loadSaved('hints', [])); 
+            const [msg, setMsg] = useState(""); 
+            const [start, setStart] = useState(() => loadSaved('start', Date.now()));
+
+            // Efecto para autoguardar cada vez que el usuario avanza o responde
+            useEffect(() => {
+                if (qs.length > 0) {
+                    localStorage.setItem(`luna_idx_${user.uid}`, JSON.stringify(idx));
+                    localStorage.setItem(`luna_ans_${user.uid}`, JSON.stringify(ans));
+                    localStorage.setItem(`luna_hints_${user.uid}`, JSON.stringify(hints));
+                    localStorage.setItem(`luna_start_${user.uid}`, JSON.stringify(start));
+                }
+            }, [idx, ans, hints, start, user.uid, qs]);
 
             useEffect(() => {
                 getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'question_bank'))
@@ -641,9 +664,9 @@
                     fullMark: 100
                 })).filter(r => r.A > 0 || r.subject);
 
-                // IMPORTANTE: Aquí se adjunta toda la data de perfil al resultado de la evaluación Y LAS ESTADÍSTICAS TEÓRICAS
                 const payload = { 
                     userId: user.uid, 
+                    nombre: user.displayName || user.nombre || 'Anónimo',
                     role: user.role || 'No especificado', 
                     sector: user.sector || 'No especificado',
                     experiencia: user.experiencia || 0,
@@ -655,7 +678,17 @@
                     time: Math.floor((Date.now()-start)/1000), hints: hints.length, details, radarData, timestamp: serverTimestamp() 
                 };
                 
-                try { await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat_results'), payload); } catch(e){}
+                try { 
+                    await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'chat_results'), payload); 
+                    
+                    // LIMPIEZA DE PERSISTENCIA AL FINALIZAR CON ÉXITO
+                    localStorage.removeItem(`luna_idx_${user.uid}`);
+                    localStorage.removeItem(`luna_ans_${user.uid}`);
+                    localStorage.removeItem(`luna_hints_${user.uid}`);
+                    localStorage.removeItem(`luna_start_${user.uid}`);
+                    
+                } catch(e){ console.error("Error guardando resultados", e); }
+                
                 setEvaluationData(payload); setView('results');
             };
 
@@ -672,11 +705,16 @@
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-2 flex flex-col">
                                 <header className="flex justify-between items-center mb-4">
-                                    <div className="bg-law-100 text-law-800 px-4 py-2 rounded-full text-sm font-bold border border-law-200 shadow-sm">
-                                        Caso {idx+1} de {qs.length}
+                                    <div className="flex flex-col gap-1">
+                                        <div className="bg-law-100 text-law-800 px-4 py-2 rounded-full text-sm font-bold border border-law-200 shadow-sm inline-block w-max">
+                                            Caso {idx+1} de {qs.length}
+                                        </div>
+                                        <div className="text-xs text-slate-500 font-semibold ml-2">
+                                            {qs.length - (idx + 1)} casos restantes
+                                        </div>
                                     </div>
                                     <div className="text-slate-500 text-sm font-bold flex gap-1">
-                                        {qs.map((_, i) => <div key={i} className={`h-2 w-4 rounded-full ${i <= idx ? 'bg-law-600' : 'bg-slate-200'}`}></div>)}
+                                        {qs.map((_, i) => <div key={i} className={`h-2 w-3 md:w-4 rounded-full ${i <= idx ? 'bg-law-600' : 'bg-slate-200'}`}></div>)}
                                     </div>
                                 </header>
 
@@ -1030,6 +1068,67 @@
                                 </div>
                             </GlassCard>
                         </div>
+
+                        {/* SECCIÓN NUEVA: GESTIÓN DE REGISTROS (LIMPIEZA DE DATOS) */}
+                        <GlassCard className="bg-white shadow-md mb-8">
+                            <div className="flex justify-between items-center mb-6 border-b border-slate-200 pb-4">
+                                <h3 className="font-bold text-xl text-law-900 font-serif">
+                                    Gestión de Evaluaciones (Limpieza Estadística)
+                                </h3>
+                            </div>
+                            <p className="text-sm text-slate-500 mb-4">
+                                Si necesitas eliminar pruebas fallidas o registros de prueba para no contaminar la estadística, puedes hacerlo aquí. Esta acción es irreversible.
+                            </p>
+                            
+                            {res.length === 0 ? (
+                                <p className="text-slate-500 italic text-center py-8">No hay evaluaciones registradas.</p>
+                            ) : (
+                                <div className="overflow-x-auto rounded-xl border border-slate-200 max-h-80 overflow-y-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="text-xs uppercase bg-slate-50 text-slate-600 sticky top-0 border-b border-slate-200">
+                                            <tr>
+                                                <th className="px-6 py-4">Fecha</th>
+                                                <th className="px-6 py-4">Investigador</th>
+                                                <th className="px-6 py-4">Rol</th>
+                                                <th className="px-6 py-4 text-center">Puntaje</th>
+                                                <th className="px-6 py-4 text-center">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {res.map((r, i) => (
+                                                <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-slate-600">
+                                                        {r.timestamp?.toDate ? r.timestamp.toDate().toLocaleString() : 'Reciente'}
+                                                    </td>
+                                                    <td className="px-6 py-4 font-semibold text-slate-800">{r.nombre || r.userId.substring(0,8)+'...'}</td>
+                                                    <td className="px-6 py-4 text-slate-600 capitalize">{r.role}</td>
+                                                    <td className="px-6 py-4 text-center font-bold text-law-600">{r.perc}%</td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <button 
+                                                            onClick={async () => {
+                                                                if(window.confirm(`¿Estás seguro de eliminar el registro de ${r.nombre || 'este usuario'}? Esto recalculará las estadísticas.`)) {
+                                                                    try {
+                                                                        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'chat_results', r.id));
+                                                                        // Actualizar estado local para reflejar cambios en gráficas de inmediato
+                                                                        setRes(prev => prev.filter(item => item.id !== r.id));
+                                                                        alert("Registro eliminado exitosamente.");
+                                                                    } catch (error) {
+                                                                        alert("Error al eliminar: " + error.message);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="text-red-500 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 px-3 py-1 rounded-lg transition-colors text-xs font-bold"
+                                                        >
+                                                            Eliminar
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </GlassCard>
 
                         {/* Matriz Cualitativa */}
                         <GlassCard className="bg-white shadow-md">
