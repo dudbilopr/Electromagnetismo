@@ -159,6 +159,30 @@
             </div>
         );
 
+        // --- SUBCOMPONENTES DE PREGUNTAS (RESTAURADOS PARA SOLUCIONAR EL ERROR) ---
+        const AdaptiveRadio = ({ q, onAnswer, sel }) => <div className="flex flex-col gap-3 mt-6">{q.options.map(o => <button key={o.id} onClick={()=>onAnswer(o.id)} className={`text-left p-5 rounded-xl border-2 flex gap-4 transition-all ${sel===o.id?'bg-law-50 border-law-600 shadow-md':'bg-white border-slate-200 hover:border-law-300'}`}><div className={`mt-1 min-w-[20px] h-5 rounded-full border-2 flex items-center justify-center ${sel===o.id?'border-law-600':'border-slate-300'}`}>{sel===o.id && <div className="w-2.5 h-2.5 bg-law-600 rounded-full"/>}</div><span className={`text-[15px] ${sel===o.id?'text-law-900 font-medium':'text-slate-700'}`}>{o.text}</span></button>)}</div>;
+        
+        const SequenceSorter = ({ q, onAnswer, sel }) => {
+            const [items, setItems] = useState(sel || q.items);
+            useEffect(()=>onAnswer(items.map(i=>i.id)), [items]);
+            const move = (idx, dir) => { const n=[...items]; [n[idx], n[idx+dir]] = [n[idx+dir], n[idx]]; setItems(n); };
+            return <div className="flex flex-col gap-3 mt-6"><p className="text-sm text-slate-500 font-medium mb-2">Utiliza las flechas para ordenar cronológicamente:</p>{items.map((it, i) => <div key={it.id} className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><div className="flex flex-col gap-1"><button onClick={()=>move(i,-1)} disabled={i===0} className="text-slate-400 hover:text-law-600 disabled:opacity-20 transition-colors"><ChevronLeft className="rotate-90" size={20}/></button><button onClick={()=>move(i,1)} disabled={i===items.length-1} className="text-slate-400 hover:text-law-600 disabled:opacity-20 transition-colors"><ChevronLeft className="-rotate-90" size={20}/></button></div><div className="bg-law-100 text-law-800 w-8 h-8 flex items-center justify-center rounded-full font-bold">{i+1}</div><span className="text-slate-700">{it.text}</span></div>)}</div>;
+        };
+        
+        const ClozeText = ({ q, onAnswer, sel={} }) => (
+            <div className="mt-6 p-8 bg-slate-50 rounded-2xl border border-slate-200 text-lg leading-loose text-slate-700 shadow-inner">
+                {q.text.split(/({[0-9]+})/g).map((pt, i) => {
+                    const m = pt.match(/{([0-9]+)}/);
+                    if(m) { const b = q.blanks[parseInt(m[1])-1]; return b ? <select key={i} value={sel[b.id]||""} onChange={e=>onAnswer({...sel, [b.id]: e.target.value})} className="mx-2 bg-white border-b-2 border-law-600 text-law-800 font-bold outline-none px-3 py-1 rounded shadow-sm focus:ring-2 focus:ring-law-400 appearance-none cursor-pointer"><option value="" disabled>_</option>{b.options.map(o=><option key={o} value={o}>{o}</option>)}</select> : null; }
+                    return <span key={i}>{pt}</span>;
+                })}
+            </div>
+        );
+        
+        const ImageHotspot = ({ q, onAnswer, sel }) => (
+            <div className="mt-6"><div className="hotspot-container bg-white shadow-md"><div className="font-bold text-center border-b border-slate-200 pb-3 mb-5 text-law-900">{q.imageDoc.header}</div><div className="whitespace-pre-wrap text-slate-700 mb-8 leading-relaxed">{q.imageDoc.body}</div><div className="text-right text-xs italic border-t border-slate-200 pt-3 text-slate-500">{q.imageDoc.footer}</div>{q.hotspots.map(hs => <div key={hs.id} className={`hotspot-zone ${sel===hs.id?'selected':''}`} style={{top:hs.top,left:hs.left,width:hs.width,height:hs.height}} onClick={()=>onAnswer(hs.id)}/>)}</div></div>
+        );
+
         // --- GLOBAL HEADER WITH PROFILE EDIT ---
         const Header = ({ title }) => {
             const { setView, view } = useContext(AppContext);
@@ -317,8 +341,9 @@
         };
 
         // --- INTERACTIVE GENIALLY-STYLE FLOWCHART COMPONENT ---
-        const InteractiveProcessMap = () => {
+        const InteractiveProcessMap = ({ onProgressUpdate }) => {
             const [activeNode, setActiveNode] = useState(null);
+            const [visitedNodes, setVisitedNodes] = useState(new Set());
 
             // Nodos enriquecidos con información detallada, pedagógica y preguntas clave
             const nodes = [
@@ -372,6 +397,16 @@
                 }
             ];
 
+            const handleNodeClick = (node) => {
+                setActiveNode(node);
+                setVisitedNodes(prev => {
+                    const newSet = new Set(prev);
+                    newSet.add(node.id);
+                    if (onProgressUpdate) onProgressUpdate(newSet.size, nodes.length);
+                    return newSet;
+                });
+            };
+
             return (
                 <div className="relative w-full py-8 md:py-12">
                     {/* Contenedor Flex para el Flujo */}
@@ -379,7 +414,7 @@
                         {nodes.map((node, index) => (
                             <React.Fragment key={node.id}>
                                 {/* NODO */}
-                                <div className="relative group cursor-pointer w-40 flex flex-col items-center" onClick={() => setActiveNode(node)}>
+                                <div className="relative group cursor-pointer w-40 flex flex-col items-center" onClick={() => handleNodeClick(node)}>
                                     <div className={`w-[84px] h-[84px] rounded-full flex items-center justify-center text-white shadow-lg ${node.shadow} ${node.color} relative transition-transform duration-300 transform group-hover:-translate-y-2 group-hover:scale-105 z-10`}>
                                         <node.icon size={36} />
                                         <div className="absolute -top-1 -right-1 bg-white text-law-900 border-2 border-law-200 rounded-full w-8 h-8 flex items-center justify-center shadow-md font-black hover:bg-law-100 transition-colors">
@@ -495,12 +530,50 @@
         };
 
         const TheoryView = () => {
-            const { setView } = useContext(AppContext); 
+            const { setView, setTheoryStats } = useContext(AppContext); 
+            const [visitedCount, setVisitedCount] = useState(0);
+            const [totalNodesCount, setTotalNodesCount] = useState(6);
+            const [timeSeconds, setTimeSeconds] = useState(0);
+
+            // Timer para registrar la permanencia en la teoría
+            useEffect(() => {
+                const interval = setInterval(() => setTimeSeconds(s => s + 1), 1000);
+                return () => clearInterval(interval);
+            }, []);
+
+            const progressPerc = Math.round((visitedCount / totalNodesCount) * 100) || 0;
+
+            const handleFinish = () => {
+                // Se guardan los datos antes de pasar a la evaluación
+                setTheoryStats({ timeSeconds, nodesExplored: visitedCount });
+                setView('evaluation');
+            };
             
             return (
                 <div className="min-h-screen bg-slate-50 py-8 px-4 md:px-8">
                     <div className="max-w-6xl mx-auto">
                         <Header title="Marco Teórico: Mapa de Proceso Disciplinario" />
+
+                        {/* BARRA DE PROGRESO DE INMERSIÓN PEDAGÓGICA (NUEVO) */}
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mb-8 flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+                            <div className="flex-1">
+                                <div className="flex justify-between items-end mb-2">
+                                    <span className="text-xs font-bold text-law-800 uppercase tracking-wider flex items-center gap-2"><Target size={16}/> Nivel de Exploración</span>
+                                    <span className="text-sm font-black text-law-600">{progressPerc}%</span>
+                                </div>
+                                <div className="w-full bg-slate-100 rounded-full h-3 shadow-inner">
+                                    <div className="bg-gradient-to-r from-law-400 to-law-600 h-3 rounded-full transition-all duration-700 ease-out" style={{ width: `${progressPerc}%` }}></div>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">Nodos analizados: {visitedCount} de {totalNodesCount}</p>
+                            </div>
+                            <div className="md:border-l md:border-slate-200 md:pl-8 flex items-center gap-3">
+                                <div className="bg-slate-100 p-3 rounded-full text-slate-500"><Clock size={20}/></div>
+                                <div>
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Tiempo de Inmersión</div>
+                                    <div className="text-xl font-mono font-black text-slate-700">{Math.floor(timeSeconds/60)}:{(timeSeconds%60).toString().padStart(2, '0')}</div>
+                                </div>
+                            </div>
+                        </div>
 
                         <div className="bg-white border border-slate-200 rounded-[2rem] p-6 md:p-10 shadow-xl mb-8 text-center relative overflow-hidden">
                             <div className="relative z-10">
@@ -509,12 +582,12 @@
                                     Explora el mapa interactivo del proceso disciplinario. Haz clic en el ícono <strong className="bg-law-100 text-law-800 px-2 rounded-md font-black">+</strong> de cada etapa procesal para desplegar cuestionamientos clave, ejemplos prácticos y descubrir la diferencia entre un trámite punitivo y una verdadera experiencia educativa.
                                 </p>
                                 
-                                <InteractiveProcessMap />
+                                <InteractiveProcessMap onProgressUpdate={(visited, total) => { setVisitedCount(visited); setTotalNodesCount(total); }} />
                             </div>
                         </div>
 
                         <div className="flex justify-center mt-10 mb-8">
-                            <Button variant="primary" onClick={() => setView('evaluation')} className="text-xl px-12 py-5 shadow-2xl hover:scale-105 transition-all">
+                            <Button variant="primary" onClick={handleFinish} className="text-xl px-12 py-5 shadow-2xl hover:scale-105 transition-all">
                                 Comenzar Evaluación Diagnóstica <ArrowRight size={24} className="ml-2"/>
                             </Button>
                         </div>
@@ -524,7 +597,7 @@
         };
 
         const EvaluationView = () => {
-            const { user, setView, setEvaluationData } = useContext(AppContext);
+            const { user, setView, setEvaluationData, theoryStats } = useContext(AppContext);
             const [qs, setQs] = useState([]); const [idx, setIdx] = useState(0); const [ans, setAns] = useState({});
             const [hints, setHints] = useState([]); const [msg, setMsg] = useState(""); const [start] = useState(Date.now());
 
@@ -568,7 +641,7 @@
                     fullMark: 100
                 })).filter(r => r.A > 0 || r.subject);
 
-                // IMPORTANTE: Aquí se adjunta toda la data de perfil al resultado de la evaluación
+                // IMPORTANTE: Aquí se adjunta toda la data de perfil al resultado de la evaluación Y LAS ESTADÍSTICAS TEÓRICAS
                 const payload = { 
                     userId: user.uid, 
                     role: user.role || 'No especificado', 
@@ -576,6 +649,8 @@
                     experiencia: user.experiencia || 0,
                     edad: user.edad || 0,
                     genero: user.genero || 'No especificado',
+                    theoryTime: theoryStats?.timeSeconds || 0,
+                    theoryNodesExplored: theoryStats?.nodesExplored || 0,
                     score, perc: Math.round((score/max)*100)||0, 
                     time: Math.floor((Date.now()-start)/1000), hints: hints.length, details, radarData, timestamp: serverTimestamp() 
                 };
@@ -788,20 +863,26 @@
             const generoData = useMemo(() => {
                 const counts = res.reduce((acc, curr) => {
                     let g = curr.genero === 'm' ? 'Masculino' : curr.genero === 'f' ? 'Femenino' : curr.genero === 'o' ? 'Otro' : 'No espec.';
-                    acc[g] = (acc[g] || 0) + 1; return acc;
+                    acc[g] = (acc[g] || 0) + 1; 
+                    return acc;
                 }, {});
                 return Object.entries(counts).map(([name, value]) => ({ name, value }));
             }, [res]);
 
-            // 6. Estadísticas Rápidas Adicionales
+            // 6. Estadísticas Rápidas Adicionales y Promedios (Modificado)
             const promediosPerfil = useMemo(() => {
-                if(!res.length) return { edad: 0, exp: 0 };
+                if(!res.length) return { edad: 0, exp: 0, theoryTime: 0, theoryExplored: 0 };
                 const validEdades = res.filter(r => r.edad && r.edad > 0).map(r => Number(r.edad));
                 const validExp = res.filter(r => r.experiencia && r.experiencia > 0).map(r => Number(r.experiencia));
+                const validTime = res.filter(r => r.theoryTime !== undefined).map(r => Number(r.theoryTime));
+                const validNodes = res.filter(r => r.theoryNodesExplored !== undefined).map(r => Number(r.theoryNodesExplored));
                 
                 const avgEdad = validEdades.length ? Math.round(validEdades.reduce((a,b)=>a+b,0) / validEdades.length) : 0;
                 const avgExp = validExp.length ? Math.round(validExp.reduce((a,b)=>a+b,0) / validExp.length) : 0;
-                return { edad: avgEdad, exp: avgExp };
+                const avgTime = validTime.length ? Math.round(validTime.reduce((a,b)=>a+b,0) / validTime.length) : 0;
+                const avgNodes = validNodes.length ? (validNodes.reduce((a,b)=>a+b,0) / validNodes.length).toFixed(1) : 0;
+                
+                return { edad: avgEdad, exp: avgExp, theoryTime: avgTime, theoryExplored: avgNodes };
             }, [res]);
 
             const COLORS = ['#1e3a8a', '#d97706', '#047857', '#b91c1c', '#4f46e5', '#0f766e'];
@@ -931,14 +1012,20 @@
 
                             <GlassCard className="h-80 bg-white shadow-md flex flex-col items-center justify-center text-center">
                                 <h3 className="font-bold text-slate-800 mb-6 font-serif text-lg w-full text-left">Perfil Demográfico Promedio</h3>
-                                <div className="flex flex-col gap-6 w-full">
-                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Edad Promedio</p>
-                                        <p className="text-4xl font-black text-slate-700">{promediosPerfil.edad > 0 ? `${promediosPerfil.edad} años` : 'N/A'}</p>
+                                <div className="grid grid-cols-2 gap-4 w-full">
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col items-center justify-center">
+                                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Edad</p>
+                                        <p className="text-2xl font-black text-slate-700">{promediosPerfil.edad > 0 ? `${promediosPerfil.edad} años` : 'N/A'}</p>
                                     </div>
-                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Experiencia Laboral Promedio</p>
-                                        <p className="text-4xl font-black text-law-700">{promediosPerfil.exp > 0 ? `${promediosPerfil.exp} años` : 'N/A'}</p>
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col items-center justify-center">
+                                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Experiencia</p>
+                                        <p className="text-2xl font-black text-law-700">{promediosPerfil.exp > 0 ? `${promediosPerfil.exp} años` : 'N/A'}</p>
+                                    </div>
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col items-center justify-center col-span-2">
+                                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Inmersión Teórica (Promedio)</p>
+                                        <p className="text-lg font-black text-gold-600">
+                                            {promediosPerfil.theoryExplored > 0 ? `${promediosPerfil.theoryExplored} de 6 Nodos (${Math.floor(promediosPerfil.theoryTime/60)}m ${promediosPerfil.theoryTime%60}s)` : 'Sin datos'}
+                                        </p>
                                     </div>
                                 </div>
                             </GlassCard>
@@ -981,6 +1068,7 @@
             const [view, setView] = useState('login'); 
             const [user, setUser] = useState(null); 
             const [evalData, setEvaluationData] = useState(null);
+            const [theoryStats, setTheoryStats] = useState({ timeSeconds: 0, nodesExplored: 0 });
 
             useEffect(() => {
                 return onAuthStateChanged(auth, async (u) => {
@@ -995,7 +1083,7 @@
             }, []);
 
             return (
-                <AppContext.Provider value={{ user, setUser, setView, evaluationData: evalData, setEvaluationData }}>
+                <AppContext.Provider value={{ user, setUser, setView, evaluationData: evalData, setEvaluationData, theoryStats, setTheoryStats }}>
                     <div className="min-h-screen relative selection:bg-law-200 selection:text-law-900 flex flex-col">
                         
                         <div className="flex-1">
