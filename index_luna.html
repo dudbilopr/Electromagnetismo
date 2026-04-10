@@ -77,19 +77,9 @@
             .float-wpp { bottom: 30px; }
         }
 
-        /* Animación para la línea punteada del diagrama */
-        .animate-dash {
-            stroke-dasharray: 8;
-            animation: dashMove 1.5s linear infinite;
-        }
-        @keyframes dashMove {
-            to { stroke-dashoffset: -16; }
-        }
-
-        /* Ajuste de área segura para el Bottom Nav en dispositivos móviles (Novedad App-like) */
+        .animate-dash { stroke-dasharray: 8; animation: dashMove 1.5s linear infinite; }
+        @keyframes dashMove { to { stroke-dashoffset: -16; } }
         .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 8px); }
-
-        /* Ocultar scrollbar para nav móvil horizontal */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -100,12 +90,11 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, createContext, useContext, useMemo } from 'react';
         import { createRoot } from 'react-dom/client';
-        // SE AGREGARON ICONOS PARA LA NAVEGACIÓN APP-LIKE (Home, LayoutDashboard, Menu)
         import { 
             BookOpen, Scale, Shield, FileText, ChevronRight, ChevronLeft, ChevronDown, LogOut, User, CheckCircle, 
             AlertTriangle, Play, BrainCircuit, MessageSquare, Settings, HelpCircle, Award, Search, 
             Lightbulb, Users, Gavel, BarChart3, Clock, AlertOctagon, Phone, X, Edit3, Plus, ArrowRight, Target, Info, Briefcase,
-            Home, LayoutDashboard, Menu
+            Home, LayoutDashboard, Menu, XCircle
         } from 'lucide-react';
         import { 
             BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, 
@@ -126,23 +115,23 @@
 
         const APP_ID = 'luna_academy'; const ADMIN_EMAIL = 'dudbilopr@gmail.com'; const AppContext = createContext();
 
-        // --- BANCO DE PREGUNTAS (15 PREGUNTAS) ---
+        // --- BANCO DE PREGUNTAS (ENRIQUECIDO CON FEEDBACK Y VERDADERO/FALSO) ---
         const DEFAULT_QUESTIONS = [
-            { id: "q1", type: "adaptive_radio", category: "teoria_descargo", difficulty: 1, text: "Según la Pedagogía del Descargo, ¿cuál es el propósito principal de la citación a descargos además de garantizar el debido proceso?", options: [ { id: "o1", text: "Imponer una sanción ejemplarizante de manera expedita." }, { id: "o2", text: "Establecer un espacio dialógico para reducir la asimetría de conocimiento legal y esclarecer los hechos." }, { id: "o3", text: "Cumplir un mero requisito formal exigido por el Ministerio de Trabajo." }, { id: "o4", text: "Intimidar al trabajador para forzar una renuncia voluntaria." } ], correctOption: "o2" },
-            { id: "q2", type: "sequence_sorter", category: "procedimiento", difficulty: 2, text: "Ordene lógicamente las etapas del Proceso Disciplinario Laboral garantista:", items: [ { id: "s1", text: "Citación formal y clara a descargos." }, { id: "s2", text: "Traslado y acceso a las pruebas del expediente." }, { id: "s3", text: "Audiencia de descargos (escucha activa y pedagógica)." }, { id: "s4", text: "Decisión motivada y proporcional." }, { id: "s5", text: "Notificación de la sanción y recursos de apelación." } ], correctSequence: ["s1", "s2", "s3", "s4", "s5"] },
-            { id: "q3", type: "cloze_text", category: "analisis_caso", difficulty: 3, text: "En un caso de presunta falta grave, la empresa debe garantizar que el trabajador conozca las {1} en su contra antes de la audiencia. Si la sanción implica despido, esta debe ser {2} a la falta cometida, respetando el principio de {3}.", blanks: [ { id: "b1", options: ["sospechas", "pruebas", "decisiones"], correct: "pruebas" }, { id: "b2", options: ["anterior", "proporcional", "indiferente"], correct: "proporcional" }, { id: "b3", options: ["inmediatez", "favorabilidad", "culpabilidad"], correct: "inmediatez" } ] },
-            { id: "q4", type: "image_hotspot", category: "analisis_documental", difficulty: 4, text: "Revise la simulación de Carta de Citación a Descargos. Haga clic en la sección que VULNERA el debido proceso por prejuzgamiento.", imageDoc: { header: "CARTA DE CITACIÓN A DESCARGOS", body: "Señor(a) Trabajador(a), se le cita a diligencia de descargos para mañana a las 8:00 AM.\n\nMotivo: Se le acusa de robo de inventario, por lo cual la empresa ya tomó la decisión de terminar su contrato, pero requerimos agotar el requisito de escucharlo.", footer: "Firma: RRHH" }, hotspots: [ { id: "h1", top: "20%", left: "10%", width: "80%", height: "20%", isCorrect: false }, { id: "h2", top: "50%", left: "10%", width: "80%", height: "30%", isCorrect: true } ] },
-            { id: "q5", type: "adaptive_radio", category: "analisis_jurisprudencial", difficulty: 4, text: "Un trabajador omite un protocolo de seguridad causando un daño menor. En la audiencia demuestra que la empresa nunca le brindó la capacitación específica. Desde el enfoque pedagógico, ¿qué acción procede?", options: [ { id: "o1", text: "Despido por justa causa basado en la presunción de mala fe." }, { id: "o2", text: "Sanción máxima pecuniaria para resarcir el daño." }, { id: "o3", text: "Abstención de sanción punitiva, ordenando una capacitación correctiva y un plan de mejora." }, { id: "o4", text: "Suspensión de 2 meses sin derecho a remuneración." } ], correctOption: "o3" },
-            { id: "q6", type: "cloze_text", category: "principios_derecho", difficulty: 5, text: "La Corte Constitucional ha reiterado que rige el principio de {1}, que prohíbe sancionar dos veces por el mismo hecho (Non bis in idem). Si hay dudas razonables sobre la culpabilidad, se debe aplicar el principio {2}.", blanks: [ { id: "b1", options: ["legalidad", "inmediatez", "tipicidad"], correct: "legalidad" }, { id: "b2", options: ["pacta sunt servanda", "in dubio pro operario", "solve et repete"], correct: "in dubio pro operario" } ] },
-            { id: "q7", type: "adaptive_radio", category: "principios_derecho", difficulty: 3, text: "¿A quién corresponde fundamentalmente la 'Carga de la Prueba' dentro de un proceso disciplinario laboral para demostrar la comisión de la falta?", options: [ { id: "o1", text: "Al trabajador, quien debe demostrar su inocencia a toda costa." }, { id: "o2", text: "Al Ministerio de Trabajo, quien debe enviar un inspector." }, { id: "o3", text: "Al empleador, quien acusa y tiene el deber de aportar los medios probatorios que demuestren la falta." }, { id: "o4", text: "A los compañeros de trabajo del acusado." } ], correctOption: "o3" },
-            { id: "q9", type: "sequence_sorter", category: "procedimiento", difficulty: 3, text: "Si un trabajador se niega a recibir o firmar la carta de citación a descargos, ¿cuál es el orden procesal correcto y garantista para actuar?", items: [ { id: "s1", text: "Intentar notificar de forma presencial explicando el contenido." }, { id: "s2", text: "Ante la negativa, llamar a dos testigos (preferiblemente compañeros)." }, { id: "s3", text: "Leer el documento frente a los testigos y el trabajador." }, { id: "s4", text: "Hacer que los testigos firmen como constancia de la negativa." } ], correctSequence: ["s1", "s2", "s3", "s4"] },
-            { id: "q10", type: "adaptive_radio", category: "analisis_jurisprudencial", difficulty: 4, text: "¿Qué ocurre jurídicamente si un trabajador, debidamente notificado, no asiste a la audiencia de descargos sin justificación válida?", options: [ { id: "o1", text: "Se considera automáticamente como una confesión de culpabilidad." }, { id: "o2", text: "El proceso se anula y la empresa pierde el derecho a sancionar." }, { id: "o3", text: "Se deja constancia de la inasistencia y el empleador toma la decisión basándose únicamente en las pruebas aportadas al expediente." }, { id: "o4", text: "Se debe solicitar autorización a un juez laboral para continuar." } ], correctOption: "o3" },
-            { id: "q11", type: "cloze_text", category: "principios_derecho", difficulty: 4, text: "Las sanciones disciplinarias no pueden consistir en penas corporales, ni en medidas lesivas de la {1} del trabajador. Según el Código Sustantivo del Trabajo, las suspensiones por primera vez no pueden exceder de {2} días.", blanks: [ { id: "b1", options: ["economía", "dignidad", "productividad"], correct: "dignidad" }, { id: "b2", options: ["ocho", "quince", "treinta"], correct: "ocho" } ] },
-            { id: "q12", type: "adaptive_radio", category: "teoria_descargo", difficulty: 2, text: "Durante la audiencia de descargos, el trabajador solicita estar acompañado por dos miembros del sindicato o dos compañeros. ¿Es esto legalmente viable?", options: [ { id: "o1", text: "No, las audiencias son estrictamente confidenciales y privadas entre RRHH y el implicado." }, { id: "o2", text: "Solo si el trabajador paga por un abogado titulado." }, { id: "o3", text: "Sí, es un derecho fundamental a la defensa garantizado jurisprudencial y convencionalmente." }, { id: "o4", text: "Sí, pero los acompañantes no pueden escuchar lo que se dice, solo observar." } ], correctOption: "o3" },
-            { id: "q13", type: "adaptive_radio", category: "analisis_caso", difficulty: 5, text: "La empresa descubre una falta grave mediante la instalación de una cámara oculta en los casilleros de los trabajadores (sin su consentimiento ni aviso previo). Esta prueba es:", options: [ { id: "o1", text: "Totalmente válida porque el fin justifica los medios en materia laboral." }, { id: "o2", text: "Ilícita, nula de pleno derecho por vulnerar el derecho a la intimidad, viciando el proceso." }, { id: "o3", text: "Válida solo si el robo supera los 10 salarios mínimos." }, { id: "o4", text: "Parcialmente válida, sirve para despedir pero no para denunciar penalmente." } ], correctOption: "o2" },
-            { id: "q14", type: "cloze_text", category: "procedimiento", difficulty: 4, text: "El {1} de la diligencia de descargos no debe ser un interrogatorio policial. Al finalizar, el documento escrito debe ser {2} íntegramente por el trabajador, quien puede solicitar {3} antes de firmarlo.", blanks: [ { id: "b1", options: ["acta", "ambiente", "castigo"], correct: "ambiente" }, { id: "b2", options: ["ignorado", "leído", "destruido"], correct: "leído" }, { id: "b3", options: ["correcciones", "dinero", "permisos"], correct: "correcciones" } ] },
-            { id: "q15", type: "adaptive_radio", category: "analisis_jurisprudencial", difficulty: 4, text: "Si un empleador vulnera flagrantemente el debido proceso laboral (ej. despidiendo sin escuchar a un trabajador aforado), ¿cuál es la vía legal constitucional más expedita para proteger los derechos?", options: [ { id: "o1", text: "Una demanda civil ordinaria por daños y perjuicios." }, { id: "o2", text: "Una carta de queja anónima en el buzón de la empresa." }, { id: "o3", text: "La Acción de Tutela, por vulneración al mínimo vital, debido proceso y derecho a la defensa." }, { id: "o4", text: "Declararse en huelga individual." } ], correctOption: "o3" },
-            { id: "q16", type: "adaptive_radio", category: "teoria_descargo", difficulty: 3, text: "¿Cuál es la diferencia primordial entre una falta leve y una falta grave según la jurisprudencia laboral?", options: [ { id: "o1", text: "La falta leve se castiga con cárcel; la grave con despido." }, { id: "o2", text: "La calificación taxativa en el Reglamento Interno, el contrato o la ley, y el nivel de afectación al bien jurídico tutelado de la empresa." }, { id: "o3", text: "La falta leve la cometen los operarios; la grave los gerentes." }, { id: "o4", text: "No hay diferencia, cualquier error justifica un despido inmediato." } ], correctOption: "o2" }
+            { id: "q1", type: "adaptive_radio", category: "teoria_descargo", difficulty: 1, text: "Según la Pedagogía del Descargo, ¿cuál es el propósito principal de la citación a descargos además de garantizar el debido proceso?", options: [ { id: "o1", text: "Imponer una sanción ejemplarizante de manera expedita." }, { id: "o2", text: "Establecer un espacio dialógico para reducir la asimetría de conocimiento legal y esclarecer los hechos." }, { id: "o3", text: "Cumplir un mero requisito formal exigido por el Ministerio de Trabajo." }, { id: "o4", text: "Intimidar al trabajador para forzar una renuncia voluntaria." } ], correctOption: "o2", feedback: "La Pedagogía del Descargo busca transformar un trámite puramente punitivo en un espacio dialógico que educa y nivela la asimetría de poder." },
+            { id: "q2", type: "sequence_sorter", category: "procedimiento", difficulty: 2, text: "Ordene lógicamente las etapas del Proceso Disciplinario Laboral garantista:", items: [ { id: "s1", text: "Citación formal y clara a descargos." }, { id: "s2", text: "Traslado y acceso a las pruebas del expediente." }, { id: "s3", text: "Audiencia de descargos (escucha activa y pedagógica)." }, { id: "s4", text: "Decisión motivada y proporcional." }, { id: "s5", text: "Notificación de la sanción y recursos de apelación." } ], correctSequence: ["s1", "s2", "s3", "s4", "s5"], feedback: "Este orden garantiza el derecho a la defensa material antes de tomar cualquier decisión sancionatoria." },
+            { id: "q3", type: "cloze_text", category: "analisis_caso", difficulty: 3, text: "En un caso de presunta falta grave, la empresa debe garantizar que el trabajador conozca las {1} en su contra antes de la audiencia. Si la sanción implica despido, esta debe ser {2} a la falta cometida, respetando el principio de {3}.", blanks: [ { id: "b1", options: ["sospechas", "pruebas", "decisiones"], correct: "pruebas" }, { id: "b2", options: ["anterior", "proporcional", "indiferente"], correct: "proporcional" }, { id: "b3", options: ["inmediatez", "favorabilidad", "culpabilidad"], correct: "inmediatez" } ], feedback: "Ocultar pruebas anula el proceso. Toda sanción debe ser proporcional a la falta y aplicarse de forma inmediata tras conocerse los hechos." },
+            { id: "q4", type: "image_hotspot", category: "analisis_documental", difficulty: 4, text: "Revise la simulación de Carta de Citación a Descargos. Haga clic en la sección que VULNERA el debido proceso por prejuzgamiento.", imageDoc: { header: "CARTA DE CITACIÓN A DESCARGOS", body: "Señor(a) Trabajador(a), se le cita a diligencia de descargos para mañana a las 8:00 AM.\n\nMotivo: Se le acusa de robo de inventario, por lo cual la empresa ya tomó la decisión de terminar su contrato, pero requerimos agotar el requisito de escucharlo.", footer: "Firma: RRHH" }, hotspots: [ { id: "h1", top: "20%", left: "10%", width: "80%", height: "20%", isCorrect: false }, { id: "h2", top: "50%", left: "10%", width: "80%", height: "30%", isCorrect: true } ], feedback: "Afirmar en la citación que 'ya se tomó la decisión' evidencia prejuzgamiento, anulando completamente el derecho a la defensa del trabajador." },
+            { id: "q5", type: "adaptive_radio", category: "analisis_jurisprudencial", difficulty: 4, text: "Un trabajador omite un protocolo de seguridad causando un daño menor. En la audiencia demuestra que la empresa nunca le brindó la capacitación específica. Desde el enfoque pedagógico, ¿qué acción procede?", options: [ { id: "o1", text: "Despido por justa causa basado en la presunción de mala fe." }, { id: "o2", text: "Sanción máxima pecuniaria para resarcir el daño." }, { id: "o3", text: "Abstención de sanción punitiva, ordenando una capacitación correctiva y un plan de mejora." }, { id: "o4", text: "Suspensión de 2 meses sin derecho a remuneración." } ], correctOption: "o3", feedback: "Si la falla nace de una omisión organizativa (falta de capacitación), la respuesta debe ser formativa, no punitiva." },
+            { id: "q6", type: "adaptive_radio", category: "principios_derecho", difficulty: 3, text: "Verdadero o Falso: La Corte Constitucional ha reiterado que rige el principio de 'Non bis in idem' (prohíbe sancionar dos veces por el mismo hecho), y el principio 'in dubio pro operario' (si hay dudas razonables sobre la culpabilidad, se favorece al trabajador).", options: [ { id: "o1", text: "Verdadero" }, { id: "o2", text: "Falso" } ], correctOption: "o1", feedback: "Verdadero. Estos principios son pilares constitucionales intocables dentro del derecho laboral disciplinario." },
+            { id: "q7", type: "adaptive_radio", category: "principios_derecho", difficulty: 3, text: "¿A quién corresponde fundamentalmente la 'Carga de la Prueba' dentro de un proceso disciplinario laboral para demostrar la comisión de la falta?", options: [ { id: "o1", text: "Al trabajador, quien debe demostrar su inocencia a toda costa." }, { id: "o2", text: "Al Ministerio de Trabajo, quien debe enviar un inspector." }, { id: "o3", text: "Al empleador, quien acusa y tiene el deber de aportar los medios probatorios que demuestren la falta." }, { id: "o4", text: "A los compañeros de trabajo del acusado." } ], correctOption: "o3", feedback: "El empleador ejerce el poder disciplinario, por tanto, tiene la carga absoluta de probar la falta cometida." },
+            { id: "q9", type: "sequence_sorter", category: "procedimiento", difficulty: 3, text: "Si un trabajador se niega a recibir o firmar la carta de citación a descargos, ¿cuál es el orden procesal correcto y garantista para actuar?", items: [ { id: "s1", text: "Intentar notificar de forma presencial explicando el contenido." }, { id: "s2", text: "Ante la negativa, llamar a dos testigos (preferiblemente compañeros)." }, { id: "s3", text: "Leer el documento frente a los testigos y el trabajador." }, { id: "s4", text: "Hacer que los testigos firmen como constancia de la negativa." } ], correctSequence: ["s1", "s2", "s3", "s4"], feedback: "Los testigos validan que se intentó notificar el acto. No se puede obligar al trabajador a firmar bajo coacción." },
+            { id: "q10", type: "adaptive_radio", category: "analisis_jurisprudencial", difficulty: 4, text: "Verdadero o Falso: Si un trabajador, debidamente notificado, no asiste a la audiencia de descargos sin justificación válida, se considera automáticamente como una confesión absoluta de culpabilidad.", options: [ { id: "o1", text: "Verdadero" }, { id: "o2", text: "Falso" } ], correctOption: "o2", feedback: "Falso. La inasistencia no es confesión automática. El empleador debe tomar la decisión basándose únicamente en las pruebas objetivas del expediente." },
+            { id: "q11", type: "cloze_text", category: "principios_derecho", difficulty: 4, text: "Las sanciones disciplinarias no pueden consistir en penas corporales, ni en medidas lesivas de la {1} del trabajador. Según el Código Sustantivo del Trabajo, las suspensiones por primera vez no pueden exceder de {2} días.", blanks: [ { id: "b1", options: ["economía", "dignidad", "productividad"], correct: "dignidad" }, { id: "b2", options: ["ocho", "quince", "treinta"], correct: "ocho" } ], feedback: "La dignidad humana es intocable y la ley establece límites claros para las suspensiones disciplinarias." },
+            { id: "q12", type: "adaptive_radio", category: "teoria_descargo", difficulty: 2, text: "Durante la audiencia de descargos, el trabajador solicita estar acompañado por dos miembros del sindicato o dos compañeros. ¿Es esto legalmente viable?", options: [ { id: "o1", text: "No, las audiencias son estrictamente confidenciales y privadas entre RRHH y el implicado." }, { id: "o2", text: "Solo si el trabajador paga por un abogado titulado." }, { id: "o3", text: "Sí, es un derecho fundamental a la defensa garantizado jurisprudencial y convencionalmente." }, { id: "o4", text: "Sí, pero los acompañantes no pueden escuchar lo que se dice, solo observar." } ], correctOption: "o3", feedback: "El acompañamiento sindical o de compañeros es un derecho fundamental que equilibra la asimetría de poder durante la audiencia." },
+            { id: "q13", type: "adaptive_radio", category: "analisis_caso", difficulty: 5, text: "La empresa descubre una falta grave mediante la instalación de una cámara oculta en los casilleros de los trabajadores (sin su consentimiento ni aviso previo). Esta prueba es:", options: [ { id: "o1", text: "Totalmente válida porque el fin justifica los medios en materia laboral." }, { id: "o2", text: "Ilícita, nula de pleno derecho por vulnerar el derecho a la intimidad, viciando el proceso." }, { id: "o3", text: "Válida solo si el robo supera los 10 salarios mínimos." }, { id: "o4", text: "Parcialmente válida, sirve para despedir pero no para denunciar penalmente." } ], correctOption: "o2", feedback: "Toda prueba obtenida con violación a derechos fundamentales (intimidad) es ilícita y nula de pleno derecho." },
+            { id: "q14", type: "cloze_text", category: "procedimiento", difficulty: 4, text: "El {1} de la diligencia de descargos no debe ser un interrogatorio policial. Al finalizar, el documento escrito debe ser {2} íntegramente por el trabajador, quien puede solicitar {3} antes de firmarlo.", blanks: [ { id: "b1", options: ["acta", "ambiente", "castigo"], correct: "ambiente" }, { id: "b2", options: ["ignorado", "leído", "destruido"], correct: "leído" }, { id: "b3", options: ["correcciones", "dinero", "permisos"], correct: "correcciones" } ], feedback: "El acta debe reflejar fielmente lo dicho. El trabajador tiene el derecho absoluto a leer y corregir antes de estampar su firma." },
+            { id: "q15", type: "adaptive_radio", category: "analisis_jurisprudencial", difficulty: 4, text: "Si un empleador vulnera flagrantemente el debido proceso laboral (ej. despidiendo sin escuchar a un trabajador aforado), ¿cuál es la vía legal constitucional más expedita para proteger los derechos?", options: [ { id: "o1", text: "Una demanda civil ordinaria por daños y perjuicios." }, { id: "o2", text: "Una carta de queja anónima en el buzón de la empresa." }, { id: "o3", text: "La Acción de Tutela, por vulneración al mínimo vital, debido proceso y derecho a la defensa." }, { id: "o4", text: "Declararse en huelga individual." } ], correctOption: "o3", feedback: "La Acción de Tutela procede como mecanismo transitorio o definitivo cuando se vulneran derechos fundamentales evidentes." },
+            { id: "q16", type: "adaptive_radio", category: "teoria_descargo", difficulty: 3, text: "¿Cuál es la diferencia primordial entre una falta leve y una falta grave según la jurisprudencia laboral?", options: [ { id: "o1", text: "La falta leve se castiga con cárcel; la grave con despido." }, { id: "o2", text: "La calificación taxativa en el Reglamento Interno, el contrato o la ley, y el nivel de afectación al bien jurídico tutelado de la empresa." }, { id: "o3", text: "La falta leve la cometen los operarios; la grave los gerentes." }, { id: "o4", text: "No hay diferencia, cualquier error justifica un despido inmediato." } ], correctOption: "o2", feedback: "Las faltas graves deben estar estipuladas expresamente (taxatividad) y evaluarse según el grado de daño causado a la organización." }
         ];
 
         // --- COMPONENTES UI COMPACTOS Y ELEGANTES ---
@@ -218,7 +207,7 @@
             </footer>
         );
 
-        // --- NAVIGATION COMPONENTS (NOVEDAD APP-LIKE) ---
+        // --- NAVIGATION COMPONENTS ---
         const DesktopSidebar = () => {
             const { view, setView, user } = useContext(AppContext);
             const navItems = [
@@ -368,7 +357,11 @@
                 experiencia: user?.experiencia || '', 
                 sector: user?.sector || '', 
                 universidad_empresa: user?.universidad_empresa || '', 
-                biografia: user?.biografia || '' 
+                biografia: user?.biografia || '',
+                // NUEVAS PREGUNTAS PRE-SABER (CARACTERIZACIÓN)
+                presaber_1: user?.presaber_1 || '',
+                presaber_2: user?.presaber_2 || '',
+                presaber_3: user?.presaber_3 || ''
             });
             const [saving, setSaving] = useState(false);
 
@@ -393,8 +386,8 @@
                             <div className="flex items-center gap-4">
                                 <Users size={32} className="text-gold-600" />
                                 <div>
-                                    <h2 className="text-2xl font-serif font-bold text-slate-800">{isEditing ? 'Editar Perfil' : 'Caracterización del Investigador'}</h2>
-                                    <p className="text-slate-500 text-sm">Tus datos sociodemográficos darán contexto a los resultados de la investigación.</p>
+                                    <h2 className="text-2xl font-serif font-bold text-slate-800">{isEditing ? 'Editar Perfil y Pre-saberes' : 'Caracterización del Investigador'}</h2>
+                                    <p className="text-slate-500 text-sm">Tus datos sociodemográficos y pre-saberes darán contexto vital a la investigación.</p>
                                 </div>
                             </div>
                         </div>
@@ -406,6 +399,14 @@
                             <FormField label="Años de Experiencia en el Sector" type="number" value={formData.experiencia} onChange={e=>setFormData({...formData, experiencia: e.target.value})} required />
                             <FormField label="Género" as="select" value={formData.genero} onChange={e=>setFormData({...formData, genero: e.target.value})} required options={[{value:'f',label:'Femenino'},{value:'m',label:'Masculino'},{value:'o',label:'Otro / Prefiero no decir'}]} />
                             <FormField label="Organización / Institución Educativa" value={formData.universidad_empresa} onChange={e=>setFormData({...formData, universidad_empresa: e.target.value})} />
+                            
+                            <div className="md:col-span-2 mt-6 pt-6 border-t border-slate-200">
+                                <h3 className="font-bold text-law-900 mb-4 flex items-center gap-2"><BrainCircuit size={20}/> Encuesta de Pre-saberes</h3>
+                                <FormField label="1. ¿Has estado alguna vez en un proceso disciplinario, actuando como empleador o trabajador?" as="select" value={formData.presaber_1} onChange={e=>setFormData({...formData, presaber_1: e.target.value})} required options={[{value:'si_empleador',label:'Sí, como empleador'},{value:'si_trabajador',label:'Sí, como trabajador'},{value:'no',label:'No, nunca'}]} />
+                                <FormField label="2. ¿Has escuchado hablar sobre el proceso disciplinario, sintiendo que es algo malo y te pueden despedir?" as="select" value={formData.presaber_2} onChange={e=>setFormData({...formData, presaber_2: e.target.value})} required options={[{value:'si',label:'Sí, genera temor o incertidumbre'},{value:'no',label:'No, lo considero un proceso justo'}]} />
+                                <FormField label="3. ¿Conoces qué es el reglamento interno de trabajo y te lo has leído?" as="select" value={formData.presaber_3} onChange={e=>setFormData({...formData, presaber_3: e.target.value})} required options={[{value:'si_leido',label:'Sí, lo conozco y lo he leído'},{value:'si_no_leido',label:'Sí lo conozco, pero no lo he leído'},{value:'no',label:'No lo conozco'}]} />
+                            </div>
+
                             <div className="md:col-span-2 mt-6 border-t border-slate-200 pt-6 flex gap-4">
                                 {isEditing && <Button type="button" variant="outline" onClick={() => setView('intro')} className="w-full">Cancelar</Button>}
                                 <Button type="submit" variant="primary" className="w-full" disabled={saving}>{saving ? "Guardando..." : (isEditing ? "Actualizar Perfil" : "Aceptar y Comenzar")}</Button>
@@ -418,7 +419,6 @@
 
         const InteractiveProcessMap = ({ onProgressUpdate }) => {
             const [activeNode, setActiveNode] = useState(null);
-            const [visitedNodes, setVisitedNodes] = useState(new Set());
 
             const nodes = [
                 { 
@@ -473,12 +473,7 @@
 
             const handleNodeClick = (node) => {
                 setActiveNode(node);
-                setVisitedNodes(prev => {
-                    const newSet = new Set(prev);
-                    newSet.add(node.id);
-                    if (onProgressUpdate) onProgressUpdate(newSet.size, nodes.length);
-                    return newSet;
-                });
+                if (onProgressUpdate) onProgressUpdate(node.id, nodes.length);
             };
 
             return (
@@ -582,20 +577,46 @@
         };
 
         const TheoryView = () => {
-            const { setView, setTheoryStats } = useContext(AppContext); 
-            const [visitedCount, setVisitedCount] = useState(0);
+            const { user, setView, setTheoryStats } = useContext(AppContext); 
+            
+            // PERSISTENCIA DEL EXPLORADOR TEÓRICO EN LOCALSTORAGE
+            const loadVisited = () => {
+                const saved = localStorage.getItem(`luna_theory_${user?.uid}`);
+                return saved ? new Set(JSON.parse(saved)) : new Set();
+            };
+            const loadTime = () => {
+                const saved = localStorage.getItem(`luna_time_${user?.uid}`);
+                return saved ? parseInt(saved) : 0;
+            };
+
+            const [visitedNodes, setVisitedNodes] = useState(loadVisited);
             const [totalNodesCount, setTotalNodesCount] = useState(6);
-            const [timeSeconds, setTimeSeconds] = useState(0);
+            const [timeSeconds, setTimeSeconds] = useState(loadTime);
 
             useEffect(() => {
-                const interval = setInterval(() => setTimeSeconds(s => s + 1), 1000);
+                const interval = setInterval(() => {
+                    setTimeSeconds(s => {
+                        const newTime = s + 1;
+                        localStorage.setItem(`luna_time_${user?.uid}`, newTime);
+                        return newTime;
+                    });
+                }, 1000);
                 return () => clearInterval(interval);
-            }, []);
+            }, [user?.uid]);
 
-            const progressPerc = Math.round((visitedCount / totalNodesCount) * 100) || 0;
+            const progressPerc = Math.round((visitedNodes.size / totalNodesCount) * 100) || 0;
+
+            const handleProgressUpdate = (nodeId, total) => {
+                setTotalNodesCount(total);
+                setVisitedNodes(prev => {
+                    const newSet = new Set(prev).add(nodeId);
+                    localStorage.setItem(`luna_theory_${user?.uid}`, JSON.stringify([...newSet]));
+                    return newSet;
+                });
+            };
 
             const handleFinish = () => {
-                setTheoryStats({ timeSeconds, nodesExplored: visitedCount });
+                setTheoryStats({ timeSeconds, nodesExplored: visitedNodes.size });
                 setView('evaluation');
             };
             
@@ -613,7 +634,7 @@
                                 <div className="w-full bg-slate-100 rounded-full h-3 shadow-inner">
                                     <div className="bg-gradient-to-r from-law-400 to-law-600 h-3 rounded-full transition-all duration-700 ease-out" style={{ width: `${progressPerc}%` }}></div>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-2">Nodos analizados: {visitedCount} de {totalNodesCount}</p>
+                                <p className="text-xs text-slate-500 mt-2">Nodos analizados: {visitedNodes.size} de {totalNodesCount}</p>
                             </div>
                             <div className="md:border-l md:border-slate-200 md:pl-8 flex items-center gap-3">
                                 <div className="bg-slate-100 p-3 rounded-full text-slate-500"><Clock size={20}/></div>
@@ -631,7 +652,7 @@
                                     Explora el mapa interactivo del proceso disciplinario. Haz clic en el ícono <strong className="bg-law-100 text-law-800 px-2 rounded-md font-black">+</strong> de cada etapa procesal para desplegar cuestionamientos clave, ejemplos prácticos y descubrir la diferencia entre un trámite punitivo y una verdadera experiencia educativa.
                                 </p>
                                 
-                                <InteractiveProcessMap onProgressUpdate={(visited, total) => { setVisitedCount(visited); setTotalNodesCount(total); }} />
+                                <InteractiveProcessMap onProgressUpdate={handleProgressUpdate} />
                             </div>
                         </div>
 
@@ -649,7 +670,7 @@
             const { user, setView, setEvaluationData, theoryStats } = useContext(AppContext);
             
             const loadSaved = (key, defaultVal) => {
-                const saved = localStorage.getItem(`luna_${key}_${user.uid}`);
+                const saved = localStorage.getItem(`luna_${key}_${user?.uid}`);
                 return saved ? JSON.parse(saved) : defaultVal;
             };
 
@@ -694,7 +715,9 @@
                     
                     if(isC) correct++; 
                     score+=pts; 
-                    details.push({qId: quest.id, isC, pts, cat: quest.category});
+                    
+                    // SE AGREGA LA PREGUNTA Y EL FEEDBACK A LOS DETALLES PARA RENDERIZARLOS EN RESULTADOS
+                    details.push({qId: quest.id, qText: quest.text, isC, pts, cat: quest.category, feedback: quest.feedback || "Revisar marco teórico para más detalles."});
 
                     if(categoryScores[quest.category]) {
                         categoryScores[quest.category].s += pts;
@@ -890,6 +913,30 @@
                             </div>
                         </GlassCard>
                     </div>
+
+                    {/* NUEVO: RETROALIMENTACIÓN DETALLADA */}
+                    <GlassCard className="w-full max-w-5xl bg-white shadow-xl mb-12">
+                        <h3 className="text-xl font-serif font-bold mb-6 flex items-center gap-3 border-b border-slate-100 pb-4 text-slate-800">
+                            <BrainCircuit className="text-law-600"/> Análisis de Respuestas y Retroalimentación
+                        </h3>
+                        <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                            {data.details && data.details.map((detail, idx) => (
+                                <div key={idx} className={`p-4 rounded-xl border ${detail.isC ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                    <div className="flex gap-3">
+                                        <div className="mt-1">
+                                            {detail.isC ? <CheckCircle className="text-green-600" size={20}/> : <XCircle className="text-red-500" size={20}/>}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-800 mb-1">{detail.qText}</p>
+                                            <p className={`text-xs mt-2 p-2 rounded-lg ${detail.isC ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                <strong>Retroalimentación: </strong> {detail.feedback}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </GlassCard>
 
                     <GlassCard className="w-full max-w-3xl bg-white shadow-xl">
                         <h3 className="text-xl font-serif font-bold mb-6 flex items-center gap-3 border-b border-slate-100 pb-4 text-slate-800">
@@ -1246,15 +1293,44 @@
                                 {view==='profile'&&<ProfileView/>}
                                 {view==='intro'&&
                                     <div className="min-h-full bg-slate-50 flex flex-col items-center justify-center text-center p-4 py-12">
-                                        <div className="w-full max-w-4xl mb-6"><Header title="Bienvenido/a al Estudio Diagnóstico" /></div>
-                                        <div className="max-w-3xl mx-auto bg-white p-6 md:p-10 rounded-3xl shadow-2xl border-t-8 border-t-law-800 w-full">
-                                            <Scale size={72} className="text-law-800 mb-6 mx-auto drop-shadow-md"/>
-                                            <h1 className="text-4xl md:text-5xl font-serif font-black mb-6 text-slate-800 break-words">Hola, {user?.nombre || user?.displayName || 'Investigador'}</h1>
-                                            <p className="text-base md:text-lg text-slate-600 leading-relaxed mb-10 font-medium px-2">
-                                                A continuación iniciarás un recorrido inmersivo sobre la <strong>Pedagogía del Descargo</strong> aplicada al derecho laboral colombiano. Agradecemos tu rigor y honestidad en las respuestas.
-                                            </p>
-                                            <Button variant="primary" onClick={()=>setView('theory')} className="text-lg md:text-xl px-10 py-4 mx-auto w-full md:w-auto shadow-xl">
-                                                Iniciar Trayecto Académico <ChevronRight size={24} className="ml-2"/>
+                                        <div className="w-full max-w-5xl mb-6"><Header title="Bienvenido/a al Estudio Diagnóstico" /></div>
+                                        <div className="max-w-4xl mx-auto bg-white p-6 md:p-10 rounded-3xl shadow-2xl border-t-8 border-t-law-800 w-full text-left">
+                                            <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8 border-b border-slate-200 pb-8 text-center md:text-left">
+                                                <div className="bg-law-50 p-6 rounded-full shrink-0 border border-law-100">
+                                                    <Scale size={56} className="text-law-800"/>
+                                                </div>
+                                                <div>
+                                                    <h1 className="text-3xl md:text-4xl font-serif font-black text-slate-800 mb-2">Hola, soy María José Luna Ditta</h1>
+                                                    <p className="text-lg md:text-xl text-law-700 font-bold mb-4">Abogada Especialista en Derecho Laboral</p>
+                                                    <p className="text-slate-600 leading-relaxed font-medium">
+                                                        Te doy la bienvenida a esta plataforma de investigación académica sobre la <strong>Pedagogía del Descargo</strong> aplicada al derecho laboral colombiano.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                                    <h3 className="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2"><BookOpen className="text-law-600"/> Manual de Uso</h3>
+                                                    <ul className="space-y-4 text-sm text-slate-700 font-medium">
+                                                        <li className="flex gap-3"><div className="bg-law-600 text-white w-6 h-6 rounded-full flex items-center justify-center shrink-0">1</div> Explora el mapa teórico interactivo para entender el flujo garantista.</li>
+                                                        <li className="flex gap-3"><div className="bg-law-600 text-white w-6 h-6 rounded-full flex items-center justify-center shrink-0">2</div> Resuelve los casos prácticos (Cuestionario) basándote en la teoría.</li>
+                                                        <li className="flex gap-3"><div className="bg-law-600 text-white w-6 h-6 rounded-full flex items-center justify-center shrink-0">3</div> Obtén tu diagnóstico de competencias y la retroalimentación.</li>
+                                                    </ul>
+                                                </div>
+                                                
+                                                <div className="bg-law-50/50 p-6 rounded-2xl border border-law-100">
+                                                    <h3 className="font-bold text-law-900 text-lg mb-4 flex items-center gap-2"><Shield className="text-law-600"/> Aviso de Privacidad</h3>
+                                                    <p className="text-sm text-slate-600 leading-relaxed mb-3">
+                                                        De conformidad con la Ley 1581 de 2012 (Protección de Datos Personales en Colombia), te informo que los datos recolectados aquí tienen un <strong>uso estrictamente académico e investigativo</strong>.
+                                                    </p>
+                                                    <p className="text-sm text-slate-600 leading-relaxed">
+                                                        La autenticación por correo se utiliza exclusivamente para evitar el ingreso de *bots* o software malicioso. <strong>Tus respuestas en los casos son confidenciales y se procesan de forma anónima para las estadísticas generales.</strong>
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <Button variant="primary" onClick={()=>setView('theory')} className="text-lg md:text-xl px-10 py-4 mx-auto w-full md:w-auto shadow-xl flex justify-center">
+                                                Comenzar la Investigación <ChevronRight size={24} className="ml-2"/>
                                             </Button>
                                         </div>
                                     </div>
