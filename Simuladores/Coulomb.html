@@ -118,6 +118,7 @@
         <div class="room-badge">
             <span id="room-info">Sala: Ninguna</span>
             <button class="glass-btn" style="padding: 4px 10px; font-size:0.75rem;" onclick="abrirModalSala()">Gestión</button>
+            <button id="btn-share-room" class="glass-btn btn-success" style="display: none; padding: 4px 10px; font-size:0.75rem;" onclick="copiarInfoSala()" title="Copiar enlace">Compartir</button>
         </div>
         <button class="glass-btn" style="background: rgba(26, 115, 232, 0.1); color: var(--pastel-blue);" onclick="toggleRight()">
             <svg class="svg-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg> Resultados
@@ -125,7 +126,7 @@
     </div>
 </header>
 
-<!-- Menú Ribbon Superior Estilo Profesional -->
+<!-- Menú Horizontal (Ribbon) Estilo Paint/Word -->
 <nav class="ribbon glass">
     <!-- Grupo 1: Herramientas Principales -->
     <div class="ribbon-group" style="padding-bottom: 12px;">
@@ -231,6 +232,22 @@
             <div id="dcl-buttons" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
             <div class="latex-box" id="latex-result">$$\text{---}$$</div>
         </div>
+
+        <!-- Chat de Sala Restaurado -->
+        <div id="chat-section" style="display: none;">
+            <div class="section-title" style="margin-top: 5px;">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z"/></svg> Chat de Estudio
+            </div>
+            <div id="chat-box" style="background: rgba(128,128,128,0.05); height: 200px; overflow-y: auto; padding: 12px; border-radius: 12px; border-left: 3px solid var(--pastel-blue); margin-bottom: 12px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--glass-border);">
+                <i style="color: var(--text-muted);">Únete a un cuarto para chatear...</i>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="chat-input" class="glass-input" placeholder="Escribe un mensaje..." style="flex: 1; font-size: 0.85rem;" onkeypress="if(event.key === 'Enter') enviarMensajeChat()">
+                <button class="glass-btn" style="padding: 10px 16px; font-size: 0.85rem; background:rgba(26, 115, 232, 0.1); color: var(--pastel-blue);" onclick="enviarMensajeChat()">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -328,9 +345,17 @@
         <span class="modal-action-btn" style="position:absolute; right:20px; top:20px;" onclick="cerrarModalCalificacion()"><svg class="svg-icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
         <h3 style="margin-top:0; color: var(--pastel-yellow);">Califica tu Experiencia</h3>
         <p style="font-size:0.85rem; margin-top:10px;">Del 1 al 5, ¿qué opinas de la app?</p>
-        <input type="number" id="rating-val" class="glass-input" min="1" max="5" value="5" style="width:100%; margin: 10px 0;">
-        <textarea id="feedback-text" class="glass-input" style="width: 100%; height: 80px;" placeholder="Comentarios..."></textarea>
-        <button class="glass-btn" style="width:100%; margin-top:10px;" onclick="enviarCalificacion()">Enviar Comentarios</button>
+        
+        <div style="display:flex; justify-content:center; gap:10px; margin: 15px 0;">
+             <label><input type="radio" name="usabilidad" value="1"> 1</label>
+             <label><input type="radio" name="usabilidad" value="2"> 2</label>
+             <label><input type="radio" name="usabilidad" value="3"> 3</label>
+             <label><input type="radio" name="usabilidad" value="4"> 4</label>
+             <label><input type="radio" name="usabilidad" value="5" checked> 5</label>
+        </div>
+        
+        <textarea id="feedback-text" class="glass-input" style="width: 100%; height: 80px;" placeholder="Comentarios y sugerencias..."></textarea>
+        <button class="glass-btn" style="width:100%; margin-top:10px; background:rgba(26,115,232,0.2);" onclick="enviarCalificacion()">Enviar Comentarios</button>
     </div>
 </div>
 
@@ -351,6 +376,35 @@
 
     let rightOpen = true;
     function toggleRight() { rightOpen = !rightOpen; document.getElementById('panel-right').classList.toggle('hidden', !rightOpen); }
+
+    /* Modales Globales UI (Que no dependen de Firebase internamente para abrirse) */
+    window.abrirModalCalificacion = function() { document.getElementById('feedback-modal').style.display = 'flex'; };
+    window.cerrarModalCalificacion = function() { document.getElementById('feedback-modal').style.display = 'none'; };
+    
+    window.enviarCalificacion = function() {
+        const p1 = document.querySelector('input[name="usabilidad"]:checked');
+        const text = document.getElementById('feedback-text').value.trim();
+
+        if(!p1) return window.customAlert("Por favor, califica usando los números antes de enviar.", "Faltan datos");
+        
+        const feedbackData = {
+            calificacion_general: p1.value,
+            comentarios: text,
+            fecha: Date.now(),
+            usuario: window.firebaseAuth && window.firebaseAuth.currentUser ? window.firebaseAuth.currentUser.email : "Anónimo"
+        };
+
+        if(window.firebaseDb) {
+            import('https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js').then((module) => {
+                const dbRef = module.ref(window.firebaseDb, 'feedback');
+                module.push(dbRef, feedbackData).then(() => {
+                    window.cerrarModalCalificacion();
+                    window.customAlert("¡Gracias por ayudarnos a mejorar el Laboratorio de Coulomb!", "Comentarios Enviados");
+                    document.getElementById('feedback-text').value = '';
+                });
+            });
+        }
+    };
 
     /* LÓGICA CANVAS BASE */
     const canvas = document.getElementById('main-canvas'), ctx = canvas.getContext('2d'), wrapper = document.getElementById('canvas-wrapper');
@@ -427,7 +481,7 @@
     }
 
     function handleEnd(e) {
-        if(state.isDraggingOrigin) { state.isDraggingOrigin=false; return; }
+        if(state.isDraggingOrigin) { state.isDraggingOrigin=false; requestSync(true); return; }
         if(state.selectionBox) {
             const b=state.selectionBox;
             state.selectedObjects = state.objects.filter(o=>{
@@ -438,7 +492,7 @@
             });
             state.selectionBox=null; updateFloatDelete(); updateUI(); redraw(); return;
         }
-        if(state.isDragging) { state.isDragging=false; updateUI(); analizarFisica(); return; }
+        if(state.isDragging) { state.isDragging=false; updateUI(); analizarFisica(); requestSync(true); return; }
         if(state.currentShape) {
             if(state.currentShape.type==='free' && state.currentShape.points.length>2) state.objects.push(state.currentShape);
             else if(['line','rect','circle'].includes(state.currentShape.type) && Math.hypot(state.currentShape.end.x-state.currentShape.start.x, state.currentShape.end.y-state.currentShape.start.y)>5) state.objects.push(state.currentShape);
@@ -554,7 +608,7 @@
     function drawArrow(x1,y1,x2,y2) { const h=15, a=Math.atan2(y2-y1, x2-x1); ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6)); ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6)); ctx.fill(); }
     function addLabel(x,y,t) { const d=document.createElement('div'); d.className='canvas-label'; d.style.left=x+'px'; d.style.top=y+'px'; katex.render(t, d, {throwOnError:false}); labelsOverlay.appendChild(d); }
     
-    /* RECONOCIMIENTO FÍSICO BÁSICO (Simplificado para espacio) */
+    /* RECONOCIMIENTO FÍSICO BÁSICO */
     function detectAndConvert() {
         if(state.rawStrokes.length===0) return;
         const b = state.rawStrokes[0]; const minX=Math.min(...b.map(p=>p.x)), maxX=Math.max(...b.map(p=>p.x)), minY=Math.min(...b.map(p=>p.y)), maxY=Math.max(...b.map(p=>p.y));
@@ -650,6 +704,233 @@
             cx.font="bold 16px Arial"; cx.fillText("FR", Rx2+12, Ry2+5);
         }
     }
+</script>
+
+<!-- FIREBASE Y LÓGICA DE AUTENTICACIÓN (RESTAURADA) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, push, update, increment, remove } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+    authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+    databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+    projectId: "laboratorio-de-coulomb",
+    storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+    messagingSenderId: "525944850850",
+    appId: "1:525944850850:web:eca9c0b79809358e8d8afb",
+    measurementId: "G-SZECJNG25E"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const auth = getAuth(app);
+  
+  // Variables globales necesarias para llamadas en el HTML
+  window.firebaseDb = db; 
+  window.firebaseAuth = auth;
+
+  let currentRoomRef = null;
+  let chatRoomRef = null;
+  let isReceiving = false;
+  let unsubscribeRoom = null;
+  let unsubscribeChat = null;
+  let initialLogin = true;
+
+  onAuthStateChanged(auth, (user) => {
+      if (user) {
+          document.getElementById('auth-modal').style.display = 'none';
+          document.getElementById('user-info').innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${user.email}`;
+          document.getElementById('btn-logout').style.display = 'inline-flex';
+          document.getElementById('user-stats').style.display = 'inline-flex';
+          
+          if (window.iniciarGamificacion) window.iniciarGamificacion(user.uid);
+          
+          // Lógica de Historial de Salas
+          const historyRef = ref(db, `usuarios/${user.uid}/salas_recientes`);
+          onValue(historyRef, (snapshot) => {
+              const data = snapshot.val();
+              renderRoomsHistory(data);
+              
+              // Auto-ingresar a la última sala
+              if (initialLogin && data && !currentRoomRef) {
+                  const roomsArr = Object.values(data).sort((a,b) => b.last_accessed - a.last_accessed);
+                  if (roomsArr.length > 0) {
+                      const lastRoom = roomsArr[0];
+                      window.conectarDirectoSala(lastRoom.id, lastRoom.password);
+                  }
+                  initialLogin = false;
+              } else if (initialLogin && !data && !currentRoomRef) {
+                  window.abrirModalSala();
+                  initialLogin = false;
+              }
+          });
+
+      } else {
+          initialLogin = true;
+          document.getElementById('auth-modal').style.display = 'flex';
+          document.getElementById('room-modal').style.display = 'none';
+          document.getElementById('user-info').innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> No conectado`;
+          document.getElementById('user-stats').style.display = 'none';
+          document.getElementById('btn-logout').style.display = 'none';
+          document.getElementById('room-info').innerText = 'Sala: Ninguna';
+          
+          // Condicional de seguridad añadido aquí:
+          if(document.getElementById('btn-share-room')) document.getElementById('btn-share-room').style.display = 'none';
+          if(document.getElementById('chat-section')) document.getElementById('chat-section').style.display = 'none';
+          
+          if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+          if (unsubscribeChat) { unsubscribeChat(); unsubscribeChat = null; }
+          currentRoomRef = null; chatRoomRef = null;
+          if (window.detenerGamificacion) window.detenerGamificacion();
+          window.limpiarTodo();
+      }
+  });
+
+  // Funciones de Autenticación exportadas al DOM
+  window.iniciarSesion = function() {
+      const email = document.getElementById('auth-email').value.trim(); 
+      const pass = document.getElementById('auth-pass').value;
+      if (!email || !pass) return customAlert('Llena ambos campos.', 'Aviso');
+      signInWithEmailAndPassword(auth, email, pass).catch(error => customAlert('Error al entrar: ' + error.message, 'Error'));
+  };
+
+  window.registrarUsuario = function() {
+      const email = document.getElementById('auth-email').value.trim(); 
+      const pass = document.getElementById('auth-pass').value;
+      if (!email || pass.length < 6) return customAlert('Ingresa un correo y una clave de mínimo 6 letras/números.', 'Aviso');
+      createUserWithEmailAndPassword(auth, email, pass).catch(error => customAlert('Error al registrar: ' + error.message, 'Error'));
+  };
+
+  window.iniciarSesionConGoogle = function() {
+      const provider = new GoogleAuthProvider(); 
+      signInWithPopup(auth, provider).catch(error => customAlert('Error al entrar con Google: ' + error.message, 'Error'));
+  };
+
+  window.cerrarSesion = function() { signOut(auth); };
+
+  window.recuperarContrasena = function() {
+      const email = document.getElementById('auth-email').value.trim();
+      if (!email) return customAlert('Por favor, escribe tu correo electrónico en el campo superior para enviarte el enlace de recuperación.', 'Aviso');
+      sendPasswordResetEmail(auth, email).then(() => customAlert('Se ha enviado un correo a ' + email + ' con las instrucciones. Revisa tu bandeja de entrada o spam.', 'Éxito')).catch((error) => customAlert('Error al intentar recuperar la contraseña: ' + error.message, 'Error'));
+  };
+
+  // --- RENDERIZAR HISTORIAL DE SALAS ---
+  function renderRoomsHistory(data) {
+      const listContainer = document.getElementById('recent-rooms-list');
+      listContainer.innerHTML = '';
+      
+      if(!data || Object.keys(data).length === 0) {
+          listContainer.innerHTML = '<i style="color: var(--text-muted); font-size: 0.85rem;">No tienes salas recientes. Crea o únete a una arriba.</i>';
+          return;
+      }
+
+      const rooms = Object.values(data).sort((a,b) => b.last_accessed - a.last_accessed);
+      rooms.forEach(room => {
+          const dateStr = new Date(room.last_accessed).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+          const isCurrent = currentRoomRef && currentRoomRef.key === 'state' && currentRoomRef.parent.key === room.id;
+          
+          const div = document.createElement('div');
+          div.className = 'room-item';
+          if(isCurrent) div.style.borderColor = 'var(--pastel-green)';
+          
+          div.innerHTML = `
+              <div class="room-item-info" onclick="window.conectarDirectoSala('${room.id}', '${room.password}')">
+                  <div class="room-item-title">${room.id} ${isCurrent ? '<span style="color:var(--pastel-green); font-size:0.7rem;">(Activa)</span>' : ''}</div>
+                  <div class="room-item-date">Último acceso: ${dateStr}</div>
+              </div>
+              <button class="room-item-delete" onclick="window.eliminarSalaHistorial('${room.id}')" title="Eliminar del historial">
+                  <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+          `;
+          listContainer.appendChild(div);
+      });
+  }
+
+  window.abrirModalSala = function() { if (!auth.currentUser) return customAlert("Primero debes iniciar sesión", "Aviso"); document.getElementById('room-modal').style.display = 'flex'; };
+  window.cerrarModalSala = function() { if (!currentRoomRef) customAlert("Trabajarás offline si no te unes a un cuarto.", "Aviso"); document.getElementById('room-modal').style.display = 'none'; };
+
+  window.conectarDirectoSala = async function(salaId, salaPass) {
+      document.getElementById('room-name').value = salaId;
+      document.getElementById('room-pass').value = salaPass;
+      window.intentarUnirseSala();
+  };
+
+  window.eliminarSalaHistorial = function(salaId) {
+      if(confirm(`¿Deseas eliminar la sala "${salaId}" de tu historial?`)) {
+          const uid = auth.currentUser.uid;
+          remove(ref(db, `usuarios/${uid}/salas_recientes/${salaId}`));
+          if(currentRoomRef && currentRoomRef.parent.key === salaId) {
+              window.cerrarSesion(); 
+          }
+      }
+  };
+
+  window.intentarUnirseSala = async function() {
+      const salaId = document.getElementById('room-name').value.trim(); const salaPass = document.getElementById('room-pass').value.trim();
+      if (!salaId || !salaPass) return customAlert('Debes ingresar el nombre del cuarto y su contraseña.', 'Aviso');
+      const passRef = ref(db, 'salas/' + salaId + '/password');
+      try {
+          const snapshot = await get(passRef);
+          if (snapshot.exists()) {
+              if (snapshot.val() !== salaPass) return customAlert('Contraseña incorrecta para el cuarto: ' + salaId, 'Error');
+          } else {
+              await set(passRef, salaPass); customAlert('Nuevo cuarto creado: ' + salaId, 'Éxito');
+          }
+          
+          if(auth.currentUser) {
+              const uid = auth.currentUser.uid;
+              update(ref(db, `usuarios/${uid}/salas_recientes/${salaId}`), {
+                  id: salaId, password: salaPass, last_accessed: Date.now()
+              });
+          }
+
+          document.getElementById('room-modal').style.display = 'none'; document.getElementById('room-info').innerText = 'Sala: ' + salaId; 
+          
+          // Condicional de seguridad añadido aquí
+          if(document.getElementById('btn-share-room')) document.getElementById('btn-share-room').style.display = 'inline-flex'; 
+          if(document.getElementById('chat-section')) document.getElementById('chat-section').style.display = 'block'; 
+          
+          conectarASala(salaId);
+      } catch (error) { customAlert('Error de conexión.', 'Error'); }
+  };
+
+  function conectarASala(salaId) {
+      if (unsubscribeRoom) unsubscribeRoom(); if (unsubscribeChat) unsubscribeChat();
+      currentRoomRef = ref(db, 'salas/' + salaId + '/state'); chatRoomRef = ref(db, 'salas/' + salaId + '/chat');
+      unsubscribeRoom = onValue(currentRoomRef, (snapshot) => {
+          const data = snapshot.val();
+          if (data && !window.isSendingData) {
+              isReceiving = true; window.appState.objects = data.objects || []; window.appState.origin = data.origin || { x: null, y: null }; window.appState.rawStrokes = data.rawStrokes || [];
+              window.appState.selectedObjects = []; document.getElementById('float-delete').style.display = 'none';
+              window.updateUI(); window.analizarFisica(); window.redraw(); setTimeout(() => { isReceiving = false; }, 50);
+          }
+      });
+      unsubscribeChat = onValue(chatRoomRef, (snapshot) => {
+          const chatBox = document.getElementById('chat-box'); 
+          if(chatBox) {
+              chatBox.innerHTML = ''; const data = snapshot.val();
+              if (data) {
+                  Object.values(data).forEach(msg => {
+                      const esMio = auth.currentUser && msg.email === auth.currentUser.email; const colorFondo = esMio ? 'rgba(174, 198, 207, 0.2)' : 'rgba(128,128,128,0.1)'; const align = esMio ? 'right' : 'left'; const nick = msg.email.split('@')[0]; const colorText = esMio ? 'var(--pastel-blue)' : 'var(--text-main)';
+                      chatBox.innerHTML += `<div style="text-align: ${align}; margin-bottom: 5px;"><span style="font-size: 0.7rem; color: var(--text-muted);">${nick}</span><br><span style="background: ${colorFondo}; color: ${colorText}; padding: 6px 10px; border-radius: 8px; display: inline-block; max-width: 90%; word-wrap: break-word; text-align: left; border: 1px solid var(--glass-border);">${msg.text}</span></div>`;
+                  }); chatBox.scrollTop = chatBox.scrollHeight;
+              } else chatBox.innerHTML = '<i style="color: var(--text-muted);">Sin mensajes. ¡Saluda a tu grupo!</i>';
+          }
+      });
+  }
+
+  window.enviarMensajeChat = function() {
+      const input = document.getElementById('chat-input'); const text = input.value.trim();
+      if (!text || !auth.currentUser || !chatRoomRef) return;
+      push(chatRoomRef, { email: auth.currentUser.email, text: text, timestamp: Date.now() }); input.value = '';
+  };
+
+  window.enviarEstadoNube = function() {
+      if (!currentRoomRef || isReceiving || !auth.currentUser) return; window.isSendingData = true;
+      set(currentRoomRef, { objects: window.appState.objects, origin: window.appState.origin, rawStrokes: window.appState.rawStrokes }).then(() => { window.isSendingData = false; });
+  };
 </script>
 </body>
 </html>
