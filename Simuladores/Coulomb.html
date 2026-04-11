@@ -56,8 +56,8 @@ table{width:100%;text-align:left;border-collapse:collapse;font-size:0.9rem} th,t
         <span id="room-info" style="font-size:.85rem;color:#888;background:var(--card-bg);padding:4px 8px;border-radius:4px">🌐 Caso Local</span>
     </div>
     <div style="display:flex;align-items:center;gap:15px">
-        <button class="btn" style="display:none" onclick="showModal('review-modal')" title="Calificar App"><i class="ph ph-star"></i> Calificar</button>
         <button class="btn" onclick="toggleTheme()" title="Modo Día/Noche"><i class="ph ph-moon"></i></button>
+        <button id="btn-chat" class="btn" style="display:none;background:#3498db;color:#fff" onclick="document.getElementById('room-chat-panel').style.display='flex'"><i class="ph ph-chat-centered-dots"></i> Chat Sala</button>
         <button id="btn-admin" class="btn" style="display:none;background:#ffbd2e;color:#000;font-weight:bold" onclick="showAdminDashboard()"><i class="ph ph-shield-star"></i> Panel Admin</button>
         <span id="user-stats" class="btn" style="display:none;border-color:#f1c40f;color:#f1c40f" onclick="showModal('profile-setup-modal')"><i class="ph ph-trophy"></i> Nivel 1 | 0 pts</span>
         <button id="user-info" class="btn" style="font-weight:bold;border:1px solid var(--accent)" onclick="editProfile()">Cargando...</button>
@@ -113,6 +113,20 @@ table{width:100%;text-align:left;border-collapse:collapse;font-size:0.9rem} th,t
                 <label style="font-size:.8rem">Posición Y: <input type="number" id="ctx-y" onchange="ctxUpdate()"></label>
             </div>
         </div>
+
+        <!-- Chat de Sala -->
+        <div id="room-chat-panel" class="glass card" style="display:none; position:absolute; bottom:20px; right:20px; width:300px; height:350px; z-index:200; flex-direction:column;">
+            <div class="section-title" style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
+                <span><i class="ph ph-chats"></i> Chat de Sala</span>
+                <i class="ph ph-x" style="cursor:pointer; font-size:16px;" onclick="document.getElementById('room-chat-panel').style.display='none'"></i>
+            </div>
+            <div id="chat-messages" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:10px; padding-right:5px; font-size:0.85rem;"></div>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="chat-input" placeholder="Mensaje..." style="flex:1" onkeypress="if(event.key==='Enter') window.sendMsg()">
+                <button class="btn btn-primary" onclick="window.sendMsg()"><i class="ph ph-paper-plane-right"></i></button>
+            </div>
+        </div>
+
     </div>
     
     <div class="fab" onclick="togglePanel()"><i class="ph ph-list-dashes"></i></div>
@@ -157,18 +171,27 @@ table{width:100%;text-align:left;border-collapse:collapse;font-size:0.9rem} th,t
 
 <div class="modal" id="admin-modal"><div class="modal-content glass" style="max-width:900px;width:95%"><span class="close-btn" onclick="hideModal('admin-modal')">&times;</span><h3 style="color:var(--accent);margin-bottom:10px"><i class="ph ph-shield-star"></i> Control General (Admin)</h3><div id="admin-stats" style="display:flex;gap:15px;margin-bottom:15px;flex-wrap:wrap"><div class="card" style="flex:1;text-align:center;min-width:120px"><h4>Usuarios</h4><div id="adm-users-count" style="font-size:24px;color:var(--accent);font-weight:bold">0</div></div><div class="card" style="flex:1;text-align:center;min-width:120px"><h4>Rating Gral.</h4><div id="adm-rating-avg" style="font-size:24px;color:#f1c40f;font-weight:bold">0.0 ⭐</div></div></div><div class="section-title">Gestión de Usuarios, Roles y Grupos</div><div style="overflow-x:auto;max-height:400px;background:var(--card-bg);border-radius:6px;padding:5px"><table style="width:100%;min-width:700px"><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol (Permiso)</th><th>Asignar Grupo</th><th>Acción</th></tr></thead><tbody id="adm-users-list"></tbody></table></div></div></div>
 
-<div class="modal" id="rooms-modal"><div class="modal-content glass"><span class="close-btn" onclick="hideModal('rooms-modal')">&times;</span><h3 style="color:var(--accent);margin-bottom:10px"><i class="ph ph-users"></i> Comunidad y Salas</h3><p style="font-size:0.85rem;color:var(--text);margin-bottom:10px">Interactúa con otros estudiantes. Envíales un detalle por sus aportes.</p>
-<div style="background:var(--card-bg);padding:12px;border-radius:8px;margin-bottom:15px;border:1px solid var(--accent)"><h4 style="font-size:0.9rem;margin-bottom:8px;color:var(--accent)"><i class="ph ph-door-open"></i> Unirse a Sala de Trabajo Conjunto</h4><input type="text" id="new-room-name" placeholder="Nombre de la sala" style="margin-bottom:8px"><input type="password" id="new-room-pass" placeholder="Contraseña (opcional)" style="margin-bottom:8px"><button class="btn btn-primary" style="width:100%;justify-content:center" onclick="crearUnirseSala()">Entrar / Crear Sala</button></div>
-<div class="section-title">Directorio de Estudiantes</div><div id="rooms-list" style="max-height:250px;overflow-y:auto;margin-bottom:15px;display:flex;flex-direction:column;gap:8px;padding-right:5px"></div><hr style="border-color:var(--glass-border);margin:10px 0"><p style="font-size:0.8rem;color:#888;text-align:center">Respeta las normas de la comunidad.</p></div></div>
+<div class="modal" id="rooms-modal"><div class="modal-content glass" style="max-width:800px; width:95%;"><span class="close-btn" onclick="hideModal('rooms-modal')">&times;</span><h3 style="color:var(--accent);margin-bottom:10px"><i class="ph ph-users"></i> Comunidad y Salas</h3><p style="font-size:0.85rem;color:var(--text);margin-bottom:10px">Interactúa con otros estudiantes. Únete a sesiones conjuntas o envía regalos.</p>
+<div style="display:flex; flex-wrap:wrap; gap:20px;">
+    <div style="flex:1; min-width:250px;">
+        <div style="background:var(--card-bg);padding:12px;border-radius:8px;margin-bottom:15px;border:1px solid var(--accent)"><h4 style="font-size:0.9rem;margin-bottom:8px;color:var(--accent)"><i class="ph ph-door-open"></i> Unirse a Sala Compartida</h4><input type="text" id="new-room-name" placeholder="Nombre de la sala" style="margin-bottom:8px"><input type="password" id="new-room-pass" placeholder="Contraseña (opcional)" style="margin-bottom:8px"><button class="btn btn-primary" style="width:100%;justify-content:center" onclick="crearUnirseSala()">Entrar / Crear Sala</button></div>
+        <div class="section-title">Directorio</div><div id="rooms-list" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:5px"></div>
+    </div>
+    <div style="flex:1; min-width:250px;">
+        <div class="section-title" style="margin-top:0"><i class="ph ph-trophy"></i> Top Ranking Global</div>
+        <div id="ranking-list" style="max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;padding-right:5px"></div>
+    </div>
+</div>
+<hr style="border-color:var(--glass-border);margin:10px 0"><p style="font-size:0.8rem;color:#888;text-align:center">Respeta las normas de la comunidad.</p></div></div>
 
 <div class="modal" id="review-modal"><div class="modal-content glass"><span class="close-btn" onclick="hideModal('review-modal')">&times;</span><h3 style="color:var(--accent);margin-bottom:10px"><i class="ph ph-star"></i> Calificar Simulador</h3><div style="text-align:center;margin-bottom:15px"><div class="star-rating" id="app-rating-stars"><i class="ph ph-star" onclick="setAppRating(1)"></i><i class="ph ph-star" onclick="setAppRating(2)"></i><i class="ph ph-star" onclick="setAppRating(3)"></i><i class="ph ph-star" onclick="setAppRating(4)"></i><i class="ph ph-star" onclick="setAppRating(5)"></i></div></div><label style="font-size:0.85rem;display:block;margin-bottom:5px">¿Qué tan fácil fue usarlo?</label><select id="rev-q1" style="margin-bottom:10px"><option value="Muy Fácil">Muy Fácil</option><option value="Fácil">Fácil</option><option value="Regular">Regular</option><option value="Difícil">Difícil</option></select><label style="font-size:0.85rem;display:block;margin-bottom:5px">¿Te ayudó a comprender mejor?</label><select id="rev-q2" style="margin-bottom:15px"><option value="Sí, mucho">Sí, mucho</option><option value="Algo">Algo</option><option value="No mucho">No mucho</option></select><textarea id="rev-comment" rows="3" placeholder="Deja un comentario o sugerencia..." style="margin-bottom:15px;resize:none"></textarea><button class="btn btn-primary" style="width:100%;justify-content:center" onclick="submitAppReview()">Enviar Calificación</button></div></div>
 
-<div class="modal" id="tour-modal"><div class="modal-content glass" style="text-align:center"><h3 style="color:var(--accent);margin-bottom:10px">¡Bienvenido a CoulombLab10!</h3><p style="font-size:.9rem;color:var(--text);margin-bottom:15px">1. <b>IA:</b> Dibuja círculos y el sistema los volverá cargas.<br>2. <b>Vectores:</b> Dibuja líneas desde las cargas.<br>3. <b>Propiedades:</b> Usa la herramienta Mover y haz clic en una carga para editar su magnitud y ver cómo cambia de tamaño.<br>4. <b>Casos:</b> Usa las pestañas superiores para alternar entre dos ejercicios distintos sin perder datos.</p><button class="btn btn-primary" onclick="hideModal('tour-modal');localStorage.setItem('tourDone','1')">¡Entendido!</button></div></div>
+<div class="modal" id="tour-modal"><div class="modal-content glass" style="text-align:center"><h3 style="color:var(--accent);margin-bottom:10px">¡Bienvenido a CoulombLab10!</h3><p style="font-size:.9rem;color:var(--text);margin-bottom:15px">1. <b>IA:</b> Dibuja círculos y el sistema los volverá cargas.<br>2. <b>Vectores:</b> Dibuja líneas desde las cargas.<br>3. <b>Propiedades:</b> Usa la herramienta Mover y haz clic en una carga para editar su magnitud y ver cómo cambia de tamaño.<br>4. <b>Copiar/Pegar:</b> Usa <kbd>Ctrl+C</kbd> y <kbd>Ctrl+V</kbd> para copiar objetos entre casos.</p><button class="btn btn-primary" onclick="hideModal('tour-modal');localStorage.setItem('tourDone','1')">¡Entendido!</button></div></div>
 
 <div class="modal" id="fbd-modal"><div class="modal-content glass" style="text-align:center;max-width:450px"><div class="window-controls"><button class="win-btn win-min" onclick="hideModal('fbd-modal')"></button><button class="win-btn win-max" onclick="document.getElementById('fbd-canvas').style.transform='scale(1.5)'"></button><button class="win-btn win-close" onclick="hideModal('fbd-modal')"></button></div><h3 style="margin-bottom:10px;color:var(--accent)"><i class="ph ph-crosshair"></i> Diagrama Cuerpo Libre</h3><div style="background:#fff;border-radius:8px;padding:10px;overflow:hidden"><canvas id="fbd-canvas" width="400" height="400" style="position:relative;background:#fff;max-width:100%;height:auto;transition:transform .3s"></canvas></div></div></div>
 
 <script>
-// --- CORE LOGIC, AI ENGINE, PHYSICS & MULTI-CASE ---
+// --- CORE LOGIC, AI ENGINE, PHYSICS, COPY-PASTE & MULTI-CASE ---
 let lastSyncTime=0;window.reqSync=function(imm=!1){if(!window.sendData)return;const n=Date.now();if(imm||n-lastSyncTime>200){window.sendData();lastSyncTime=n;}};
 
 const cvs=document.getElementById('main-canvas'),ctx=cvs.getContext('2d'),wrap=document.getElementById('canvas-wrapper'),lbls=document.getElementById('labels-overlay'),fd=document.getElementById('float-delete'),txtIn=document.getElementById('text-input-overlay'),cMenu=document.getElementById('context-menu');
@@ -178,9 +201,30 @@ let casesData = {
     2: { objects:[], rawStrokes:[], origin:{x:null,y:null} }
 };
 let activeCase = 1;
+let clipboard = [];
 
 let state={tool:'draw',currentColor:'#3498db',isDrawing:!1,showInCanvasDCL:!1,isDrawingFree:!1,isDrawingLine:!1,isDrawingShape:!1,isDragging:!1,isResizing:!1,resizeHandle:null,dragLastX:0,dragLastY:0,selectedObjects:[],selectionBox:null,isDraggingOrigin:!1,origin:{x:null,y:null},recognitionTimer:null,rawStrokes:[],currentStroke:[],currentFreeStroke:null,currentLine:null,currentShape:null,objects:[],calculatedForces:[],ctxTarget:null,laserPoints:[]};
 window.appState=state;let textPos={x:0,y:0};ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=3;
+
+// COPY-PASTE SYSTEM
+window.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key.toLowerCase() === 'c') {
+        if (state.selectedObjects.length > 0) { clipboard = JSON.parse(JSON.stringify(state.selectedObjects)); }
+    }
+    if (e.ctrlKey && e.key.toLowerCase() === 'v') {
+        if (clipboard.length > 0) {
+            let newObjs = JSON.parse(JSON.stringify(clipboard));
+            newObjs.forEach(o => {
+                o.id = Date.now() + Math.random();
+                if(o.type.startsWith('charge') || o.type === 'text') { o.x += 30; o.y += 30; o.physX = getPhysX(o.x); o.physY = getPhysY(o.y); }
+                else if(o.type === 'vector' || o.type === 'line' || o.type === 'rect' || o.type === 'circle') { o.start.x += 30; o.start.y += 30; o.end.x += 30; o.end.y += 30; }
+                else if(o.type === 'free_stroke') { o.points.forEach(p => { p.x += 30; p.y += 30; }); }
+                state.objects.push(o);
+            });
+            state.selectedObjects = newObjs; updFD(); redraw(); analizarFisica(); window.reqSync(true);
+        }
+    }
+});
 
 window.switchCase = (c) => {
     casesData[activeCase].objects = [...state.objects];
@@ -477,14 +521,14 @@ document.addEventListener("DOMContentLoaded",()=>{if(!localStorage.getItem('tour
 // MIGRACIÓN A FIRESTORE + RTDB (Arquitectura Híbrida Optimizada)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+import { getDatabase, ref, set, get, push, onValue, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
 const cfg = {apiKey:"AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",authDomain:"laboratorio-de-coulomb.firebaseapp.com",databaseURL:"https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",projectId:"laboratorio-de-coulomb",storageBucket:"laboratorio-de-coulomb.firebasestorage.app",messagingSenderId:"525944850850",appId:"1:525944850850:web:eca9c0b79809358e8d8afb",measurementId:"G-SZECJNG25E"};
 const app=initializeApp(cfg), db=getFirestore(app), rtdb=getDatabase(app), auth=getAuth(app);
 const APP_ID = 'coulombLab10';
 
-let selAvatar='👨‍🔬', appRating=0, curRoomRef=null, unsubRoom=null, isRecv=!1;
+let selAvatar='👨‍🔬', appRating=0, curRoomRef=null, unsubRoom=null, isRecv=!1, chatRef=null;
 let localPoints = 0, localLevel = 1;
 
 window.selAvt = (el) => { document.querySelectorAll('.avt').forEach(a=>{a.style.transform='scale(1)';a.style.borderColor='transparent'}); el.style.transform='scale(1.2)'; el.style.borderColor='var(--accent)'; selAvatar=el.innerText; };
@@ -495,19 +539,24 @@ window.addPoints = async (pts) => {
     localPoints += pts;
     localLevel = Math.floor(localPoints / 100) + 1;
     
-    // UI Update
     document.getElementById('user-stats').innerText = `🏆 Nivel ${localLevel} | ${localPoints} pts`;
     document.getElementById('prof-nivel-disp').innerText = localLevel;
     document.getElementById('prof-puntos-disp').innerText = localPoints;
 
     try {
-        await updateDoc(doc(db, `artifacts/${APP_ID}/users/${auth.currentUser.uid}/profile/data`), {
-            puntos: increment(pts)
-        });
+        await updateDoc(doc(db, `artifacts/${APP_ID}/users/${auth.currentUser.uid}/profile/data`), { puntos: increment(pts) });
+        await updateDoc(doc(db, `artifacts/${APP_ID}/public/data/directory/${auth.currentUser.uid}`), { puntos: increment(pts) });
     } catch(e) {}
 };
 
-// Auto-Carga de Perfil y Detección de Admin
+// Limpieza Total al Salir
+window.resetLocalState = () => {
+    localPoints = 0; localLevel = 1;
+    document.getElementById('prof-nivel-disp').innerText = '1';
+    document.getElementById('prof-puntos-disp').innerText = '0';
+    document.getElementById('user-stats').innerText = `🏆 Nivel 1 | 0 pts`;
+};
+
 onAuthStateChanged(auth, async u => {
     if(u){
         document.getElementById('auth-modal').style.display='none';
@@ -518,6 +567,7 @@ onAuthStateChanged(auth, async u => {
         try {
             const s = await getDoc(doc(db,`artifacts/${APP_ID}/users/${u.uid}/profile/data`));
             if(!s.exists()) {
+                window.resetLocalState();
                 document.getElementById('user-info').innerText = `👤 ${u.email.split('@')[0]}`;
                 showModal('profile-setup-modal'); 
             } else {
@@ -536,15 +586,25 @@ onAuthStateChanged(auth, async u => {
             }
         } catch(e) { console.error("Error Auth: ", e); }
     } else {
-        showModal('auth-modal'); document.getElementById('btn-logout').style.display='none'; document.getElementById('btn-rooms').style.display='none'; document.getElementById('btn-admin').style.display='none'; document.getElementById('user-stats').style.display='none';
+        window.resetLocalState();
+        showModal('auth-modal'); document.getElementById('btn-logout').style.display='none'; document.getElementById('btn-rooms').style.display='none'; document.getElementById('btn-admin').style.display='none'; document.getElementById('user-stats').style.display='none'; document.getElementById('btn-chat').style.display='none';
         if(unsubRoom)unsubRoom(); curRoomRef=null; window.limpiarTodo();
     }
 });
 
 window.iniciarSesion=()=>signInWithEmailAndPassword(auth,document.getElementById('auth-email').value,document.getElementById('auth-pass').value).catch(e=>alert(e.message));
 window.registrarUsuario=()=>createUserWithEmailAndPassword(auth,document.getElementById('auth-email').value,document.getElementById('auth-pass').value).catch(e=>alert(e.message));
-window.iniciarSesionConGoogle=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>alert(e.message));
-window.cerrarSesion=()=>signOut(auth);
+window.iniciarSesionConGoogle=async()=>{
+    try { await signInWithPopup(auth, new GoogleAuthProvider()); } 
+    catch(e) { alert("Tu navegador o red ha bloqueado el inicio con Google (COOP Policy). Por favor, usa correo y contraseña en su lugar. Detalles: " + e.message); }
+};
+
+window.cerrarSesion = async () => {
+    if(curRoomRef) {
+        if(confirm("¿Deseas guardar la sincronización actual antes de salir?")) window.sendData();
+    }
+    await signOut(auth);
+};
 
 window.editProfile = async () => {
     if(!auth.currentUser) return;
@@ -586,22 +646,18 @@ window.saveProfile = async () => {
     } catch(e) { alert("Error guardando: "+e.message); }
 };
 
-// --- GESTIÓN DE SALAS EN RTDB ---
+// --- GESTIÓN DE SALAS EN RTDB (SYNC MULTI-TAB) ---
 window.crearUnirseSala = async () => {
     const n = document.getElementById('new-room-name').value.trim();
     const p = document.getElementById('new-room-pass')?.value || '';
     if(!n) return alert("Ingresa el nombre de la sala");
     
     try {
-        // Verificar la contraseña usando Realtime Database (rtdb)
         const passRef = ref(rtdb, `salas/${n}/password`);
         const snap = await get(passRef);
         
-        if (snap.exists() && snap.val() !== p && p !== '') {
-            return alert("Contraseña incorrecta para esta sala.");
-        } else if (!snap.exists()) {
-            await set(passRef, p); // Crear nueva sala y contraseña
-        }
+        if (snap.exists() && snap.val() !== p && p !== '') { return alert("Contraseña incorrecta para esta sala."); } 
+        else if (!snap.exists()) { await set(passRef, p); }
         
         joinRoom(n);
     } catch(e) { alert("Error verificando la sala: " + e.message); }
@@ -617,26 +673,49 @@ window.joinRoom = (id) => {
         const d = snap.val();
         if (d && !window.isSendingData) {
             isRecv = true;
-            window.appState.objects = d.objects || [];
-            window.appState.rawStrokes = d.rawStrokes || [];
-            window.appState.origin = d.origin || {x:null, y:null};
+            if(d.cases) { casesData = d.cases; }
+            window.appState.objects = casesData[activeCase].objects || [];
+            window.appState.rawStrokes = casesData[activeCase].rawStrokes || [];
+            window.appState.origin = casesData[activeCase].origin || {x:null, y:null};
             window.analizarFisica();
             window.redraw();
             setTimeout(() => { isRecv = false; }, 50);
         }
     });
+
+    // Activar Chat
+    chatRef = ref(rtdb, `salas/${id}/chat`);
+    onValue(chatRef, snap => {
+        const msgs = snap.val();
+        const box = document.getElementById('chat-messages'); box.innerHTML = '';
+        if(msgs) {
+            Object.values(msgs).sort((a,b)=>a.time-b.time).forEach(m => {
+                box.innerHTML += `<div style="background:var(--card-bg); padding:5px 8px; border-radius:6px; border:1px solid var(--glass-border)"><b>${m.user}:</b> <span style="color:#aaa">${m.text}</span></div>`;
+            });
+            box.scrollTop = box.scrollHeight;
+        }
+    });
+    document.getElementById('btn-chat').style.display = 'inline-flex';
+    document.getElementById('room-chat-panel').style.display = 'flex';
 };
 
 window.sendData = () => {
     if(!curRoomRef || isRecv || !auth.currentUser) return;
     window.isSendingData = true;
-    set(curRoomRef, {
-        objects: window.appState.objects,
-        origin: window.appState.origin,
-        rawStrokes: window.appState.rawStrokes
-    }).then(() => { window.isSendingData = false; });
+    casesData[activeCase].objects = [...window.appState.objects];
+    casesData[activeCase].rawStrokes = [...window.appState.rawStrokes];
+    casesData[activeCase].origin = {...window.appState.origin};
+    
+    set(curRoomRef, { cases: casesData, active: activeCase }).then(() => { window.isSendingData = false; });
 };
 
+window.sendMsg = () => {
+    const i = document.getElementById('chat-input');
+    if(!i.value.trim() || !chatRef) return;
+    const newMsgRef = push(chatRef);
+    set(newMsgRef, { text: i.value, user: document.getElementById('user-info').innerText, time: Date.now() });
+    i.value = '';
+};
 
 // --- EL DASHBOARD EXCLUSIVO DEL ADMINISTRADOR ---
 window.showAdminDashboard = async () => {
@@ -683,35 +762,50 @@ window.adminUpdateUser = async (uid) => {
     } catch(e) { alert("Error asignando roles: "+e.message); }
 };
 
-// --- INTERACCIÓN DE COMUNIDAD (Directorio) ---
+// --- INTERACCIÓN DE COMUNIDAD Y RANKING (Directorio) ---
 window.openRooms = async () => {
     if(!auth.currentUser) return;
     try {
         const s = await getDocs(collection(db, `artifacts/${APP_ID}/public/data/directory`));
         const rl = document.getElementById('rooms-list'); rl.innerHTML='';
-        s.forEach(docSnap => {
-            if(docSnap.id === auth.currentUser.uid) return;
-            const u = docSnap.data();
+        
+        const arr = [];
+        s.forEach(docSnap => arr.push({id: docSnap.id, ...docSnap.data()}));
+        
+        arr.forEach(u => {
+            if(u.id === auth.currentUser.uid) return;
             rl.innerHTML += `<div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:10px;margin-bottom:8px">
                 <div><b>${u.avatar||''} ${u.alias||u.nombre}</b><br><span style="font-size:0.75rem;color:#888">Grupo: ${u.grupo||'General'} | Rol: ${u.rol}</span></div> 
                 <div style="display:flex;gap:5px">
-                    <button class="btn" style="background:rgba(231,76,60,0.2);color:#e74c3c;padding:4px 8px" onclick="enviarRegalo('${docSnap.id}')" title="Enviar Regalo">🎁 ${u.regalos||0}</button>
-                    <button class="btn" style="background:rgba(241,196,15,0.2);color:#f1c40f;padding:4px 8px" onclick="darEstrella('${docSnap.id}')" title="Dar Estrella">⭐ ${u.estrellas||0}</button>
+                    <button class="btn" style="background:rgba(231,76,60,0.2);color:#e74c3c;padding:4px 8px" onclick="enviarRegalo('${u.id}')" title="Enviar Regalo">🎁 ${u.regalos||0}</button>
+                    <button class="btn" style="background:rgba(241,196,15,0.2);color:#f1c40f;padding:4px 8px" onclick="darEstrella('${u.id}')" title="Dar Estrella">⭐ ${u.estrellas||0}</button>
                 </div>
             </div>`;
         });
         if(rl.innerHTML==='') rl.innerHTML='<i style="color:#888;font-size:0.8rem">Aún no hay otros usuarios en la red.</i>';
+        
+        // Generar Ranking de Puntos
+        arr.sort((a,b) => (b.puntos||0) - (a.puntos||0));
+        const rk = document.getElementById('ranking-list'); rk.innerHTML = '';
+        arr.slice(0, 10).forEach((u, i) => {
+            let badge = i===0 ? '🥇' : i===1 ? '🥈' : i===2 ? '🥉' : `#${i+1}`;
+            rk.innerHTML += `<div style="display:flex; justify-content:space-between; padding:8px; background:var(--card-bg); border-radius:4px; font-size:0.85rem; border:1px solid rgba(128,128,128,0.2);">
+                <span><b>${badge}</b> ${u.avatar||''} ${u.alias||u.nombre}</span>
+                <span style="color:#f1c40f; font-weight:bold;">${u.puntos||0} pts</span>
+            </div>`;
+        });
+
         showModal('rooms-modal');
     } catch(e) { console.error("Error abriendo comunidad:", e); }
 };
 
 window.enviarRegalo = async (uid) => {
     try { await updateDoc(doc(db, `artifacts/${APP_ID}/public/data/directory/${uid}`), { regalos: increment(1) }); openRooms(); }
-    catch(e) { alert("Solo el Admin puede regalar libremente debido a las reglas de escritura."); }
+    catch(e) {}
 };
 window.darEstrella = async (uid) => {
     try { await updateDoc(doc(db, `artifacts/${APP_ID}/public/data/directory/${uid}`), { estrellas: increment(1) }); openRooms(); }
-    catch(e) { alert("Solo el Admin puede regalar libremente debido a las reglas de escritura."); }
+    catch(e) {}
 };
 
 // --- REVIEW SYSTEM (Regla 4) ---
