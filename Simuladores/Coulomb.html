@@ -1,593 +1,782 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <!-- Google tag (gtag.js) --> 
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EXGD1GSLLB"></script>
-    <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-EXGD1GSLLB'); </script>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Laboratorio Virtual: Ley de Coulomb IA</title>
     <meta name="description" content="Tutor inteligente con coordenadas editables, pizarra libre y validación robusta.">
     
-    <!-- Librerías (TFJS, KaTeX, FontAwesome para Iconos Profesionales) -->
+    <!-- Librerías Externas -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            /* Paleta Pastel Glassmorphism */
-            --bg-grad-1: #1a1c29;
-            --bg-grad-2: #2a1b38;
-            --glass-bg: rgba(25, 25, 35, 0.6);
+            /* Colores Pastel y Base */
+            --bg-base: #0f172a;
+            --glass-bg: rgba(30, 41, 59, 0.7);
             --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
             --accent-pink: #ffb3ba;
             --accent-green: #baffc9;
             --accent-blue: #bae1ff;
             --accent-yellow: #ffffba;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --danger: #ef4444;
             
-            --text-main: #f0f0f0;
-            --text-muted: #a0a0b0;
-            
-            --ribbon-h: 70px;
-            --panel-left-w: 300px;
-            --panel-right-w: 360px;
+            /* Dimensiones */
+            --ribbon-height: 70px;
+            --sidebar-width: 320px;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        
         body {
-            background: linear-gradient(135deg, var(--bg-grad-1), var(--bg-grad-2));
+            background-color: var(--bg-base);
+            background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
             color: var(--text-main);
-            height: 100vh; overflow: hidden;
-            display: flex; flex-direction: column;
+            height: 100vh; width: 100vw;
+            overflow: hidden; display: flex; flex-direction: column;
             user-select: none;
         }
 
-        /* --- CLASE REUTILIZABLE GLASSMORPHISM --- */
+        /* Utilidades Glassmorphism */
         .glass {
             background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--glass-border);
+            border-radius: 12px;
             box-shadow: var(--glass-shadow);
         }
+        .glass-panel { border-radius: 0; border: none; border-left: 1px solid var(--glass-border); border-right: 1px solid var(--glass-border); }
 
-        /* --- RIBBON MENU (TOP) --- */
-        header {
-            height: var(--ribbon-h);
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 20px; z-index: 1000;
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+        /* Inputs & Buttons */
+        input, select, button, textarea { font-family: 'Inter', sans-serif; outline: none; }
+        
+        .form-control {
+            width: 100%; padding: 10px 12px; margin-bottom: 15px;
+            background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border);
+            color: var(--text-main); border-radius: 8px; font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .form-control:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 2px rgba(186, 225, 255, 0.2); }
+        select option { background: var(--bg-base); color: var(--text-main); } /* Fix para dropdowns */
+
+        .btn {
+            padding: 8px 16px; border-radius: 8px; border: 1px solid transparent;
+            cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;
+            transition: all 0.2s ease; font-size: 0.85rem; color: var(--text-main);
+            background: rgba(255,255,255,0.1);
+        }
+        .btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary { background: rgba(186, 225, 255, 0.2); border-color: var(--accent-blue); color: var(--accent-blue); }
+        .btn-primary:hover { background: rgba(186, 225, 255, 0.3); }
+        .btn-danger { background: rgba(239, 68, 68, 0.1); border-color: var(--danger); color: var(--danger); }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.2); }
+        .btn-active { background: var(--accent-green); color: var(--bg-base); border-color: var(--accent-green); }
+        .btn-active:hover { background: #9de5ac; }
+        
+        .icon-sm { width: 16px; height: 16px; }
+        .icon-md { width: 20px; height: 20px; }
+
+        /* Ribbon Menu */
+        .ribbon {
+            height: var(--ribbon-height); width: 100%; z-index: 100;
+            display: flex; align-items: center; padding: 0 20px; gap: 20px;
             border-bottom: 1px solid var(--glass-border);
+            overflow-x: auto; overflow-y: hidden; white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
         }
+        .ribbon-group {
+            display: flex; gap: 8px; align-items: center;
+            border-right: 1px solid rgba(255,255,255,0.1); padding-right: 20px; height: 70%;
+        }
+        .ribbon-group:last-child { border-right: none; }
+        .brand { font-weight: 800; font-size: 1.1rem; color: var(--accent-blue); display: flex; align-items: center; gap: 8px;}
         
-        .header-title { font-size: 1.1rem; font-weight: bold; color: var(--accent-blue); display: flex; align-items: center; gap: 10px; }
-        .header-title i { color: var(--accent-yellow); }
-
-        .ribbon-tools {
-            display: flex; gap: 8px; overflow-x: auto; flex: 1; padding: 0 20px;
-            scrollbar-width: none; -webkit-overflow-scrolling: touch;
-        }
-        .ribbon-tools::-webkit-scrollbar { display: none; }
-
-        .btn-ribbon {
-            background: rgba(255,255,255,0.05); border: 1px solid transparent;
-            color: var(--text-main); padding: 8px 12px; border-radius: 8px;
-            cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px;
-            font-size: 0.75rem; transition: 0.2s; white-space: nowrap;
-        }
-        .btn-ribbon i { font-size: 1.1rem; }
-        .btn-ribbon:hover { background: rgba(255,255,255,0.1); border-color: var(--glass-border); }
-        .btn-ribbon.active { background: rgba(186, 225, 255, 0.2); border-color: var(--accent-blue); color: var(--accent-blue); }
-        .btn-ribbon.danger { color: var(--accent-pink); }
-        .btn-ribbon.danger:hover { background: rgba(255, 179, 186, 0.2); border-color: var(--accent-pink); }
-
-        .header-auth { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; }
-        .badge { background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 20px; border: 1px solid var(--glass-border); cursor: pointer; }
-        .badge-green { color: var(--accent-green); }
-        .badge-yellow { color: var(--accent-yellow); }
-
-        /* --- LAYOUT PRINCIPAL --- */
+        /* Layout Principal */
         .workspace {
-            display: flex; flex: 1; position: relative; overflow: hidden;
+            display: flex; flex: 1; position: relative; height: calc(100vh - var(--ribbon-height));
+            overflow: hidden;
         }
 
-        /* --- PANELES LATERALES --- */
-        .panel {
-            width: 0; overflow-y: auto; overflow-x: visible; /* visible para selects */
-            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s;
-            display: flex; flex-direction: column; gap: 15px;
-            z-index: 100;
+        /* Paneles Laterales */
+        .sidebar {
+            width: var(--sidebar-width); height: 100%; background: var(--glass-bg);
+            backdrop-filter: blur(10px); flex-shrink: 0;
+            display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute; top: 0; z-index: 40;
         }
-        .panel.open-left { width: var(--panel-left-w); padding: 15px; border-right: 1px solid var(--glass-border); }
-        .panel.open-right { width: var(--panel-right-w); padding: 15px; border-left: 1px solid var(--glass-border); }
+        .sidebar-right { right: 0; border-left: 1px solid var(--glass-border); }
+        .sidebar-right.closed { transform: translateX(100%); }
         
-        /* Despliegue hacia la derecha (el panel izq se despliega hacia la derecha) */
-        #panel-left { background: linear-gradient(to right, var(--glass-bg), transparent); }
-        #panel-right { background: linear-gradient(to left, var(--glass-bg), transparent); }
-
-        .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;}
-
-        /* --- CONTROLES DE FORMULARIO --- */
-        .control-group { margin-bottom: 12px; }
-        .control-group label { font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px; }
-        select, input[type="number"], input[type="text"], input[type="password"], input[type="email"] {
-            width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
-            color: white; padding: 8px; border-radius: 6px; font-size: 0.85rem; outline: none;
-            transition: 0.2s;
+        .sidebar-header {
+            padding: 15px; border-bottom: 1px solid var(--glass-border);
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: 600; color: var(--accent-green);
         }
-        select:focus, input:focus { border-color: var(--accent-blue); }
+        .sidebar-content { padding: 15px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 15px;}
+
+        /* Canvas Area */
+        .canvas-container {
+            flex: 1; position: relative; background-color: #f8fafc; /* Fondo blanco para visibilidad física */
+            background-image: 
+                linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px; overflow: hidden;
+            transition: margin 0.3s ease;
+        }
+        canvas { position: absolute; top: 0; left: 0; touch-action: none; cursor: crosshair; z-index: 10; }
         
-        /* Asegurar que el select abra hacia abajo */
-        select { appearance: none; -webkit-appearance: none; cursor: pointer; position: relative; z-index: 1000; }
-        .select-wrapper { position: relative; }
-        .select-wrapper::after { content: '\f078'; font-family: 'FontAwesome'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted); font-size: 0.7rem; }
-
-        .btn-action {
-            width: 100%; padding: 10px; border: none; border-radius: 6px; cursor: pointer;
-            font-weight: bold; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px;
-            background: rgba(186, 225, 255, 0.15); color: var(--accent-blue); border: 1px solid var(--accent-blue);
-        }
-        .btn-action:hover { background: var(--accent-blue); color: #000; }
-        .btn-action.green { color: var(--accent-green); border-color: var(--accent-green); background: rgba(186, 255, 201, 0.1); }
-        .btn-action.green:hover { background: var(--accent-green); color: #000; }
-
-        /* --- CANVAS --- */
-        .canvas-area {
-            flex: 1; position: relative; 
-            background-color: #ffffff;
-            background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
-            overflow: hidden; display: flex; justify-content: center; align-items: center;
-        }
-        canvas { cursor: crosshair; touch-action: none; z-index: 1; position: absolute; top: 0; left: 0; }
-        
-        #labels-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: hidden; }
+        #labels-overlay, #overlays-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
         .canvas-label {
-            position: absolute; background: rgba(255, 255, 255, 0.9); padding: 2px 6px; border-radius: 4px; 
-            border: 1px solid var(--accent-blue); font-size: 0.9rem; color: #222; 
-            transform: translate(-50%, -100%); box-shadow: 0 2px 5px rgba(0,0,0,0.15); white-space: nowrap;
+            position: absolute; background: rgba(255, 255, 255, 0.9);
+            padding: 2px 6px; border-radius: 4px; border: 1px solid var(--accent-blue);
+            font-size: 0.85rem; color: #0f172a; transform: translate(-50%, -100%); 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); white-space: nowrap; pointer-events: auto;
         }
 
-        #text-input-overlay {
-            position: absolute; display: none; background: rgba(255,255,255,0.95);
-            border: 2px dashed var(--accent-blue); color: #222; font-size: 20px;
-            padding: 4px 8px; border-radius: 4px; z-index: 100; font-weight: bold;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); transform: translateY(-50%); width: auto;
+        #coords-indicator {
+            position: absolute; bottom: 40px; left: 10px; background: var(--glass-bg);
+            color: var(--accent-green); padding: 4px 10px; border-radius: 6px;
+            font-family: monospace; font-size: 0.8rem; border: 1px solid var(--glass-border);
+            backdrop-filter: blur(4px); z-index: 30; pointer-events: none;
         }
 
-        #coords-indicator { position: absolute; bottom: 15px; left: 15px; font-family: monospace; font-size: 0.85rem; color: var(--accent-green); z-index: 3; pointer-events: none; }
-
-        /* --- TOGGLES LATERALES --- */
+        /* Toggle Button */
         .panel-toggle {
-            position: absolute; top: 50%; transform: translateY(-50%);
-            width: 24px; height: 48px; display: flex; justify-content: center; align-items: center;
-            cursor: pointer; z-index: 50; border-radius: 6px; border: 1px solid var(--glass-border);
-            color: var(--text-main); transition: 0.2s; font-size: 0.8rem;
+            position: absolute; top: 50%; right: var(--sidebar-width); transform: translateY(-50%);
+            width: 24px; height: 48px; background: var(--glass-bg); border: 1px solid var(--glass-border);
+            border-right: none; border-radius: 8px 0 0 8px; cursor: pointer; display: flex;
+            justify-content: center; align-items: center; color: var(--text-main); z-index: 45;
+            transition: right 0.3s, background 0.2s; backdrop-filter: blur(10px);
         }
-        .panel-toggle:hover { background: var(--accent-blue); color: #000; }
-        #toggle-left { left: 0; border-radius: 0 6px 6px 0; }
-        #toggle-right { right: 0; border-radius: 6px 0 0 6px; }
+        .panel-toggle:hover { background: rgba(255,255,255,0.2); }
+        .sidebar-right.closed ~ .panel-toggle { right: 0; border-radius: 8px 0 0 8px; border-right: none;}
 
-        /* --- COMPONENTES DERECHOS --- */
-        .card { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.05); }
-        .card-accent { border-left: 3px solid var(--accent-blue); }
-        .card-green { border-left: 3px solid var(--accent-green); }
-        .card-pink { border-left: 3px solid var(--accent-pink); }
+        /* Cards & Badges */
+        .card {
+            background: rgba(15, 23, 42, 0.4); border: 1px solid var(--glass-border);
+            border-radius: 8px; padding: 12px;
+        }
+        .card-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;}
         
-        .result-item { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .res-ok { color: var(--accent-green); }
-        .res-err { color: var(--accent-pink); }
-        .res-warn { color: var(--accent-yellow); }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;}
+        .badge-pink { background: rgba(255, 179, 186, 0.2); color: var(--accent-pink); border: 1px solid var(--accent-pink); }
+        .badge-green { background: rgba(186, 255, 201, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .badge-blue { background: rgba(186, 225, 255, 0.2); color: var(--accent-blue); border: 1px solid var(--accent-blue); }
+        .badge-yellow { background: rgba(255, 255, 186, 0.2); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
 
-        .latex-box { background: white; color: black; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; text-align: left; }
+        /* Latex Result Box */
+        .latex-box {
+            background: #f8fafc; color: #0f172a; padding: 10px; border-radius: 8px;
+            font-size: 0.85rem; overflow-x: auto; min-height: 80px; border: 1px solid #cbd5e1;
+        }
 
-        /* --- MODALES & VENTANAS FLOTANTES (GLASSMORPHISM) --- */
+        /* Modals Generales */
         .modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center;
-            backdrop-filter: blur(4px);
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
+            display: none; justify-content: center; align-items: center; z-index: 2000;
         }
         .modal-content {
-            width: 420px; max-width: 90%; padding: 25px; position: relative;
+            background: var(--bg-base); width: 90%; max-width: 450px;
+            padding: 24px; position: relative; border-radius: 12px;
         }
-        .modal-close { position: absolute; top: 15px; right: 15px; cursor: pointer; color: var(--text-muted); font-size: 1.2rem; transition: 0.2s; }
-        .modal-close:hover { color: white; }
+        .modal-close {
+            position: absolute; top: 16px; right: 16px; cursor: pointer; color: var(--text-muted);
+            background: none; border: none;
+        }
+        .modal-close:hover { color: var(--danger); }
 
-        /* --- VENTANA DCL --- */
-        .window-dcl {
-            position: absolute; top: 50px; right: 50px; width: 350px;
-            display: none; flex-direction: column; z-index: 1000;
-            resize: both; overflow: hidden; min-width: 250px; min-height: 200px;
+        /* DCL Window Style */
+        .window-os {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 500px; height: 500px; display: none; flex-direction: column; z-index: 1000;
+            background: #ffffff; color: #000; overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid #475569;
+            transition: all 0.3s ease;
         }
         .window-header {
-            background: rgba(0,0,0,0.5); padding: 8px 12px; display: flex; justify-content: space-between;
-            align-items: center; cursor: move; border-bottom: 1px solid var(--glass-border);
-            border-radius: 12px 12px 0 0;
+            background: #1e293b; padding: 8px 12px; display: flex; justify-content: space-between;
+            align-items: center; cursor: move; color: white; user-select: none;
         }
-        .window-title { font-size: 0.85rem; font-weight: bold; color: var(--accent-blue); display: flex; align-items: center; gap: 5px; }
-        .window-controls { display: flex; gap: 8px; }
-        .win-btn { width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 8px; color: transparent; transition: 0.2s;}
-        .win-btn:hover { color: rgba(0,0,0,0.5); }
-        .win-min { background: var(--accent-yellow); }
-        .win-max { background: var(--accent-green); }
-        .win-close { background: var(--accent-pink); }
-        .window-body { background: rgba(255,255,255,0.95); flex: 1; display: flex; justify-content: center; align-items: center; border-radius: 0 0 12px 12px; position: relative;}
+        .window-controls { display: flex; gap: 6px; }
+        .w-btn { width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer; display:flex; justify-content:center; align-items:center;}
+        .w-btn i { width: 8px; height: 8px; color: rgba(0,0,0,0.5); display: none; }
+        .w-btn:hover i { display: block; }
+        .w-close { background: #ff5f56; }
+        .w-min { background: #ffbd2e; }
+        .w-max { background: #27c93f; }
+        .window-body { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #f8fafc;}
         
-        /* --- FOOTER --- */
-        footer {
-            height: 30px; background: rgba(0,0,0,0.8); display: flex; justify-content: space-between;
-            align-items: center; padding: 0 20px; font-size: 0.75rem; color: var(--text-muted); z-index: 1000;
-        }
-        footer a { color: var(--accent-blue); text-decoration: none; display: flex; align-items: center; gap: 5px; }
-        footer a:hover { text-decoration: underline; }
+        /* Estados de Ventana DCL */
+        .window-os.minimized { height: 40px !important; top: auto !important; bottom: 0 !important; transform: translateX(-50%) !important; }
+        .window-os.maximized { width: 100vw !important; height: 100vh !important; top: 0 !important; left: 0 !important; transform: none !important; border-radius: 0; }
 
-        /* Habitaciones (Rooms) listado */
-        .room-item {
+        /* Charge Editor Float Panel */
+        #charge-editor {
+            position: absolute; display: none; z-index: 1500; width: 220px;
+            padding: 15px; transform: translate(15px, -50%);
+        }
+
+        /* Chat */
+        .chat-box {
+            height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2);
+            border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
+            font-size: 0.8rem; border: 1px solid var(--glass-border);
+        }
+        .chat-msg { background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 8px; max-width: 90%; word-break: break-word; }
+        .chat-msg.mine { background: rgba(186, 225, 255, 0.15); border: 1px solid rgba(186, 225, 255, 0.3); align-self: flex-end;}
+
+        /* Footer */
+        footer {
+            position: absolute; bottom: 0; width: 100%; height: 30px;
+            background: rgba(15, 23, 42, 0.8); border-top: 1px solid var(--glass-border);
             display: flex; justify-content: space-between; align-items: center;
-            background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; margin-bottom: 5px; border: 1px solid rgba(255,255,255,0.05);
+            padding: 0 20px; font-size: 0.75rem; color: var(--text-muted); z-index: 50;
         }
-        .room-item:hover { border-color: var(--accent-blue); }
-        
-        #float-delete {
-            position: absolute; display: none; background: var(--accent-pink); color: #000; border: none;
-            padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold;
-            z-index: 10; box-shadow: 0 4px 8px rgba(0,0,0,0.3); transform: translate(-50%, -100%); margin-top: -10px;
-        }
+        .footer-links a { color: var(--accent-blue); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-left: 15px;}
+        .footer-links a:hover { color: white; }
     </style>
 </head>
 <body>
 
-<!-- RIBBON MENU -->
-<header class="glass">
-    <div class="header-title"><i class="fa-solid fa-bolt"></i> Lab Coulomb IA</div>
+<!-- Ribbon Header -->
+<header class="ribbon glass glass-panel">
+    <div class="brand">
+        <i data-lucide="zap" style="color: var(--accent-yellow)"></i> Lab Coulomb IA
+    </div>
     
-    <div class="ribbon-tools">
-        <!-- Herramientas de Dibujo -->
-        <button class="btn-ribbon active" onclick="setTool('draw', this)" title="Cargas/Vectores"><i class="fa-solid fa-pen-nib"></i><span>Lápiz IA</span></button>
-        <button class="btn-ribbon" onclick="setTool('draw_free', this)" title="Marcador"><i class="fa-solid fa-highlighter"></i><span>Marcador</span></button>
-        <button class="btn-ribbon" onclick="setTool('line', this)"><i class="fa-solid fa-ruler"></i><span>Línea</span></button>
-        <button class="btn-ribbon" onclick="setTool('text', this)"><i class="fa-solid fa-font"></i><span>Texto</span></button>
-        <div style="width: 1px; background: rgba(255,255,255,0.1); margin: 5px;"></div>
-        
-        <!-- Controles -->
-        <button class="btn-ribbon" onclick="setTool('move', this)"><i class="fa-solid fa-hand"></i><span>Mover/Selec</span></button>
-        <button class="btn-ribbon" onclick="setTool('visibility', this)"><i class="fa-solid fa-eye-slash"></i><span>Ocultar</span></button>
-        <button class="btn-ribbon" onclick="undo()"><i class="fa-solid fa-rotate-left"></i><span>Deshacer</span></button>
-        <button class="btn-ribbon danger" onclick="limpiarTodo()"><i class="fa-solid fa-trash-can"></i><span>Limpiar</span></button>
-        <div style="width: 1px; background: rgba(255,255,255,0.1); margin: 5px;"></div>
-        
-        <!-- Acciones Ext -->
-        <button class="btn-ribbon" onclick="exportarImagen()"><i class="fa-solid fa-camera"></i><span>Exportar</span></button>
-        <button class="btn-ribbon" onclick="abrirModalGuia()"><i class="fa-solid fa-circle-question"></i><span>Guía</span></button>
-        
-        <div style="display:flex; align-items:center; gap:5px; margin-left: 10px;">
-            <input type="color" id="pencil-color" value="#000000" style="width:30px; height:30px; padding:0; border:none; border-radius:4px; cursor:pointer;" onchange="state.currentColor = this.value" title="Color de marcador">
-        </div>
+    <div class="ribbon-group">
+        <button class="btn btn-active" onclick="setTool('draw', this)" title="Lápiz de Objetos"><i data-lucide="pen-tool" class="icon-sm"></i> Lápiz IA</button>
+        <button class="btn" onclick="setTool('move', this)" title="Seleccionar/Mover"><i data-lucide="mouse-pointer" class="icon-sm"></i> Selección</button>
+        <button class="btn" onclick="setTool('visibility', this)" title="Ocultar elementos"><i data-lucide="eye-off" class="icon-sm"></i> Visibilidad</button>
     </div>
 
-    <div class="header-auth">
-        <span id="user-stats" class="badge badge-yellow" style="display:none;" onclick="abrirModalPerfil()"><i class="fa-solid fa-trophy"></i> Lvl 1</span>
-        <span id="user-info" class="badge badge-green" onclick="abrirModalAuth()"><i class="fa-regular fa-circle-user"></i> Conectar</span>
-        <button id="btn-logout" class="btn-ribbon danger" style="display: none; padding: 5px; flex-direction:row;" onclick="cerrarSesion()"><i class="fa-solid fa-right-from-bracket"></i></button>
+    <div class="ribbon-group">
+        <button class="btn" onclick="undo()" title="Deshacer trazo"><i data-lucide="undo" class="icon-sm"></i></button>
+        <button class="btn btn-danger" onclick="limpiarTodo()" title="Limpiar todo"><i data-lucide="trash-2" class="icon-sm"></i></button>
+        <button class="btn" onclick="exportarImagen()" title="Exportar PNG"><i data-lucide="camera" class="icon-sm"></i> Exportar</button>
+    </div>
+
+    <div class="ribbon-group">
+        <div style="display:flex; flex-direction:column; gap:2px;">
+            <label style="font-size:0.65rem; color:var(--text-muted)">U. Carga</label>
+            <select id="charge-unit" class="form-control" style="padding:2px 5px; margin:0; height:auto;" onchange="analizarFisica()">
+                <option value="1e-6">µC</option>
+                <option value="1e-9">nC</option>
+                <option value="1e-3">mC</option>
+                <option value="1">C</option>
+            </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:2px;">
+            <label style="font-size:0.65rem; color:var(--text-muted)">Distancia</label>
+            <select id="dist-unit" class="form-control" style="padding:2px 5px; margin:0; height:auto;" onchange="analizarFisica()">
+                <option value="1">m</option>
+                <option value="0.01">cm</option>
+                <option value="1e-3">mm</option>
+                <option value="1e-6">µm</option>
+                <option value="1e-9">nm</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="analizarFisica()"><i data-lucide="calculator" class="icon-sm"></i> Calcular</button>
+    </div>
+
+    <div class="ribbon-group" style="margin-left: auto; border-right:none;">
+        <span id="user-info-badge" class="badge badge-green" style="display:none; cursor:pointer;" onclick="abrirModalPerfil()">
+            <i data-lucide="user" class="icon-sm"></i> <span id="ui-username">User</span>
+        </span>
+        <button class="btn" onclick="abrirModalGestorSalas()" id="btn-room-mgr" style="display:none;"><i data-lucide="users" class="icon-sm"></i> Salas</button>
+        <button class="btn" onclick="abrirModalGuia()"><i data-lucide="help-circle" class="icon-sm"></i> Guía</button>
+        <button class="btn btn-danger" id="btn-logout" style="display:none;" onclick="cerrarSesion()"><i data-lucide="log-out" class="icon-sm"></i></button>
     </div>
 </header>
 
-<!-- ESPACIO DE TRABAJO -->
-<div class="workspace" id="main-workspace">
-    
-    <!-- PANEL IZQUIERDO (Se despliega hacia la derecha) -->
-    <div class="panel glass open-left" id="panel-left">
-        <!-- SECCIÓN: FÍSICA -->
-        <div>
-            <div class="section-title"><i class="fa-solid fa-sliders"></i> Entorno Físico</div>
-            <div class="control-group">
-                <label>Unidad de Carga:</label>
-                <div class="select-wrapper">
-                    <select id="charge-unit" onchange="analizarFisica()">
-                        <option value="1e-6">Microcoulombs (µC)</option>
-                        <option value="1e-9">Nanocoulombs (nC)</option>
-                        <option value="1e-3">MiliCoulombs (mC)</option>
-                        <option value="1">Coulombs (C)</option>
-                    </select>
-                </div>
-            </div>
-            <div class="control-group">
-                <label>Unidad de Distancia:</label>
-                <div class="select-wrapper">
-                    <select id="dist-unit" onchange="analizarFisica()">
-                        <option value="1">Metros (m)</option>
-                        <option value="0.01">Centímetros (cm)</option>
-                        <option value="1e-3">Milímetros (mm)</option>
-                        <option value="1e-6">Micrómetros (µm)</option>
-                        <option value="1e-9">Nanómetros (nm)</option>
-                    </select>
-                </div>
-            </div>
-            <div class="control-group">
-                <label>Escala (px = 1 unidad):</label>
-                <input type="number" id="scale-input" value="100" onchange="analizarFisica()">
-            </div>
-            <button class="btn-action" onclick="analizarFisica()"><i class="fa-solid fa-magnifying-glass-chart"></i> Recalcular Sistema</button>
-        </div>
-
-        <!-- SECCIÓN: SALAS / ROOMS -->
-        <div>
-            <div class="section-title" style="margin-top:10px;"><i class="fa-solid fa-users"></i> Salas de Trabajo</div>
-            <div class="card card-accent" style="margin-bottom: 5px;">
-                <div id="room-info" style="font-weight:bold; margin-bottom: 5px;">Sala: Ninguna</div>
-                <div style="display:flex; gap:5px;">
-                    <button class="btn-action" style="padding: 5px; font-size: 0.8rem;" onclick="abrirModalGestorSalas()"><i class="fa-solid fa-folder-open"></i> Gestor</button>
-                    <button id="btn-share-room" class="btn-action green" style="padding: 5px; font-size: 0.8rem; display:none;" onclick="copiarInfoSala()"><i class="fa-solid fa-share-nodes"></i> Compartir</button>
-                </div>
-            </div>
-            
-            <!-- Chat de Sala -->
-            <div id="chat-section" style="display: none;">
-                <div id="chat-box" style="background: rgba(0,0,0,0.4); height: 120px; overflow-y: auto; padding: 8px; border-radius: 6px; border-left: 2px solid var(--accent-blue); font-size: 0.8rem; display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px;">
-                    <i style="color: var(--text-muted);">Únete a una sala...</i>
-                </div>
-                <div style="display: flex; gap: 5px;">
-                    <input type="text" id="chat-input" placeholder="Mensaje..." style="flex: 1;" onkeypress="if(event.key === 'Enter') enviarMensajeChat()">
-                    <button class="btn-action" style="width:auto; padding: 0 10px;" onclick="enviarMensajeChat()"><i class="fa-solid fa-paper-plane"></i></button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="panel-toggle glass" id="toggle-left" onclick="toggleLeft()"><i class="fa-solid fa-chevron-left" id="icon-left"></i></div>
-
-    <!-- CANVAS AREA -->
-    <div class="canvas-area" id="canvas-wrapper">
+<div class="workspace">
+    <!-- Main Canvas -->
+    <div class="canvas-container" id="canvas-wrapper">
         <canvas id="main-canvas"></canvas>
-        <button id="float-delete" onclick="deleteSelected()"><i class="fa-solid fa-trash"></i> Eliminar</button>
-        <input type="text" id="text-input-overlay" placeholder="Escribe y presiona Enter...">
+        <div id="overlays-container"></div>
         <div id="labels-overlay"></div>
-        <div id="coords-indicator" class="glass">x: 0, y: 0</div>
-        
-        <!-- VENTANA DCL (Draggable) -->
-        <div class="window-dcl glass" id="dcl-window">
-            <div class="window-header" id="dcl-header">
-                <div class="window-title"><i class="fa-solid fa-vector-square"></i> DCL: <span id="dcl-target-id">Ninguno</span></div>
-                <div class="window-controls">
-                    <button class="win-btn win-min" onclick="toggleDclMinMax('min')" title="Minimizar"><i class="fa-solid fa-minus"></i></button>
-                    <button class="win-btn win-max" onclick="toggleDclMinMax('max')" title="Maximizar"><i class="fa-solid fa-square"></i></button>
-                    <button class="win-btn win-close" onclick="closeDCLWindow()" title="Cerrar"><i class="fa-solid fa-xmark"></i></button>
-                </div>
+        <div id="coords-indicator">X: 0, Y: 0</div>
+    </div>
+
+    <!-- Sidebar Right (Resultados & Entorno) -->
+    <div class="sidebar sidebar-right glass-panel" id="panel-right">
+        <div class="sidebar-header">
+            <span><i data-lucide="activity" class="icon-sm"></i> Panel de Análisis</span>
+            <span id="current-room-badge" class="badge badge-blue" style="font-size:0.7rem; display:none;">Offline</span>
+        </div>
+        <div class="sidebar-content">
+            
+            <div class="card">
+                <div class="card-title">Enunciado Automático</div>
+                <div id="problem-statement" style="font-size:0.85rem; line-height:1.4;">Dibuja al menos dos cargas.</div>
             </div>
-            <div class="window-body" id="dcl-body">
-                <canvas id="fbd-canvas" style="width:100%; height:100%; object-fit: contain; cursor:default; position:relative;"></canvas>
+
+            <div class="card">
+                <div class="card-title">Validación Visual</div>
+                <div id="validation-box" style="font-size:0.85rem;">...</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Desarrollo Matemático</div>
+                <div id="dcl-buttons" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;"></div>
+                <div class="latex-box" id="latex-result">$$\text{Esperando datos...}$$</div>
+            </div>
+
+            <!-- Chat Reducido -->
+            <div class="card" id="chat-container" style="display:none;">
+                <div class="card-title">Chat de Sala</div>
+                <div class="chat-box" id="chat-box"></div>
+                <div style="display:flex; gap:5px; margin-top:8px;">
+                    <input type="text" id="chat-input" class="form-control" placeholder="Mensaje..." style="margin:0; padding:6px;" onkeypress="if(event.key==='Enter') enviarMensajeChat()">
+                    <button class="btn btn-primary" style="padding:6px 10px;" onclick="enviarMensajeChat()"><i data-lucide="send" class="icon-sm"></i></button>
+                </div>
             </div>
         </div>
     </div>
-
-    <div class="panel-toggle glass" id="toggle-right" onclick="toggleRight()"><i class="fa-solid fa-chevron-right" id="icon-right"></i></div>
-
-    <!-- PANEL DERECHO -->
-    <div class="panel glass open-right" id="panel-right">
-        <div>
-            <div class="section-title"><i class="fa-solid fa-clipboard-list"></i> Enunciado</div>
-            <div class="card card-accent" id="problem-statement">
-                <i>Dibuja cargas fuente para interactuar.</i>
-            </div>
-        </div>
-        <div>
-            <div class="section-title"><i class="fa-solid fa-microchip"></i> Detección IA</div>
-            <div class="card card-green" style="display:flex; flex-wrap:wrap; gap:5px;" id="detection-list">
-                <i style="color:var(--text-muted);">Esperando dibujos...</i>
-            </div>
-        </div>
-        <div>
-            <div class="section-title"><i class="fa-solid fa-check-double"></i> Validación</div>
-            <div class="card" id="validation-box">...</div>
-            <div class="card card-yellow" style="border-left-color: var(--accent-yellow); font-size:0.8rem;">
-                <strong><i class="fa-regular fa-lightbulb"></i> Tip:</strong> Cargas de IGUAL signo se repelen, de OPUESTO se atraen.
-            </div>
-        </div>
-        <div>
-            <div class="section-title"><i class="fa-solid fa-calculator"></i> Solución Detallada</div>
-            <div id="dcl-buttons" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;"></div>
-            <div class="latex-box" id="latex-result">$$\text{Esperando datos...}$$</div>
-        </div>
+    
+    <!-- Toggle Panel Right -->
+    <div class="panel-toggle" id="toggle-right" onclick="toggleRightPanel()">
+        <i data-lucide="chevron-right"></i>
     </div>
 </div>
 
-<!-- FOOTER -->
+<!-- Footer -->
 <footer>
-    <div><i class="fa-regular fa-copyright"></i> 2026 Coulomb Lab IA. Todos los derechos reservados.</div>
-    <div style="display:flex; gap:15px;">
-        <a href="https://wa.me/1234567890" target="_blank"><i class="fa-brands fa-whatsapp"></i> Soporte WhatsApp</a>
-        <a href="https://paypal.me/tucuentapaypal" target="_blank"><i class="fa-brands fa-paypal"></i> Invítame un café</a>
+    <div>&copy; 2026 Laboratorio Coulomb IA. Todos los derechos reservados.</div>
+    <div class="footer-links">
+        <a href="#" onclick="alert('Redirigiendo a PayPal...')"><i data-lucide="coffee" class="icon-sm"></i> Invítame un café</a>
+        <a href="#" onclick="alert('Abriendo WhatsApp...')"><i data-lucide="message-circle" class="icon-sm"></i> Soporte WA</a>
     </div>
 </footer>
 
-<!-- MODALES GLASSMORPHISM -->
+<!-- MODALS -->
 
-<!-- 1. Gestor de Salas -->
-<div class="modal-overlay" id="room-manager-modal">
+<!-- Modal: Autenticación Forzada -->
+<div class="modal-overlay glass" id="auth-modal" style="display: flex;">
     <div class="modal-content glass">
-        <i class="fa-solid fa-xmark modal-close" onclick="cerrarModalGestorSalas()"></i>
-        <h3 style="color: var(--accent-blue); margin-bottom:15px;"><i class="fa-solid fa-folder-tree"></i> Gestor de Salas</h3>
-        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">Tus salas guardadas en la nube.</p>
+        <h2 style="color: var(--accent-blue); margin-bottom: 10px; display:flex; align-items:center; gap:8px;">
+            <i data-lucide="lock"></i> Acceso al Laboratorio
+        </h2>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">
+            Inicia sesión para guardar tu progreso, sincronizar datos y usar salas colaborativas.
+        </p>
         
-        <div id="my-rooms-list" style="max-height: 200px; overflow-y:auto; margin-bottom:15px;">
-            <i style="font-size:0.85rem;">Cargando...</i>
-        </div>
-
-        <div style="border-top: 1px solid var(--glass-border); padding-top: 15px;">
-            <label style="font-size:0.8rem; color:var(--accent-green);">Crear / Unirse a Nueva Sala</label>
-            <input type="text" id="new-room-name" placeholder="ID de la Sala" style="margin-bottom:8px;">
-            <input type="password" id="new-room-pass" placeholder="Contraseña de la Sala" style="margin-bottom:12px;">
-            <button class="btn-action green" onclick="intentarUnirseSala()"><i class="fa-solid fa-door-open"></i> Entrar / Crear</button>
-        </div>
-    </div>
-</div>
-
-<!-- 2. Editor Profesional de Cargas (Activado con Clic Izquierdo) -->
-<div class="modal-overlay" id="charge-editor-modal">
-    <div class="modal-content glass">
-        <i class="fa-solid fa-xmark modal-close" onclick="cerrarModalCharge()"></i>
-        <h3 style="color: var(--accent-blue); margin-bottom:15px;"><i class="fa-solid fa-bolt"></i> Propiedades de Carga</h3>
+        <input type="email" id="auth-email" class="form-control" placeholder="Correo electrónico">
+        <input type="password" id="auth-pass" class="form-control" placeholder="Contraseña">
         
-        <input type="hidden" id="edit-charge-id">
-        <div class="control-group">
-            <label>Etiqueta / Nombre:</label>
-            <input type="text" id="edit-charge-label" disabled style="opacity:0.7;">
-        </div>
-        <div class="control-group">
-            <label>Magnitud (Q):</label>
-            <input type="number" id="edit-charge-q">
-        </div>
-        <div style="display:flex; gap:10px;">
-            <div class="control-group" style="flex:1;">
-                <label>Posición X:</label>
-                <input type="number" id="edit-charge-x">
-            </div>
-            <div class="control-group" style="flex:1;">
-                <label>Posición Y:</label>
-                <input type="number" id="edit-charge-y">
-            </div>
-        </div>
-        <div style="display:flex; gap:10px; margin-top:15px;">
-            <button class="btn-action green" onclick="guardarEdicionCarga()"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
-            <button class="btn-action" style="color:var(--accent-pink); border-color:var(--accent-pink);" onclick="eliminarCargaEditada()"><i class="fa-solid fa-trash"></i> Eliminar</button>
-        </div>
-    </div>
-</div>
-
-<!-- 3. Modal de Autenticación -->
-<div class="modal-overlay" id="auth-modal">
-    <div class="modal-content glass">
-        <i class="fa-solid fa-xmark modal-close" onclick="cerrarModalAuth()"></i>
-        <h3 style="color: var(--accent-green); margin-bottom:15px;"><i class="fa-solid fa-lock"></i> Acceso al Laboratorio</h3>
-        
-        <div class="control-group">
-            <input type="email" id="auth-email" placeholder="Correo Electrónico">
-        </div>
-        <div class="control-group">
-            <input type="password" id="auth-pass" placeholder="Contraseña (Mínimo 6 caracteres)">
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="iniciarSesion()">Entrar</button>
+            <button class="btn" style="flex:1; justify-content:center;" onclick="registrarUsuario()">Crear Cuenta</button>
         </div>
         
-        <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <button class="btn-action green" onclick="iniciarSesion()"><i class="fa-solid fa-right-to-bracket"></i> Entrar</button>
-            <button class="btn-action" onclick="registrarUsuario()"><i class="fa-solid fa-user-plus"></i> Registrar</button>
-        </div>
+        <div style="text-align: center; margin: 15px 0; color: var(--text-muted); font-size: 0.8rem;">O</div>
         
-        <button class="btn-action" style="background: white; color: #444; border-color: #ccc; margin-bottom:10px;" onclick="iniciarSesionConGoogle()">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style="width:18px;"> Continuar con Google
+        <button class="btn" style="width: 100%; justify-content: center; background: white; color: black;" onclick="iniciarSesionConGoogle()">
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Continuar con Google
         </button>
-        <div style="text-align:center;">
-            <a href="#" style="color:var(--accent-blue); font-size:0.8rem;" onclick="recuperarContrasena()">¿Olvidaste tu contraseña?</a>
-        </div>
     </div>
 </div>
 
-<!-- 4. Modal Perfil/Logros -->
-<div class="modal-overlay" id="profile-modal">
+<!-- Modal: Completar Perfil -->
+<div class="modal-overlay glass" id="profile-form-modal">
     <div class="modal-content glass">
-        <i class="fa-solid fa-xmark modal-close" onclick="cerrarModalPerfil()"></i>
-        <h3 style="color: var(--accent-yellow); margin-bottom:15px;"><i class="fa-solid fa-medal"></i> Perfil Académico</h3>
-        <div style="display: flex; justify-content: space-around; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-            <div style="text-align:center;">Nivel<br><strong id="ui-nivel" style="color:var(--accent-green); font-size:1.2rem;">1</strong></div>
-            <div style="text-align:center;">Puntos<br><strong id="ui-puntos" style="color:var(--accent-blue); font-size:1.2rem;">0</strong></div>
-            <div style="text-align:center;">Minutos<br><strong id="ui-tiempo" style="color:var(--accent-pink); font-size:1.2rem;">0</strong></div>
-        </div>
-        <div class="section-title">Misiones</div>
-        <div id="ui-tareas" style="font-size:0.85rem; margin-bottom:15px; display:flex; flex-direction:column; gap:8px;"></div>
-        <div class="section-title">Logros</div>
-        <div id="ui-logros" style="display:flex; flex-wrap:wrap; gap:5px; font-size:0.8rem;"></div>
+        <h2 style="color: var(--accent-green); margin-bottom: 10px;">Completar Perfil</h2>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">Ayúdanos a personalizar tu experiencia de aprendizaje.</p>
+        
+        <label style="font-size:0.8rem; color:var(--text-muted)">Edad</label>
+        <input type="number" id="prof-edad" class="form-control" placeholder="Ej: 20" min="10" max="99">
+        
+        <label style="font-size:0.8rem; color:var(--text-muted)">Género</label>
+        <select id="prof-genero" class="form-control">
+            <option value="M">Masculino</option>
+            <option value="F">Femenino</option>
+            <option value="O">Otro / Prefiero no decirlo</option>
+        </select>
+        
+        <label style="font-size:0.8rem; color:var(--text-muted)">Carrera / Área de Estudio</label>
+        <input type="text" id="prof-carrera" class="form-control" placeholder="Ej: Ingeniería de Sistemas">
+        
+        <button class="btn btn-active" style="width: 100%; justify-content:center; margin-top:10px;" onclick="guardarPerfil()">Guardar y Continuar</button>
     </div>
 </div>
 
-<!-- 5. Modal Guía -->
-<div class="modal-overlay" id="guide-modal">
-    <div class="modal-content glass" style="width:500px; max-height:80vh; overflow-y:auto;">
-        <i class="fa-solid fa-xmark modal-close" onclick="cerrarModalGuia()"></i>
-        <h3 style="color: var(--accent-blue); margin-bottom:15px;"><i class="fa-solid fa-book-open"></i> Guía Rápida de Usuario</h3>
-        <div style="font-size:0.85rem; color: #ddd; line-height: 1.5;">
-            <p><strong>1. Dibujar Cargas:</strong> Usa el <em>Lápiz IA</em> y dibuja un círculo en el lienzo. El sistema detectará si es positiva (+) o negativa (-) según el trazo.</p>
-            <p><strong>2. Dibujar Vectores:</strong> Con el <em>Lápiz IA</em>, dibuja una flecha recta que nazca desde una carga hacia afuera.</p>
-            <p><strong>3. Editar Cargas Profesionalmente:</strong> Simplemente da <strong>Clic Izquierdo</strong> sobre cualquier carga dibujada para abrir sus propiedades exactas (Q, X, Y).</p>
-            <p><strong>4. Diagrama de Cuerpo Libre (DCL):</strong> Al detectar interacciones, aparecerán botones en el panel derecho. Haz clic para abrir una ventana flotante con el DCL. Puedes arrastrar la ventana desde su barra superior, minimizarla o maximizarla.</p>
-            <p><strong>5. Salas Guardadas:</strong> Inicia sesión, ve a <em>Gestor de Salas</em>, crea un cuarto y comparte el nombre y clave con tus colegas para trabajar en tiempo real.</p>
+<!-- Modal: Gestor de Salas -->
+<div class="modal-overlay glass" id="room-manager-modal">
+    <div class="modal-content glass" style="max-width: 600px;">
+        <button class="modal-close" onclick="document.getElementById('room-manager-modal').style.display='none'"><i data-lucide="x"></i></button>
+        <h2 style="color: var(--accent-blue); margin-bottom: 20px; display:flex; align-items:center; gap:8px;">
+            <i data-lucide="network"></i> Gestor de Salas Colaborativas
+        </h2>
+        
+        <div style="display:flex; gap:10px; margin-bottom: 20px;">
+            <input type="text" id="new-room-name" class="form-control" style="margin:0; flex:2;" placeholder="Nombre de sala nueva o existente">
+            <input type="password" id="new-room-pass" class="form-control" style="margin:0; flex:1;" placeholder="Clave">
+            <button class="btn btn-primary" onclick="intentarUnirseSala()"><i data-lucide="log-in" class="icon-sm"></i> Conectar</button>
+        </div>
+
+        <h3 style="font-size:1rem; color:var(--text-muted); margin-bottom:10px;">Mis Salas Recientes</h3>
+        <div id="room-list" style="max-height: 200px; overflow-y:auto; background:rgba(0,0,0,0.2); border-radius:8px; padding:10px; border:1px solid var(--glass-border);">
+            <!-- Llenado dinámico JS -->
         </div>
     </div>
 </div>
 
+<!-- Panel Flotante: Editor de Carga (Sustituye menú derecho) -->
+<div class="glass" id="charge-editor">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--glass-border); padding-bottom:5px;">
+        <strong id="ce-title" style="color:var(--accent-yellow); font-size:0.9rem;">Carga</strong>
+        <button class="btn" style="padding:2px; background:none; border:none;" onclick="cerrarEditorCarga()"><i data-lucide="x" class="icon-sm"></i></button>
+    </div>
+    
+    <label style="font-size:0.75rem; color:var(--text-muted)">Magnitud (q)</label>
+    <div style="display:flex; gap:5px; margin-bottom:10px;">
+        <input type="number" id="ce-q" class="form-control" style="margin:0; padding:4px;" onchange="aplicarEdicionCarga()">
+        <button class="btn" id="ce-pol-btn" style="padding:4px 8px;" onclick="togglePolaridadCarga()">+/-</button>
+    </div>
 
-<!-- --- SCRIPTS LÓGICA FRONTEND & FÍSICA --- -->
-<script>
+    <div style="display:flex; gap:5px; margin-bottom:10px;">
+        <div style="flex:1">
+            <label style="font-size:0.75rem; color:var(--text-muted)">Pos X</label>
+            <input type="number" id="ce-x" class="form-control" style="margin:0; padding:4px;" onchange="aplicarEdicionCarga()">
+        </div>
+        <div style="flex:1">
+            <label style="font-size:0.75rem; color:var(--text-muted)">Pos Y</label>
+            <input type="number" id="ce-y" class="form-control" style="margin:0; padding:4px;" onchange="aplicarEdicionCarga()">
+        </div>
+    </div>
+    <button class="btn btn-danger" style="width:100%; justify-content:center; padding:6px;" onclick="eliminarCargaEditada()"><i data-lucide="trash-2" class="icon-sm"></i> Eliminar</button>
+</div>
+
+<!-- Ventana OS Flotante: DCL -->
+<div class="window-os glass" id="dcl-window">
+    <div class="window-header" id="dcl-header">
+        <span style="font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:5px;"><i data-lucide="crosshair" class="icon-sm"></i> Diagrama DCL: <span id="dcl-target-name">q</span></span>
+        <div class="window-controls">
+            <button class="w-btn w-min" onclick="toggleDCLState('min')"><i data-lucide="minus"></i></button>
+            <button class="w-btn w-max" onclick="toggleDCLState('max')"><i data-lucide="maximize-2"></i></button>
+            <button class="w-btn w-close" onclick="closeDCL()"><i data-lucide="x"></i></button>
+        </div>
+    </div>
+    <div class="window-body">
+        <canvas id="fbd-canvas" width="500" height="460"></canvas>
+    </div>
+</div>
+
+<!-- Modal: Guía de Usuario -->
+<div class="modal-overlay glass" id="guide-modal">
+    <div class="modal-content glass" style="max-width: 500px;">
+        <button class="modal-close" onclick="document.getElementById('guide-modal').style.display='none'"><i data-lucide="x"></i></button>
+        <h2 style="color: var(--accent-green); margin-bottom: 15px;"><i data-lucide="book-open"></i> Guía Rápida</h2>
+        <ul style="font-size:0.9rem; color:var(--text-main); line-height:1.6; padding-left:20px;">
+            <li><strong>Lápiz IA:</strong> Dibuja círculos cerrados para crear cargas. Dibuja líneas largas para crear vectores de fuerza.</li>
+            <li><strong>Editar Carga:</strong> Haz <b>clic izquierdo</b> sobre cualquier carga para abrir su panel de propiedades (polaridad, valor, coords).</li>
+            <li><strong>Mover:</strong> Selecciona la herramienta 'Selección', haz clic y arrastra cargas. Arrastra el fondo para mover el origen (X=0, Y=0).</li>
+            <li><strong>Cálculo:</strong> Ajusta las unidades en el menú superior y presiona 'Calcular' para ver el desarrollo matemático.</li>
+            <li><strong>Salas:</strong> Usa el Gestor de Salas para invitar amigos. Todo lo dibujado se sincroniza en tiempo real.</li>
+        </ul>
+    </div>
+</div>
+
+<!-- LOGICA JAVASCRIPT INTEGRADA -->
+<script type="module">
+    // --- IMPORTACIONES FIREBASE V10+ ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getDatabase, ref, set, get, onValue, push, update, remove } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
+    // Reemplazar iconos al cargar
+    lucide.createIcons();
+
+    // Configuración Firebase (Mantenida)
+    const firebaseConfig = {
+        apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+        authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+        databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+        projectId: "laboratorio-de-coulomb",
+        storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+        messagingSenderId: "525944850850",
+        appId: "1:525944850850:web:eca9c0b79809358e8d8afb"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    // --- VARIABLES GLOBALES UI Y FÍSICA ---
+    let currentUser = null;
+    let currentRoomRef = null;
+    let chatRoomRef = null;
+    let isReceiving = false;
+    let unsubscribeRoom = null;
+    let unsubscribeChat = null;
+    let currentRoomId = null;
+
     const canvas = document.getElementById('main-canvas');
     const ctx = canvas.getContext('2d');
     const wrapper = document.getElementById('canvas-wrapper');
-    const labelsOverlay = document.getElementById('labels-overlay');
-    const floatDelete = document.getElementById('float-delete');
-    const textOverlay = document.getElementById('text-input-overlay');
+    const chargeEditor = document.getElementById('charge-editor');
     
-    // Configuración Inicial de UI
-    let leftOpen = true;
-    let rightOpen = true;
-
-    function toggleLeft() {
-        leftOpen = !leftOpen;
-        const panel = document.getElementById('panel-left');
-        const icon = document.getElementById('icon-left');
-        if(leftOpen) { panel.classList.add('open-left'); icon.className = "fa-solid fa-chevron-left"; }
-        else { panel.classList.remove('open-left'); icon.className = "fa-solid fa-chevron-right"; }
-        setTimeout(resizeCanvas, 300);
-    }
-    
-    function toggleRight() {
-        rightOpen = !rightOpen;
-        const panel = document.getElementById('panel-right');
-        const icon = document.getElementById('icon-right');
-        if(rightOpen) { panel.classList.add('open-right'); icon.className = "fa-solid fa-chevron-right"; }
-        else { panel.classList.remove('open-right'); icon.className = "fa-solid fa-chevron-left"; }
-        setTimeout(resizeCanvas, 300);
-    }
-
-    // Estado de la App
     let state = {
-        tool: 'draw', currentColor: '#000000',
-        isDrawing: false, isDrawingFree: false, isDrawingLine: false,
-        isDragging: false, dragLastX: 0, dragLastY: 0,
-        selectedObjects: [], selectionBox: null,
-        isDraggingOrigin: false, origin: { x: null, y: null },
-        recognitionTimer: null,
-        rawStrokes: [], currentStroke: [], currentFreeStroke: null, currentLine: null,
-        objects: [], calculatedForces: []
+        tool: 'draw',
+        objects: [], rawStrokes: [], currentStroke: [],
+        origin: { x: null, y: null },
+        isDrawing: false, isDragging: false, isDraggingOrigin: false,
+        dragLastX: 0, dragLastY: 0,
+        calculatedForces: [],
+        editingChargeId: null // Id de la carga que se está editando con clic izquierdo
     };
-    window.appState = state;
-    let textPos = {x:0, y:0};
+    window.appState = state; // Para acceso global si se requiere
 
-    // Funciones de sincronización
-    let lastSyncTime = 0;
-    function requestSync(immediate = false) {
-        if (!window.enviarEstadoNube) return;
-        const now = Date.now();
-        if (immediate || now - lastSyncTime > 150) { 
-            window.enviarEstadoNube();
-            lastSyncTime = now;
+    // --- BLOQUEO CLIC DERECHO ---
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    // --- FUNCIONES DE VENTANAS Y PANELES ---
+    let rightPanelOpen = true;
+    window.toggleRightPanel = function() {
+        const panel = document.getElementById('panel-right');
+        const toggle = document.getElementById('toggle-right');
+        rightPanelOpen = !rightPanelOpen;
+        if(rightPanelOpen){
+            panel.classList.remove('closed');
+            toggle.innerHTML = '<i data-lucide="chevron-right"></i>';
+        } else {
+            panel.classList.add('closed');
+            toggle.innerHTML = '<i data-lucide="chevron-left"></i>';
         }
+        lucide.createIcons();
+        setTimeout(resizeCanvas, 300);
     }
 
-    // Inicialización Canvas
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
+    // --- SISTEMA DE AUTENTICACIÓN Y PERFIL ---
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            document.getElementById('auth-modal').style.display = 'none';
+            document.getElementById('btn-logout').style.display = 'inline-flex';
+            document.getElementById('btn-room-mgr').style.display = 'inline-flex';
+            document.getElementById('user-info-badge').style.display = 'inline-flex';
+            document.getElementById('ui-username').innerText = user.email.split('@')[0];
+
+            // Verificar Perfil Estudiante
+            const profileRef = ref(db, `usuarios/${user.uid}/perfil`);
+            const snap = await get(profileRef);
+            if (!snap.exists() || !snap.val().carrera) {
+                document.getElementById('profile-form-modal').style.display = 'flex';
+            } else {
+                // Perfil OK, cargar salas
+                cargarListaSalas();
+            }
+        } else {
+            currentUser = null;
+            document.getElementById('auth-modal').style.display = 'flex';
+            document.getElementById('btn-logout').style.display = 'none';
+            document.getElementById('btn-room-mgr').style.display = 'none';
+            document.getElementById('user-info-badge').style.display = 'none';
+            if (unsubscribeRoom) unsubscribeRoom();
+            if (unsubscribeChat) unsubscribeChat();
+        }
+    });
+
+    window.iniciarSesion = () => {
+        const email = document.getElementById('auth-email').value.trim();
+        const pass = document.getElementById('auth-pass').value;
+        if(!email || !pass) return alert("Llena los campos");
+        signInWithEmailAndPassword(auth, email, pass).catch(e => alert(e.message));
+    };
+    window.registrarUsuario = () => {
+        const email = document.getElementById('auth-email').value.trim();
+        const pass = document.getElementById('auth-pass').value;
+        if(pass.length < 6) return alert("Mínimo 6 caracteres");
+        createUserWithEmailAndPassword(auth, email, pass).catch(e => alert(e.message));
+    };
+    window.iniciarSesionConGoogle = () => {
+        const provider = new GoogleAuthProvider();
+        signInWithPopup(auth, provider).catch(e => alert(e.message));
+    };
+    window.cerrarSesion = () => signOut(auth);
+
+    window.guardarPerfil = async () => {
+        const edad = document.getElementById('prof-edad').value;
+        const genero = document.getElementById('prof-genero').value;
+        const carrera = document.getElementById('prof-carrera').value.trim();
+        if(!edad || !carrera) return alert("Completa todos los datos.");
+        
+        await update(ref(db, `usuarios/${currentUser.uid}/perfil`), { edad, genero, carrera });
+        document.getElementById('profile-form-modal').style.display = 'none';
+        cargarListaSalas();
+    };
+
+    // --- GESTIÓN DE SALAS ---
+    window.abrirModalGestorSalas = () => {
+        document.getElementById('room-manager-modal').style.display = 'flex';
+        cargarListaSalas();
+    };
+
+    async function cargarListaSalas() {
+        if(!currentUser) return;
+        const salasRef = ref(db, `usuarios/${currentUser.uid}/salas_recientes`);
+        const snap = await get(salasRef);
+        const div = document.getElementById('room-list');
+        div.innerHTML = '';
+        
+        let arrSalas = [];
+        if(snap.exists()) {
+            const data = snap.val();
+            arrSalas = Object.keys(data).map(k => ({id: k, lastAccess: data[k].lastAccess})).sort((a,b) => b.lastAccess - a.lastAccess);
+        }
+
+        if(arrSalas.length === 0) {
+            div.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem;">No tienes salas recientes. Crea una.</span>';
+            return;
+        }
+
+        // Auto-join a la última sala si no estamos en ninguna
+        if(!currentRoomId && arrSalas.length > 0) {
+            conectarASalaLogica(arrSalas[0].id, null, true); // true = skip pass if history
+        }
+
+        arrSalas.forEach(s => {
+            const date = new Date(s.lastAccess).toLocaleDateString();
+            div.innerHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <div>
+                        <strong style="color:var(--accent-blue)">${s.id}</strong><br>
+                        <small style="color:var(--text-muted)">Último acceso: ${date}</small>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" style="padding:4px 8px; font-size:0.7rem;" onclick="conectarASalaLogica('${s.id}', null, true)">Entrar</button>
+                        <button class="btn btn-danger" style="padding:4px 8px; font-size:0.7rem;" onclick="eliminarHistorialSala('${s.id}')"><i data-lucide="trash" class="icon-sm" style="margin:0"></i></button>
+                    </div>
+                </div>
+            `;
+        });
+        lucide.createIcons();
+    }
+
+    window.intentarUnirseSala = () => {
+        const id = document.getElementById('new-room-name').value.trim();
+        const pass = document.getElementById('new-room-pass').value.trim();
+        if(!id || !pass) return alert("Indica nombre y clave");
+        conectarASalaLogica(id, pass, false);
+    };
+
+    window.eliminarHistorialSala = async (id) => {
+        if(!confirm(`¿Eliminar ${id} de tu historial?`)) return;
+        await remove(ref(db, `usuarios/${currentUser.uid}/salas_recientes/${id}`));
+        cargarListaSalas();
+    };
+
+    async function conectarASalaLogica(salaId, pass, fromHistory) {
+        const passRef = ref(db, 'salas/' + salaId + '/password');
+        const snap = await get(passRef);
+        
+        if (snap.exists()) {
+            if (!fromHistory && snap.val() !== pass) return alert('Clave incorrecta');
+        } else {
+            if(fromHistory) return; // Error raro
+            if(!pass) return alert('Debe indicar clave para crear sala nueva');
+            await set(passRef, pass);
+        }
+
+        // Registrar en historial del usuario
+        await set(ref(db, `usuarios/${currentUser.uid}/salas_recientes/${salaId}`), { lastAccess: Date.now() });
+        
+        // Conectar UI
+        currentRoomId = salaId;
+        document.getElementById('room-manager-modal').style.display = 'none';
+        document.getElementById('current-room-badge').style.display = 'inline-flex';
+        document.getElementById('current-room-badge').innerText = `Sala: ${salaId}`;
+        document.getElementById('chat-container').style.display = 'block';
+
+        if (unsubscribeRoom) unsubscribeRoom();
+        if (unsubscribeChat) unsubscribeChat();
+
+        currentRoomRef = ref(db, 'salas/' + salaId + '/state');
+        chatRoomRef = ref(db, 'salas/' + salaId + '/chat');
+
+        unsubscribeRoom = onValue(currentRoomRef, (snapshot) => {
+            if (isReceiving) return;
+            const data = snapshot.val();
+            if (data && !window.isSendingData) {
+                isReceiving = true;
+                state.objects = data.objects || [];
+                state.origin = data.origin || { x: canvas.width/2, y: canvas.height/2 };
+                state.rawStrokes = data.rawStrokes || [];
+                analizarFisica();
+                redraw();
+                setTimeout(() => { isReceiving = false; }, 100);
+            }
+        });
+
+        unsubscribeChat = onValue(chatRoomRef, (snapshot) => {
+            const box = document.getElementById('chat-box');
+            box.innerHTML = '';
+            const data = snapshot.val();
+            if(data) {
+                Object.values(data).forEach(msg => {
+                    const mine = currentUser.email === msg.email;
+                    box.innerHTML += `
+                        <div class="chat-msg ${mine?'mine':''}">
+                            <small style="color:${mine?'var(--accent-green)':'var(--accent-pink)'}">${msg.email.split('@')[0]}</small><br>
+                            ${msg.text}
+                        </div>
+                    `;
+                });
+                box.scrollTop = box.scrollHeight;
+            }
+        });
+    }
+
+    let syncTimeout = null;
+    function requestSync() {
+        if(!currentRoomRef || isReceiving) return;
+        clearTimeout(syncTimeout);
+        syncTimeout = setTimeout(() => {
+            window.isSendingData = true;
+            set(currentRoomRef, { objects: state.objects, origin: state.origin, rawStrokes: state.rawStrokes })
+                .then(() => window.isSendingData = false)
+                .catch(() => window.isSendingData = false);
+        }, 300); // Debounce
+    }
+
+    window.enviarMensajeChat = () => {
+        const inp = document.getElementById('chat-input');
+        const text = inp.value.trim();
+        if(!text || !chatRoomRef) return;
+        push(chatRoomRef, { email: currentUser.email, text, timestamp: Date.now() });
+        inp.value = '';
+    };
+
+    // --- LÓGICA DE FÍSICA Y CANVAS ---
     function resizeCanvas() {
         canvas.width = wrapper.clientWidth; canvas.height = wrapper.clientHeight;
         if (state.origin.x === null) state.origin = { x: canvas.width / 2, y: canvas.height / 2 };
-        updateGridBackground();
+        wrapper.style.backgroundPosition = `${state.origin.x}px ${state.origin.y}px`;
         redraw();
     }
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 100);
 
-    function getPhysX(canvasX) { return canvasX - state.origin.x; }
-    function getPhysY(canvasY) { return state.origin.y - canvasY; }
+    function getPhysX(cx) { return cx - state.origin.x; }
+    function getPhysY(cy) { return state.origin.y - cy; }
     function getCoords(e) {
         const r = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -595,307 +784,210 @@
         return { x: clientX - r.left, y: clientY - r.top };
     }
 
-    function updateGridBackground() { wrapper.style.backgroundPosition = `${state.origin.x}px ${state.origin.y}px`; }
-
-    function setTool(t, b) {
-        if(state.tool === 'text') finalizeText();
+    window.setTool = (t, btn) => {
         state.tool = t;
-        document.querySelectorAll('.btn-ribbon').forEach(el=>el.classList.remove('active'));
-        if(b) b.classList.add('active');
-        if(t !== 'move') selectObject(null);
-    }
-    window.setTool = setTool;
+        document.querySelectorAll('.ribbon .btn').forEach(b => b.classList.remove('btn-active'));
+        if(btn) btn.classList.add('btn-active');
+        cerrarEditorCarga();
+    };
 
-    // Herramienta Texto
-    function finalizeText() {
-        if(textOverlay.style.display !== 'none' && textOverlay.value.trim() !== '') {
-            state.objects.push({ type: 'text', id: Date.now(), text: textOverlay.value, x: textPos.x, y: textPos.y, color: state.currentColor });
-            textOverlay.value = ''; textOverlay.style.display = 'none';
-            redraw(); requestSync(true);
-        } else { textOverlay.style.display = 'none'; }
-    }
-    textOverlay.addEventListener('keydown', e => { if(e.key === 'Enter') finalizeText(); });
-    textOverlay.addEventListener('blur', finalizeText);
-
-    // Detección de Objetos
-    function distToSegment(p, v, w) {
-        let l2 = Math.pow(w.x - v.x, 2) + Math.pow(w.y - v.y, 2);
-        if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
-        let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
-        t = Math.max(0, Math.min(1, t));
-        return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
-    }
-
-    function findObjectAt(c) {
-        const visibleObjects = state.objects.filter(o => state.tool === 'visibility' || !o.hidden);
-        
-        const textObj = visibleObjects.find(o => {
-            if(o.type !== 'text') return false;
-            ctx.font = '20px "Segoe UI", Arial';
-            return c.x >= o.x && c.x <= o.x + ctx.measureText(o.text).width && c.y >= o.y && c.y <= o.y + 24;
-        });
-        if(textObj) return textObj;
-
-        const charge = visibleObjects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 25);
-        if (charge) return charge;
-
-        const vec = visibleObjects.find(o => o.type === 'vector' && (Math.hypot(o.start.x - c.x, o.start.y - c.y) < 25 || Math.hypot(o.end.x - c.x, o.end.y - c.y) < 25));
-        if(vec) return vec;
-
-        const lineObj = visibleObjects.find(o => o.type === 'line' && distToSegment(c, o.start, o.end) < 15);
-        if(lineObj) return lineObj;
-
-        return visibleObjects.find(o => o.type === 'free_stroke' && o.points.some(p => Math.hypot(p.x - c.x, p.y - c.y) < 15));
-    }
-
-    function selectObject(obj) {
-        state.selectedObjects = obj ? [obj] : [];
-        updateFloatDelete(); redraw();
-    }
-
-    // Lógica de Mouse/Touch
-    canvas.addEventListener('mousedown', handleStart);
-    canvas.addEventListener('touchstart', handleStart, {passive:false});
-    canvas.addEventListener('mousemove', handleMove);
-    canvas.addEventListener('touchmove', handleMove, {passive:false});
-    canvas.addEventListener('mouseup', handleEnd);
-    canvas.addEventListener('touchend', handleEnd);
+    // Eventos Canvas
+    let clickStartX, clickStartY, clickTime;
     
-    // Evitar menú contextual
-    canvas.addEventListener('contextmenu', e => e.preventDefault());
-
-    function handleStart(e) {
-        if (e.touches && e.touches.length > 1) return;
-        if (e.touches) e.preventDefault(); 
-        
+    canvas.addEventListener('mousedown', e => {
+        if(e.button !== 0) return; // Solo clic izquierdo
         const c = getCoords(e);
-        if (state.tool !== 'text') finalizeText();
-
-        // LÓGICA CLIC IZQUIERDO SOBRE CARGAS (Solo con mouse)
-        if (!e.touches && e.button === 0) {
-            const hit = findObjectAt(c);
-            if (hit && hit.type.startsWith('charge') && state.tool !== 'visibility') {
-                abrirModalCharge(hit);
-                return; // Bloquea dibujo/arrastre al hacer clic
-            }
-        }
-
-        if (state.tool === 'text') {
-            textPos = {x: c.x, y: c.y};
-            textOverlay.style.left = c.x + 'px'; textOverlay.style.top = c.y + 'px';
-            textOverlay.style.display = 'block'; textOverlay.style.color = state.currentColor;
-            setTimeout(() => textOverlay.focus(), 50);
-            return;
-        }
-
-        if (state.tool === 'line') {
-            selectObject(null); state.isDrawingLine = true;
-            state.currentLine = { type: 'line', id: Date.now(), start: {x: c.x, y: c.y}, end: {x: c.x, y: c.y}, color: state.currentColor };
-            return;
-        }
+        clickStartX = c.x; clickStartY = c.y; clickTime = Date.now();
+        
+        cerrarEditorCarga(); // Cierra editor si se clickea otra parte
 
         if (state.tool === 'visibility') {
             const hit = findObjectAt(c);
-            if (hit) { hit.hidden = !hit.hidden; updateUI(); redraw(); requestSync(true); }
+            if(hit) { hit.hidden = !hit.hidden; redraw(); requestSync(); }
             return;
         }
 
         if (state.tool === 'move') {
             if (Math.hypot(c.x - state.origin.x, c.y - state.origin.y) < 30) {
-                state.isDraggingOrigin = true; state.dragLastX = c.x; state.dragLastY = c.y;
-                selectObject(null); return;
+                state.isDraggingOrigin = true;
+                state.dragLastX = c.x; state.dragLastY = c.y;
+                return;
             }
             const hit = findObjectAt(c);
             if (hit) {
-                state.isDragging = true; state.dragLastX = c.x; state.dragLastY = c.y;
-                if (e.shiftKey) {
-                    if (state.selectedObjects.includes(hit)) state.selectedObjects = state.selectedObjects.filter(o => o !== hit);
-                    else state.selectedObjects.push(hit);
-                } else {
-                    if (!state.selectedObjects.includes(hit)) selectObject(hit);
-                }
-            } else {
-                selectObject(null); state.selectionBox = { startX: c.x, startY: c.y, x: c.x, y: c.y, w: 0, h: 0 };
+                state.isDragging = true;
+                state.editingChargeId = hit.id; // Podría editarse al soltar
+                state.dragLastX = c.x; state.dragLastY = c.y;
             }
-            redraw(); return;
-        }
-
-        if (state.tool === 'draw_free') {
-            selectObject(null); state.isDrawingFree = true;
-            state.currentFreeStroke = { type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor };
             return;
         }
 
-        if (state.recognitionTimer) { clearTimeout(state.recognitionTimer); state.recognitionTimer = null; }
-        state.isDrawing = true; state.currentStroke = [c]; selectObject(null);
-    }
+        if (state.tool === 'draw') {
+            state.isDrawing = true;
+            state.currentStroke = [c];
+        }
+    });
 
-    function handleMove(e) {
-        if (e.touches) e.preventDefault();
+    canvas.addEventListener('mousemove', e => {
         const c = getCoords(e);
-        document.getElementById('coords-indicator').innerText = `x: ${Math.round(getPhysX(c.x))}, y: ${Math.round(getPhysY(c.y))}`;
-
-        if (state.isDraggingOrigin) {
-            const dx = c.x - state.dragLastX; const dy = c.y - state.dragLastY;
-            state.origin.x += dx; state.origin.y += dy;
-            state.dragLastX = c.x; state.dragLastY = c.y;
-            state.objects.forEach(o => { if (o.type.startsWith('charge')) { o.physX = getPhysX(o.x); o.physY = getPhysY(o.y); } });
-            updateGridBackground(); updateUI(); analizarFisica(); redraw(); requestSync(false); return;
-        }
-
-        if (state.selectionBox) {
-            state.selectionBox.x = Math.min(state.selectionBox.startX, c.x); state.selectionBox.y = Math.min(state.selectionBox.startY, c.y);
-            state.selectionBox.w = Math.abs(c.x - state.selectionBox.startX); state.selectionBox.h = Math.abs(c.y - state.selectionBox.startY);
-            redraw(); return;
-        }
-
-        if (state.isDragging && state.selectedObjects.length > 0) {
-            const dx = c.x - state.dragLastX; const dy = c.y - state.dragLastY;
-            state.selectedObjects.forEach(obj => {
-                if (obj.type.startsWith('charge')) { obj.x += dx; obj.y += dy; obj.physX = getPhysX(obj.x); obj.physY = getPhysY(obj.y); }
-                else if (obj.type === 'vector' || obj.type === 'line') { obj.start.x += dx; obj.start.y += dy; obj.end.x += dx; obj.end.y += dy; }
-                else if (obj.type === 'free_stroke') { obj.points.forEach(p => { p.x += dx; p.y += dy; }); }
-                else if (obj.type === 'text') { obj.x += dx; obj.y += dy; }
-            });
-            state.dragLastX = c.x; state.dragLastY = c.y;
-            updateFloatDelete(); redraw(); requestSync(false); return;
-        } 
+        document.getElementById('coords-indicator').innerText = `X: ${Math.round(getPhysX(c.x))}, Y: ${Math.round(getPhysY(c.y))}`;
         
-        if (state.isDrawingLine && state.currentLine) { state.currentLine.end = {x: c.x, y: c.y}; redraw(); return; }
-        if (state.isDrawingFree && state.currentFreeStroke) { state.currentFreeStroke.points.push(c); redraw(); return; }
+        if (state.isDraggingOrigin) {
+            state.origin.x += (c.x - state.dragLastX); state.origin.y += (c.y - state.dragLastY);
+            state.dragLastX = c.x; state.dragLastY = c.y;
+            state.objects.filter(o=>o.type.startsWith('charge')).forEach(o => { o.physX=getPhysX(o.x); o.physY=getPhysY(o.y); });
+            wrapper.style.backgroundPosition = `${state.origin.x}px ${state.origin.y}px`;
+            analizarFisica(); redraw(); requestSync();
+            return;
+        }
+
+        if (state.isDragging && state.editingChargeId) {
+            const obj = state.objects.find(o => o.id === state.editingChargeId);
+            if(obj) {
+                obj.x += (c.x - state.dragLastX); obj.y += (c.y - state.dragLastY);
+                if(obj.type.startsWith('charge')) { obj.physX = getPhysX(obj.x); obj.physY = getPhysY(obj.y); }
+                else if(obj.type==='vector') { 
+                    obj.start.x += (c.x - state.dragLastX); obj.start.y += (c.y - state.dragLastY);
+                    obj.end.x += (c.x - state.dragLastX); obj.end.y += (c.y - state.dragLastY);
+                }
+                state.dragLastX = c.x; state.dragLastY = c.y;
+                redraw(); requestSync();
+            }
+            return;
+        }
+
         if (state.isDrawing) { state.currentStroke.push(c); redraw(); }
-    }
+    });
 
-    function handleEnd(e) {
-        if (state.isDraggingOrigin) { state.isDraggingOrigin = false; requestSync(true); return; }
+    canvas.addEventListener('mouseup', e => {
+        if(e.button !== 0) return;
+        const c = getCoords(e);
+        const dist = Math.hypot(c.x - clickStartX, c.y - clickStartY);
+        const timeDiff = Date.now() - clickTime;
 
-        if (state.selectionBox) {
-            const box = state.selectionBox; const minX = box.x, maxX = box.x + box.w; const minY = box.y, maxY = box.y + box.h;
-            state.selectedObjects = state.objects.filter(o => {
-                if (o.hidden && state.tool !== 'visibility') return false;
-                if (o.type.startsWith('charge') || o.type === 'text') return o.x >= minX && o.x <= maxX && o.y >= minY && o.y <= maxY;
-                if (o.type === 'vector' || o.type === 'line') return o.start.x >= minX && o.start.x <= maxX && o.start.y >= minY && o.start.y <= maxY;
-                return false;
-            });
-            state.selectionBox = null; updateFloatDelete(); updateUI(); redraw(); return;
+        if (state.isDraggingOrigin) { state.isDraggingOrigin = false; return; }
+
+        if (state.isDragging) {
+            state.isDragging = false;
+            analizarFisica();
+            
+            // Si fue un clic muy rápido y corto sobre una carga en modo move
+            if(dist < 5 && timeDiff < 300) {
+                const obj = state.objects.find(o => o.id === state.editingChargeId);
+                if(obj && obj.type.startsWith('charge')) {
+                    abrirEditorCarga(obj);
+                }
+            }
+            state.editingChargeId = null;
+            return;
         }
 
-        if (state.isDragging) { state.isDragging = false; updateUI(); analizarFisica(); requestSync(true); if(window.registrarInteraccion) window.registrarInteraccion(); return; }
-        if (state.isDrawingLine && state.currentLine) {
-            state.isDrawingLine = false; if (Math.hypot(state.currentLine.end.x - state.currentLine.start.x, state.currentLine.end.y - state.currentLine.start.y) > 5) state.objects.push(state.currentLine);
-            state.currentLine = null; redraw(); requestSync(true); if(window.registrarInteraccion) window.registrarInteraccion(); return;
-        }
-        if (state.isDrawingFree && state.currentFreeStroke) {
-            state.isDrawingFree = false; if (state.currentFreeStroke.points.length > 2) state.objects.push(state.currentFreeStroke);
-            state.currentFreeStroke = null; redraw(); requestSync(true); if(window.registrarInteraccion) window.registrarInteraccion(); return;
-        }
         if (state.isDrawing) {
             state.isDrawing = false;
-            if (state.currentStroke.length > 3) state.rawStrokes.push([...state.currentStroke]);
+            if (state.currentStroke.length > 5) {
+                state.rawStrokes.push([...state.currentStroke]);
+                setTimeout(detectAndConvert, 800); // IA simplificada
+            }
             state.currentStroke = [];
-            state.recognitionTimer = setTimeout(() => { detectAndConvert(); state.recognitionTimer = null; }, 1000); 
-            redraw(); requestSync(true); if(window.registrarInteraccion) window.registrarInteraccion();
+            redraw(); requestSync();
         }
+    });
+
+    function findObjectAt(c) {
+        const vis = state.objects.filter(o => !o.hidden);
+        let hit = vis.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30);
+        if(hit) return hit;
+        return vis.find(o => o.type === 'vector' && (Math.hypot(o.start.x - c.x, o.start.y - c.y) < 20 || Math.hypot(o.end.x - c.x, o.end.y - c.y) < 20));
     }
 
-    // Float Delete Tool
-    function updateFloatDelete() {
-        if(state.selectedObjects.length === 0) { floatDelete.style.display = 'none'; return; }
-        let minX = Infinity, minY = Infinity, maxX = -Infinity;
-        state.selectedObjects.forEach(o => {
-            let bx, by;
-            if(o.type.startsWith('charge')) { bx = o.x; by = o.y - 35; }
-            else if(o.type === 'vector' || o.type === 'line') { bx = (o.start.x+o.end.x)/2; by = Math.min(o.start.y, o.end.y) - 20; }
-            else if(o.type === 'text') { bx = o.x + 20; by = o.y - 30; }
-            else if(o.type === 'free_stroke') { const minP = o.points.reduce((p, c) => c.y < p.y ? c : p); bx = minP.x; by = minP.y - 30; }
-            if(bx < minX) minX = bx; if(bx > maxX) maxX = bx; if(by < minY) minY = by;
-        });
-        floatDelete.style.left = ((minX + maxX)/2) + 'px'; floatDelete.style.top = minY + 'px'; floatDelete.style.display = 'block';
-    }
-
-    function deleteSelected() {
-        if (state.selectedObjects.length > 0) {
-            state.objects = state.objects.filter(o => !state.selectedObjects.includes(o));
-            state.selectedObjects = []; floatDelete.style.display = 'none';
-            updateUI(); analizarFisica(); redraw(); requestSync(true);
-        }
-    }
-
-    // Detección (Simplificada para espacio)
-    function detectAndConvert() {
-        const groups = groupStrokes(state.rawStrokes); const newObjects = []; const usedIndices = new Set();
-        groups.forEach(group => {
-            const bounds = getGroupBounds(group); const type = classifyGroup(group, bounds);
-            if (type !== 'unknown') {
-                if (type.startsWith('charge')) {
-                    const id = state.objects.filter(o => o.type.startsWith('charge')).length + 1;
-                    newObjects.push({ id: id, type: type, label: `q_${id}`, x: bounds.cx, y: bounds.cy, physX: getPhysX(bounds.cx), physY: getPhysY(bounds.cy), q: type === 'charge_pos' ? 5 : -5, hasVectors: false });
-                } else if (type === 'vector') {
-                    const eps = getVectorEndpoints(group);
-                    newObjects.push({ type: 'vector', start: eps.start, end: eps.end, validation: null, label: '?' });
-                }
-                group.forEach(i => usedIndices.add(i));
-            }
-        });
-        if (newObjects.length > 0) {
-            state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i));
-            state.objects.push(...newObjects); updateUI(); analizarFisica();
-        }
-        redraw(); requestSync(true); 
-    }
-
-    function getGroupBounds(indices) {
-        let allPts = []; indices.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p)); });
-        if(allPts.length === 0) return { minX:0, maxX:0, minY:0, maxY:0, w:0, h:0, cx:0, cy:0 };
-        const xs = allPts.map(p=>p.x), ys = allPts.map(p=>p.y);
-        return { w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys), cx:(Math.min(...xs)+Math.max(...xs))/2, cy:(Math.min(...ys)+Math.max(...ys))/2, minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys) };
-    }
-
-    function groupStrokes(strokes) {
-        const groups = [], visited = new Set();
-        for(let i=0; i<strokes.length; i++) {
-            if(visited.has(i)) continue;
-            const g = [i]; visited.add(i);
-            for(let j=i+1; j<strokes.length; j++) {
-                if(visited.has(j)) continue;
-                const b1=getBounds(strokes[i]), b2=getBounds(strokes[j]), p=30;
-                if(!(b2.minX > b1.maxX + p || b2.maxX < b1.minX - p || b2.minY > b1.maxY + p || b2.maxY < b1.minY - p)) { g.push(j); visited.add(j); }
-            }
-            groups.push(g);
-        }
-        return groups;
+    // --- EDICIÓN FLOTANTE DE CARGA (Clic Izquierdo) ---
+    function abrirEditorCarga(obj) {
+        state.editingChargeId = obj.id;
+        document.getElementById('ce-title').innerText = `Editando ${obj.label}`;
+        document.getElementById('ce-q').value = Math.abs(obj.q);
+        document.getElementById('ce-pol-btn').innerText = obj.type === 'charge_pos' ? '+' : '-';
+        document.getElementById('ce-pol-btn').className = obj.type === 'charge_pos' ? 'btn btn-active' : 'btn btn-danger';
+        document.getElementById('ce-x').value = Math.round(obj.physX);
+        document.getElementById('ce-y').value = Math.round(obj.physY);
+        
+        chargeEditor.style.display = 'block';
+        chargeEditor.style.left = obj.x + 'px';
+        chargeEditor.style.top = obj.y + 'px';
     }
     
+    window.cerrarEditorCarga = () => { chargeEditor.style.display = 'none'; state.editingChargeId = null; };
+
+    window.aplicarEdicionCarga = () => {
+        const obj = state.objects.find(o => o.id === state.editingChargeId);
+        if(!obj) return;
+        let mag = Math.abs(parseFloat(document.getElementById('ce-q').value) || 1);
+        obj.q = obj.type === 'charge_pos' ? mag : -mag;
+        
+        obj.physX = parseFloat(document.getElementById('ce-x').value) || 0;
+        obj.physY = parseFloat(document.getElementById('ce-y').value) || 0;
+        obj.x = obj.physX + state.origin.x;
+        obj.y = state.origin.y - obj.physY;
+        
+        chargeEditor.style.left = obj.x + 'px'; chargeEditor.style.top = obj.y + 'px';
+        analizarFisica(); redraw(); requestSync();
+    };
+
+    window.togglePolaridadCarga = () => {
+        const obj = state.objects.find(o => o.id === state.editingChargeId);
+        if(!obj) return;
+        obj.type = obj.type === 'charge_pos' ? 'charge_neg' : 'charge_pos';
+        aplicarEdicionCarga();
+        abrirEditorCarga(obj); // refresh UI
+    };
+
+    window.eliminarCargaEditada = () => {
+        state.objects = state.objects.filter(o => o.id !== state.editingChargeId);
+        cerrarEditorCarga(); analizarFisica(); redraw(); requestSync();
+    }
+
+    // --- RECONOCIMIENTO IA BÁSICO ---
+    function detectAndConvert() {
+        if(state.rawStrokes.length === 0) return;
+        const last = state.rawStrokes[state.rawStrokes.length-1];
+        const b = getBounds(last);
+        const ratio = b.w/b.h;
+        const distEnds = Math.hypot(last[0].x - last[last.length-1].x, last[0].y - last[last.length-1].y);
+        
+        let newObj = null;
+        if (ratio > 0.5 && ratio < 2 && b.w > 20 && distEnds < 40) {
+            // Círculo -> Carga Positiva (default)
+            const id = Date.now();
+            newObj = { id: id, type: 'charge_pos', label: `q_${state.objects.filter(o=>o.type.startsWith('charge')).length+1}`, x: b.cx, y: b.cy, physX: getPhysX(b.cx), physY: getPhysY(b.cy), q: 5 };
+        } else if (Math.hypot(b.w, b.h) > 50) {
+            // Línea larga -> Vector
+            newObj = { type: 'vector', id: Date.now(), start: last[0], end: last[last.length-1], validation: null, label: '?' };
+        }
+
+        if(newObj) {
+            state.objects.push(newObj);
+            state.rawStrokes.pop(); // consumir trazo
+            analizarFisica(); redraw(); requestSync();
+        }
+    }
     function getBounds(pts) {
         const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
-        return { minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys) };
+        return { w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys), cx:(Math.min(...xs)+Math.max(...xs))/2, cy:(Math.min(...ys)+Math.max(...ys))/2 };
     }
 
-    function classifyGroup(indices, b) {
-        const r = b.w/b.h; const isCompact = r > 0.5 && r < 2.0 && b.w > 20 && b.h > 20;
-        if (isCompact) return 'charge_pos'; // Simplificación algorítmica para espacio.
-        const diag = Math.hypot(b.w, b.h); if (diag > 30) return 'vector';
-        return 'unknown';
-    }
-
-    function getVectorEndpoints(indices) {
-        let maxL = 0, main = null; const strokes = indices.map(i => state.rawStrokes[i]);
-        strokes.forEach(s => { const l = Math.hypot(s[0].x - s[s.length-1].x, s[0].y - s[s.length-1].y); if(l > maxL) { maxL = l; main = s; } });
-        if(!main) return { start:{x:0,y:0}, end:{x:0,y:0} };
-        return { start: main[0], end: main[main.length-1] }; // Simplificado
-    }
-
-    // Física
-    function analizarFisica() {
+    // --- CÁLCULO FÍSICO Y MATEMÁTICO ---
+    window.analizarFisica = function() {
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         const vectors = state.objects.filter(o => o.type === 'vector');
         const Ke = 8.987e9;
-        const scale = parseFloat(document.getElementById('scale-input').value || 100);
         const distU = parseFloat(document.getElementById('dist-unit').value || 1);
         const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
+        const scale = 100; // px por unidad
         
-        charges.forEach(c => { c.hasVectors = false; });
-        updateStatement(charges, chargeU);
+        const box = document.getElementById('problem-statement');
+        if (charges.length < 2) { box.innerHTML = "Dibuja al menos dos cargas fuente."; document.getElementById('latex-result').innerHTML=''; document.getElementById('dcl-buttons').innerHTML=''; return; }
+        
+        box.innerHTML = `Calculando fuerza resultante para sistema de ${charges.length} cargas.<br><small style="color:var(--text-muted)">$k_e = 8.99 \\times 10^9 N\\cdot m^2/C^2$</small>`;
+        renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
 
         const interactions = [];
         charges.forEach(tgt => {
@@ -903,481 +995,208 @@
                 if(tgt.id === src.id) return;
                 const dx = src.physX - tgt.physX; const dy = src.physY - tgt.physY; 
                 let ang = Math.atan2(dy, dx);
-                if(tgt.q * src.q > 0) ang += Math.PI;
+                if(tgt.q * src.q > 0) ang += Math.PI; // repulsión
                 ang = (ang + 4*Math.PI) % (2*Math.PI);
                 const r = Math.hypot(dx, dy) / scale * distU;
                 const mag = r>0 ? (Ke * Math.abs(tgt.q * chargeU * src.q * chargeU))/(r*r) : 0;
-                interactions.push({ target: tgt.id, source: src.id, label: `F_{${src.id}${tgt.id}}`, mag: mag, angleDeg: (ang*180/Math.PI)%360, Fx: mag*Math.cos(ang), Fy: mag*Math.sin(ang), r: r, t: tgt, s: src, ang: ang });
+                
+                interactions.push({ target: tgt.id, source: src.id, label: `F_{${src.id}${tgt.id}}`, mag, ang, Fx: mag*Math.cos(ang), Fy: mag*Math.sin(ang), r, t:tgt });
             });
         });
-
         state.calculatedForces = interactions;
-        const vBox = document.getElementById('validation-box'); vBox.innerHTML='';
-        if(vectors.length === 0) vBox.innerHTML = '<i>Dibuja flechas de fuerza sobre las cargas.</i>';
 
+        const vBox = document.getElementById('validation-box'); vBox.innerHTML='';
         vectors.forEach(vec => {
-            const origin = charges.find(c => Math.hypot(c.x - vec.start.x, c.y - vec.start.y) < 60);
-            if(!origin) { vec.validation='warn'; vec.label='?'; vBox.innerHTML += `<div class="result-item res-warn"><i class="fa-solid fa-triangle-exclamation"></i> Vector suelto</div>`; return; }
-            origin.hasVectors = true; 
+            const origin = charges.find(c => Math.hypot(c.x - vec.start.x, c.y - vec.start.y) < 50);
+            if(!origin) { vec.validation='warn'; vBox.innerHTML += `<div style="color:var(--accent-yellow)">⚠️ Vector suelto</div>`; return; }
+            
             const vAng = (Math.atan2(getPhysY(vec.end.y) - getPhysY(vec.start.y), vec.end.x - vec.start.x) + 4*Math.PI)%(2*Math.PI);
-            let best = null, minD = 100;
+            let best = null; let minD = 100;
             interactions.filter(i => i.t.id === origin.id).forEach(cand => {
                 let d = Math.abs(cand.ang - vAng); if(d > Math.PI) d = 2*Math.PI - d;
                 if(d < minD) { minD = d; best = cand; }
             });
-            if(best && minD < 0.6) { vec.validation = 'correct'; vec.label = best.label; vBox.innerHTML += `<div class="result-item res-ok"><i class="fa-solid fa-check"></i> ${best.label} Correcta (${origin.label})</div>`; }
-            else { vec.validation = 'error'; vec.label = '?'; vBox.innerHTML += `<div class="result-item res-err"><i class="fa-solid fa-xmark"></i> Dirección Errada (${origin.label})</div>`; }
+
+            if(best && minD < 0.5) {
+                vec.validation = 'correct'; vec.label = best.label;
+                vBox.innerHTML += `<div style="color:var(--accent-green)">✅ Vector correcto: $${best.label}$ en $${origin.label}$</div>`;
+            } else {
+                vec.validation = 'error'; vec.label = '?';
+                vBox.innerHTML += `<div style="color:var(--danger)">❌ Dirección errada en $${origin.label}$</div>`;
+            }
         });
-        
         renderMathInElement(vBox, {delimiters: [{left: "$", right: "$", display: false}]});
-        renderLatex(); setupDCLButtons(); redraw();
-        if (window.verificarTareasFisica) window.verificarTareasFisica();
-    }
-    window.analizarFisica = analizarFisica;
-
-    function updateStatement(charges, unitQ) {
-        const box = document.getElementById('problem-statement');
-        if (charges.length < 2) { box.innerHTML = "<i>Dibuja cargas fuente (+ o -) para interactuar.</i>"; return; }
-        const sources = charges.map(c => `$q_${c.id}$`);
-        box.innerHTML = `<strong>Problema:</strong> Magnitud y dirección resultante sobre cada carga en el sistema <strong>${sources.join(', ')}</strong>.<br><small style="color:#aaa;">$k_e = 8.987 \\times 10^9 N\\cdot m^2/C^2$</small>`;
-        renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
-    }
-
-    function updateUI() {
-        document.getElementById('detection-list').innerHTML = state.objects.map(o=> {
-            let op = o.hidden ? 'opacity: 0.4;' : '';
-            if(o.type === 'vector') return `<span class="badge" style="border-color:var(--accent-blue); color:var(--accent-blue); ${op}">Vec</span>`;
-            if(o.type.startsWith('charge')) return `<span class="badge ${o.type==='charge_pos'?'badge-blue':'badge-pink'}" style="color:${o.type==='charge_pos'? '#bae1ff':'#ffb3ba'}; border-color:${o.type==='charge_pos'? '#bae1ff':'#ffb3ba'}; ${op}">${o.label}</span>`;
-            return '';
-        }).join('');
-    }
-    window.updateUI = updateUI;
-
-    function undo() { 
-        if(state.rawStrokes.length>0) state.rawStrokes.pop(); 
-        else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); }
-        redraw(); requestSync(true); 
-    }
-    window.undo = undo;
-
-    function limpiarTodo() { 
-        state.objects=[]; state.rawStrokes=[]; state.selectedObjects=[];
-        updateUI(); analizarFisica(); redraw(); 
-        document.getElementById('latex-result').innerText='Esperando datos...'; 
-        document.getElementById('float-delete').style.display='none';
-        requestSync(true); 
-    }
-    window.limpiarTodo = limpiarTodo;
-
-    function exportarImagen() {
-        const tCanvas = document.createElement('canvas'); tCanvas.width = canvas.width; tCanvas.height = canvas.height;
-        const tCtx = tCanvas.getContext('2d');
-        tCtx.fillStyle = '#1a1c29'; tCtx.fillRect(0, 0, tCanvas.width, tCanvas.height);
-        tCtx.drawImage(canvas, 0, 0);
-        const link = document.createElement('a'); link.download = 'Lab_Coulomb.png'; link.href = tCanvas.toDataURL(); link.click();
-    }
-    window.exportarImagen = exportarImagen;
-
-    // Dibujo
-    function drawPath(pts, color = '#999', width = 2) {
-        if(pts.length < 2) return;
-        ctx.strokeStyle = color; ctx.lineWidth = width;
-        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
-        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.stroke();
-    }
-
-    function redraw() {
-        ctx.clearRect(0,0,canvas.width,canvas.height); labelsOverlay.innerHTML = '';
         
+        renderLatex(interactions);
+        setupDCLButtons(interactions);
+    };
+
+    function renderLatex(interactions) {
+        const box = document.getElementById('latex-result');
+        let html = "";
+        const groups = {}; interactions.forEach(f=>{ if(!groups[f.target]) groups[f.target]=[]; groups[f.target].push(f); });
+        
+        for(const [tid, fs] of Object.entries(groups)) {
+            let sx=0, sy=0;
+            html += `\\textbf{Carga } q_${tid}:\\\\ \\begin{aligned}`;
+            fs.forEach(f=>{ 
+                html += `|\\vec{F}_{${f.source}${f.target}}| &= ${f.mag.toExponential(2)} \\text{ N} \\\\`;
+                sx+=f.Fx; sy+=f.Fy; 
+            });
+            const R = Math.hypot(sx, sy);
+            html += `\\sum F_x &= ${sx.toExponential(2)}, \\quad \\sum F_y = ${sy.toExponential(2)} \\\\`;
+            html += `\\mathbf{F_R} &= \\mathbf{${R.toExponential(2)} \\text{ N}} \\end{aligned} \\\\[1em]`;
+        }
+        katex.render(html || "\\text{Sin interacciones}", box, {displayMode:true, throwOnError:false});
+    }
+
+    // --- VENTANA DCL TIPO OS ---
+    function setupDCLButtons(interactions) {
+        const d = document.getElementById('dcl-buttons'); d.innerHTML='';
+        const t = new Set(interactions.map(f=>f.target));
+        t.forEach(tid => {
+            const b = document.createElement('button'); b.className='btn btn-primary'; b.style.padding='4px 8px';
+            b.innerHTML=`<i data-lucide="external-link" class="icon-sm"></i> DCL $q_${tid}$`;
+            b.onclick = () => openDCL(tid); d.appendChild(b);
+        });
+        lucide.createIcons();
+        renderMathInElement(d, {delimiters: [{left: "$", right: "$", display: false}]});
+    }
+
+    window.openDCL = (id) => {
+        const win = document.getElementById('dcl-window');
+        win.classList.remove('minimized'); win.classList.remove('maximized');
+        win.style.display = 'flex';
+        document.getElementById('dcl-target-name').innerText = `q_${id}`;
+        
+        const cx = document.getElementById('fbd-canvas').getContext('2d');
+        cx.clearRect(0,0,500,500);
+        
+        const fs = state.calculatedForces.filter(f=>f.target==id);
+        const ch = state.objects.find(o=>o.id==id);
+        if(!ch) return;
+        
+        // Ejes
+        cx.strokeStyle='#cbd5e1'; cx.lineWidth=1;
+        cx.beginPath(); cx.moveTo(250,0); cx.lineTo(250,500); cx.moveTo(0,250); cx.lineTo(500,250); cx.stroke();
+        
+        // Partícula
+        cx.beginPath(); cx.arc(250,250,12,0,2*Math.PI); 
+        cx.fillStyle=ch.type==='charge_pos'?'#3b82f6':'#ef4444'; cx.fill();
+        
+        let sx=0, sy=0; fs.forEach(f=>{ sx+=f.Fx; sy+=f.Fy; });
+        const R = Math.hypot(sx, sy);
+        const max = Math.max(...fs.map(f=>f.mag), R, 1e-9); const s = 180/max; 
+
+        // Fuerzas componentes
+        fs.forEach(f=>{ 
+            const dx=f.Fx*s, dy=-f.Fy*s, x2=250+dx, y2=250+dy;
+            cx.strokeStyle='#f59e0b'; cx.fillStyle='#f59e0b'; cx.lineWidth=3;
+            cx.beginPath(); cx.moveTo(250,250); cx.lineTo(x2,y2); cx.stroke();
+            const ang=Math.atan2(y2-250, x2-250);
+            cx.beginPath(); cx.moveTo(x2,y2); cx.lineTo(x2-12*Math.cos(ang-Math.PI/6), y2-12*Math.sin(ang-Math.PI/6)); cx.lineTo(x2-12*Math.cos(ang+Math.PI/6), y2-12*Math.sin(ang+Math.PI/6)); cx.fill();
+            cx.fillStyle='#1e293b'; cx.font="14px Inter"; cx.fillText(f.label.replace(/[{}_]/g,''), x2+10, y2);
+        });
+
+        // Resultante
+        if(R > 0) {
+            const Rx = 250+sx*s, Ry = 250-sy*s;
+            cx.strokeStyle='#ef4444'; cx.fillStyle='#ef4444'; cx.lineWidth=4;
+            cx.beginPath(); cx.moveTo(250,250); cx.lineTo(Rx, Ry); cx.stroke();
+            const aR=Math.atan2(Ry-250, Rx-250);
+            cx.beginPath(); cx.moveTo(Rx,Ry); cx.lineTo(Rx-14*Math.cos(aR-Math.PI/6), Ry-14*Math.sin(aR-Math.PI/6)); cx.lineTo(Rx-14*Math.cos(aR+Math.PI/6), Ry-14*Math.sin(aR+Math.PI/6)); cx.fill();
+            cx.font="bold 16px Inter"; cx.fillText("FR", Rx+15, Ry+5);
+        }
+    };
+
+    window.closeDCL = () => document.getElementById('dcl-window').style.display = 'none';
+    window.toggleDCLState = (state) => {
+        const win = document.getElementById('dcl-window');
+        if(state==='min') { win.classList.toggle('minimized'); win.classList.remove('maximized'); }
+        if(state==='max') { win.classList.toggle('maximized'); win.classList.remove('minimized'); }
+    }
+    
+    // Drag window DCL header
+    let isDraggingWin = false, winStartX, winStartY;
+    document.getElementById('dcl-header').addEventListener('mousedown', e => {
+        isDraggingWin = true; winStartX = e.clientX; winStartY = e.clientY;
+    });
+    document.addEventListener('mousemove', e => {
+        if(!isDraggingWin) return;
+        const win = document.getElementById('dcl-window');
+        if(win.classList.contains('maximized') || win.classList.contains('minimized')) return;
+        const rect = win.getBoundingClientRect();
+        win.style.left = (rect.left + e.clientX - winStartX + rect.width/2) + 'px';
+        win.style.top = (rect.top + e.clientY - winStartY + rect.height/2) + 'px';
+        winStartX = e.clientX; winStartY = e.clientY;
+    });
+    document.addEventListener('mouseup', () => isDraggingWin = false);
+
+    // --- RENDERING ---
+    function redraw() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        document.getElementById('labels-overlay').innerHTML = '';
+        
+        // Origen
         if (state.origin.x !== null) {
-            ctx.beginPath(); ctx.strokeStyle = 'rgba(186, 255, 201, 0.3)'; ctx.lineWidth = 1;
-            ctx.moveTo(0, state.origin.y); ctx.lineTo(canvas.width, state.origin.y);
-            ctx.moveTo(state.origin.x, 0); ctx.lineTo(state.origin.x, canvas.height); ctx.stroke();
-            ctx.beginPath(); ctx.arc(state.origin.x, state.origin.y, 4, 0, Math.PI*2); ctx.fillStyle = '#baffc9'; ctx.fill();
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.2)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(0, state.origin.y); ctx.lineTo(canvas.width, state.origin.y); ctx.moveTo(state.origin.x, 0); ctx.lineTo(state.origin.x, canvas.height); ctx.stroke();
+            ctx.beginPath(); ctx.arc(state.origin.x, state.origin.y, 4, 0, Math.PI*2); ctx.fillStyle = '#3b82f6'; ctx.fill();
         }
 
-        state.rawStrokes.forEach(s => drawPath(s, 'rgba(255,255,255,0.4)', 2));
-        if(state.currentStroke.length>0) drawPath(state.currentStroke, 'rgba(255,255,255,0.8)', 2);
-        if(state.currentFreeStroke) drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, 3);
-        if(state.currentLine) { ctx.strokeStyle=state.currentLine.color; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(state.currentLine.start.x, state.currentLine.start.y); ctx.lineTo(state.currentLine.end.x, state.currentLine.end.y); ctx.stroke(); }
+        state.rawStrokes.forEach(s => {
+            ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(s[0].x, s[0].y);
+            for(let i=1;i<s.length;i++) ctx.lineTo(s[i].x, s[i].y); ctx.stroke();
+        });
+        if(state.currentStroke.length>0) {
+            ctx.strokeStyle='#94a3b8'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(state.currentStroke[0].x, state.currentStroke[0].y);
+            for(let i=1;i<state.currentStroke.length;i++) ctx.lineTo(state.currentStroke[i].x, state.currentStroke[i].y); ctx.stroke();
+        }
 
         state.objects.forEach(obj => {
             if (obj.hidden && state.tool !== 'visibility') return;
-            const isSel = state.selectedObjects.includes(obj);
             ctx.globalAlpha = obj.hidden ? 0.3 : 1;
-            
+            const isEditing = state.editingChargeId === obj.id;
+
             if(obj.type.startsWith('charge')) {
-                ctx.beginPath(); ctx.arc(obj.x, obj.y, 20, 0, Math.PI*2);
-                ctx.fillStyle = obj.type==='charge_pos' ? '#bae1ff' : '#ffb3ba'; ctx.fill(); 
-                ctx.strokeStyle = isSel ? '#baffc9' : 'transparent'; ctx.lineWidth = 3; ctx.stroke();
-                ctx.fillStyle='#000'; ctx.font='bold 20px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-                ctx.fillText(obj.type==='charge_pos'?'+':'-', obj.x, obj.y+2);
-                addLabel(obj.x+25, obj.y-25, obj.label, obj.hidden);
+                ctx.beginPath(); ctx.arc(obj.x, obj.y, 22, 0, Math.PI*2);
+                ctx.fillStyle = obj.type==='charge_pos' ? 'rgba(59, 130, 246, 0.8)' : 'rgba(239, 68, 68, 0.8)'; ctx.fill();
+                ctx.strokeStyle = isEditing ? '#facc15' : 'white'; ctx.lineWidth = isEditing ? 4 : 2; ctx.stroke();
+                ctx.fillStyle='white'; ctx.font='bold 24px Inter'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.fillText(obj.type==='charge_pos'?'+':'-', obj.x, obj.y);
+                
+                const d = document.createElement('div'); d.className='canvas-label'; d.style.left=obj.x+25+'px'; d.style.top=obj.y-25+'px';
+                katex.render(obj.label, d, {throwOnError:false}); document.getElementById('labels-overlay').appendChild(d);
             } 
             else if(obj.type === 'vector') {
-                const col = obj.validation==='correct'?'#baffc9':obj.validation==='error'?'#ffb3ba':'#ffffba';
-                ctx.strokeStyle = isSel ? '#baffc9' : col; ctx.fillStyle = isSel ? '#baffc9' : col; ctx.lineWidth = isSel ? 4 : 2;
-                drawArrow(obj.start.x, obj.start.y, obj.end.x, obj.end.y);
-                if(obj.label) addLabel(obj.end.x, obj.end.y-15, obj.label, obj.hidden);
-            }
-            else if(obj.type === 'line') {
-                ctx.strokeStyle = isSel ? '#baffc9' : obj.color; ctx.lineWidth = isSel ? 4 : 2;
+                const col = obj.validation==='correct'?'#22c55e':obj.validation==='error'?'#ef4444':'#f59e0b';
+                ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 4;
                 ctx.beginPath(); ctx.moveTo(obj.start.x, obj.start.y); ctx.lineTo(obj.end.x, obj.end.y); ctx.stroke();
-            }
-            else if(obj.type === 'free_stroke') { drawPath(obj.points, isSel ? '#baffc9' : obj.color, isSel ? 4 : 3); }
-            else if(obj.type === 'text') {
-                ctx.fillStyle = isSel ? '#baffc9' : obj.color; ctx.font = 'bold 20px "Segoe UI", Arial';
-                ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(obj.text, obj.x, obj.y);
+                const ang = Math.atan2(obj.end.y-obj.start.y, obj.end.x-obj.start.x);
+                ctx.beginPath(); ctx.moveTo(obj.end.x, obj.end.y); cxTo(ctx, obj.end.x-15*Math.cos(ang-Math.PI/6), obj.end.y-15*Math.sin(ang-Math.PI/6)); cxTo(ctx, obj.end.x-15*Math.cos(ang+Math.PI/6), obj.end.y-15*Math.sin(ang+Math.PI/6)); ctx.fill();
+                
+                if(obj.label) {
+                    const d = document.createElement('div'); d.className='canvas-label'; d.style.left=obj.end.x+'px'; d.style.top=obj.end.y-15+'px';
+                    katex.render(obj.label, d, {throwOnError:false}); document.getElementById('labels-overlay').appendChild(d);
+                }
             }
             ctx.globalAlpha = 1;
         });
     }
-    window.redraw = redraw;
-    
-    function drawArrow(x1, y1, x2, y2) {
-        const head = 12; const ang = Math.atan2(y2-y1, x2-x1);
-        ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-head*Math.cos(ang-Math.PI/6), y2-head*Math.sin(ang-Math.PI/6)); ctx.lineTo(x2-head*Math.cos(ang+Math.PI/6), y2-head*Math.sin(ang+Math.PI/6)); ctx.fill();
-    }
-    function addLabel(x, y, t, hidden = false) {
-        const d = document.createElement('div'); d.className='canvas-label'; d.style.left=x+'px'; d.style.top=y+'px';
-        if (hidden) d.style.opacity = '0.3';
-        katex.render(t, d, {throwOnError:false}); labelsOverlay.appendChild(d);
-    }
+    function cxTo(ctx, x, y) { ctx.lineTo(x,y); }
 
-    function renderLatex() {
-        const box = document.getElementById('latex-result'); let html = "";
-        const groups = {}; state.calculatedForces.forEach(f=>{ if(!groups[f.target]) groups[f.target]=[]; groups[f.target].push(f); });
-        
-        if(Object.keys(groups).length===0) html="\\text{Añade vectores validados.}";
-        else {
-            for(const [tid, fs] of Object.entries(groups)) {
-                let sx=0, sy=0; html += `\\underline{q_${tid}}:\\\\ \\begin{aligned}`;
-                fs.forEach(f=>{ 
-                    html += `|\\vec{F}_{${f.source}${f.target}}| &= ${f.mag.toExponential(2)} \\text{ N} \\\\`;
-                    sx += f.Fx; sy += f.Fy; 
-                });
-                const R = Math.hypot(sx, sy); const Rang = (Math.atan2(sy, sx) * 180 / Math.PI + 360) % 360;
-                html += `\\sum F_x &= ${sx.toExponential(2)}\\\\`;
-                html += `\\sum F_y &= ${sy.toExponential(2)}\\\\`;
-                html += `|\\vec{F}_R| &= \\mathbf{${R.toExponential(2)} \\text{ N}} \\\\`;
-                html += `\\end{aligned} \\\\[1em]`;
-            }
-        }
-        katex.render(html, box, {displayMode:true, throwOnError:false});
-    }
+    window.limpiarTodo = () => { state.objects=[]; state.rawStrokes=[]; cerrarEditorCarga(); analizarFisica(); redraw(); requestSync(); };
+    window.undo = () => { if(state.rawStrokes.length>0) state.rawStrokes.pop(); else if(state.objects.length>0) state.objects.pop(); cerrarEditorCarga(); analizarFisica(); redraw(); requestSync(); };
+    window.abrirModalGuia = () => document.getElementById('guide-modal').style.display='flex';
 
-    function setupDCLButtons() {
-        const d=document.getElementById('dcl-buttons'); d.innerHTML='';
-        const t = new Set(state.calculatedForces.map(f=>f.target));
-        t.forEach(tid=>{
-            const b=document.createElement('button'); b.className='btn-ribbon'; b.style.padding='4px 10px'; b.style.background='rgba(186,225,255,0.2)';
-            b.innerHTML=`<i class="fa-solid fa-chart-line"></i> DCL q${tid}`; b.onclick=()=>openDCL(tid); d.appendChild(b);
-        });
-    }
-
-    // --- VENTANA DCL DRAGGABLE ---
-    const dclWin = document.getElementById('dcl-window');
-    const dclHeader = document.getElementById('dcl-header');
-    let dclDrag = false; let dOffsetX, dOffsetY;
-
-    dclHeader.addEventListener('mousedown', (e) => {
-        if(e.target.closest('.window-controls')) return;
-        dclDrag = true; dOffsetX = e.clientX - dclWin.offsetLeft; dOffsetY = e.clientY - dclWin.offsetTop;
-    });
-    document.addEventListener('mousemove', (e) => {
-        if(dclDrag) { dclWin.style.left = (e.clientX - dOffsetX) + 'px'; dclWin.style.top = (e.clientY - dOffsetY) + 'px'; }
-    });
-    document.addEventListener('mouseup', () => dclDrag = false);
-
-    window.openDCL = function(id) {
-        dclWin.style.display = 'flex';
-        dclWin.dataset.state = 'normal'; dclWin.style.width = '350px'; dclWin.style.height = '300px';
-        document.getElementById('dcl-target-id').innerText = 'q' + id;
-        renderizarDCLCanvas(id);
+    window.exportarImagen = () => {
+        const tCanvas = document.createElement('canvas'); tCanvas.width=canvas.width; tCanvas.height=canvas.height;
+        const tc = tCanvas.getContext('2d');
+        tc.fillStyle='#ffffff'; tc.fillRect(0,0,tCanvas.width,tCanvas.height);
+        tc.drawImage(canvas, 0, 0);
+        const link = document.createElement('a'); link.download = 'Coulomb_Lab.png'; link.href = tCanvas.toDataURL('image/png'); link.click();
     };
 
-    window.closeDCLWindow = function() { dclWin.style.display = 'none'; };
-    
-    window.toggleDclMinMax = function(action) {
-        if(action === 'min') {
-            dclWin.dataset.state = 'minimized'; dclWin.style.height = '35px'; dclWin.style.width = '250px';
-        } else {
-            if(dclWin.dataset.state === 'maximized') {
-                dclWin.dataset.state = 'normal'; dclWin.style.width = '350px'; dclWin.style.height = '300px'; dclWin.style.top = '50px'; dclWin.style.left = '50px';
-            } else {
-                dclWin.dataset.state = 'maximized'; dclWin.style.width = '100%'; dclWin.style.height = '100%'; dclWin.style.top = '0'; dclWin.style.left = '0';
-            }
-        }
-    };
-
-    function renderizarDCLCanvas(id) {
-        const cx=document.getElementById('fbd-canvas').getContext('2d');
-        const fs = state.calculatedForces.filter(f=>f.target==id);
-        const ch = state.objects.find(o=>o.id==id);
-        cx.canvas.width = 400; cx.canvas.height = 400;
-        cx.clearRect(0,0,400,400);
-        cx.strokeStyle='rgba(0,0,0,0.1)'; cx.lineWidth=1;
-        cx.beginPath(); cx.moveTo(200,0); cx.lineTo(200,400); cx.moveTo(0,200); cx.lineTo(400,200); cx.stroke();
-        cx.beginPath(); cx.arc(200,200,10,0,2*Math.PI); cx.fillStyle=ch.type==='charge_pos'?'#3498db':'#e74c3c'; cx.fill();
-        
-        let sumFx = 0, sumFy = 0; fs.forEach(f => { sumFx += f.Fx; sumFy += f.Fy; });
-        const Rmag = Math.hypot(sumFx, sumFy); const max = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); const s = 140/max; 
-
-        fs.forEach(f=>{ 
-            const dx=f.Fx*s, dy=-f.Fy*s, col='#f1c40f', x2=200+dx, y2=200+dy;
-            cx.strokeStyle='rgba(241, 196, 15, 0.4)'; cx.lineWidth=1.5; cx.setLineDash([4, 4]);
-            cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(x2, 200); cx.stroke();
-            cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(200, y2); cx.stroke(); cx.setLineDash([]);
-            cx.strokeStyle=col; cx.fillStyle=col; cx.lineWidth=3;
-            cx.beginPath(); cx.moveTo(200,200); cx.lineTo(x2,y2); cx.stroke();
-            const ang=Math.atan2(y2-200, x2-200);
-            cx.beginPath(); cx.moveTo(x2,y2); cx.lineTo(x2-10*Math.cos(ang-Math.PI/6), y2-10*Math.sin(ang-Math.PI/6)); cx.lineTo(x2-10*Math.cos(ang+Math.PI/6), y2-10*Math.sin(ang+Math.PI/6)); cx.fill();
-            cx.fillStyle='black'; cx.font="14px Arial"; cx.fillText(f.label.replace(/[{}_]/g,''), x2+10, y2);
-        });
-
-        if(fs.length > 0 && Rmag > 0) {
-            const Rdx = sumFx * s, Rdy = -sumFy * s, Rx2 = 200 + Rdx, Ry2 = 200 + Rdy, Rcol = '#ff6b6b';
-            cx.strokeStyle=Rcol; cx.fillStyle=Rcol; cx.lineWidth=4;
-            cx.beginPath(); cx.moveTo(200,200); cx.lineTo(Rx2, Ry2); cx.stroke();
-            const Rang = Math.atan2(Ry2-200, Rx2-200);
-            cx.beginPath(); cx.moveTo(Rx2,Ry2); cx.lineTo(Rx2-12*Math.cos(Rang-Math.PI/6), Ry2-12*Math.sin(Rang-Math.PI/6)); cx.lineTo(Rx2-12*Math.cos(Rang+Math.PI/6), Ry2-12*Math.sin(Rang+Math.PI/6)); cx.fill();
-            cx.fillStyle='#ff6b6b'; cx.font="bold 16px Arial"; cx.fillText("FR", Rx2+12, Ry2+5);
-        }
-    }
-
-    // --- MODAL EDITOR DE CARGA (Clic Izquierdo) ---
-    window.abrirModalCharge = function(chargeObj) {
-        document.getElementById('edit-charge-id').value = chargeObj.id;
-        document.getElementById('edit-charge-label').value = chargeObj.label;
-        document.getElementById('edit-charge-q').value = chargeObj.q;
-        document.getElementById('edit-charge-x').value = Math.round(chargeObj.physX);
-        document.getElementById('edit-charge-y').value = Math.round(chargeObj.physY);
-        document.getElementById('charge-editor-modal').style.display = 'flex';
-    };
-    window.cerrarModalCharge = function() { document.getElementById('charge-editor-modal').style.display = 'none'; };
-    
-    window.guardarEdicionCarga = function() {
-        const id = parseInt(document.getElementById('edit-charge-id').value);
-        const obj = state.objects.find(o => o.id === id);
-        if(obj) {
-            obj.q = parseFloat(document.getElementById('edit-charge-q').value);
-            obj.type = obj.q > 0 ? 'charge_pos' : 'charge_neg'; // Actualiza visual
-            obj.physX = parseFloat(document.getElementById('edit-charge-x').value);
-            obj.physY = parseFloat(document.getElementById('edit-charge-y').value);
-            obj.x = obj.physX + state.origin.x;
-            obj.y = state.origin.y - obj.physY;
-            analizarFisica(); redraw(); requestSync(true);
-        }
-        cerrarModalCharge();
-    };
-    window.eliminarCargaEditada = function() {
-        const id = parseInt(document.getElementById('edit-charge-id').value);
-        state.objects = state.objects.filter(o => o.id !== id);
-        analizarFisica(); redraw(); requestSync(true); cerrarModalCharge();
-    }
-
-    // UI Modals Generales
-    window.abrirModalGuia = () => document.getElementById('guide-modal').style.display = 'flex';
-    window.cerrarModalGuia = () => document.getElementById('guide-modal').style.display = 'none';
-    window.abrirModalAuth = () => document.getElementById('auth-modal').style.display = 'flex';
-    window.cerrarModalAuth = () => document.getElementById('auth-modal').style.display = 'none';
-    window.abrirModalPerfil = () => document.getElementById('profile-modal').style.display = 'flex';
-    window.cerrarModalPerfil = () => document.getElementById('profile-modal').style.display = 'none';
-</script>
-
-<!-- FIREBASE & SALAS MULTIUSUARIO -->
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getDatabase, ref, set, get, onValue, push, update, increment, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA", authDomain: "laboratorio-de-coulomb.firebaseapp.com",
-        databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com", projectId: "laboratorio-de-coulomb"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth(app);
-
-    let currentRoomRef = null, chatRoomRef = null, isReceiving = false, unsubscribeRoom = null, unsubscribeChat = null, userRoomsUnsub = null;
-
-    // Autenticación
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            document.getElementById('auth-modal').style.display = 'none';
-            document.getElementById('user-info').innerHTML = `<i class="fa-solid fa-user"></i> ${user.email.split('@')[0]}`;
-            document.getElementById('btn-logout').style.display = 'flex';
-            document.getElementById('user-stats').style.display = 'flex';
-            
-            // Iniciar Gestor de Salas para este usuario
-            iniciarGestorSalasUsuario(user.uid);
-            if (window.iniciarGamificacion) window.iniciarGamificacion(user.uid);
-        } else {
-            document.getElementById('user-info').innerHTML = `<i class="fa-regular fa-circle-user"></i> Conectar`;
-            document.getElementById('user-stats').style.display = 'none';
-            document.getElementById('btn-logout').style.display = 'none';
-            document.getElementById('room-info').innerText = 'Sala: Ninguna';
-            document.getElementById('btn-share-room').style.display = 'none';
-            document.getElementById('chat-section').style.display = 'none';
-            
-            if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
-            if (unsubscribeChat) { unsubscribeChat(); unsubscribeChat = null; }
-            if (userRoomsUnsub) { userRoomsUnsub(); userRoomsUnsub = null; }
-            currentRoomRef = null; chatRoomRef = null;
-            if (window.detenerGamificacion) window.detenerGamificacion();
-            window.limpiarTodo();
-        }
-    });
-
-    window.iniciarSesion = () => {
-        const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value;
-        if(e&&p) signInWithEmailAndPassword(auth, e, p).catch(err => alert('Error: ' + err.message));
-    };
-    window.registrarUsuario = () => {
-        const e = document.getElementById('auth-email').value, p = document.getElementById('auth-pass').value;
-        if(e && p.length>=6) createUserWithEmailAndPassword(auth, e, p).catch(err => alert('Error: ' + err.message));
-    };
-    window.iniciarSesionConGoogle = () => { signInWithPopup(auth, new GoogleAuthProvider()).catch(err => alert(err.message)); };
-    window.cerrarSesion = () => signOut(auth);
-    window.recuperarContrasena = () => {
-        const e = document.getElementById('auth-email').value;
-        if(e) sendPasswordResetEmail(auth, e).then(()=>alert('Enviado.')).catch(err=>alert(err.message));
-    };
-
-    // Gestor de Salas 
-    window.abrirModalGestorSalas = () => {
-        if (!auth.currentUser) return window.abrirModalAuth();
-        document.getElementById('room-manager-modal').style.display = 'flex';
-    };
-    window.cerrarModalGestorSalas = () => document.getElementById('room-manager-modal').style.display = 'none';
-
-    function iniciarGestorSalasUsuario(uid) {
-        const roomsRef = ref(db, `usuarios/${uid}/salas`);
-        userRoomsUnsub = onValue(roomsRef, (snap) => {
-            const data = snap.val();
-            const listDiv = document.getElementById('my-rooms-list');
-            listDiv.innerHTML = '';
-            if(data) {
-                Object.entries(data).forEach(([roomId, info]) => {
-                    listDiv.innerHTML += `
-                        <div class="room-item">
-                            <span><i class="fa-solid fa-satellite-dish"></i> ${roomId}</span>
-                            <div style="display:flex; gap:5px;">
-                                <button class="btn-ribbon" style="padding:4px; font-size:0.7rem; color:var(--accent-green);" onclick="joinSpecificRoom('${roomId}')"><i class="fa-solid fa-play"></i></button>
-                                <button class="btn-ribbon danger" style="padding:4px; font-size:0.7rem;" onclick="removeRoomFromList('${roomId}')"><i class="fa-solid fa-trash"></i></button>
-                            </div>
-                        </div>
-                    `;
-                });
-            } else {
-                listDiv.innerHTML = '<i style="color:var(--text-muted); font-size:0.8rem;">No tienes salas guardadas.</i>';
-            }
-        });
-    }
-
-    window.joinSpecificRoom = async function(salaId) {
-        const passRef = ref(db, 'salas/' + salaId + '/password');
-        const snap = await get(passRef);
-        if(snap.exists()) {
-            const pass = prompt(`Ingresa la contraseña para la sala '${salaId}':`);
-            if(pass === snap.val()) conectarASalaYDato(salaId);
-            else alert("Contraseña incorrecta.");
-        } else {
-            alert("La sala ya no existe en el servidor global.");
-            removeRoomFromList(salaId);
-        }
-    };
-
-    window.removeRoomFromList = function(salaId) {
-        if(!auth.currentUser) return;
-        remove(ref(db, `usuarios/${auth.currentUser.uid}/salas/${salaId}`));
-    };
-
-    window.intentarUnirseSala = async function() {
-        if(!auth.currentUser) return;
-        const salaId = document.getElementById('new-room-name').value.trim();
-        const salaPass = document.getElementById('new-room-pass').value.trim();
-        if (!salaId || !salaPass) return alert('Datos incompletos.');
-
-        const passRef = ref(db, 'salas/' + salaId + '/password');
-        try {
-            const snap = await get(passRef);
-            if (snap.exists() && snap.val() !== salaPass) return alert('Contraseña incorrecta.');
-            if (!snap.exists()) { await set(passRef, salaPass); alert('Nueva sala creada.'); }
-            
-            // Guardar en la lista del usuario
-            update(ref(db, `usuarios/${auth.currentUser.uid}/salas/${salaId}`), { lastAccess: Date.now() });
-            conectarASalaYDato(salaId);
-            cerrarModalGestorSalas();
-        } catch(e) { alert("Error: " + e.message); }
-    };
-
-    function conectarASalaYDato(salaId) {
-        if (unsubscribeRoom) unsubscribeRoom(); if (unsubscribeChat) unsubscribeChat();
-        
-        document.getElementById('room-info').innerHTML = `<i class="fa-solid fa-link"></i> Sala: ${salaId}`;
-        document.getElementById('btn-share-room').style.display = 'inline-block';
-        document.getElementById('chat-section').style.display = 'block';
-
-        currentRoomRef = ref(db, 'salas/' + salaId + '/state');
-        chatRoomRef = ref(db, 'salas/' + salaId + '/chat');
-        
-        unsubscribeRoom = onValue(currentRoomRef, (snap) => {
-            const data = snap.val();
-            if (data && !window.isSendingData) {
-                isReceiving = true;
-                window.appState.objects = data.objects || [];
-                window.appState.origin = data.origin || { x: null, y: null };
-                window.appState.rawStrokes = data.rawStrokes || [];
-                window.updateUI(); window.analizarFisica(); window.redraw();
-                setTimeout(() => { isReceiving = false; }, 50);
-            }
-        });
-
-        unsubscribeChat = onValue(chatRoomRef, (snap) => {
-            const cb = document.getElementById('chat-box'); cb.innerHTML = '';
-            const data = snap.val();
-            if (data) {
-                Object.values(data).forEach(msg => {
-                    const esMio = msg.email === auth.currentUser.email;
-                    cb.innerHTML += `<div style="text-align:${esMio?'right':'left'}; margin-bottom:4px;">
-                        <span style="font-size:0.6rem; color:#aaa;">${msg.email.split('@')[0]}</span><br>
-                        <span style="background:${esMio?'var(--accent-blue)':'rgba(255,255,255,0.1)'}; color:${esMio?'#000':'white'}; padding:4px 8px; border-radius:4px; display:inline-block; font-size:0.75rem;">${msg.text}</span>
-                    </div>`;
-                });
-                cb.scrollTop = cb.scrollHeight;
-            } else cb.innerHTML = '<i style="color:#666;">Sin mensajes.</i>';
-        });
-    }
-
-    window.enviarMensajeChat = () => {
-        const inp = document.getElementById('chat-input'), txt = inp.value.trim();
-        if(txt && auth.currentUser && chatRoomRef) {
-            push(chatRoomRef, { email: auth.currentUser.email, text: txt, timestamp: Date.now() });
-            inp.value = '';
-        }
-    };
-
-    window.enviarEstadoNube = () => {
-        if (!currentRoomRef || isReceiving || !auth.currentUser) return;
-        window.isSendingData = true;
-        set(currentRoomRef, { objects: window.appState.objects, origin: window.appState.origin, rawStrokes: window.appState.rawStrokes }).then(() => window.isSendingData = false);
-    };
-
-    window.copiarInfoSala = () => {
-        const t = document.getElementById('room-info').innerText.replace('Sala: ', '');
-        const msg = `¡Únete a mi Laboratorio de Coulomb!\nSala: ${t}\nLink: ${window.location.href}`;
-        navigator.clipboard ? navigator.clipboard.writeText(msg).then(()=>alert("Copiado al portapapeles.")) : prompt("Copia esto:", msg);
-    };
-
-    // GAMIFICACIÓN MÍNIMA
-    window.iniciarGamificacion = function(uid) {
-        window.userGameData = { perfil: { nivel: 1, puntos: 0, tiempo_sesion: 0 }};
-        setInterval(()=>{ if(window.userGameData){ window.userGameData.perfil.puntos+=10; document.getElementById('ui-puntos').innerText=window.userGameData.perfil.puntos; } }, 60000);
-    };
 </script>
 </body>
 </html>
