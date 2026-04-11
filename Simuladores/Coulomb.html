@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
     <!-- Google tag (gtag.js) --> 
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EXGD1GSLLB"></script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-EXGD1GSLLB'); </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EXGD1GSLLB"></script>
+    <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-EXGD1GSLLB'); </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laboratorio Virtual: Ley de Coulomb IA</title>
@@ -16,356 +17,341 @@
     
     <style>
         :root {
-            --bg-color: #1e1e2e;
-            --panel-color: #2b2b3b;
-            --accent-color: #4ecca3;
-            --danger-color: #ff6b6b;
-            --text-color: #e0e0e0;
-            --border-color: #444;
-            --force-color: #f1c40f;
-            --selection-color: #00ff88;
-            /* Variables para paneles dinámicos */
-            --left-w: 260px;
+            /* Paleta Glassmorphism y Pasteles */
+            --bg-base: #0f111a;
+            --glass-bg: rgba(25, 27, 40, 0.55);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+            --pastel-pink: #ffb6c1;
+            --pastel-green: #77dd77;
+            --pastel-blue: #aec6cf;
+            --pastel-yellow: #fdfd96;
+            --danger-color: #ff6961;
+            --text-main: #eef0f4;
+            --text-muted: #9aa0a6;
+            --left-w: 280px;
             --right-w: 380px;
         }
 
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0; padding: 0;
+            background-color: var(--bg-base);
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(255, 182, 193, 0.12), transparent 30%),
+                radial-gradient(circle at 85% 30%, rgba(119, 221, 119, 0.1), transparent 30%),
+                radial-gradient(circle at 50% 80%, rgba(174, 198, 207, 0.15), transparent 35%),
+                radial-gradient(circle at 70% 90%, rgba(253, 253, 150, 0.08), transparent 25%);
+            color: var(--text-main);
             height: 100vh;
             display: flex; flex-direction: column;
-            overflow: hidden;
-            user-select: none;
+            overflow: hidden; user-select: none;
         }
 
-        header {
-            background: #151520;
-            padding: 10px 20px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex; justify-content: space-between; align-items: center;
-            z-index: 100;
+        /* Utilidades Glassmorphism */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
         }
+        .glass-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+            color: var(--text-main); border-radius: 8px; cursor: pointer; transition: all 0.3s ease;
+            display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+        }
+        .glass-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+        .glass-input {
+            background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border);
+            color: var(--text-main); border-radius: 6px; padding: 8px 12px; outline: none;
+        }
+        .glass-input:focus { border-color: var(--pastel-blue); }
 
-        h2 { margin: 0; color: var(--accent-color); font-size: 1.2rem; }
-        .version { font-size: 0.8rem; color: #666; display: flex; align-items: center; gap: 15px; }
-        
-        /* Estilos de Sala Multiusuario */
-        .room-control {
-            display: flex; align-items: center; gap: 8px;
-            background: #232333; padding: 4px 10px; border-radius: 6px; border: 1px solid #444;
+        header, footer {
+            padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 100;
         }
+        header { border-bottom: 1px solid var(--glass-border); }
+        footer { border-top: 1px solid var(--glass-border); font-size: 0.8rem; color: var(--text-muted); }
         
-        /* Modales de Login y Sala */
-        .auth-input {
-            width: 100%; padding: 10px; margin: 8px 0 15px 0;
-            background: #1e1e2e; border: 1px solid #555; color: white;
-            border-radius: 4px; font-size: 0.95rem;
-        }
-        .auth-input:focus { border-color: var(--accent-color); outline: none; }
-        .auth-btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+        h2 { font-size: 1.1rem; color: var(--pastel-blue); display: flex; align-items: center; gap: 8px; }
+        .header-controls { display: flex; align-items: center; gap: 12px; font-size: 0.85rem; }
+        .room-badge { background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 6px; }
 
         .workspace {
-            display: grid;
-            grid-template-columns: var(--left-w) 1fr var(--right-w); 
-            height: calc(100vh - 50px);
-            transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
+            display: grid; grid-template-columns: var(--left-w) 1fr var(--right-w); 
+            flex: 1; transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative; overflow: hidden;
         }
 
         .panel {
-            background: var(--panel-color);
-            border-right: 1px solid var(--border-color);
-            display: flex; flex-direction: column;
-            padding: 15px; gap: 15px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            transition: opacity 0.2s;
+            display: flex; flex-direction: column; padding: 15px; gap: 15px;
+            overflow-y: auto; overflow-x: hidden; transition: opacity 0.2s;
         }
-        .panel-right { border-right: none; border-left: 1px solid var(--border-color); }
+        .panel::-webkit-scrollbar { width: 6px; }
+        .panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        #panel-left { border-right: 1px solid var(--glass-border); }
+        #panel-right { border-left: 1px solid var(--glass-border); }
 
-        /* Controles de Menú Dinámico */
         .panel-toggle {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 24px;
-            height: 48px;
-            background: var(--panel-color);
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer;
-            z-index: 50;
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transition: background 0.2s, color 0.2s;
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 24px; height: 48px; border-radius: 6px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; z-index: 50; box-shadow: var(--glass-shadow); transition: all 0.2s;
         }
-        .panel-toggle:hover { background: var(--accent-color); color: #1e1e2e; }
+        .panel-toggle:hover { background: var(--pastel-blue); color: var(--bg-base); }
         #toggle-left { left: var(--left-w); transform: translate(-50%, -50%); }
         #toggle-right { right: var(--right-w); transform: translate(50%, -50%); }
 
-        .section-title {
-            font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;
-            color: #888; margin-bottom: 8px; font-weight: bold;
-            white-space: nowrap;
-        }
-
-        .toolbar { display: flex; flex-direction: column; gap: 8px; }
+        .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
+        .toolbar { display: flex; flex-direction: column; gap: 6px; }
         
-        .btn-tool {
-            padding: 10px 12px;
-            border: 1px solid transparent; border-radius: 6px;
-            background: #3a3a4a; color: white;
-            cursor: pointer; text-align: left; transition: all 0.2s;
-            display: flex; align-items: center; gap: 10px; font-size: 0.9rem;
-            white-space: nowrap;
-        }
-        .btn-tool:hover { background: #4a4a5a; border-color: #666; }
-        .btn-tool.active { background: var(--accent-color); color: #1e1e2e; font-weight: bold; }
-        
-        .btn-action { background: var(--accent-color); color: #1e1e2e; font-weight: bold; justify-content: center; }
-        .btn-danger { background: rgba(255, 107, 107, 0.1); color: var(--danger-color); border: 1px solid var(--danger-color); }
-        .btn-danger:hover { background: var(--danger-color); color: white; }
-
-        .color-picker-container {
-            display: flex; align-items: center; gap: 10px; 
-            background: #232333; padding: 10px; border-radius: 6px;
-            border: 1px solid #444; margin-top: 5px;
-            white-space: nowrap;
-        }
-        .color-picker-container input[type="color"] {
-            cursor: pointer; width: 32px; height: 32px; 
-            border: none; background: transparent; padding: 0; outline: none;
-        }
-
-        .data-card {
-            background: #1a1a24; padding: 10px; border-radius: 6px;
-            border-left: 3px solid #666; margin-bottom: 8px;
-            transition: 0.2s;
-        }
-        .data-card.selected { border-left-color: var(--selection-color); background: #252a28; }
-        
-        .data-header { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; color: #ccc; }
-        .input-row { display: flex; gap: 5px; align-items: center; margin-top: 5px; }
-        
-        input[type="number"], select {
-            background: #2b2b3b; border: 1px solid #555; color: white;
-            padding: 4px; border-radius: 4px; width: 100%; font-size: 0.85rem;
-        }
-        input[type="number"]:focus { border-color: var(--accent-color); outline: none; }
+        .btn-tool { padding: 8px 12px; font-size: 0.85rem; justify-content: flex-start; }
+        .btn-tool.active { background: rgba(174, 198, 207, 0.2); border-color: var(--pastel-blue); color: var(--pastel-blue); }
+        .btn-action { background: rgba(174, 198, 207, 0.15); color: var(--pastel-blue); justify-content: center; font-weight: bold; }
+        .btn-action:hover { background: rgba(174, 198, 207, 0.3); }
+        .btn-danger { color: var(--danger-color); }
+        .btn-danger:hover { background: rgba(255, 105, 97, 0.2); border-color: var(--danger-color); }
+        .btn-success { color: var(--pastel-green); }
+        .btn-success:hover { background: rgba(119, 221, 119, 0.2); border-color: var(--pastel-green); }
 
         .canvas-area {
-            position: relative; background-color: #ffffff;
-            background-image:
-                linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
-            background-size: 20px 20px;
-            overflow: hidden; display: flex; justify-content: center; align-items: center;
+            position: relative; background-color: #fcfcfc;
+            background-image: linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px);
+            background-size: 20px 20px; overflow: hidden; display: flex; justify-content: center; align-items: center;
         }
         canvas { cursor: crosshair; touch-action: none; z-index: 1; position: absolute; top: 0; left: 0; }
         
-        #labels-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 2; overflow: hidden;
-        }
+        #labels-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: hidden; }
         .canvas-label {
-            position: absolute; background: rgba(255, 255, 255, 0.95);
-            padding: 2px 6px; border-radius: 4px; border: 1px solid #3498db;
-            font-size: 0.9rem; color: #222; transform: translate(-50%, -100%); 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.15); white-space: nowrap;
+            position: absolute; background: rgba(255, 255, 255, 0.9); padding: 2px 6px; border-radius: 4px;
+            border: 1px solid var(--pastel-blue); font-size: 0.9rem; color: #111;
+            transform: translate(-50%, -100%); box-shadow: 0 2px 5px rgba(0,0,0,0.1); white-space: nowrap;
         }
 
         #text-input-overlay {
-            position: absolute; display: none;
-            background: rgba(255,255,255,0.95);
-            border: 2px dashed var(--accent-color);
-            color: #222; font-family: 'Segoe UI', sans-serif; font-size: 20px;
-            padding: 4px 8px; border-radius: 4px; z-index: 100;
-            outline: none; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            transform: translateY(-50%);
+            position: absolute; display: none; background: rgba(255,255,255,0.95);
+            border: 2px dashed var(--pastel-blue); color: #222; font-family: 'Segoe UI', sans-serif; font-size: 20px;
+            padding: 4px 8px; border-radius: 4px; z-index: 100; outline: none; font-weight: bold; transform: translateY(-50%);
         }
 
         #coords-indicator {
-            position: absolute; bottom: 10px; left: 10px;
-            background: rgba(0,0,0,0.8); color: #4ecca3;
-            padding: 6px 12px; border-radius: 4px; font-size: 0.85rem;
-            pointer-events: none; z-index: 3; font-family: monospace;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-        
-        .feedback-card {
-            background: #1a1a24; padding: 12px; border-radius: 8px;
-            border-left: 4px solid var(--force-color); margin-bottom: 10px; font-size: 0.9rem;
-        }
-        .result-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #333; font-size: 0.9rem; }
-        .result-correct { color: var(--accent-color); }
-        .result-error { color: var(--danger-color); }
-        .result-warn { color: #f39c12; }
-
-        .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; margin: 2px; }
-        .badge-pos { background: #3498db; color: white; }
-        .badge-neg { background: #e74c3c; color: white; }
-        
-        /* Estilos Gamificación */
-        .task-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
-        .task-check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #555; display: inline-flex; justify-content: center; align-items: center; font-size: 10px; font-weight: bold; color: transparent; transition: 0.3s; }
-        .task-item.done .task-check { border-color: #4ecca3; background: #4ecca3; color: #1e1e2e; }
-        .task-item.done span { color: #4ecca3; text-decoration: line-through; }
-        
-        .statement-card {
-            background: #231a29; padding: 12px; border-radius: 8px;
-            border-left: 4px solid #9b59b6; margin-bottom: 15px; 
-            font-size: 0.9rem; line-height: 1.5; color: #e6cdff;
+            position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); color: var(--pastel-green);
+            padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; pointer-events: none; z-index: 3; font-family: monospace; backdrop-filter: blur(4px);
         }
 
-        .tip-card {
-            background: #252530;
-            padding: 10px; border-radius: 6px; border-left: 3px solid #f1c40f;
-            margin-top: 15px; font-size: 0.8rem; color: #ccc; line-height: 1.4;
+        .data-card {
+            background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;
+            border-left: 3px solid var(--text-muted); margin-bottom: 8px; transition: 0.2s; border-right: 1px solid var(--glass-border); border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);
         }
-        
-        .latex-box {
-            background: white; color: black; padding: 10px; border-radius: 6px;
-            min-height: 100px; font-size: 0.85rem; overflow-x: auto;
-            display: flex; flex-direction: column; text-align: left;
-        }
+        .data-card.selected { border-left-color: var(--pastel-green); background: rgba(119, 221, 119, 0.05); }
+        .data-header { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-main); }
+        .input-row { display: flex; gap: 6px; align-items: center; margin-top: 5px; }
+        .input-row input { width: 100%; }
 
+        .feedback-card { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border-left: 3px solid var(--pastel-yellow); margin-bottom: 10px; font-size: 0.85rem; border-top: 1px solid var(--glass-border); border-right: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border); }
+        .result-item { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .result-correct { color: var(--pastel-green); } .result-error { color: var(--danger-color); } .result-warn { color: var(--pastel-yellow); }
+        
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin: 2px; }
+        .badge-pos { background: rgba(174, 198, 207, 0.2); color: var(--pastel-blue); border: 1px solid var(--pastel-blue); }
+        .badge-neg { background: rgba(255, 105, 97, 0.2); color: var(--danger-color); border: 1px solid var(--danger-color); }
+
+        .task-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.85rem; }
+        .task-check { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--text-muted); display: flex; justify-content: center; align-items: center; transition: 0.3s; }
+        .task-item.done .task-check { border-color: var(--pastel-green); background: var(--pastel-green); }
+        .task-item.done span { color: var(--pastel-green); text-decoration: line-through; opacity: 0.7; }
+        .task-item.done .task-check svg { display: block !important; stroke: var(--bg-base); }
+
+        .latex-box { background: rgba(255,255,255,0.9); color: #111; padding: 12px; border-radius: 8px; min-height: 100px; font-size: 0.85rem; overflow-x: auto; display: flex; flex-direction: column; }
+        
         #float-delete {
-            position: absolute; display: none;
-            background: #ff6b6b; color: white; border: none;
-            padding: 8px 12px; border-radius: 4px; cursor: pointer;
-            font-size: 0.85rem; z-index: 10; font-weight: bold;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            transform: translate(-50%, -100%);
-            margin-top: -10px;
+            position: absolute; display: none; background: var(--danger-color); color: #fff; border: none;
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; z-index: 10; font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3); transform: translate(-50%, -100%); margin-top: -10px;
         }
-        #float-delete:hover { background: #ff4444; }
 
-        .modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); z-index: 2000;
-            justify-content: center; align-items: center;
+        /* Modales */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: var(--bg-base); padding: 25px; border-radius: 12px; width: 400px; position: relative; border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow); }
+        .close-btn { position: absolute; top: 15px; right: 15px; cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
+        .close-btn:hover { color: var(--text-main); }
+        .auth-btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .auth-btn-group button { flex: 1; padding: 10px; }
+
+        /* Menús Horizontales (Dropdowns adaptados) */
+        .h-menu-wrapper { position: relative; margin-bottom: 10px; }
+        .h-menu-trigger {
+            background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); padding: 8px; border-radius: 6px;
+            display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 0.85rem;
         }
-        .modal-content {
-            background: var(--panel-color); padding: 25px; border-radius: 10px; width: 400px;
-            text-align: left; position: relative; color: white; border: 1px solid var(--border-color);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        .h-menu-content {
+            position: absolute; top: 0; left: 105%; width: max-content; background: var(--bg-base); 
+            border: 1px solid var(--glass-border); border-radius: 8px; padding: 5px; box-shadow: var(--glass-shadow);
+            display: none; flex-direction: column; gap: 2px; z-index: 150;
         }
-        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; color: #888;}
-        .close-btn:hover { color: white; }
+        .h-menu-wrapper.active .h-menu-content { display: flex; }
+        .h-menu-item { padding: 6px 12px; font-size: 0.85rem; cursor: pointer; border-radius: 4px; }
+        .h-menu-item:hover { background: rgba(255,255,255,0.05); color: var(--pastel-blue); }
+
+        .svg-icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .social-link { color: var(--text-muted); transition: color 0.2s; display: flex; align-items: center; gap: 4px; text-decoration: none; }
+        .social-link:hover { color: var(--pastel-pink); }
     </style>
 </head>
 <body>
 
-<header>
-    <div><h2>⚡ Laboratorio Coulomb IA</h2></div>
-    <div class="version">
-        <span id="user-info" style="color: var(--accent-color); font-weight: bold;">Cargando...</span>
-        <span id="user-stats" style="color: #f1c40f; font-weight: bold; margin-left: 10px; display: none; cursor: pointer; background: #2b2b3b; padding: 2px 8px; border-radius: 4px; border: 1px solid #444;" onclick="abrirModalPerfil()" title="Ver Misiones y Logros">🏆 Lvl 1 | 0 pts</span>
-        <button id="btn-logout" class="btn-tool" style="padding: 4px 8px; display: none;" onclick="cerrarSesion()">Salir</button>
-        <div class="room-control">
-            <span id="room-info">🌐 Sala: Ninguna</span>
-            <button class="btn-tool" style="padding: 4px 8px;" onclick="abrirModalSala()">Unirse a Sala</button>
-            <button id="btn-share-room" class="btn-tool" style="padding: 4px 8px; display: none; background: #9b59b6; color: white;" onclick="copiarInfoSala()" title="Copiar enlace de acceso">🔗 Compartir</button>
+<header class="glass">
+    <h2>
+        <svg class="svg-icon" style="color:var(--pastel-yellow)" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Laboratorio Coulomb IA
+    </h2>
+    <div class="header-controls">
+        <span id="user-info" style="color: var(--pastel-blue); font-weight: 600;">Cargando...</span>
+        <button id="user-stats" class="glass-btn" style="display: none; color: var(--pastel-yellow); padding: 4px 8px;" onclick="abrirModalPerfil()" title="Ver Misiones y Logros">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10M5 4h14v5a7 7 0 0 1-14 0V4z"/></svg>
+            <span id="ui-lvl-badge">Lvl 1 | 0 pts</span>
+        </button>
+        <button id="btn-logout" class="glass-btn" style="display: none; padding: 4px 8px;" onclick="cerrarSesion()">Salir</button>
+        <div class="room-badge">
+            <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+            <span id="room-info">Sala: Ninguna</span>
+            <button class="glass-btn" style="padding: 2px 6px; font-size:0.75rem;" onclick="abrirModalSala()">Unirse</button>
+            <button id="btn-share-room" class="glass-btn btn-success" style="display: none; padding: 2px 6px; font-size:0.75rem;" onclick="copiarInfoSala()" title="Copiar enlace de acceso">
+                <svg class="svg-icon" style="width:12px;height:12px" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Compartir
+            </button>
         </div>
     </div>
 </header>
 
 <div class="workspace" id="main-workspace">
     <!-- Panel Izquierdo -->
-    <div class="panel" id="panel-left">
+    <div class="panel glass" id="panel-left">
         <div>
             <div class="section-title">Herramientas</div>
             <div class="toolbar">
-                <button class="btn-tool active" onclick="setTool('draw', this)" title="Dibuja cargas (+/-) y vectores de fuerza">🤖 Lápiz IA (Objetos)</button>
-                <button class="btn-tool" onclick="setTool('draw_free', this)" title="Dibuja explicaciones libres">🖌️ Marcador (Libre)</button>
-                <button class="btn-tool" onclick="setTool('line', this)" title="Dibuja líneas rectas para triángulos auxiliares">📏 Línea Recta</button>
-                <button class="btn-tool" onclick="setTool('visibility', this)" title="Haz clic en objetos para ocultarlos o mostrarlos">👻 Ocultar / Mostrar</button>
-                <button class="btn-tool" onclick="setTool('text', this)" title="Escribe texto en el lienzo">🔤 Escribir Texto</button>
-                <button class="btn-tool" onclick="setTool('move', this)" title="Arrastra para seleccionar varios o mueve el origen">✋ Mover / Seleccionar</button>
-                <button class="btn-tool" onclick="undo()">↩️ Deshacer</button>
-                <button class="btn-tool btn-danger" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
-                <button class="btn-tool" style="background: #e67e22; color: white;" onclick="exportarImagen()" title="Descargar imagen del lienzo con tus resultados">📸 Exportar Imagen</button>
+                <button class="glass-btn btn-tool active" onclick="setTool('draw', this)">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg> Lápiz IA (Objetos)
+                </button>
+                <button class="glass-btn btn-tool" onclick="setTool('draw_free', this)">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/></svg> Marcador Libre
+                </button>
+                <button class="glass-btn btn-tool" onclick="setTool('line', this)">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="4" r="2"/></svg> Línea Recta
+                </button>
+                <button class="glass-btn btn-tool" onclick="setTool('visibility', this)">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Ocultar / Mostrar
+                </button>
+                <button class="glass-btn btn-tool" onclick="setTool('text', this)">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Escribir Texto
+                </button>
+                <button class="glass-btn btn-tool" onclick="setTool('move', this)">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg> Mover / Seleccionar
+                </button>
+                <button class="glass-btn btn-tool" onclick="undo()">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg> Deshacer
+                </button>
+                <button class="glass-btn btn-tool btn-danger" onclick="limpiarTodo()">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Limpiar Todo
+                </button>
+                <button class="glass-btn btn-tool" style="color: var(--pastel-yellow);" onclick="exportarImagen()">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Exportar Imagen
+                </button>
             </div>
             
-            <div class="color-picker-container">
-                <input type="color" id="pencil-color" value="#000000" onchange="state.currentColor = this.value">
-                <label for="pencil-color" style="font-size: 0.85rem; color: #ccc;">Color (Líneas/Marcador)</label>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; border: 1px solid var(--glass-border);">
+                <input type="color" id="pencil-color" value="#000000" style="cursor: pointer; width: 24px; height: 24px; border: none; background: transparent; padding: 0; outline: none;" onchange="state.currentColor = this.value">
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Color (Líneas)</label>
             </div>
         </div>
-        <hr style="border:0; border-top:1px solid var(--border-color); margin: 5px 0;">
+
+        <hr style="border:0; border-top:1px solid var(--glass-border); margin: 5px 0;">
+        
         <div>
             <div class="section-title">Datos</div>
-            <div style="margin-bottom: 10px;">
-                <label style="font-size:0.8rem; color:#aaa;">U. Carga:</label>
-                <select id="charge-unit" onchange="analizarFisica()">
-                    <option value="1e-6">Microcoulombs (µC)</option>
-                    <option value="1e-9">Nanocoulombs (nC)</option>
-                    <option value="1e-3">MiliCoulombs (mC)</option>
-                    <option value="1">Coulombs (C)</option>
-                </select>
+            
+            <!-- Menús horizontales simulados -->
+            <div class="h-menu-wrapper" id="menu-charge">
+                <label style="font-size:0.75rem; color:var(--text-muted);">U. Carga:</label>
+                <div class="h-menu-trigger" onclick="toggleMenu('menu-charge')"><span id="lbl-charge">Microcoulombs (µC)</span> <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+                <div class="h-menu-content glass">
+                    <div class="h-menu-item" onclick="setSelectVal('charge-unit', '1e-6', 'Microcoulombs (µC)', 'menu-charge', 'lbl-charge')">Microcoulombs (µC)</div>
+                    <div class="h-menu-item" onclick="setSelectVal('charge-unit', '1e-9', 'Nanocoulombs (nC)', 'menu-charge', 'lbl-charge')">Nanocoulombs (nC)</div>
+                    <div class="h-menu-item" onclick="setSelectVal('charge-unit', '1e-3', 'MiliCoulombs (mC)', 'menu-charge', 'lbl-charge')">MiliCoulombs (mC)</div>
+                    <div class="h-menu-item" onclick="setSelectVal('charge-unit', '1', 'Coulombs (C)', 'menu-charge', 'lbl-charge')">Coulombs (C)</div>
+                </div>
+                <input type="hidden" id="charge-unit" value="1e-6">
             </div>
-            <div style="margin-bottom: 10px;">
-                <label style="font-size:0.8rem; color:#aaa;">Distancia:</label>
-                <select id="dist-unit" onchange="analizarFisica()">
-                    <option value="1">Metros (m)</option>
-                    <option value="0.01">Centímetros (cm)</option>
-                    <option value="1e-3">Milímetros (mm)</option>
-                    <option value="1e-6">Micrómetros (µm)</option>
-                    <option value="1e-9">Nanómetros (nm)</option>
-                </select>
+
+            <div class="h-menu-wrapper" id="menu-dist">
+                <label style="font-size:0.75rem; color:var(--text-muted);">Distancia:</label>
+                <div class="h-menu-trigger" onclick="toggleMenu('menu-dist')"><span id="lbl-dist">Metros (m)</span> <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+                <div class="h-menu-content glass">
+                    <div class="h-menu-item" onclick="setSelectVal('dist-unit', '1', 'Metros (m)', 'menu-dist', 'lbl-dist')">Metros (m)</div>
+                    <div class="h-menu-item" onclick="setSelectVal('dist-unit', '0.01', 'Centímetros (cm)', 'menu-dist', 'lbl-dist')">Centímetros (cm)</div>
+                    <div class="h-menu-item" onclick="setSelectVal('dist-unit', '1e-3', 'Milímetros (mm)', 'menu-dist', 'lbl-dist')">Milímetros (mm)</div>
+                    <div class="h-menu-item" onclick="setSelectVal('dist-unit', '1e-6', 'Micrómetros (µm)', 'menu-dist', 'lbl-dist')">Micrómetros (µm)</div>
+                    <div class="h-menu-item" onclick="setSelectVal('dist-unit', '1e-9', 'Nanómetros (nm)', 'menu-dist', 'lbl-dist')">Nanómetros (nm)</div>
+                </div>
+                <input type="hidden" id="dist-unit" value="1">
             </div>
+
             <div style="margin-bottom: 10px;">
-                <label style="font-size:0.8rem; color:#aaa;">Escala:</label>
+                <label style="font-size:0.75rem; color:var(--text-muted);">Escala:</label>
                 <div style="display:flex; gap:5px; align-items:center;">
-                    <input type="number" id="scale-input" value="100" style="width:70px" onchange="analizarFisica()">
-                    <span style="font-size:0.7rem; color:#888;">px = 1 unidad</span>
+                    <input type="number" id="scale-input" class="glass-input" value="100" style="width:70px" onchange="analizarFisica()">
+                    <span style="font-size:0.7rem; color:var(--text-muted);">px = 1 unidad</span>
                 </div>
             </div>
             <div id="charges-container"></div>
         </div>
-        <button class="btn-tool btn-action" style="margin-top:15px;" onclick="analizarFisica()">🔍 VERIFICAR / CALCULAR</button>
-        <button id="btn-toggle-dcl" class="btn-tool btn-action" style="margin-top:5px; background: #3498db;" onclick="toggleInCanvasDCL()">👀 Mostrar DCL en Lienzo</button>
+        <button class="glass-btn btn-action" style="margin-top:10px; padding: 10px;" onclick="analizarFisica()">
+            <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> VERIFICAR / CALCULAR
+        </button>
+        <button id="btn-toggle-dcl" class="glass-btn btn-action" style="margin-top:5px; color: var(--pastel-blue);" onclick="toggleInCanvasDCL()">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Mostrar DCL en Lienzo
+        </button>
     </div>
 
     <!-- Botón Toggle Izquierdo -->
-    <div class="panel-toggle" id="toggle-left" onclick="toggleLeft()" title="Ocultar/Mostrar Herramientas">◀</div>
+    <div class="panel-toggle glass" id="toggle-left" onclick="toggleLeft()">
+        <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </div>
 
     <!-- Área de Trabajo (Canvas) -->
     <div class="canvas-area" id="canvas-wrapper">
         <canvas id="main-canvas"></canvas>
-        <button id="float-delete" onclick="deleteSelected()">🗑️ Eliminar</button>
-        <input type="text" id="text-input-overlay" placeholder="Escribe aquí y presiona Enter...">
+        <button id="float-delete" onclick="deleteSelected()">
+            <svg class="svg-icon" style="width:14px;height:14px;display:inline-block;vertical-align:middle" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Eliminar
+        </button>
+        <input type="text" id="text-input-overlay" placeholder="Escribe y presiona Enter...">
         <div id="labels-overlay"></div>
         <div id="coords-indicator">x: 0, y: 0</div>
     </div>
 
     <!-- Botón Toggle Derecho -->
-    <div class="panel-toggle" id="toggle-right" onclick="toggleRight()" title="Ocultar/Mostrar Resultados">▶</div>
+    <div class="panel-toggle glass" id="toggle-right" onclick="toggleRight()">
+        <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
 
     <!-- Panel Derecho -->
-    <div class="panel panel-right" id="panel-right">
+    <div class="panel glass" id="panel-right">
         <div>
             <div class="section-title">Enunciado del Problema</div>
-            <div id="problem-statement" class="statement-card">
+            <div id="problem-statement" class="feedback-card" style="border-left-color: var(--pastel-pink); color: var(--pastel-pink);">
                 <i>Dibuja cargas fuente para interactuar.</i>
             </div>
         </div>
         <div>
             <div class="section-title">Objetos Detectados</div>
-            <div class="feedback-card" style="border-left-color: #3498db;">
+            <div class="feedback-card" style="border-left-color: var(--pastel-blue);">
                 <div id="detection-list"><i>Esperando...</i></div>
             </div>
         </div>
         <div>
             <div class="section-title">Validación</div>
             <div class="feedback-card" id="validation-box">...</div>
-            <div class="tip-card" id="static-tip">
-                <strong>💡 Tip de Fuerza ($F$):</strong><br>
+            <div class="feedback-card" style="border-left-color: var(--text-muted); color: var(--text-muted); padding: 8px;">
+                <svg class="svg-icon" style="display:inline-block; vertical-align:middle; width:14px;height:14px;" viewBox="0 0 24 24"><path d="M9 21h6"/><path d="M10.5 17h3"/><path d="M12 2v2"/><path d="M12 4a6 6 0 0 0-6 6c0 2 1.5 4.5 3 6.5h6c1.5-2 3-4.5 3-6.5a6 6 0 0 0-6-6z"/></svg>
+                <strong>Tip de Fuerza ($F$):</strong><br>
                 Cargas de <b>IGUAL</b> signo se repelen, de signo <b>OPUESTO</b> se atraen.
             </div>
         </div>
@@ -375,97 +361,126 @@
             <div class="latex-box" id="latex-result">$$\text{---}$$</div>
         </div>
         
-        <!-- NUEVA SECCIÓN: Chat de Sala -->
+        <!-- Chat de Sala -->
         <div id="chat-section" style="display: none;">
-            <div class="section-title" style="margin-top: 15px;">💬 Chat de Grupo</div>
-            <div id="chat-box" style="background: #1a1a24; height: 180px; overflow-y: auto; padding: 10px; border-radius: 6px; border-left: 3px solid #3498db; margin-bottom: 10px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px;">
-                <i style="color: #666;">Únete a un cuarto para chatear...</i>
+            <div class="section-title" style="margin-top: 15px; display:flex; align-items:center; gap:6px;">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z"/></svg> Chat de Grupo
             </div>
-            <div style="display: flex; gap: 5px;">
-                <input type="text" id="chat-input" placeholder="Escribe un mensaje..." style="flex: 1; background: #2b2b3b; border: 1px solid #555; color: white; padding: 6px; border-radius: 4px; font-size: 0.85rem;" onkeypress="if(event.key === 'Enter') enviarMensajeChat()">
-                <button class="btn-tool btn-action" style="padding: 6px 12px; font-size: 0.85rem;" onclick="enviarMensajeChat()">Enviar</button>
+            <div id="chat-box" style="background: rgba(0,0,0,0.2); height: 180px; overflow-y: auto; padding: 10px; border-radius: 8px; border-left: 3px solid var(--pastel-blue); margin-bottom: 10px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--glass-border); border-right: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
+                <i style="color: var(--text-muted);">Únete a un cuarto para chatear...</i>
+            </div>
+            <div style="display: flex; gap: 6px;">
+                <input type="text" id="chat-input" class="glass-input" placeholder="Escribe un mensaje..." style="flex: 1; font-size: 0.85rem;" onkeypress="if(event.key === 'Enter') enviarMensajeChat()">
+                <button class="glass-btn btn-action" style="padding: 6px 12px; font-size: 0.85rem;" onclick="enviarMensajeChat()">Enviar</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal DCL -->
+<footer class="glass">
+    <div>Todos los derechos reservados. Aplicacion potenciada por IA</div>
+    <div style="display: flex; gap: 20px;">
+        <a href="https://wa.me/?text=Hola%20estoy%20usando%20el%20Laboratorio%20Coulomb" target="_blank" class="social-link" title="WhatsApp">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> WhatsApp
+        </a>
+        <a href="https://paypal.me/" target="_blank" class="social-link" title="Invítame un café">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 8.5V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5M16 12h4m-2-2v4"/></svg> Invítame un café
+        </a>
+    </div>
+</footer>
+
+<!-- Modales -->
+<div class="modal" id="custom-alert-modal">
+    <div class="modal-content">
+        <h3 id="custom-alert-title" style="margin-top:0; margin-bottom:10px; color: var(--pastel-blue);">Aviso</h3>
+        <p id="custom-alert-msg" style="font-size: 0.95rem; color: var(--text-main); margin-bottom: 15px; line-height:1.4;"></p>
+        <button class="glass-btn btn-action" style="width:100%; padding: 10px;" onclick="closeCustomAlert()">Entendido</button>
+    </div>
+</div>
+
 <div class="modal" id="fbd-modal">
-    <div class="modal-content" style="background: white; color: black; text-align: center;">
-        <span class="close-btn" style="color: black;" onclick="closeModal()">&times;</span>
+    <div class="modal-content" style="width: auto; text-align: center; background: #fff; color: #111;">
+        <span class="close-btn" style="color: #444;" onclick="closeModal()">
+            <svg class="svg-icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </span>
         <h3 id="fbd-title" style="margin-top:0;">Diagrama Cuerpo Libre</h3>
         <canvas id="fbd-canvas" width="400" height="400"></canvas>
     </div>
 </div>
 
-<!-- Modal de Autenticación (Login/Registro) -->
 <div class="modal" id="auth-modal" style="display: flex;">
     <div class="modal-content">
-        <h3 style="margin-top:0; color: var(--accent-color);">🔒 Iniciar Sesión</h3>
-        <p style="font-size: 0.9rem; color: #ccc;">Para guardar y sincronizar tu trabajo, debes identificarte.</p>
-        <label>Correo Electrónico:</label>
-        <input type="email" id="auth-email" class="auth-input" placeholder="ejemplo@correo.com">
-        <label>Contraseña:</label>
-        <input type="password" id="auth-pass" class="auth-input" placeholder="Mínimo 6 caracteres">
+        <h3 style="margin-top:0; color: var(--pastel-blue); display:flex; align-items:center; gap:8px;">
+            <svg class="svg-icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Iniciar Sesión
+        </h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Identifícate para guardar progreso.</p>
+        <label style="font-size: 0.8rem; color: var(--text-muted);">Correo Electrónico:</label>
+        <input type="email" id="auth-email" class="glass-input" style="width:100%; margin: 5px 0 15px;" placeholder="ejemplo@correo.com">
+        <label style="font-size: 0.8rem; color: var(--text-muted);">Contraseña:</label>
+        <input type="password" id="auth-pass" class="glass-input" style="width:100%; margin: 5px 0 15px;" placeholder="Mínimo 6 caracteres">
         
         <div class="auth-btn-group">
-            <button class="btn-tool btn-action" onclick="iniciarSesion()">Entrar</button>
-            <button class="btn-tool" onclick="registrarUsuario()">Crear Cuenta</button>
+            <button class="glass-btn btn-action" onclick="iniciarSesion()">Entrar</button>
+            <button class="glass-btn" onclick="registrarUsuario()">Crear Cuenta</button>
         </div>
         
-        <!-- Botón de Iniciar sesión con Google agregado -->
         <div class="auth-btn-group" style="margin-top: 10px;">
-            <button class="btn-tool" style="background: #ffffff; color: #444; width: 100%; justify-content: center; font-weight: bold; border: 1px solid #ccc;" onclick="iniciarSesionConGoogle()">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style="width: 18px; height: 18px;">
-                Continuar con Google
+            <button class="glass-btn" style="background: rgba(255,255,255,0.9); color: #111; width: 100%; font-weight: bold;" onclick="iniciarSesionConGoogle()">
+                <svg class="svg-icon" style="color:#DB4437; margin-right:5px;" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> Continuar con Google
             </button>
         </div>
 
         <div style="text-align: center; margin-top: 15px;">
-            <button class="btn-tool" style="background: transparent; color: var(--accent-color); padding: 5px; font-size: 0.85rem; border: none; text-decoration: underline; width: 100%; justify-content: center;" onclick="recuperarContrasena()">¿Olvidaste tu contraseña?</button>
+            <button class="glass-btn" style="background: transparent; color: var(--pastel-blue); border: none; text-decoration: underline; font-size: 0.8rem;" onclick="recuperarContrasena()">¿Olvidaste tu contraseña?</button>
         </div>
     </div>
 </div>
 
-<!-- Modal de Sala / Cuarto -->
 <div class="modal" id="room-modal">
     <div class="modal-content">
-        <span class="close-btn" onclick="cerrarModalSala()">&times;</span>
-        <h3 style="margin-top:0; color: var(--accent-color);">🌐 Unirse a un Cuarto</h3>
-        <p style="font-size: 0.9rem; color: #ccc;">Ingresa el nombre del cuarto. Si no existe, se creará con la contraseña que elijas.</p>
-        <label>Nombre del Cuarto:</label>
-        <input type="text" id="room-name" class="auth-input" placeholder="Ej: equipo_alpha">
-        <label>Contraseña del Cuarto:</label>
-        <input type="password" id="room-pass" class="auth-input" placeholder="Contraseña de acceso">
+        <span class="close-btn" onclick="cerrarModalSala()">
+            <svg class="svg-icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </span>
+        <h3 style="margin-top:0; color: var(--pastel-blue); display:flex; align-items:center; gap:8px;">
+            <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg> Unirse a un Cuarto
+        </h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom:15px;">Ingresa el nombre del cuarto. Si no existe, se creará.</p>
+        <label style="font-size: 0.8rem; color: var(--text-muted);">Nombre del Cuarto:</label>
+        <input type="text" id="room-name" class="glass-input" style="width:100%; margin: 5px 0 15px;" placeholder="Ej: equipo_alpha">
+        <label style="font-size: 0.8rem; color: var(--text-muted);">Contraseña del Cuarto:</label>
+        <input type="password" id="room-pass" class="glass-input" style="width:100%; margin: 5px 0 15px;" placeholder="Contraseña">
         
         <div class="auth-btn-group">
-            <button class="btn-tool btn-action" onclick="intentarUnirseSala()">Entrar al Cuarto</button>
+            <button class="glass-btn btn-action" style="width:100%" onclick="intentarUnirseSala()">Entrar al Cuarto</button>
         </div>
     </div>
 </div>
 
-<!-- Modal Perfil (Gamificación) -->
 <div class="modal" id="profile-modal">
     <div class="modal-content">
-        <span class="close-btn" onclick="cerrarModalPerfil()">&times;</span>
-        <h3 style="margin-top:0; color: #f1c40f;">🏆 Mi Perfil Académico</h3>
-        <p style="font-size: 0.85rem; color: #ccc;">Completa misiones e interactúa para ganar puntos y subir de nivel.</p>
-        <div style="display: flex; justify-content: space-between; background: #1a1a24; padding: 10px; border-radius: 6px; margin-bottom: 15px; border-left: 3px solid #f1c40f;">
-            <div><strong>Nivel:</strong> <span id="ui-nivel" style="color: #4ecca3; font-size: 1.2rem;">1</span></div>
-            <div><strong>Puntos:</strong> <span id="ui-puntos" style="color: #4ecca3; font-size: 1.2rem;">0</span></div>
-            <div><strong>Minutos:</strong> <span id="ui-tiempo" style="color: #4ecca3; font-size: 1.2rem;">0</span></div>
+        <span class="close-btn" onclick="cerrarModalPerfil()">
+            <svg class="svg-icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </span>
+        <h3 style="margin-top:0; color: var(--pastel-yellow); display:flex; align-items:center; gap:8px;">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10M5 4h14v5a7 7 0 0 1-14 0V4z"/></svg> Mi Perfil Académico
+        </h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Completa misiones para ganar puntos.</p>
+        <div style="display: flex; justify-content: space-between; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 3px solid var(--pastel-yellow); border-top: 1px solid var(--glass-border); border-right: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
+            <div><strong style="color:var(--text-muted); font-size:0.8rem;">Nivel:</strong> <br><span id="ui-nivel" style="color: var(--pastel-green); font-size: 1.2rem; font-weight:bold;">1</span></div>
+            <div><strong style="color:var(--text-muted); font-size:0.8rem;">Puntos:</strong> <br><span id="ui-puntos" style="color: var(--pastel-green); font-size: 1.2rem; font-weight:bold;">0</span></div>
+            <div><strong style="color:var(--text-muted); font-size:0.8rem;">Minutos:</strong> <br><span id="ui-tiempo" style="color: var(--pastel-green); font-size: 1.2rem; font-weight:bold;">0</span></div>
         </div>
         
         <div class="section-title">Misiones Actuales</div>
-        <div id="ui-tareas" style="background: #232333; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem;">
-            <div class="task-item" id="task-1"><div class="task-check">✓</div><span>Coloca 2 cargas en el lienzo</span></div>
-            <div class="task-item" id="task-2"><div class="task-check">✓</div><span>Dibuja 1 vector de fuerza</span></div>
-            <div class="task-item" id="task-3"><div class="task-check">✓</div><span>Haz 5 interacciones (Mover/Dibujar)</span></div>
+        <div id="ui-tareas" style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--glass-border);">
+            <div class="task-item" id="task-1"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Coloca 2 cargas en el lienzo</span></div>
+            <div class="task-item" id="task-2"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Dibuja 1 vector de fuerza</span></div>
+            <div class="task-item" id="task-3"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Haz 5 interacciones</span></div>
         </div>
         
         <div class="section-title">Logros Desbloqueados</div>
         <div id="ui-logros" style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <i style="color: #666; font-size: 0.85rem;">Interactúa para descubrir logros ocultos...</i>
+            <i style="color: var(--text-muted); font-size: 0.8rem;">Interactúa para descubrir logros ocultos...</i>
         </div>
     </div>
 </div>
@@ -473,6 +488,36 @@
 
 <!-- LÓGICA PRINCIPAL DEL SIMULADOR -->
 <script>
+    // Configuración UI Personalizada
+    window.customAlert = function(msg, title = "Aviso") {
+        document.getElementById('custom-alert-title').innerText = title;
+        document.getElementById('custom-alert-msg').innerText = msg;
+        document.getElementById('custom-alert-modal').style.display = 'flex';
+    };
+    window.closeCustomAlert = function() {
+        document.getElementById('custom-alert-modal').style.display = 'none';
+    };
+
+    function toggleMenu(id) {
+        document.querySelectorAll('.h-menu-wrapper').forEach(m => {
+            if(m.id !== id) m.classList.remove('active');
+        });
+        document.getElementById(id).classList.toggle('active');
+    }
+
+    function setSelectVal(inputId, val, label, menuId, labelId) {
+        document.getElementById(inputId).value = val;
+        document.getElementById(labelId).innerText = label;
+        document.getElementById(menuId).classList.remove('active');
+        window.analizarFisica();
+    }
+    
+    document.addEventListener('click', (e) => {
+        if(!e.target.closest('.h-menu-wrapper')) {
+            document.querySelectorAll('.h-menu-wrapper').forEach(m => m.classList.remove('active'));
+        }
+    });
+
     const canvas = document.getElementById('main-canvas');
     const ctx = canvas.getContext('2d');
     const wrapper = document.getElementById('canvas-wrapper');
@@ -491,23 +536,22 @@
         }
     }
 
-    // UI Dinámica (Paneles)
     let leftOpen = true;
     let rightOpen = true;
     
     function toggleLeft() {
         leftOpen = !leftOpen;
-        rootStyles.setProperty('--left-w', leftOpen ? '260px' : '0px');
-        document.getElementById('toggle-left').innerText = leftOpen ? '◀' : '▶';
+        rootStyles.setProperty('--left-w', leftOpen ? '280px' : '0px');
         document.getElementById('panel-left').style.opacity = leftOpen ? '1' : '0';
+        document.getElementById('toggle-left').style.transform = leftOpen ? 'translate(-50%, -50%) rotate(0deg)' : 'translate(-50%, -50%) rotate(180deg)';
         setTimeout(resizeCanvas, 300);
     }
     
     function toggleRight() {
         rightOpen = !rightOpen;
         rootStyles.setProperty('--right-w', rightOpen ? '380px' : '0px');
-        document.getElementById('toggle-right').innerText = rightOpen ? '▶' : '◀';
         document.getElementById('panel-right').style.opacity = rightOpen ? '1' : '0';
+        document.getElementById('toggle-right').style.transform = rightOpen ? 'translate(50%, -50%) rotate(0deg)' : 'translate(50%, -50%) rotate(180deg)';
         setTimeout(resizeCanvas, 300);
     }
 
@@ -515,59 +559,37 @@
         state.showInCanvasDCL = !state.showInCanvasDCL;
         const btn = document.getElementById('btn-toggle-dcl');
         if (state.showInCanvasDCL) {
-            btn.style.background = '#e74c3c';
-            btn.innerText = '🙈 Ocultar DCL en Lienzo';
+            btn.style.color = 'var(--danger-color)';
+            btn.innerHTML = '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Ocultar DCL en Lienzo';
         } else {
-            btn.style.background = '#3498db';
-            btn.innerText = '👀 Mostrar DCL en Lienzo';
+            btn.style.color = 'var(--pastel-blue)';
+            btn.innerHTML = '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Mostrar DCL en Lienzo';
         }
         redraw();
         requestSync(true); 
     }
 
-    // Estado Global Actualizado
     let state = {
-        tool: 'draw',
-        currentColor: '#000000',
-        isDrawing: false,
-        showInCanvasDCL: false,
-        isDrawingFree: false,
-        isDrawingLine: false,
-        isDragging: false,
-        dragLastX: 0,
-        dragLastY: 0,
-        selectedObjects: [], 
-        selectionBox: null,  
-        isDraggingOrigin: false,
-        origin: { x: null, y: null }, 
-        recognitionTimer: null, 
-        rawStrokes: [],      
-        currentStroke: [],   
-        currentFreeStroke: null,
-        currentLine: null,
-        objects: [],         
-        calculatedForces: [] 
+        tool: 'draw', currentColor: '#000000', isDrawing: false, showInCanvasDCL: false,
+        isDrawingFree: false, isDrawingLine: false, isDragging: false, dragLastX: 0, dragLastY: 0,
+        selectedObjects: [], selectionBox: null, isDraggingOrigin: false, origin: { x: null, y: null },
+        recognitionTimer: null, rawStrokes: [], currentStroke: [], currentFreeStroke: null,
+        currentLine: null, objects: [], calculatedForces: [] 
     };
-    
     window.appState = state;
     let textPos = {x:0, y:0};
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
 
     function resizeCanvas() {
         canvas.width = wrapper.clientWidth; canvas.height = wrapper.clientHeight;
-        if (state.origin.x === null) {
-            state.origin = { x: canvas.width / 2, y: canvas.height / 2 };
-        }
-        updateGridBackground();
-        redraw();
+        if (state.origin.x === null) state.origin = { x: canvas.width / 2, y: canvas.height / 2 };
+        updateGridBackground(); redraw();
     }
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 100);
 
-    // Helpers de Coordenadas
     function getPhysX(canvasX) { return canvasX - state.origin.x; }
     function getPhysY(canvasY) { return state.origin.y - canvasY; }
-    
     function getCoords(e) {
         const r = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -583,396 +605,213 @@
         return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
     }
 
-    function updateGridBackground() {
-        wrapper.style.backgroundPosition = `${state.origin.x}px ${state.origin.y}px`;
-    }
+    function updateGridBackground() { wrapper.style.backgroundPosition = `${state.origin.x}px ${state.origin.y}px`; }
 
-    // --- Herramienta de Texto ---
     function finalizeText() {
         if(textOverlay.style.display !== 'none' && textOverlay.value.trim() !== '') {
-            state.objects.push({
-                type: 'text', id: Date.now(), 
-                text: textOverlay.value, x: textPos.x, y: textPos.y, 
-                color: state.currentColor
-            });
+            state.objects.push({ type: 'text', id: Date.now(), text: textOverlay.value, x: textPos.x, y: textPos.y, color: state.currentColor });
             textOverlay.value = ''; textOverlay.style.display = 'none';
-            redraw();
-            requestSync(true);
-        } else {
-            textOverlay.style.display = 'none';
-        }
+            redraw(); requestSync(true);
+        } else textOverlay.style.display = 'none';
     }
     textOverlay.addEventListener('keydown', e => { if(e.key === 'Enter') finalizeText(); });
     textOverlay.addEventListener('blur', finalizeText);
 
-    // --- Manejadores de Eventos ---
-    canvas.addEventListener('mousedown', handleStart);
-    canvas.addEventListener('touchstart', handleStart);
-    canvas.addEventListener('mousemove', handleMove);
-    canvas.addEventListener('touchmove', handleMove);
-    canvas.addEventListener('mouseup', handleEnd);
-    canvas.addEventListener('touchend', handleEnd);
+    canvas.addEventListener('mousedown', handleStart); canvas.addEventListener('touchstart', handleStart);
+    canvas.addEventListener('mousemove', handleMove); canvas.addEventListener('touchmove', handleMove);
+    canvas.addEventListener('mouseup', handleEnd); canvas.addEventListener('touchend', handleEnd);
 
     function handleStart(e) {
         if (e.touches && e.touches.length > 1) return;
         if (e.touches) e.preventDefault(); 
         const c = getCoords(e);
-        
         if (state.tool !== 'text') finalizeText();
 
         if (state.tool === 'text') {
             textPos = {x: c.x, y: c.y};
-            textOverlay.style.left = c.x + 'px';
-            textOverlay.style.top = c.y + 'px';
-            textOverlay.style.display = 'block';
-            textOverlay.style.color = state.currentColor;
-            setTimeout(() => textOverlay.focus(), 50);
-            return;
+            textOverlay.style.left = c.x + 'px'; textOverlay.style.top = c.y + 'px';
+            textOverlay.style.display = 'block'; textOverlay.style.color = state.currentColor;
+            setTimeout(() => textOverlay.focus(), 50); return;
         }
 
         if (state.tool === 'line') {
-            selectObject(null);
-            state.isDrawingLine = true;
-            state.currentLine = { type: 'line', id: Date.now(), start: {x: c.x, y: c.y}, end: {x: c.x, y: c.y}, color: state.currentColor };
-            return;
+            selectObject(null); state.isDrawingLine = true;
+            state.currentLine = { type: 'line', id: Date.now(), start: {x: c.x, y: c.y}, end: {x: c.x, y: c.y}, color: state.currentColor }; return;
         }
 
         if (state.tool === 'visibility') {
             const hit = findObjectAt(c);
-            if (hit) {
-                hit.hidden = !hit.hidden;
-                updateUI();
-                redraw();
-                requestSync(true); 
-            }
-            return;
+            if (hit) { hit.hidden = !hit.hidden; updateUI(); redraw(); requestSync(true); } return;
         }
 
         if (state.tool === 'move') {
             if (Math.hypot(c.x - state.origin.x, c.y - state.origin.y) < 30) {
-                state.isDraggingOrigin = true;
-                state.dragLastX = c.x; state.dragLastY = c.y;
-                selectObject(null);
-                return;
+                state.isDraggingOrigin = true; state.dragLastX = c.x; state.dragLastY = c.y;
+                selectObject(null); return;
             }
-
             const hit = findObjectAt(c);
             if (hit) {
-                state.isDragging = true;
-                state.dragLastX = c.x; state.dragLastY = c.y;
+                state.isDragging = true; state.dragLastX = c.x; state.dragLastY = c.y;
                 if (e.shiftKey) {
-                    if (state.selectedObjects.includes(hit)) {
-                        state.selectedObjects = state.selectedObjects.filter(o => o !== hit);
-                    } else {
-                        state.selectedObjects.push(hit);
-                    }
-                } else {
-                    if (!state.selectedObjects.includes(hit)) {
-                        selectObject(hit);
-                    }
-                }
+                    if (state.selectedObjects.includes(hit)) state.selectedObjects = state.selectedObjects.filter(o => o !== hit);
+                    else state.selectedObjects.push(hit);
+                } else if (!state.selectedObjects.includes(hit)) selectObject(hit);
             } else {
-                selectObject(null);
-                state.selectionBox = { startX: c.x, startY: c.y, x: c.x, y: c.y, w: 0, h: 0 };
+                selectObject(null); state.selectionBox = { startX: c.x, startY: c.y, x: c.x, y: c.y, w: 0, h: 0 };
             }
-            redraw();
-            return;
+            redraw(); return;
         }
 
         if (state.tool === 'draw_free') {
-            selectObject(null);
-            state.isDrawingFree = true;
-            state.currentFreeStroke = { type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor };
-            return;
+            selectObject(null); state.isDrawingFree = true;
+            state.currentFreeStroke = { type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor }; return;
         }
 
         if (state.recognitionTimer) { clearTimeout(state.recognitionTimer); state.recognitionTimer = null; }
-        state.isDrawing = true;
-        state.currentStroke = [c];
-        selectObject(null);
+        state.isDrawing = true; state.currentStroke = [c]; selectObject(null);
     }
 
     function handleMove(e) {
         if (e.touches) e.preventDefault();
         const c = getCoords(e);
-        
         document.getElementById('coords-indicator').innerText = `x: ${Math.round(getPhysX(c.x))}, y: ${Math.round(getPhysY(c.y))}`;
 
         if (state.isDraggingOrigin) {
-            const dx = c.x - state.dragLastX;
-            const dy = c.y - state.dragLastY;
-            state.origin.x += dx;
-            state.origin.y += dy;
+            state.origin.x += (c.x - state.dragLastX); state.origin.y += (c.y - state.dragLastY);
             state.dragLastX = c.x; state.dragLastY = c.y;
-            
-            state.objects.forEach(o => {
-                if (o.type.startsWith('charge')) {
-                    o.physX = getPhysX(o.x);
-                    o.physY = getPhysY(o.y);
-                }
-            });
-            
-            updateGridBackground();
-            updateUI();
-            analizarFisica();
-            redraw();
-            requestSync(false); 
-            return;
+            state.objects.forEach(o => { if (o.type.startsWith('charge')) { o.physX = getPhysX(o.x); o.physY = getPhysY(o.y); } });
+            updateGridBackground(); updateUI(); analizarFisica(); redraw(); requestSync(false); return;
         }
 
         if (state.selectionBox) {
-            state.selectionBox.x = Math.min(state.selectionBox.startX, c.x);
-            state.selectionBox.y = Math.min(state.selectionBox.startY, c.y);
-            state.selectionBox.w = Math.abs(c.x - state.selectionBox.startX);
-            state.selectionBox.h = Math.abs(c.y - state.selectionBox.startY);
-            redraw();
-            return;
+            state.selectionBox.x = Math.min(state.selectionBox.startX, c.x); state.selectionBox.y = Math.min(state.selectionBox.startY, c.y);
+            state.selectionBox.w = Math.abs(c.x - state.selectionBox.startX); state.selectionBox.h = Math.abs(c.y - state.selectionBox.startY);
+            redraw(); return;
         }
 
         if (state.isDragging && state.selectedObjects.length > 0) {
-            const dx = c.x - state.dragLastX;
-            const dy = c.y - state.dragLastY;
-
+            const dx = c.x - state.dragLastX; const dy = c.y - state.dragLastY;
             state.selectedObjects.forEach(obj => {
-                if (obj.type.startsWith('charge')) {
-                    obj.x += dx; obj.y += dy;
-                    obj.physX = getPhysX(obj.x); 
-                    obj.physY = getPhysY(obj.y);
-                } else if (obj.type === 'vector' || obj.type === 'line') {
-                    obj.start.x += dx; obj.start.y += dy;
-                    obj.end.x += dx; obj.end.y += dy;
-                } else if (obj.type === 'free_stroke') {
-                    obj.points.forEach(p => { p.x += dx; p.y += dy; });
-                } else if (obj.type === 'text') {
-                    obj.x += dx; obj.y += dy;
-                }
+                if (obj.type.startsWith('charge')) { obj.x += dx; obj.y += dy; obj.physX = getPhysX(obj.x); obj.physY = getPhysY(obj.y); }
+                else if (obj.type === 'vector' || obj.type === 'line') { obj.start.x += dx; obj.start.y += dy; obj.end.x += dx; obj.end.y += dy; }
+                else if (obj.type === 'free_stroke') obj.points.forEach(p => { p.x += dx; p.y += dy; });
+                else if (obj.type === 'text') { obj.x += dx; obj.y += dy; }
             });
-
             state.dragLastX = c.x; state.dragLastY = c.y;
-            updateFloatDelete();
-            redraw();
-            requestSync(false); 
-            return;
+            updateFloatDelete(); redraw(); requestSync(false); return;
         } 
         
-        if (state.isDrawingLine && state.currentLine) {
-            state.currentLine.end = {x: c.x, y: c.y};
-            redraw();
-            return;
-        }
-
-        if (state.isDrawingFree && state.currentFreeStroke) {
-            state.currentFreeStroke.points.push(c);
-            redraw();
-            return;
-        }
-
-        if (state.isDrawing) {
-            state.currentStroke.push(c);
-            redraw();
-        }
+        if (state.isDrawingLine && state.currentLine) { state.currentLine.end = {x: c.x, y: c.y}; redraw(); return; }
+        if (state.isDrawingFree && state.currentFreeStroke) { state.currentFreeStroke.points.push(c); redraw(); return; }
+        if (state.isDrawing) { state.currentStroke.push(c); redraw(); }
     }
 
     function handleEnd(e) {
-        if (state.isDraggingOrigin) {
-            state.isDraggingOrigin = false;
-            requestSync(true);
-            return;
-        }
-
+        if (state.isDraggingOrigin) { state.isDraggingOrigin = false; requestSync(true); return; }
         if (state.selectionBox) {
-            const box = state.selectionBox;
-            const minX = box.x, maxX = box.x + box.w;
-            const minY = box.y, maxY = box.y + box.h;
-            
+            const box = state.selectionBox; const minX = box.x, maxX = box.x + box.w, minY = box.y, maxY = box.y + box.h;
             state.selectedObjects = state.objects.filter(o => {
                 if (o.hidden && state.tool !== 'visibility') return false;
-                if (o.type.startsWith('charge') || o.type === 'text') {
-                    return o.x >= minX && o.x <= maxX && o.y >= minY && o.y <= maxY;
-                } else if (o.type === 'vector' || o.type === 'line') {
-                    return o.start.x >= minX && o.start.x <= maxX && o.start.y >= minY && o.start.y <= maxY;
-                }
+                if (o.type.startsWith('charge') || o.type === 'text') return o.x >= minX && o.x <= maxX && o.y >= minY && o.y <= maxY;
+                else if (o.type === 'vector' || o.type === 'line') return o.start.x >= minX && o.start.x <= maxX && o.start.y >= minY && o.start.y <= maxY;
                 return false;
             });
-
-            state.selectionBox = null;
-            updateFloatDelete();
-            updateUI();
-            redraw();
-            return;
+            state.selectionBox = null; updateFloatDelete(); updateUI(); redraw(); return;
         }
 
         if (state.isDragging) {
-            state.isDragging = false;
-            updateUI();
-            analizarFisica(); 
-            requestSync(true); 
-            // HOOK DE GAMIFICACIÓN
-            if (window.registrarInteraccion) window.registrarInteraccion();
-            return;
+            state.isDragging = false; updateUI(); analizarFisica(); requestSync(true); 
+            if (window.registrarInteraccion) window.registrarInteraccion(); return;
         }
 
         if (state.isDrawingLine && state.currentLine) {
             state.isDrawingLine = false;
-            if (Math.hypot(state.currentLine.end.x - state.currentLine.start.x, state.currentLine.end.y - state.currentLine.start.y) > 5) {
-                state.objects.push(state.currentLine);
-            }
-            state.currentLine = null;
-            redraw();
-            requestSync(true); 
-            // HOOK DE GAMIFICACIÓN
-            if (window.registrarInteraccion) window.registrarInteraccion();
-            return;
+            if (Math.hypot(state.currentLine.end.x - state.currentLine.start.x, state.currentLine.end.y - state.currentLine.start.y) > 5) state.objects.push(state.currentLine);
+            state.currentLine = null; redraw(); requestSync(true); 
+            if (window.registrarInteraccion) window.registrarInteraccion(); return;
         }
 
         if (state.isDrawingFree && state.currentFreeStroke) {
             state.isDrawingFree = false;
-            if (state.currentFreeStroke.points.length > 2) {
-                state.objects.push(state.currentFreeStroke);
-            }
-            state.currentFreeStroke = null;
-            redraw();
-            requestSync(true); 
-            // HOOK DE GAMIFICACIÓN
-            if (window.registrarInteraccion) window.registrarInteraccion();
-            return;
+            if (state.currentFreeStroke.points.length > 2) state.objects.push(state.currentFreeStroke);
+            state.currentFreeStroke = null; redraw(); requestSync(true); 
+            if (window.registrarInteraccion) window.registrarInteraccion(); return;
         }
 
         if (state.isDrawing) {
             state.isDrawing = false;
-            if (state.currentStroke.length > 3) {
-                state.rawStrokes.push([...state.currentStroke]);
-            }
+            if (state.currentStroke.length > 3) state.rawStrokes.push([...state.currentStroke]);
             state.currentStroke = [];
-            
-            state.recognitionTimer = setTimeout(() => {
-                detectAndConvert();
-                state.recognitionTimer = null;
-            }, 1200); 
-            redraw();
-            requestSync(true); 
-            // HOOK DE GAMIFICACIÓN
+            state.recognitionTimer = setTimeout(() => { detectAndConvert(); state.recognitionTimer = null; }, 1200); 
+            redraw(); requestSync(true); 
             if (window.registrarInteraccion) window.registrarInteraccion();
         }
     }
 
     function findObjectAt(c) {
         const visibleObjects = state.objects.filter(o => state.tool === 'visibility' || !o.hidden);
-
         const textObj = visibleObjects.find(o => {
-            if(o.type !== 'text') return false;
-            ctx.font = '20px "Segoe UI", Arial';
-            const w = ctx.measureText(o.text).width;
-            return c.x >= o.x && c.x <= o.x + w && c.y >= o.y && c.y <= o.y + 24;
-        });
-        if(textObj) return textObj;
-
+            if(o.type !== 'text') return false; ctx.font = '20px "Segoe UI", Arial';
+            return c.x >= o.x && c.x <= o.x + ctx.measureText(o.text).width && c.y >= o.y && c.y <= o.y + 24;
+        }); if(textObj) return textObj;
         const charge = visibleObjects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30);
         if (charge) return charge;
-
-        const vec = visibleObjects.find(o => o.type === 'vector' && (
-            Math.hypot(o.start.x - c.x, o.start.y - c.y) < 25 || 
-            Math.hypot(o.end.x - c.x, o.end.y - c.y) < 25
-        ));
+        const vec = visibleObjects.find(o => o.type === 'vector' && (Math.hypot(o.start.x - c.x, o.start.y - c.y) < 25 || Math.hypot(o.end.x - c.x, o.end.y - c.y) < 25));
         if(vec) return vec;
-
         const lineObj = visibleObjects.find(o => o.type === 'line' && distToSegment(c, o.start, o.end) < 15);
         if(lineObj) return lineObj;
-
-        const strokeObj = visibleObjects.find(o => {
-            if(o.type !== 'free_stroke') return false;
-            return o.points.some(p => Math.hypot(p.x - c.x, p.y - c.y) < 15);
-        });
+        const strokeObj = visibleObjects.find(o => { if(o.type !== 'free_stroke') return false; return o.points.some(p => Math.hypot(p.x - c.x, p.y - c.y) < 15); });
         return strokeObj;
     }
 
-    function selectObject(obj) {
-        state.selectedObjects = obj ? [obj] : [];
-        updateUI();
-        updateFloatDelete();
-        redraw();
-    }
+    function selectObject(obj) { state.selectedObjects = obj ? [obj] : []; updateUI(); updateFloatDelete(); redraw(); }
 
     function updateFloatDelete() {
-        if(state.selectedObjects.length === 0) {
-            floatDelete.style.display = 'none';
-            return;
-        }
-        
+        if(state.selectedObjects.length === 0) { floatDelete.style.display = 'none'; return; }
         let minX = Infinity, minY = Infinity, maxX = -Infinity;
-        
         state.selectedObjects.forEach(o => {
             let bx, by;
             if(o.type.startsWith('charge')) { bx = o.x; by = o.y - 35; }
             else if(o.type === 'vector' || o.type === 'line') { bx = (o.start.x+o.end.x)/2; by = Math.min(o.start.y, o.end.y) - 20; }
             else if(o.type === 'text') { bx = o.x + 20; by = o.y - 30; }
-            else if(o.type === 'free_stroke') {
-                const minP = o.points.reduce((prev, curr) => curr.y < prev.y ? curr : prev);
-                bx = minP.x; by = minP.y - 30;
-            }
-            if(bx < minX) minX = bx; if(bx > maxX) maxX = bx;
-            if(by < minY) minY = by;
+            else if(o.type === 'free_stroke') { const minP = o.points.reduce((p, c) => c.y < p.y ? c : p); bx = minP.x; by = minP.y - 30; }
+            if(bx < minX) minX = bx; if(bx > maxX) maxX = bx; if(by < minY) minY = by;
         });
-
-        floatDelete.style.left = ((minX + maxX)/2) + 'px'; 
-        floatDelete.style.top = minY + 'px';
-        floatDelete.style.display = 'block';
+        floatDelete.style.left = ((minX + maxX)/2) + 'px'; floatDelete.style.top = minY + 'px'; floatDelete.style.display = 'block';
     }
 
     function deleteSelected() {
         if (state.selectedObjects.length > 0) {
             state.objects = state.objects.filter(o => !state.selectedObjects.includes(o));
-            state.selectedObjects = [];
-            floatDelete.style.display = 'none';
-            updateUI(); analizarFisica(); redraw();
-            requestSync(true);
+            state.selectedObjects = []; floatDelete.style.display = 'none';
+            updateUI(); analizarFisica(); redraw(); requestSync(true);
         }
     }
 
     function detectAndConvert() {
-        const groups = groupStrokes(state.rawStrokes);
-        const newObjects = [];
-        const usedIndices = new Set();
-
+        const groups = groupStrokes(state.rawStrokes); const newObjects = []; const usedIndices = new Set();
         groups.forEach(group => {
-            const bounds = getGroupBounds(group);
-            const type = classifyGroup(group, bounds);
-            
+            const bounds = getGroupBounds(group); const type = classifyGroup(group, bounds);
             if (type !== 'unknown') {
                 if (type.startsWith('charge')) {
                     const id = state.objects.filter(o => o.type.startsWith('charge')).length + 1;
-                    newObjects.push({
-                        id: id, type: type, label: `q_${id}`,
-                        x: bounds.cx, y: bounds.cy, 
-                        physX: getPhysX(bounds.cx), physY: getPhysY(bounds.cy),
-                        q: type === 'charge_pos' ? 5 : -5,
-                        hasVectors: false
-                    });
+                    newObjects.push({ id: id, type: type, label: `q_${id}`, x: bounds.cx, y: bounds.cy, physX: getPhysX(bounds.cx), physY: getPhysY(bounds.cy), q: type === 'charge_pos' ? 5 : -5, hasVectors: false });
                 } else if (type === 'vector') {
                     const eps = getVectorEndpoints(group);
-                    newObjects.push({
-                        type: 'vector', start: eps.start, end: eps.end,
-                        validation: null, label: '?'
-                    });
+                    newObjects.push({ type: 'vector', start: eps.start, end: eps.end, validation: null, label: '?' });
                 }
                 group.forEach(i => usedIndices.add(i));
             }
         });
-
         if (newObjects.length > 0) {
             state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i));
-            state.objects.push(...newObjects);
-            updateUI(); analizarFisica();
+            state.objects.push(...newObjects); updateUI(); analizarFisica();
         }
-        redraw();
-        requestSync(true); 
+        redraw(); requestSync(true); 
     }
 
     function getGroupBounds(indices) {
-        let allPts = [];
-        indices.forEach(i => {
-            if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p));
-        });
+        let allPts = []; indices.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p)); });
         if(allPts.length === 0) return { minX:0, maxX:0, minY:0, maxY:0, w:0, h:0, cx:0, cy:0 };
         return getBounds(allPts);
     }
@@ -992,66 +831,35 @@
     }
     
     function strokesClose(s1, s2) {
-        const b1 = getBounds(s1); const b2 = getBounds(s2);
-        const pad = 30; 
+        const b1 = getBounds(s1); const b2 = getBounds(s2); const pad = 30; 
         return !(b2.minX > b1.maxX + pad || b2.maxX < b1.minX - pad || b2.minY > b1.maxY + pad || b2.maxY < b1.minY - pad);
     }
     
     function classifyGroup(indices, b) {
-        const strokes = indices.map(i => state.rawStrokes[i]);
-        const r = b.w/b.h;
+        const strokes = indices.map(i => state.rawStrokes[i]); const r = b.w/b.h;
         const isCompact = r > 0.5 && r < 2.0 && b.w > 20 && b.h > 20;
-
         if (isCompact) {
             let maxL = 0; let boundaryIdx = -1;
-            strokes.forEach((s, i) => {
-                let l = 0;
-                for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y);
-                if (l > maxL) { maxL = l; boundaryIdx = i; }
-            });
-
+            strokes.forEach((s, i) => { let l = 0; for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y); if (l > maxL) { maxL = l; boundaryIdx = i; } });
             const boundary = strokes[boundaryIdx];
-            const distEnds = Math.hypot(boundary[0].x - boundary[boundary.length-1].x, boundary[0].y - boundary[boundary.length-1].y);
-            const isClosed = distEnds < maxL * 0.4; 
-
+            const isClosed = Math.hypot(boundary[0].x - boundary[boundary.length-1].x, boundary[0].y - boundary[boundary.length-1].y) < maxL * 0.4; 
             if (isClosed) {
                 const innerStrokes = strokes.filter((_, i) => i !== boundaryIdx);
                 if (innerStrokes.length === 0) return 'charge_pos';
-                if (innerStrokes.length === 1) {
-                    const inner = innerStrokes[0];
-                    const ib = getBounds(inner);
-                    if (ib.w > ib.h * 1.5) return 'charge_neg';
-                    return 'charge_pos';
-                }
+                if (innerStrokes.length === 1) return getBounds(innerStrokes[0]).w > getBounds(innerStrokes[0]).h * 1.5 ? 'charge_neg' : 'charge_pos';
                 return 'charge_pos';
             }
         }
-        
-        const diag = Math.hypot(b.w, b.h);
-        if (diag > 30) return 'vector';
-        return 'unknown';
+        if (Math.hypot(b.w, b.h) > 30) return 'vector'; return 'unknown';
     }
 
     function getVectorEndpoints(indices) {
-        let maxL = 0; let main = null;
-        const strokes = indices.map(i => state.rawStrokes[i]);
-        strokes.forEach(s => {
-            const l = Math.hypot(s[0].x - s[s.length-1].x, s[0].y - s[s.length-1].y);
-            if(l > maxL) { maxL = l; main = s; }
-        });
+        let maxL = 0; let main = null; const strokes = indices.map(i => state.rawStrokes[i]);
+        strokes.forEach(s => { const l = Math.hypot(s[0].x - s[s.length-1].x, s[0].y - s[s.length-1].y); if(l > maxL) { maxL = l; main = s; } });
         if(!main) return { start:{x:0,y:0}, end:{x:0,y:0} };
-        
-        const p1 = main[0]; const p2 = main[main.length-1];
-        let d1 = 0; let d2 = 0;
-        strokes.forEach(s => {
-            if(s===main) return;
-            s.forEach(p => {
-                if(Math.hypot(p.x-p1.x, p.y-p1.y) < 30) d1++;
-                if(Math.hypot(p.x-p2.x, p.y-p2.y) < 30) d2++;
-            });
-        });
-        if (d1 > d2) return { start: p2, end: p1 };
-        return { start: p1, end: p2 };
+        const p1 = main[0]; const p2 = main[main.length-1]; let d1 = 0; let d2 = 0;
+        strokes.forEach(s => { if(s===main) return; s.forEach(p => { if(Math.hypot(p.x-p1.x, p.y-p1.y) < 30) d1++; if(Math.hypot(p.x-p2.x, p.y-p2.y) < 30) d2++; }); });
+        return d1 > d2 ? { start: p2, end: p1 } : { start: p1, end: p2 };
     }
 
     function analizarFisica() {
@@ -1062,147 +870,84 @@
         const distU = parseFloat(document.getElementById('dist-unit').value || 1);
         const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
         
-        charges.forEach(c => {
-            const elQ = document.getElementById(`q-${c.id}`);
-            if(elQ) c.q = parseFloat(elQ.value);
-            c.hasVectors = false; 
-        });
-
+        charges.forEach(c => { const elQ = document.getElementById(`q-${c.id}`); if(elQ) c.q = parseFloat(elQ.value); c.hasVectors = false; });
         updateStatement(charges, chargeU);
 
         const interactions = [];
         charges.forEach(tgt => {
             charges.forEach(src => {
                 if(tgt.id === src.id) return;
-                const dx = src.physX - tgt.physX; 
-                const dy = src.physY - tgt.physY; 
-                let ang = Math.atan2(dy, dx);
-                if(tgt.q * src.q > 0) ang += Math.PI;
-                ang = (ang + 4*Math.PI) % (2*Math.PI);
+                const dx = src.physX - tgt.physX; const dy = src.physY - tgt.physY; 
+                let ang = Math.atan2(dy, dx); if(tgt.q * src.q > 0) ang += Math.PI; ang = (ang + 4*Math.PI) % (2*Math.PI);
                 const r = Math.hypot(dx, dy) / scale * distU;
-                
                 const mag = r>0 ? (Ke * Math.abs(tgt.q * chargeU * src.q * chargeU))/(r*r) : 0;
-                
-                interactions.push({ 
-                    target: tgt.id, source: src.id, label: `F_{${src.id}${tgt.id}}`,
-                    mag: mag, angleDeg: (ang*180/Math.PI)%360,
-                    Fx: mag*Math.cos(ang), Fy: mag*Math.sin(ang), r: r,
-                    t: tgt, s: src, ang: ang 
-                });
+                interactions.push({ target: tgt.id, source: src.id, label: `F_{${src.id}${tgt.id}}`, mag: mag, angleDeg: (ang*180/Math.PI)%360, Fx: mag*Math.cos(ang), Fy: mag*Math.sin(ang), r: r, t: tgt, s: src, ang: ang });
             });
         });
-
         state.calculatedForces = interactions;
         
         const vBox = document.getElementById('validation-box'); vBox.innerHTML='';
-        
-        if(vectors.length === 0) {
-            vBox.innerHTML = '<i>Dibuja flechas de fuerza sobre las cargas.</i>';
-        }
+        if(vectors.length === 0) vBox.innerHTML = '<i>Dibuja flechas de fuerza sobre las cargas.</i>';
 
         vectors.forEach(vec => {
             const origin = charges.find(c => Math.hypot(c.x - vec.start.x, c.y - vec.start.y) < 60);
-            
-            if(!origin) { 
-                vec.validation='warn'; vec.label='?'; 
-                vBox.innerHTML += `<div class="result-item result-warn">⚠️ Vector suelto</div>`;
-                return; 
-            }
-            
+            if(!origin) { vec.validation='warn'; vec.label='?'; vBox.innerHTML += `<div class="result-item result-warn">Vector suelto</div>`; return; }
             origin.hasVectors = true; 
-
             const vAng = (Math.atan2(getPhysY(vec.end.y) - getPhysY(vec.start.y), vec.end.x - vec.start.x) + 4*Math.PI)%(2*Math.PI);
-            
             let best = null; let minD = 100;
-            const cands = interactions.filter(i => i.t.id === origin.id);
-            cands.forEach(cand => {
-                let d = Math.abs(cand.ang - vAng);
-                if(d > Math.PI) d = 2*Math.PI - d;
-                if(d < minD) { minD = d; best = cand; }
+            interactions.filter(i => i.t.id === origin.id).forEach(cand => {
+                let d = Math.abs(cand.ang - vAng); if(d > Math.PI) d = 2*Math.PI - d; if(d < minD) { minD = d; best = cand; }
             });
-
             if(best && minD < 0.6) {
                 vec.validation = 'correct'; vec.label = best.label;
-                vBox.innerHTML += `<div class="result-item result-correct">✅ ${best.label} Correcta en ${origin.label}</div>`;
+                vBox.innerHTML += `<div class="result-item result-correct">${best.label} Correcta en ${origin.label}</div>`;
             } else {
                 vec.validation = 'error'; vec.label = '?';
-                vBox.innerHTML += `<div class="result-item result-error">❌ Dirección Errada en ${origin.label}</div>`;
+                vBox.innerHTML += `<div class="result-item result-error">Dirección Errada en ${origin.label}</div>`;
             }
         });
         
         renderMathInElement(vBox, {delimiters: [{left: "$", right: "$", display: false}]});
-        renderLatex();
-        setupDCLButtons();
-        redraw();
-
-        // --- HOOK DE TAREAS FISICA ---
+        renderLatex(); setupDCLButtons(); redraw();
         if (window.verificarTareasFisica) window.verificarTareasFisica();
     }
     window.analizarFisica = analizarFisica;
 
     function updateStatement(charges, unitQ) {
         const box = document.getElementById('problem-statement');
-        if (charges.length < 2) { 
-            box.innerHTML = "<i>Dibuja al menos dos cargas fuente (+ o -) para calcular su interacción.</i>"; 
-            return; 
-        }
-
+        if (charges.length < 2) { box.innerHTML = "<i>Dibuja al menos dos cargas fuente (+ o -) para calcular su interacción.</i>"; return; }
         const sources = charges.map(c => `$q_${c.id}$`);
-        let text = `<strong>Problema:</strong> Determinar la magnitud y dirección de la <strong>Fuerza Eléctrica Resultante</strong> sobre cada carga debido a la interacción con el sistema <strong>${sources.join(', ')}</strong>.`;
-        text += `<br><small style="color:#aaa; margin-top:5px; display:block">Considere $k_e = 8.987 \\times 10^9 N\\cdot m^2/C^2$</small>`;
-        
-        box.innerHTML = text;
+        box.innerHTML = `<strong>Problema:</strong> Determinar la magnitud y dirección de la <strong>Fuerza Eléctrica Resultante</strong> sobre cada carga debido a la interacción con el sistema <strong>${sources.join(', ')}</strong>.<br><small style="color:var(--text-muted); margin-top:5px; display:block">Considere $k_e = 8.987 \\times 10^9 N\\cdot m^2/C^2$</small>`;
         renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
     }
 
     function updateCoord(id, axis, val) {
-        const obj = state.objects.find(o => o.id === id);
-        if(!obj) return;
-        
-        const numVal = parseFloat(val);
-        if(isNaN(numVal)) return;
-
-        if (axis === 'x') {
-            obj.physX = numVal;
-            obj.x = numVal + state.origin.x;
-        } else {
-            obj.physY = numVal;
-            obj.y = state.origin.y - numVal;
-        }
-        
-        analizarFisica();
-        redraw();
-        requestSync(true); 
+        const obj = state.objects.find(o => o.id === id); if(!obj) return;
+        const numVal = parseFloat(val); if(isNaN(numVal)) return;
+        if (axis === 'x') { obj.physX = numVal; obj.x = numVal + state.origin.x; } else { obj.physY = numVal; obj.y = state.origin.y - numVal; }
+        analizarFisica(); redraw(); requestSync(true); 
     }
     window.updateCoord = updateCoord;
 
     function updateUI() {
         document.querySelectorAll('.data-card').forEach(card => card.classList.remove('selected'));
-        
         const c = document.getElementById('charges-container'); c.innerHTML='';
         state.objects.filter(o=>o.type.startsWith('charge')).forEach(ch => {
             const div = document.createElement('div'); div.className='data-card';
             if(state.selectedObjects.includes(ch)) div.classList.add('selected');
             if(ch.hidden) div.style.opacity = '0.5';
-            
             div.innerHTML = `
                 <div class="data-header"><strong>${ch.label}</strong></div>
+                <div class="input-row"><label>Q</label><input type="number" class="glass-input" id="q-${ch.id}" value="${ch.q}" onchange="analizarFisica(); requestSync(true);"></div>
                 <div class="input-row">
-                    <label>Q</label>
-                    <input type="number" id="q-${ch.id}" value="${ch.q}" onchange="analizarFisica(); requestSync(true);">
-                </div>
-                <div class="input-row">
-                    <label>X</label>
-                    <input type="number" value="${Math.round(ch.physX)}" onchange="updateCoord(${ch.id}, 'x', this.value)">
-                    <label>Y</label>
-                    <input type="number" value="${Math.round(ch.physY)}" onchange="updateCoord(${ch.id}, 'y', this.value)">
+                    <label>X</label><input type="number" class="glass-input" value="${Math.round(ch.physX)}" onchange="updateCoord(${ch.id}, 'x', this.value)">
+                    <label>Y</label><input type="number" class="glass-input" value="${Math.round(ch.physY)}" onchange="updateCoord(${ch.id}, 'y', this.value)">
                 </div>`;
             c.appendChild(div);
         });
-        
         document.getElementById('detection-list').innerHTML = state.objects.map(o=> {
             let op = o.hidden ? 'opacity: 0.4;' : '';
-            if(o.type === 'vector') return `<span class="badge badge-vec" style="${op}">Vec</span>`;
+            if(o.type === 'vector') return `<span class="badge" style="background:rgba(255,255,255,0.1); border:1px solid var(--text-muted); ${op}">Vec</span>`;
             if(o.type.startsWith('charge')) return `<span class="badge ${o.type==='charge_pos'?'badge-pos':'badge-neg'}" style="${op}">${o.label}</span>`;
             return '';
         }).join('');
@@ -1210,8 +955,7 @@
     window.updateUI = updateUI;
     
     function setTool(t, b) {
-        finalizeText();
-        state.tool = t;
+        finalizeText(); state.tool = t;
         document.querySelectorAll('.btn-tool').forEach(el=>el.classList.remove('active'));
         if(b) b.classList.add('active');
         if(t !== 'move') selectObject(null);
@@ -1221,8 +965,7 @@
     function undo() { 
         if(state.rawStrokes.length>0) state.rawStrokes.pop(); 
         else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); }
-        redraw(); 
-        requestSync(true); 
+        redraw(); requestSync(true); 
     }
     window.undo = undo;
     
@@ -1235,240 +978,120 @@
     }
     window.limpiarTodo = limpiarTodo;
 
-    // --- NUEVAS FUNCIONES PROFESIONALES (EXPORTAR Y COMPARTIR) ---
     function exportarImagen() {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
+        const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
         const tCtx = tempCanvas.getContext('2d');
-        
-        // Dibujar fondo blanco
-        tCtx.fillStyle = '#ffffff';
-        tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-        
-        // Dibujar cuadrícula tenue
-        tCtx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
-        tCtx.lineWidth = 1;
-        tCtx.beginPath();
+        tCtx.fillStyle = '#ffffff'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        tCtx.strokeStyle = 'rgba(0, 0, 0, 0.05)'; tCtx.lineWidth = 1; tCtx.beginPath();
         for(let x = state.origin.x % 20; x < tempCanvas.width; x += 20) { tCtx.moveTo(x, 0); tCtx.lineTo(x, tempCanvas.height); }
         for(let y = state.origin.y % 20; y < tempCanvas.height; y += 20) { tCtx.moveTo(0, y); tCtx.lineTo(tempCanvas.width, y); }
         tCtx.stroke();
-        
-        // Dibujar el contenido interactivo encima
         tCtx.drawImage(canvas, 0, 0);
-        
-        // Descargar la imagen
-        const link = document.createElement('a');
-        link.download = 'Simulacion_Coulomb.png';
-        link.href = tempCanvas.toDataURL('image/png');
-        link.click();
+        const link = document.createElement('a'); link.download = 'Simulacion_Coulomb.png'; link.href = tempCanvas.toDataURL('image/png'); link.click();
     }
     window.exportarImagen = exportarImagen;
 
     function copiarInfoSala() {
-        const salaInfo = document.getElementById('room-info').innerText.replace('🌐 Sala: ', '');
-        if(salaInfo === 'Ninguna') return alert('No estás en ninguna sala.');
-        
+        const salaInfo = document.getElementById('room-info').innerText.replace('Sala: ', '');
+        if(salaInfo === 'Ninguna') return customAlert('No estás en ninguna sala.');
         const texto = `¡Únete a mi simulación en el Laboratorio de Coulomb!\n📌 Nombre de Sala: ${salaInfo}\n🔗 Ingresa aquí: ${window.location.href}`;
-        // Intentar usar el portapapeles moderno, con fallback por si hay restricciones de navegador
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(texto).then(() => {
-                alert('✅ Datos de la sala copiados al portapapeles. ¡Pégalos en WhatsApp o en un correo!');
-            }).catch(() => {
-                prompt('Copia este texto para invitar a tus compañeros:', texto);
-            });
-        } else {
-            prompt('Copia este texto para invitar a tus compañeros:', texto);
-        }
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(texto).then(() => customAlert('Datos de la sala copiados al portapapeles. ¡Pégalos en un chat!'))
+            .catch(() => fallbackCopy(texto));
+        } else fallbackCopy(texto);
     }
     window.copiarInfoSala = copiarInfoSala;
 
+    function fallbackCopy(text) {
+        var textArea = document.createElement("textarea"); textArea.value = text;
+        textArea.style.position = "fixed"; document.body.appendChild(textArea); textArea.focus(); textArea.select();
+        try { document.execCommand('copy'); customAlert('Datos de la sala copiados.'); } catch (err) { customAlert('Comparte este enlace: ' + window.location.href); }
+        document.body.removeChild(textArea);
+    }
+
     function drawPath(pts, color = '#999', width = 2) {
         if(pts.length < 2) return;
-        ctx.strokeStyle = color; ctx.lineWidth = width;
-        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
-        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.stroke();
+        ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.stroke();
     }
 
     function redraw() {
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        labelsOverlay.innerHTML = '';
-        
+        ctx.clearRect(0,0,canvas.width,canvas.height); labelsOverlay.innerHTML = '';
         if (state.origin.x !== null) {
-            ctx.beginPath();
-            ctx.strokeStyle = 'rgba(78, 204, 163, 0.4)'; 
-            ctx.lineWidth = 2;
-            
+            ctx.beginPath(); ctx.strokeStyle = 'rgba(119, 221, 119, 0.6)'; ctx.lineWidth = 2;
             ctx.moveTo(0, state.origin.y); ctx.lineTo(canvas.width, state.origin.y);
-            ctx.moveTo(state.origin.x, 0); ctx.lineTo(state.origin.x, canvas.height);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(state.origin.x, state.origin.y, 4, 0, Math.PI*2);
-            ctx.fillStyle = '#4ecca3';
-            ctx.fill();
-            
-            ctx.font = '12px monospace';
-            ctx.fillText('+X', canvas.width - 20, state.origin.y - 10);
-            ctx.fillText('+Y', state.origin.x + 10, 20);
-            
-            if (state.isDraggingOrigin) {
-                ctx.beginPath();
-                ctx.arc(state.origin.x, state.origin.y, 25, 0, Math.PI*2);
-                ctx.strokeStyle = 'rgba(78, 204, 163, 0.8)';
-                ctx.setLineDash([4,4]);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
+            ctx.moveTo(state.origin.x, 0); ctx.lineTo(state.origin.x, canvas.height); ctx.stroke();
+            ctx.beginPath(); ctx.arc(state.origin.x, state.origin.y, 4, 0, Math.PI*2); ctx.fillStyle = 'var(--pastel-green)'; ctx.fill();
+            ctx.font = '12px monospace'; ctx.fillText('+X', canvas.width - 20, state.origin.y - 10); ctx.fillText('+Y', state.origin.x + 10, 20);
+            if (state.isDraggingOrigin) { ctx.beginPath(); ctx.arc(state.origin.x, state.origin.y, 25, 0, Math.PI*2); ctx.strokeStyle = 'rgba(119, 221, 119, 0.8)'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]); }
         }
 
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         if (charges.length > 1) {
-            ctx.setLineDash([5, 5]);
-            ctx.strokeStyle = '#666';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < charges.length; i++) {
-                for (let j = i + 1; j < charges.length; j++) {
-                    ctx.beginPath();
-                    ctx.moveTo(charges[i].x, charges[i].y);
-                    ctx.lineTo(charges[j].x, charges[j].y);
-                    ctx.stroke();
-                }
-            }
+            ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
+            for (let i = 0; i < charges.length; i++) for (let j = i + 1; j < charges.length; j++) { ctx.beginPath(); ctx.moveTo(charges[i].x, charges[i].y); ctx.lineTo(charges[j].x, charges[j].y); ctx.stroke(); }
             ctx.setLineDash([]); 
         }
 
-        state.rawStrokes.forEach(s => drawPath(s, '#999', 2));
-        if(state.currentStroke.length>0) drawPath(state.currentStroke, '#999', 2);
+        state.rawStrokes.forEach(s => drawPath(s, 'rgba(0,0,0,0.3)', 2));
+        if(state.currentStroke.length>0) drawPath(state.currentStroke, 'rgba(0,0,0,0.3)', 2);
         if(state.currentFreeStroke) drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, 3);
-        
-        if(state.currentLine) {
-            ctx.strokeStyle = state.currentLine.color; ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.moveTo(state.currentLine.start.x, state.currentLine.start.y); 
-            ctx.lineTo(state.currentLine.end.x, state.currentLine.end.y); ctx.stroke();
-        }
+        if(state.currentLine) { ctx.strokeStyle = state.currentLine.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(state.currentLine.start.x, state.currentLine.start.y); ctx.lineTo(state.currentLine.end.x, state.currentLine.end.y); ctx.stroke(); }
 
-        if (state.selectionBox) {
-            ctx.fillStyle = 'rgba(0, 255, 136, 0.1)';
-            ctx.strokeStyle = '#00ff88';
-            ctx.lineWidth = 1;
-            ctx.fillRect(state.selectionBox.x, state.selectionBox.y, state.selectionBox.w, state.selectionBox.h);
-            ctx.strokeRect(state.selectionBox.x, state.selectionBox.y, state.selectionBox.w, state.selectionBox.h);
-        }
+        if (state.selectionBox) { ctx.fillStyle = 'rgba(119, 221, 119, 0.1)'; ctx.strokeStyle = '#77dd77'; ctx.lineWidth = 1; ctx.fillRect(state.selectionBox.x, state.selectionBox.y, state.selectionBox.w, state.selectionBox.h); ctx.strokeRect(state.selectionBox.x, state.selectionBox.y, state.selectionBox.w, state.selectionBox.h); }
 
         state.objects.forEach(obj => {
             if (obj.hidden && state.tool !== 'visibility') return;
-
-            const prevAlpha = ctx.globalAlpha;
-            if (obj.hidden) ctx.globalAlpha = 0.3;
-
+            const prevAlpha = ctx.globalAlpha; if (obj.hidden) ctx.globalAlpha = 0.3;
             const isSel = state.selectedObjects.includes(obj);
-            ctx.shadowBlur = isSel ? 12 : 0; 
-            ctx.shadowColor = '#00ff88';
+            ctx.shadowBlur = isSel ? 12 : 0; ctx.shadowColor = '#77dd77';
 
             if(obj.type.startsWith('charge')) {
-                ctx.beginPath(); ctx.arc(obj.x, obj.y, 20, 0, Math.PI*2);
-                ctx.fillStyle = obj.type==='charge_pos' ? '#3498db' : '#e74c3c';
-                ctx.fill(); 
-                ctx.strokeStyle = isSel ? '#00ff88' : 'white'; 
-                ctx.lineWidth = isSel ? 3 : 2; 
-                ctx.stroke();
-                ctx.shadowBlur=0;
-                ctx.fillStyle='white'; ctx.font='bold 24px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-                ctx.fillText(obj.type==='charge_pos'?'+':'-', obj.x, obj.y+2);
-                addLabel(obj.x+25, obj.y-25, obj.label, obj.hidden);
+                ctx.beginPath(); ctx.arc(obj.x, obj.y, 20, 0, Math.PI*2); ctx.fillStyle = obj.type==='charge_pos' ? '#aec6cf' : '#ff6961'; ctx.fill(); 
+                ctx.strokeStyle = isSel ? '#77dd77' : '#fff'; ctx.lineWidth = isSel ? 3 : 2; ctx.stroke(); ctx.shadowBlur=0;
+                ctx.fillStyle='#111'; ctx.font='bold 24px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.fillText(obj.type==='charge_pos'?'+':'-', obj.x, obj.y+2); addLabel(obj.x+25, obj.y-25, obj.label, obj.hidden);
             } 
             else if(obj.type === 'vector') {
-                const col = obj.validation==='correct'?'#4ecca3':obj.validation==='error'?'#ff6b6b':'#f1c40f';
-                ctx.strokeStyle = isSel ? '#00ff88' : col; 
-                ctx.fillStyle = isSel ? '#00ff88' : col; 
-                ctx.lineWidth = isSel ? 5 : 3;
-                drawArrow(obj.start.x, obj.start.y, obj.end.x, obj.end.y);
-                ctx.shadowBlur=0;
+                const col = obj.validation==='correct'?'#77dd77':obj.validation==='error'?'#ff6961':'#fdfd96';
+                ctx.strokeStyle = isSel ? '#77dd77' : col; ctx.fillStyle = isSel ? '#77dd77' : col; ctx.lineWidth = isSel ? 5 : 3;
+                drawArrow(obj.start.x, obj.start.y, obj.end.x, obj.end.y); ctx.shadowBlur=0;
                 if(obj.label) addLabel(obj.end.x, obj.end.y-15, obj.label, obj.hidden);
             }
-            else if(obj.type === 'line') {
-                ctx.strokeStyle = isSel ? '#00ff88' : obj.color; 
-                ctx.lineWidth = isSel ? 4 : 2;
-                ctx.beginPath(); ctx.moveTo(obj.start.x, obj.start.y); ctx.lineTo(obj.end.x, obj.end.y); ctx.stroke();
-                ctx.shadowBlur = 0;
-            }
-            else if(obj.type === 'free_stroke') {
-                drawPath(obj.points, isSel ? '#00ff88' : obj.color, isSel ? 5 : 3);
-                ctx.shadowBlur=0;
-            }
-            else if(obj.type === 'text') {
-                ctx.fillStyle = isSel ? '#00ff88' : obj.color;
-                ctx.font = 'bold 20px "Segoe UI", Arial';
-                ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-                ctx.fillText(obj.text, obj.x, obj.y);
-                ctx.shadowBlur=0;
-            }
-            
+            else if(obj.type === 'line') { ctx.strokeStyle = isSel ? '#77dd77' : obj.color; ctx.lineWidth = isSel ? 4 : 2; ctx.beginPath(); ctx.moveTo(obj.start.x, obj.start.y); ctx.lineTo(obj.end.x, obj.end.y); ctx.stroke(); ctx.shadowBlur = 0; }
+            else if(obj.type === 'free_stroke') { drawPath(obj.points, isSel ? '#77dd77' : obj.color, isSel ? 5 : 3); ctx.shadowBlur=0; }
+            else if(obj.type === 'text') { ctx.fillStyle = isSel ? '#77dd77' : obj.color; ctx.font = 'bold 20px "Segoe UI", Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(obj.text, obj.x, obj.y); ctx.shadowBlur=0; }
             ctx.globalAlpha = prevAlpha;
         });
 
         if (state.showInCanvasDCL) {
             charges.forEach(ch => {
                 if (ch.hasVectors) {
-                    const fs = state.calculatedForces.filter(f => f.target === ch.id);
-                    if(fs.length === 0) return;
-
-                    let sumFx = 0, sumFy = 0;
-                    fs.forEach(f => { sumFx += f.Fx; sumFy += f.Fy; });
-                    const Rmag = Math.hypot(sumFx, sumFy);
-                    
-                    const maxF = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); 
-                    const s = 90 / maxF; 
-
-                    ctx.strokeStyle = 'rgba(52, 152, 219, 0.5)'; 
-                    ctx.fillStyle = 'rgba(52, 152, 219, 0.8)';
-                    ctx.lineWidth = 1.5;
-                    ctx.setLineDash([4, 4]);
-
+                    const fs = state.calculatedForces.filter(f => f.target === ch.id); if(fs.length === 0) return;
+                    let sumFx = 0, sumFy = 0; fs.forEach(f => { sumFx += f.Fx; sumFy += f.Fy; });
+                    const Rmag = Math.hypot(sumFx, sumFy); const maxF = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); const s = 90 / maxF; 
+                    ctx.strokeStyle = 'rgba(174, 198, 207, 0.6)'; ctx.fillStyle = 'rgba(174, 198, 207, 0.9)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
                     ctx.beginPath(); ctx.moveTo(ch.x - 120, ch.y); ctx.lineTo(ch.x + 120, ch.y); ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(ch.x + 120, ch.y); ctx.lineTo(ch.x + 110, ch.y - 5); ctx.lineTo(ch.x + 110, ch.y + 5); ctx.fill();
                     ctx.font = 'bold 12px Arial'; ctx.fillText('+x', ch.x + 115, ch.y - 10);
-
                     ctx.beginPath(); ctx.moveTo(ch.x, ch.y - 120); ctx.lineTo(ch.x, ch.y + 120); ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(ch.x, ch.y - 120); ctx.lineTo(ch.x - 5, ch.y - 110); ctx.lineTo(ch.x + 5, ch.y - 110); ctx.fill();
-                    ctx.fillText('+y', ch.x + 10, ch.y - 115);
-
-                    ctx.setLineDash([]); 
+                    ctx.fillText('+y', ch.x + 10, ch.y - 115); ctx.setLineDash([]); 
 
                     fs.forEach(f => {
-                        const dx = f.Fx * s; const dy = -f.Fy * s; 
-                        const x2 = ch.x + dx; const y2 = ch.y + dy;
-                        const col = 'rgba(241, 196, 15, 0.8)'; 
-
-                        ctx.strokeStyle = 'rgba(241, 196, 15, 0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
-                        ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2, ch.y); ctx.stroke();
-                        ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(ch.x, y2); ctx.stroke();
-                        ctx.setLineDash([]);
-
-                        ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.5;
-                        drawArrow(ch.x, ch.y, x2, y2);
-                        
-                        ctx.fillStyle = '#f1c40f'; ctx.font = "12px Arial";
-                        ctx.fillText(f.label.replace(/[{}_]/g,''), x2 + 5, y2 - 5);
+                        const dx = f.Fx * s; const dy = -f.Fy * s; const x2 = ch.x + dx; const y2 = ch.y + dy; const col = '#fdfd96'; 
+                        ctx.strokeStyle = 'rgba(253, 253, 150, 0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+                        ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2, ch.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(ch.x, y2); ctx.stroke(); ctx.setLineDash([]);
+                        ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.5; drawArrow(ch.x, ch.y, x2, y2);
+                        ctx.fillStyle = '#111'; ctx.font = "12px Arial"; ctx.fillText(f.label.replace(/[{}_]/g,''), x2 + 5, y2 - 5);
                     });
 
                     if (Rmag > 0) {
-                        const Rdx = sumFx * s; const Rdy = -sumFy * s;
-                        const Rx2 = ch.x + Rdx; const Ry2 = ch.y + Rdy;
-                        const Rcol = '#ff6b6b';
-
-                        ctx.strokeStyle = 'rgba(255, 107, 107, 0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
-                        ctx.beginPath(); ctx.moveTo(Rx2, Ry2); ctx.lineTo(Rx2, ch.y); ctx.stroke();
-                        ctx.beginPath(); ctx.moveTo(Rx2, Ry2); ctx.lineTo(ch.x, Ry2); ctx.stroke();
-                        ctx.setLineDash([]);
-
-                        ctx.strokeStyle = Rcol; ctx.fillStyle = Rcol; ctx.lineWidth = 4;
-                        drawArrow(ch.x, ch.y, Rx2, Ry2);
-                        
-                        ctx.fillStyle = Rcol; ctx.font = "bold 15px Arial";
-                        ctx.fillText("FR", Rx2 + 8, Ry2 + 8);
+                        const Rdx = sumFx * s; const Rdy = -sumFy * s; const Rx2 = ch.x + Rdx; const Ry2 = ch.y + Rdy; const Rcol = '#ff6961';
+                        ctx.strokeStyle = 'rgba(255, 105, 97, 0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+                        ctx.beginPath(); ctx.moveTo(Rx2, Ry2); ctx.lineTo(Rx2, ch.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(Rx2, Ry2); ctx.lineTo(ch.x, Ry2); ctx.stroke(); ctx.setLineDash([]);
+                        ctx.strokeStyle = Rcol; ctx.fillStyle = Rcol; ctx.lineWidth = 4; drawArrow(ch.x, ch.y, Rx2, Ry2);
+                        ctx.fillStyle = '#111'; ctx.font = "bold 15px Arial"; ctx.fillText("FR", Rx2 + 8, Ry2 + 8);
                     }
                 }
             });
@@ -1479,18 +1102,12 @@
     function drawArrow(x1, y1, x2, y2) {
         const head = 15; const ang = Math.atan2(y2-y1, x2-x1);
         ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x2,y2);
-        ctx.lineTo(x2-head*Math.cos(ang-Math.PI/6), y2-head*Math.sin(ang-Math.PI/6));
-        ctx.lineTo(x2-head*Math.cos(ang+Math.PI/6), y2-head*Math.sin(ang+Math.PI/6));
-        ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-head*Math.cos(ang-Math.PI/6), y2-head*Math.sin(ang-Math.PI/6)); ctx.lineTo(x2-head*Math.cos(ang+Math.PI/6), y2-head*Math.sin(ang+Math.PI/6)); ctx.fill();
     }
 
     function addLabel(x, y, t, hidden = false) {
-        const d = document.createElement('div'); d.className='canvas-label';
-        d.style.left=x+'px'; d.style.top=y+'px';
-        if (hidden) d.style.opacity = '0.3';
-        katex.render(t, d, {throwOnError:false});
-        labelsOverlay.appendChild(d);
+        const d = document.createElement('div'); d.className='canvas-label'; d.style.left=x+'px'; d.style.top=y+'px';
+        if (hidden) d.style.opacity = '0.3'; katex.render(t, d, {throwOnError:false}); labelsOverlay.appendChild(d);
     }
     function getBounds(pts) {
         const xs = pts.map(p=>p.x); const ys = pts.map(p=>p.y);
@@ -1498,16 +1115,13 @@
     }
     
     function renderLatex() {
-        const box = document.getElementById('latex-result');
-        let html = "";
+        const box = document.getElementById('latex-result'); let html = "";
         const groups = {}; state.calculatedForces.forEach(f=>{ if(!groups[f.target]) groups[f.target]=[]; groups[f.target].push(f); });
         
         if(Object.keys(groups).length===0) html="\\text{Sin fuerzas correctas}";
         else {
             for(const [tid, fs] of Object.entries(groups)) {
-                html += `\\underline{\\text{Análisis de Carga } q_${tid}}:\\\\`;
-                let sx=0, sy=0;
-                
+                html += `\\underline{\\text{Análisis de Carga } q_${tid}}:\\\\`; let sx=0, sy=0;
                 html += `\\text{1. Distancia, ángulo y componentes:} \\\\ \\begin{aligned}`;
                 fs.forEach(f=>{ 
                     html += `r_{${f.source}${f.target}} &= ${f.r.toExponential(2)} \\text{ m}, \\quad \\theta = ${f.angleDeg.toFixed(1)}^\\circ \\\\`;
@@ -1517,10 +1131,7 @@
                     sx += f.Fx; sy += f.Fy; 
                 });
                 html += `\\end{aligned} \\\\[1em]`;
-
-                const R = Math.hypot(sx, sy);
-                const Rang = (Math.atan2(sy, sx) * 180 / Math.PI + 360) % 360;
-
+                const R = Math.hypot(sx, sy); const Rang = (Math.atan2(sy, sx) * 180 / Math.PI + 360) % 360;
                 html += `\\text{2. Fuerza Resultante:} \\\\ \\begin{aligned}`;
                 html += `\\sum F_x &= \\mathbf{${sx.toExponential(2)} \\text{ N}} \\\\`;
                 html += `\\sum F_y &= \\mathbf{${sy.toExponential(2)} \\text{ N}} \\\\`;
@@ -1536,7 +1147,7 @@
         const d=document.getElementById('dcl-buttons'); d.innerHTML='';
         const t = new Set(state.calculatedForces.map(f=>f.target));
         t.forEach(tid=>{
-            const b=document.createElement('button'); b.className='btn-tool'; b.style.padding='4px';
+            const b=document.createElement('button'); b.className='glass-btn'; b.style.padding='4px 8px'; b.style.fontSize='0.8rem'; b.style.color='var(--pastel-blue)';
             b.innerText=`DCL q${tid}`; b.onclick=()=>openDCL(tid); d.appendChild(b);
         });
     }
@@ -1544,63 +1155,34 @@
     function openDCL(id) {
         document.getElementById('fbd-modal').style.display='flex';
         const cx=document.getElementById('fbd-canvas').getContext('2d');
-        const fs = state.calculatedForces.filter(f=>f.target==id);
-        const ch = state.objects.find(o=>o.id==id);
-        
-        cx.clearRect(0,0,400,400);
-        
-        cx.strokeStyle='#ccc'; cx.lineWidth=1;
+        const fs = state.calculatedForces.filter(f=>f.target==id); const ch = state.objects.find(o=>o.id==id);
+        cx.clearRect(0,0,400,400); cx.strokeStyle='#ccc'; cx.lineWidth=1;
         cx.beginPath(); cx.moveTo(200,0); cx.lineTo(200,400); cx.moveTo(0,200); cx.lineTo(400,200); cx.stroke();
+        cx.beginPath(); cx.arc(200,200,10,0,2*Math.PI); cx.fillStyle=ch.type==='charge_pos'?'#aec6cf':'#ff6961'; cx.fill();
         
-        cx.beginPath(); cx.arc(200,200,10,0,2*Math.PI); 
-        cx.fillStyle=ch.type==='charge_pos'?'#3498db':'#e74c3c'; cx.fill();
-        
-        let sumFx = 0, sumFy = 0;
-        fs.forEach(f => { sumFx += f.Fx; sumFy += f.Fy; });
-        const Rmag = Math.hypot(sumFx, sumFy);
-        
-        const max = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); 
-        const s = 140/max; 
+        let sumFx = 0, sumFy = 0; fs.forEach(f => { sumFx += f.Fx; sumFy += f.Fy; });
+        const Rmag = Math.hypot(sumFx, sumFy); const max = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); const s = 140/max; 
 
         fs.forEach(f=>{ 
-            const dx=f.Fx*s; const dy=-f.Fy*s; 
-            const col='#f1c40f';
-            const x2=200+dx, y2=200+dy;
-
-            cx.strokeStyle='rgba(241, 196, 15, 0.4)'; cx.lineWidth=1.5; cx.setLineDash([4, 4]);
+            const dx=f.Fx*s; const dy=-f.Fy*s; const col='#fdfd96'; const x2=200+dx, y2=200+dy;
+            cx.strokeStyle='rgba(200, 200, 100, 0.4)'; cx.lineWidth=1.5; cx.setLineDash([4, 4]);
             cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(x2, 200); cx.stroke();
-            cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(200, y2); cx.stroke();
-            cx.setLineDash([]);
-
+            cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(200, y2); cx.stroke(); cx.setLineDash([]);
             cx.strokeStyle=col; cx.fillStyle=col; cx.lineWidth=3;
             cx.beginPath(); cx.moveTo(200,200); cx.lineTo(x2,y2); cx.stroke();
             const ang=Math.atan2(y2-200, x2-200);
-            cx.beginPath(); cx.moveTo(x2,y2); 
-            cx.lineTo(x2-10*Math.cos(ang-Math.PI/6), y2-10*Math.sin(ang-Math.PI/6));
-            cx.lineTo(x2-10*Math.cos(ang+Math.PI/6), y2-10*Math.sin(ang+Math.PI/6)); cx.fill();
-            cx.fillStyle='black'; cx.font="14px Arial";
-            cx.fillText(f.label.replace(/[{}_]/g,''), x2+10, y2);
+            cx.beginPath(); cx.moveTo(x2,y2); cx.lineTo(x2-10*Math.cos(ang-Math.PI/6), y2-10*Math.sin(ang-Math.PI/6)); cx.lineTo(x2-10*Math.cos(ang+Math.PI/6), y2-10*Math.sin(ang+Math.PI/6)); cx.fill();
+            cx.fillStyle='black'; cx.font="14px Arial"; cx.fillText(f.label.replace(/[{}_]/g,''), x2+10, y2);
         });
 
         if(fs.length > 0 && Rmag > 0) {
-            const Rdx = sumFx * s; const Rdy = -sumFy * s;
-            const Rx2 = 200 + Rdx; const Ry2 = 200 + Rdy;
-            const Rcol = '#ff6b6b';
-
-            cx.strokeStyle='rgba(255, 107, 107, 0.4)'; cx.lineWidth=2; cx.setLineDash([4, 4]);
-            cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(Rx2, 200); cx.stroke();
-            cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(200, Ry2); cx.stroke();
-            cx.setLineDash([]);
-
-            cx.strokeStyle=Rcol; cx.fillStyle=Rcol; cx.lineWidth=4;
-            cx.beginPath(); cx.moveTo(200,200); cx.lineTo(Rx2, Ry2); cx.stroke();
+            const Rdx = sumFx * s; const Rdy = -sumFy * s; const Rx2 = 200 + Rdx; const Ry2 = 200 + Rdy; const Rcol = '#ff6961';
+            cx.strokeStyle='rgba(255, 105, 97, 0.4)'; cx.lineWidth=2; cx.setLineDash([4, 4]);
+            cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(Rx2, 200); cx.stroke(); cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(200, Ry2); cx.stroke(); cx.setLineDash([]);
+            cx.strokeStyle=Rcol; cx.fillStyle=Rcol; cx.lineWidth=4; cx.beginPath(); cx.moveTo(200,200); cx.lineTo(Rx2, Ry2); cx.stroke();
             const Rang = Math.atan2(Ry2-200, Rx2-200);
-            cx.beginPath(); cx.moveTo(Rx2,Ry2); 
-            cx.lineTo(Rx2-12*Math.cos(Rang-Math.PI/6), Ry2-12*Math.sin(Rang-Math.PI/6));
-            cx.lineTo(Rx2-12*Math.cos(Rang+Math.PI/6), Ry2-12*Math.sin(Rang+Math.PI/6)); cx.fill();
-            
-            cx.fillStyle='#ff6b6b'; cx.font="bold 16px Arial";
-            cx.fillText("FR", Rx2+12, Ry2+5);
+            cx.beginPath(); cx.moveTo(Rx2,Ry2); cx.lineTo(Rx2-12*Math.cos(Rang-Math.PI/6), Ry2-12*Math.sin(Rang-Math.PI/6)); cx.lineTo(Rx2-12*Math.cos(Rang+Math.PI/6), Ry2-12*Math.sin(Rang+Math.PI/6)); cx.fill();
+            cx.fillStyle='#ff6961'; cx.font="bold 16px Arial"; cx.fillText("FR", Rx2+12, Ry2+5);
         }
     }
     window.openDCL = openDCL;
@@ -1609,8 +1191,7 @@
     window.closeModal = closeModal;
 
     document.addEventListener("DOMContentLoaded", function() {
-        const tip = document.getElementById('static-tip');
-        if(tip) renderMathInElement(tip, {delimiters: [{left: "$", right: "$", display: false}]});
+        renderMathInElement(document.body, {delimiters: [{left: "$", right: "$", display: false}]});
     });
 </script>
 
@@ -1641,496 +1222,239 @@
   let unsubscribeRoom = null;
   let unsubscribeChat = null;
 
-  // --- SISTEMA DE AUTENTICACIÓN ---
   onAuthStateChanged(auth, (user) => {
       if (user) {
-          // Usuario conectado
           document.getElementById('auth-modal').style.display = 'none';
-          document.getElementById('user-info').innerText = `👤 ${user.email}`;
+          document.getElementById('user-info').innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${user.email}`;
           document.getElementById('btn-logout').style.display = 'inline-block';
           document.getElementById('user-stats').style.display = 'inline-flex';
           
-          // Iniciar sistema de Gamificación
           if (window.iniciarGamificacion) window.iniciarGamificacion(user.uid);
-          
-          // Si no está en una sala, pedirle que se una a una
-          if (!currentRoomRef) {
-              window.abrirModalSala();
-          }
+          if (!currentRoomRef) window.abrirModalSala();
       } else {
-          // Usuario NO conectado
           document.getElementById('auth-modal').style.display = 'flex';
           document.getElementById('room-modal').style.display = 'none';
           document.getElementById('user-info').innerText = 'No conectado';
           document.getElementById('user-stats').style.display = 'none';
           document.getElementById('btn-logout').style.display = 'none';
-          document.getElementById('room-info').innerText = '🌐 Sala: Ninguna';
+          document.getElementById('room-info').innerText = 'Sala: Ninguna';
           document.getElementById('btn-share-room').style.display = 'none';
           document.getElementById('chat-section').style.display = 'none';
           
-          if (unsubscribeRoom) {
-              unsubscribeRoom();
-              unsubscribeRoom = null;
-          }
-          if (unsubscribeChat) {
-              unsubscribeChat();
-              unsubscribeChat = null;
-          }
-          currentRoomRef = null;
-          chatRoomRef = null;
+          if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+          if (unsubscribeChat) { unsubscribeChat(); unsubscribeChat = null; }
+          currentRoomRef = null; chatRoomRef = null;
           if (window.detenerGamificacion) window.detenerGamificacion();
           window.limpiarTodo();
       }
   });
 
-  // --- SISTEMA DE GAMIFICACIÓN (PERFILES, TAREAS, LOGROS) ---
   let gamificationUnsubscribe = null;
   let gameTimerInterval = null;
 
-  window.abrirModalPerfil = function() {
-      document.getElementById('profile-modal').style.display = 'flex';
-  };
-  window.cerrarModalPerfil = function() {
-      document.getElementById('profile-modal').style.display = 'none';
-  };
+  window.abrirModalPerfil = function() { document.getElementById('profile-modal').style.display = 'flex'; };
+  window.cerrarModalPerfil = function() { document.getElementById('profile-modal').style.display = 'none'; };
 
   window.iniciarGamificacion = function(uid) {
       const perfilRef = ref(db, 'usuarios/' + uid);
-      
-      // Estado local optimista (por si Firebase tarda o bloquea por reglas)
       window.userGameData = {
           perfil: { puntos: 0, nivel: 1, tiempo_sesion: 0 },
           logros: { inicio_sesion: true },
           tareas: { 
-              tarea_1: false, tarea_2: false, tarea_3: false,
-              tarea_4: false, tarea_5: false, tarea_6: false,
-              tarea_7: false, tarea_8: false, tarea_9: false,
-              tarea_10: false, tarea_11: false, tarea_12: false
+              tarea_1: false, tarea_2: false, tarea_3: false, tarea_4: false, tarea_5: false, tarea_6: false,
+              tarea_7: false, tarea_8: false, tarea_9: false, tarea_10: false, tarea_11: false, tarea_12: false
           }
       };
       
       gamificationUnsubscribe = onValue(perfilRef, (snapshot) => {
           const data = snapshot.val();
-          if (!data) {
-              // Si no existe el perfil, lo creamos de cero
-              set(perfilRef, window.userGameData).catch(e => console.warn("Permisos denegados en Firebase."));
-          } else {
-              window.userGameData = data;
-              actualizarUIPerfil();
-          }
-      }, (error) => {
-          console.warn("⚠️ Firebase bloqueó la lectura. ¿Actualizaste las Reglas de Seguridad?");
-          actualizarUIPerfil(); // Forzar actualización visual aunque Firebase falle
-      });
+          if (!data) set(perfilRef, window.userGameData).catch(e => console.warn("Permisos denegados en Firebase."));
+          else { window.userGameData = data; actualizarUIPerfil(); }
+      }, (error) => { console.warn("Firebase bloqueó lectura."); actualizarUIPerfil(); });
 
-      // Temporizador: Otorgar 10 puntos por cada minuto en sesión
       if (gameTimerInterval) clearInterval(gameTimerInterval);
       gameTimerInterval = setInterval(() => {
           if (window.userGameData && window.userGameData.perfil) {
-              window.userGameData.perfil.tiempo_sesion += 1;
-              window.userGameData.perfil.puntos += 10;
-              actualizarUIPerfil();
+              window.userGameData.perfil.tiempo_sesion += 1; window.userGameData.perfil.puntos += 10; actualizarUIPerfil();
           }
-          update(ref(db, 'usuarios/' + uid + '/perfil'), {
-              tiempo_sesion: increment(1),
-              puntos: increment(10)
-          }).catch(e => {});
-      }, 60000); // 60,000 ms = 1 minuto
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { tiempo_sesion: increment(1), puntos: increment(10) }).catch(e => {});
+      }, 60000); 
   };
 
   window.detenerGamificacion = function() {
       if (gamificationUnsubscribe) { gamificationUnsubscribe(); gamificationUnsubscribe = null; }
       if (gameTimerInterval) { clearInterval(gameTimerInterval); gameTimerInterval = null; }
-      window.userGameData = null;
-      window.interaccionesLocales = 0;
+      window.userGameData = null; window.interaccionesLocales = 0;
   };
 
   function actualizarUIPerfil() {
-      const d = window.userGameData;
-      if (!d || !d.perfil) return;
-      
-      const p = d.perfil;
-      // Actualiza el badge del encabezado
-      document.getElementById('user-stats').innerText = `🏆 Lvl ${p.nivel} | ${p.puntos} pts`;
-      
-      // Actualiza la ventana modal
-      document.getElementById('ui-nivel').innerText = p.nivel;
-      document.getElementById('ui-puntos').innerText = p.puntos;
-      document.getElementById('ui-tiempo').innerText = p.tiempo_sesion;
+      const d = window.userGameData; if (!d || !d.perfil) return; const p = d.perfil;
+      document.getElementById('ui-lvl-badge').innerText = `Lvl ${p.nivel} | ${p.puntos} pts`;
+      document.getElementById('ui-nivel').innerText = p.nivel; document.getElementById('ui-puntos').innerText = p.puntos; document.getElementById('ui-tiempo').innerText = p.tiempo_sesion;
 
-      // Actualizar Checkmarks de Tareas dinámicamente según el nivel
       const tareasDiv = document.getElementById('ui-tareas');
       if(d.tareas) {
           if (p.nivel === 1) {
               tareasDiv.innerHTML = `
-                  <div class="task-item ${d.tareas.tarea_1 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 2 cargas en el lienzo</span></div>
-                  <div class="task-item ${d.tareas.tarea_2 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 1 vector de fuerza</span></div>
-                  <div class="task-item ${d.tareas.tarea_3 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 5 interacciones (Mover/Dibujar)</span></div>
-              `;
+                  <div class="task-item ${d.tareas.tarea_1 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Coloca 2 cargas en el lienzo</span></div>
+                  <div class="task-item ${d.tareas.tarea_2 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Dibuja 1 vector de fuerza</span></div>
+                  <div class="task-item ${d.tareas.tarea_3 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Haz 5 interacciones (Mover/Dibujar)</span></div>`;
           } else if (p.nivel === 2) {
               tareasDiv.innerHTML = `
-                  <div class="task-item ${d.tareas.tarea_4 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 3 cargas en el lienzo</span></div>
-                  <div class="task-item ${d.tareas.tarea_5 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 2 vectores de fuerza</span></div>
-                  <div class="task-item ${d.tareas.tarea_6 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 20 interacciones totales</span></div>
-              `;
+                  <div class="task-item ${d.tareas.tarea_4 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Coloca 3 cargas en el lienzo</span></div>
+                  <div class="task-item ${d.tareas.tarea_5 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Dibuja 2 vectores de fuerza</span></div>
+                  <div class="task-item ${d.tareas.tarea_6 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Haz 20 interacciones totales</span></div>`;
           } else if (p.nivel === 3) {
               tareasDiv.innerHTML = `
-                  <div class="task-item ${d.tareas.tarea_7 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 4 cargas en el lienzo</span></div>
-                  <div class="task-item ${d.tareas.tarea_8 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 3 vectores de fuerza</span></div>
-                  <div class="task-item ${d.tareas.tarea_9 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 50 interacciones totales</span></div>
-              `;
+                  <div class="task-item ${d.tareas.tarea_7 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Coloca 4 cargas en el lienzo</span></div>
+                  <div class="task-item ${d.tareas.tarea_8 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Dibuja 3 vectores de fuerza</span></div>
+                  <div class="task-item ${d.tareas.tarea_9 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Haz 50 interacciones totales</span></div>`;
           } else if (p.nivel === 4) {
               tareasDiv.innerHTML = `
-                  <div class="task-item ${d.tareas.tarea_10 ? 'done' : ''}"><div class="task-check">✓</div><span>Coloca 5 cargas en el lienzo</span></div>
-                  <div class="task-item ${d.tareas.tarea_11 ? 'done' : ''}"><div class="task-check">✓</div><span>Dibuja 4 vectores de fuerza</span></div>
-                  <div class="task-item ${d.tareas.tarea_12 ? 'done' : ''}"><div class="task-check">✓</div><span>Haz 100 interacciones totales</span></div>
-              `;
+                  <div class="task-item ${d.tareas.tarea_10 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Coloca 5 cargas en el lienzo</span></div>
+                  <div class="task-item ${d.tareas.tarea_11 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Dibuja 4 vectores de fuerza</span></div>
+                  <div class="task-item ${d.tareas.tarea_12 ? 'done' : ''}"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:none" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Haz 100 interacciones totales</span></div>`;
           } else {
-              tareasDiv.innerHTML = `<div class="task-item done"><div class="task-check">✓</div><span>¡Has completado todas las misiones del simulador!</span></div>`;
+              tareasDiv.innerHTML = `<div class="task-item done"><div class="task-check"><svg class="svg-icon" style="width:10px;height:10px;display:block" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>¡Has completado todas las misiones del simulador!</span></div>`;
           }
       }
 
-      // Renderizar Logros Dinámicos
-      const container = document.getElementById('ui-logros');
-      container.innerHTML = '';
+      const container = document.getElementById('ui-logros'); container.innerHTML = '';
       if(d.logros) {
-          const dictLogros = {
-              "inicio_sesion": "🎓 Bienvenido",
-              "fisico_experto": "⚡ Físico Experto",
-              "nivel_2_alcanzado": "🌟 Graduado Nivel 1",
-              "nivel_3_alcanzado": "🚀 Investigador Nivel 2",
-              "nivel_4_alcanzado": "🧠 Científico Nivel 3",
-              "nivel_5_alcanzado": "👑 Nobel de Física"
-          };
+          const dictLogros = { "inicio_sesion": "Bienvenido", "fisico_experto": "Físico Experto", "nivel_2_alcanzado": "Graduado Nivel 1", "nivel_3_alcanzado": "Investigador Nivel 2", "nivel_4_alcanzado": "Científico Nivel 3", "nivel_5_alcanzado": "Nobel de Física" };
           Object.keys(d.logros).forEach(key => {
-              if(d.logros[key] && dictLogros[key]) {
-                  container.innerHTML += `<span style="background: #e67e22; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">${dictLogros[key]}</span>`;
-              }
+              if(d.logros[key] && dictLogros[key]) container.innerHTML += `<span style="background: rgba(174, 198, 207, 0.2); color: var(--pastel-blue); border: 1px solid var(--pastel-blue); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;">${dictLogros[key]}</span>`;
           });
       }
   }
 
-  // Funciones globales expuestas para que las llame la Física (Canvas)
   window.registrarInteraccion = function() {
       if (!auth.currentUser || !window.userGameData) return;
-      window.interaccionesLocales = (window.interaccionesLocales || 0) + 1;
-      const uid = auth.currentUser.uid;
-
-      // Tarea 3: Hacer 5 interacciones
+      window.interaccionesLocales = (window.interaccionesLocales || 0) + 1; const uid = auth.currentUser.uid;
       if (window.interaccionesLocales >= 5 && !window.userGameData.tareas?.tarea_3) {
-          window.userGameData.tareas.tarea_3 = true; // Reflejar en UI local al instante
-          window.userGameData.perfil.puntos += 25;
-          actualizarUIPerfil();
-          
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_3: true }).catch(e=>{});
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{});
-          window.chequearSubidaNivel(uid);
+          window.userGameData.tareas.tarea_3 = true; window.userGameData.perfil.puntos += 25; actualizarUIPerfil();
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_3: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{}); window.chequearSubidaNivel(uid);
       }
-
-      // Tareas de interacciones niveles 2, 3 y 4
       if (window.interaccionesLocales >= 20 && !window.userGameData.tareas?.tarea_6) {
-          window.userGameData.tareas.tarea_6 = true; window.userGameData.perfil.puntos += 50;
-          actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_6: true }).catch(e=>{});
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); window.chequearSubidaNivel(uid);
+          window.userGameData.tareas.tarea_6 = true; window.userGameData.perfil.puntos += 50; actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_6: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); window.chequearSubidaNivel(uid);
       }
       if (window.interaccionesLocales >= 50 && !window.userGameData.tareas?.tarea_9) {
-          window.userGameData.tareas.tarea_9 = true; window.userGameData.perfil.puntos += 100;
-          actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_9: true }).catch(e=>{});
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); window.chequearSubidaNivel(uid);
+          window.userGameData.tareas.tarea_9 = true; window.userGameData.perfil.puntos += 100; actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_9: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); window.chequearSubidaNivel(uid);
       }
       if (window.interaccionesLocales >= 100 && !window.userGameData.tareas?.tarea_12) {
-          window.userGameData.tareas.tarea_12 = true; window.userGameData.perfil.puntos += 150;
-          actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_12: true }).catch(e=>{});
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); window.chequearSubidaNivel(uid);
+          window.userGameData.tareas.tarea_12 = true; window.userGameData.perfil.puntos += 150; actualizarUIPerfil(); update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_12: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); window.chequearSubidaNivel(uid);
       }
-
-      // Logro oculto: Físico Experto (50 interacciones)
       if (window.interaccionesLocales >= 50 && !window.userGameData.logros?.fisico_experto) {
-          window.userGameData.logros.fisico_experto = true;
-          window.userGameData.perfil.puntos += 100;
-          actualizarUIPerfil();
-          
-          update(ref(db, 'usuarios/' + uid + '/logros'), { fisico_experto: true }).catch(e=>{});
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{});
+          window.userGameData.logros.fisico_experto = true; window.userGameData.perfil.puntos += 100; actualizarUIPerfil();
+          update(ref(db, 'usuarios/' + uid + '/logros'), { fisico_experto: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{});
       }
   };
 
   window.verificarTareasFisica = function() {
       if (!auth.currentUser || !window.userGameData) return;
-      const uid = auth.currentUser.uid;
-      const charges = window.appState.objects.filter(o => o.type.startsWith('charge'));
-      const vectors = window.appState.objects.filter(o => o.type === 'vector');
-
+      const uid = auth.currentUser.uid; const charges = window.appState.objects.filter(o => o.type.startsWith('charge')); const vectors = window.appState.objects.filter(o => o.type === 'vector');
       let hizoAlgo = false;
-      // Tarea 1: Colocar 2 cargas
-      if (charges.length >= 2 && !window.userGameData.tareas?.tarea_1) {
-          window.userGameData.tareas.tarea_1 = true; // Reflejar localmente
-          window.userGameData.perfil.puntos += 25;
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_1: true }).catch(e=>{});
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{});
-          hizoAlgo = true;
-      }
-
-      // Tarea 2: Dibujar un vector
-      if (vectors.length >= 1 && !window.userGameData.tareas?.tarea_2) {
-          window.userGameData.tareas.tarea_2 = true; // Reflejar localmente
-          window.userGameData.perfil.puntos += 25;
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_2: true }).catch(e=>{});
-          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{});
-          hizoAlgo = true;
-      }
-
-      // Tareas de Física Niveles 2, 3 y 4
-      if (charges.length >= 3 && !window.userGameData.tareas?.tarea_4) {
-          window.userGameData.tareas.tarea_4 = true; window.userGameData.perfil.puntos += 50;
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_4: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); hizoAlgo = true;
-      }
-      if (vectors.length >= 2 && !window.userGameData.tareas?.tarea_5) {
-          window.userGameData.tareas.tarea_5 = true; window.userGameData.perfil.puntos += 50;
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_5: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); hizoAlgo = true;
-      }
-      if (charges.length >= 4 && !window.userGameData.tareas?.tarea_7) {
-          window.userGameData.tareas.tarea_7 = true; window.userGameData.perfil.puntos += 100;
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_7: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); hizoAlgo = true;
-      }
-      if (vectors.length >= 3 && !window.userGameData.tareas?.tarea_8) {
-          window.userGameData.tareas.tarea_8 = true; window.userGameData.perfil.puntos += 100;
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_8: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); hizoAlgo = true;
-      }
-      if (charges.length >= 5 && !window.userGameData.tareas?.tarea_10) {
-          window.userGameData.tareas.tarea_10 = true; window.userGameData.perfil.puntos += 150;
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_10: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); hizoAlgo = true;
-      }
-      if (vectors.length >= 4 && !window.userGameData.tareas?.tarea_11) {
-          window.userGameData.tareas.tarea_11 = true; window.userGameData.perfil.puntos += 150;
-          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_11: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); hizoAlgo = true;
-      }
-
-      if(hizoAlgo) {
-          actualizarUIPerfil();
-          window.chequearSubidaNivel(uid);
-      }
+      if (charges.length >= 2 && !window.userGameData.tareas?.tarea_1) { window.userGameData.tareas.tarea_1 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_1: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{}); hizoAlgo = true; }
+      if (vectors.length >= 1 && !window.userGameData.tareas?.tarea_2) { window.userGameData.tareas.tarea_2 = true; window.userGameData.perfil.puntos += 25; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_2: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) }).catch(e=>{}); hizoAlgo = true; }
+      if (charges.length >= 3 && !window.userGameData.tareas?.tarea_4) { window.userGameData.tareas.tarea_4 = true; window.userGameData.perfil.puntos += 50; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_4: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); hizoAlgo = true; }
+      if (vectors.length >= 2 && !window.userGameData.tareas?.tarea_5) { window.userGameData.tareas.tarea_5 = true; window.userGameData.perfil.puntos += 50; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_5: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(50) }).catch(e=>{}); hizoAlgo = true; }
+      if (charges.length >= 4 && !window.userGameData.tareas?.tarea_7) { window.userGameData.tareas.tarea_7 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_7: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); hizoAlgo = true; }
+      if (vectors.length >= 3 && !window.userGameData.tareas?.tarea_8) { window.userGameData.tareas.tarea_8 = true; window.userGameData.perfil.puntos += 100; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_8: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(100) }).catch(e=>{}); hizoAlgo = true; }
+      if (charges.length >= 5 && !window.userGameData.tareas?.tarea_10) { window.userGameData.tareas.tarea_10 = true; window.userGameData.perfil.puntos += 150; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_10: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); hizoAlgo = true; }
+      if (vectors.length >= 4 && !window.userGameData.tareas?.tarea_11) { window.userGameData.tareas.tarea_11 = true; window.userGameData.perfil.puntos += 150; update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_11: true }).catch(e=>{}); update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(150) }).catch(e=>{}); hizoAlgo = true; }
+      if(hizoAlgo) { actualizarUIPerfil(); window.chequearSubidaNivel(uid); }
   };
 
   window.chequearSubidaNivel = function(uid) {
-      // Usamos un pequeño delay para asegurar que Firebase sincronizó antes de revisar
       setTimeout(() => {
           if(!window.userGameData || !window.userGameData.tareas) return;
-          const t = window.userGameData.tareas;
-          const lvl = window.userGameData.perfil?.nivel || 1;
-          
+          const t = window.userGameData.tareas; const lvl = window.userGameData.perfil?.nivel || 1;
           if (lvl === 1 && t.tarea_1 && t.tarea_2 && t.tarea_3) {
-              window.userGameData.perfil.nivel = 2; // UI optimista
-              update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 2, puntos: increment(200) });
-              update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_2_alcanzado: true });
-              alert("🌟 ¡FELICITACIONES! Has completado todas las misiones del Nivel 1. ¡Subiste al NIVEL 2 y ganaste 200 pts!");
-              actualizarUIPerfil();
-          }
-          else if (lvl === 2 && t.tarea_4 && t.tarea_5 && t.tarea_6) {
-              window.userGameData.perfil.nivel = 3;
-              update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 3, puntos: increment(400) });
-              update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_3_alcanzado: true });
-              alert("🚀 ¡IMPRESIONANTE! Completaste el Nivel 2. ¡Subiste al NIVEL 3 y ganaste 400 pts!");
-              actualizarUIPerfil();
-          }
-          else if (lvl === 3 && t.tarea_7 && t.tarea_8 && t.tarea_9) {
-              window.userGameData.perfil.nivel = 4;
-              update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 4, puntos: increment(800) });
-              update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_4_alcanzado: true });
-              alert("🧠 ¡ERES UN GENIO! Completaste el Nivel 3. ¡Subiste al NIVEL 4 y ganaste 800 pts!");
-              actualizarUIPerfil();
-          }
-          else if (lvl === 4 && t.tarea_10 && t.tarea_11 && t.tarea_12) {
-              window.userGameData.perfil.nivel = 5;
-              update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 5, puntos: increment(1500) });
-              update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_5_alcanzado: true });
-              alert("👑 ¡LEYENDA! Has completado el Laboratorio de Coulomb. ¡Alcanzaste el NIVEL MÁXIMO (5)!");
-              actualizarUIPerfil();
+              window.userGameData.perfil.nivel = 2; update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 2, puntos: increment(200) }); update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_2_alcanzado: true }); customAlert("Has completado todas las misiones del Nivel 1. ¡Subiste al NIVEL 2 y ganaste 200 pts!", "¡Felicitaciones!"); actualizarUIPerfil();
+          } else if (lvl === 2 && t.tarea_4 && t.tarea_5 && t.tarea_6) {
+              window.userGameData.perfil.nivel = 3; update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 3, puntos: increment(400) }); update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_3_alcanzado: true }); customAlert("Completaste el Nivel 2. ¡Subiste al NIVEL 3 y ganaste 400 pts!", "¡Impresionante!"); actualizarUIPerfil();
+          } else if (lvl === 3 && t.tarea_7 && t.tarea_8 && t.tarea_9) {
+              window.userGameData.perfil.nivel = 4; update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 4, puntos: increment(800) }); update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_4_alcanzado: true }); customAlert("Completaste el Nivel 3. ¡Subiste al NIVEL 4 y ganaste 800 pts!", "¡Excelente trabajo!"); actualizarUIPerfil();
+          } else if (lvl === 4 && t.tarea_10 && t.tarea_11 && t.tarea_12) {
+              window.userGameData.perfil.nivel = 5; update(ref(db, 'usuarios/' + uid + '/perfil'), { nivel: 5, puntos: increment(1500) }); update(ref(db, 'usuarios/' + uid + '/logros'), { nivel_5_alcanzado: true }); customAlert("Has completado el Laboratorio de Coulomb. ¡Alcanzaste el NIVEL MÁXIMO (5)!", "¡Legendario!"); actualizarUIPerfil();
           }
       }, 1000);
   };
 
   window.iniciarSesion = function() {
-      const email = document.getElementById('auth-email').value.trim();
-      const pass = document.getElementById('auth-pass').value;
-      if (!email || !pass) return alert('Llena ambos campos.');
-      
-      signInWithEmailAndPassword(auth, email, pass).catch(error => {
-          alert('Error al entrar: ' + error.message);
-      });
+      const email = document.getElementById('auth-email').value.trim(); const pass = document.getElementById('auth-pass').value;
+      if (!email || !pass) return customAlert('Llena ambos campos.', 'Aviso');
+      signInWithEmailAndPassword(auth, email, pass).catch(error => customAlert('Error al entrar: ' + error.message, 'Error'));
   };
 
   window.registrarUsuario = function() {
-      const email = document.getElementById('auth-email').value.trim();
-      const pass = document.getElementById('auth-pass').value;
-      if (!email || pass.length < 6) return alert('Ingresa un correo y una clave de mínimo 6 letras/números.');
-      
-      createUserWithEmailAndPassword(auth, email, pass).catch(error => {
-          alert('Error al registrar: ' + error.message);
-      });
+      const email = document.getElementById('auth-email').value.trim(); const pass = document.getElementById('auth-pass').value;
+      if (!email || pass.length < 6) return customAlert('Ingresa un correo y una clave de mínimo 6 letras/números.', 'Aviso');
+      createUserWithEmailAndPassword(auth, email, pass).catch(error => customAlert('Error al registrar: ' + error.message, 'Error'));
   };
 
-  // --- NUEVA FUNCIÓN DE GOOGLE ---
   window.iniciarSesionConGoogle = function() {
-      const provider = new GoogleAuthProvider();
-      signInWithPopup(auth, provider).catch(error => {
-          alert('Error al entrar con Google: ' + error.message);
-      });
+      const provider = new GoogleAuthProvider(); signInWithPopup(auth, provider).catch(error => customAlert('Error al entrar con Google: ' + error.message, 'Error'));
   };
 
-  window.cerrarSesion = function() {
-      signOut(auth);
-  };
+  window.cerrarSesion = function() { signOut(auth); };
 
   window.recuperarContrasena = function() {
       const email = document.getElementById('auth-email').value.trim();
-      if (!email) {
-          return alert('Por favor, escribe tu correo electrónico en el campo superior para enviarte el enlace de recuperación.');
-      }
-      
-      sendPasswordResetEmail(auth, email)
-          .then(() => {
-              alert('✅ Se ha enviado un correo a ' + email + ' con las instrucciones para restablecer tu contraseña. Revisa tu bandeja de entrada o spam.');
-          })
-          .catch((error) => {
-              alert('❌ Error al intentar recuperar la contraseña: ' + error.message);
-          });
+      if (!email) return customAlert('Por favor, escribe tu correo electrónico en el campo superior para enviarte el enlace de recuperación.', 'Aviso');
+      sendPasswordResetEmail(auth, email).then(() => customAlert('Se ha enviado un correo a ' + email + ' con las instrucciones. Revisa tu bandeja de entrada o spam.', 'Éxito')).catch((error) => customAlert('Error al intentar recuperar la contraseña: ' + error.message, 'Error'));
   };
 
-  // --- SISTEMA DE SALAS Y CONTRASEÑAS ---
-  window.abrirModalSala = function() {
-      if (!auth.currentUser) return alert("Primero debes iniciar sesión");
-      document.getElementById('room-modal').style.display = 'flex';
-  };
-  
-  window.cerrarModalSala = function() {
-      if (!currentRoomRef) alert("Trabajarás offline si no te unes a un cuarto.");
-      document.getElementById('room-modal').style.display = 'none';
-  };
+  window.abrirModalSala = function() { if (!auth.currentUser) return customAlert("Primero debes iniciar sesión", "Aviso"); document.getElementById('room-modal').style.display = 'flex'; };
+  window.cerrarModalSala = function() { if (!currentRoomRef) customAlert("Trabajarás offline si no te unes a un cuarto.", "Aviso"); document.getElementById('room-modal').style.display = 'none'; };
 
   window.intentarUnirseSala = async function() {
-      const salaId = document.getElementById('room-name').value.trim();
-      const salaPass = document.getElementById('room-pass').value.trim();
-      
-      if (!salaId || !salaPass) return alert('Debes ingresar el nombre del cuarto y su contraseña.');
-
-      // 1. Revisar en la base de datos si la sala ya existe y verificar contraseña
+      const salaId = document.getElementById('room-name').value.trim(); const salaPass = document.getElementById('room-pass').value.trim();
+      if (!salaId || !salaPass) return customAlert('Debes ingresar el nombre del cuarto y su contraseña.', 'Aviso');
       const passRef = ref(db, 'salas/' + salaId + '/password');
-      
       try {
           const snapshot = await get(passRef);
           if (snapshot.exists()) {
-              // La sala existe, verificar si la clave coincide
-              if (snapshot.val() !== salaPass) {
-                  return alert('❌ Contraseña incorrecta para el cuarto: ' + salaId);
-              }
+              if (snapshot.val() !== salaPass) return customAlert('Contraseña incorrecta para el cuarto: ' + salaId, 'Error');
           } else {
-              // La sala NO existe, la creamos y le asignamos la contraseña
-              await set(passRef, salaPass);
-              alert('✅ Nuevo cuarto creado: ' + salaId);
+              await set(passRef, salaPass); customAlert('Nuevo cuarto creado: ' + salaId, 'Éxito');
           }
-          
-          // 2. Conexión exitosa al estado de la sala
-          document.getElementById('room-modal').style.display = 'none';
-          document.getElementById('room-info').innerText = '🌐 Sala: ' + salaId;
-          document.getElementById('btn-share-room').style.display = 'inline-block';
-          document.getElementById('chat-section').style.display = 'block';
-          
-          conectarASala(salaId);
-
-      } catch (error) {
-          console.error(error);
-          alert('Error de conexión.');
-      }
+          document.getElementById('room-modal').style.display = 'none'; document.getElementById('room-info').innerText = 'Sala: ' + salaId; document.getElementById('btn-share-room').style.display = 'inline-flex'; document.getElementById('chat-section').style.display = 'block'; conectarASala(salaId);
+      } catch (error) { customAlert('Error de conexión.', 'Error'); }
   };
 
   function conectarASala(salaId) {
-      // Si ya estábamos en una sala, dejamos de escucharla
-      if (unsubscribeRoom) {
-          unsubscribeRoom();
-      }
-      if (unsubscribeChat) {
-          unsubscribeChat();
-      }
-
-      currentRoomRef = ref(db, 'salas/' + salaId + '/state');
-      chatRoomRef = ref(db, 'salas/' + salaId + '/chat');
-      
+      if (unsubscribeRoom) unsubscribeRoom(); if (unsubscribeChat) unsubscribeChat();
+      currentRoomRef = ref(db, 'salas/' + salaId + '/state'); chatRoomRef = ref(db, 'salas/' + salaId + '/chat');
       unsubscribeRoom = onValue(currentRoomRef, (snapshot) => {
           const data = snapshot.val();
           if (data && !window.isSendingData) {
-              isReceiving = true;
-              
-              window.appState.objects = data.objects || [];
-              window.appState.origin = data.origin || { x: null, y: null };
-              window.appState.rawStrokes = data.rawStrokes || [];
-              
-              window.appState.selectedObjects = [];
-              document.getElementById('float-delete').style.display = 'none';
-
-              window.updateUI();
-              window.analizarFisica();
-              window.redraw();
-              
-              setTimeout(() => { isReceiving = false; }, 50);
+              isReceiving = true; window.appState.objects = data.objects || []; window.appState.origin = data.origin || { x: null, y: null }; window.appState.rawStrokes = data.rawStrokes || [];
+              window.appState.selectedObjects = []; document.getElementById('float-delete').style.display = 'none';
+              window.updateUI(); window.analizarFisica(); window.redraw(); setTimeout(() => { isReceiving = false; }, 50);
           }
       });
-
-      // Escuchar el Chat en tiempo real
       unsubscribeChat = onValue(chatRoomRef, (snapshot) => {
-          const chatBox = document.getElementById('chat-box');
-          chatBox.innerHTML = '';
-          const data = snapshot.val();
+          const chatBox = document.getElementById('chat-box'); chatBox.innerHTML = ''; const data = snapshot.val();
           if (data) {
               Object.values(data).forEach(msg => {
-                  const esMio = auth.currentUser && msg.email === auth.currentUser.email;
-                  const colorFondo = esMio ? '#2e4a3f' : '#1e3a4d';
-                  const align = esMio ? 'right' : 'left';
-                  const nick = msg.email.split('@')[0];
-                  
-                  chatBox.innerHTML += `
-                    <div style="text-align: ${align}; margin-bottom: 5px;">
-                        <span style="font-size: 0.7rem; color: #aaa;">${nick}</span><br>
-                        <span style="background: ${colorFondo}; color: white; padding: 6px 10px; border-radius: 8px; display: inline-block; max-width: 90%; word-wrap: break-word; text-align: left;">
-                            ${msg.text}
-                        </span>
-                    </div>`;
-              });
-              chatBox.scrollTop = chatBox.scrollHeight;
-          } else {
-              chatBox.innerHTML = '<i style="color: #666;">Sin mensajes. ¡Saluda a tu grupo!</i>';
-          }
+                  const esMio = auth.currentUser && msg.email === auth.currentUser.email; const colorFondo = esMio ? 'rgba(174, 198, 207, 0.2)' : 'rgba(255,255,255,0.05)'; const align = esMio ? 'right' : 'left'; const nick = msg.email.split('@')[0]; const colorText = esMio ? 'var(--pastel-blue)' : 'var(--text-main)';
+                  chatBox.innerHTML += `<div style="text-align: ${align}; margin-bottom: 5px;"><span style="font-size: 0.7rem; color: var(--text-muted);">${nick}</span><br><span style="background: ${colorFondo}; color: ${colorText}; padding: 6px 10px; border-radius: 8px; display: inline-block; max-width: 90%; word-wrap: break-word; text-align: left; border: 1px solid var(--glass-border);">${msg.text}</span></div>`;
+              }); chatBox.scrollTop = chatBox.scrollHeight;
+          } else chatBox.innerHTML = '<i style="color: var(--text-muted);">Sin mensajes. ¡Saluda a tu grupo!</i>';
       });
   }
 
-  // --- ENVÍO DE DATOS Y CHAT ---
   window.enviarMensajeChat = function() {
-      const input = document.getElementById('chat-input');
-      const text = input.value.trim();
+      const input = document.getElementById('chat-input'); const text = input.value.trim();
       if (!text || !auth.currentUser || !chatRoomRef) return;
-
-      push(chatRoomRef, {
-          email: auth.currentUser.email,
-          text: text,
-          timestamp: Date.now()
-      });
-      input.value = '';
+      push(chatRoomRef, { email: auth.currentUser.email, text: text, timestamp: Date.now() }); input.value = '';
   };
 
   window.enviarEstadoNube = function() {
-      if (!currentRoomRef || isReceiving || !auth.currentUser) return;
-      window.isSendingData = true;
-      
-      // Enviamos la data a la rama "state" del cuarto
-      set(currentRoomRef, {
-          objects: window.appState.objects,
-          origin: window.appState.origin,
-          rawStrokes: window.appState.rawStrokes
-      }).then(() => {
-          window.isSendingData = false;
-      });
+      if (!currentRoomRef || isReceiving || !auth.currentUser) return; window.isSendingData = true;
+      set(currentRoomRef, { objects: window.appState.objects, origin: window.appState.origin, rawStrokes: window.appState.rawStrokes }).then(() => { window.isSendingData = false; });
   };
-
 </script>
 </body>
 </html>
