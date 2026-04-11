@@ -1,782 +1,668 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <!-- Google tag (gtag.js) --> 
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EXGD1GSLLB"></script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-EXGD1GSLLB'); </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laboratorio Virtual: Ley de Coulomb IA</title>
     <meta name="description" content="Tutor inteligente con coordenadas editables, pizarra libre y validación robusta.">
     
-    <!-- Librerías Externas -->
+    <!-- Librerías de IA y Matemáticas (Intactas) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            /* Colores Pastel y Base */
-            --bg-base: #0f172a;
-            --glass-bg: rgba(30, 41, 59, 0.7);
+            --bg-color: #12121a;
+            --panel-color: #1e1e2e;
+            --ribbon-bg: #181824;
+            --accent-color: #4ecca3;
+            --accent-hover: #3db892;
+            --danger-color: #ff6b6b;
+            --text-color: #e0e0e0;
+            --text-muted: #888899;
+            --border-color: #2c2c3e;
+            --force-color: #f1c40f;
+            --selection-color: #00ff88;
+            --glass-bg: rgba(30, 30, 46, 0.85);
             --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            --accent-pink: #ffb3ba;
-            --accent-green: #baffc9;
-            --accent-blue: #bae1ff;
-            --accent-yellow: #ffffba;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --danger: #ef4444;
             
-            /* Dimensiones */
-            --ribbon-height: 70px;
-            --sidebar-width: 320px;
+            --left-w: 300px;
+            --right-w: 380px;
+            --ribbon-h: 70px;
+            --footer-h: 35px;
+            --header-h: 50px;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            background-color: var(--bg-base);
-            background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
-            color: var(--text-main);
-            height: 100vh; width: 100vw;
-            overflow: hidden; display: flex; flex-direction: column;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Arquitectura Single-Screen */
             user-select: none;
         }
 
-        /* Utilidades Glassmorphism */
-        .glass {
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            box-shadow: var(--glass-shadow);
+        /* Utilidades SVG */
+        .icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .icon-sm { width: 14px; height: 14px; }
+        .icon-lg { width: 24px; height: 24px; }
+
+        /* --- OVERLAY AUTH (Glassmorphism) --- */
+        #auth-gate {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(18, 18, 26, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
         }
-        .glass-panel { border-radius: 0; border: none; border-left: 1px solid var(--glass-border); border-right: 1px solid var(--glass-border); }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
-
-        /* Inputs & Buttons */
-        input, select, button, textarea { font-family: 'Inter', sans-serif; outline: none; }
-        
-        .form-control {
-            width: 100%; padding: 10px 12px; margin-bottom: 15px;
-            background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border);
-            color: var(--text-main); border-radius: 8px; font-size: 0.9rem;
-            transition: all 0.3s;
+        .glass-panel {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            padding: 30px; border-radius: 12px; width: 400px; max-width: 90%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex; flex-direction: column; gap: 15px;
         }
-        .form-control:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 2px rgba(186, 225, 255, 0.2); }
-        select option { background: var(--bg-base); color: var(--text-main); } /* Fix para dropdowns */
-
-        .btn {
-            padding: 8px 16px; border-radius: 8px; border: 1px solid transparent;
-            cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;
-            transition: all 0.2s ease; font-size: 0.85rem; color: var(--text-main);
-            background: rgba(255,255,255,0.1);
+        .glass-panel h2 { color: var(--accent-color); text-align: center; margin-bottom: 5px; }
+        .glass-panel p { color: var(--text-muted); font-size: 0.9rem; text-align: center; }
+        .auth-input {
+            width: 100%; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color);
+            color: white; border-radius: 6px; font-size: 0.95rem; outline: none; transition: border-color 0.2s;
         }
-        .btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
-        .btn:active { transform: translateY(1px); }
-        .btn-primary { background: rgba(186, 225, 255, 0.2); border-color: var(--accent-blue); color: var(--accent-blue); }
-        .btn-primary:hover { background: rgba(186, 225, 255, 0.3); }
-        .btn-danger { background: rgba(239, 68, 68, 0.1); border-color: var(--danger); color: var(--danger); }
-        .btn-danger:hover { background: rgba(239, 68, 68, 0.2); }
-        .btn-active { background: var(--accent-green); color: var(--bg-base); border-color: var(--accent-green); }
-        .btn-active:hover { background: #9de5ac; }
-        
-        .icon-sm { width: 16px; height: 16px; }
-        .icon-md { width: 20px; height: 20px; }
+        .auth-input:focus { border-color: var(--accent-color); }
+        .btn-auth {
+            padding: 12px; background: var(--accent-color); color: #12121a; font-weight: bold;
+            border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 1rem;
+        }
+        .btn-auth:hover { background: var(--accent-hover); }
+        .btn-google { background: white; color: #333; }
+        .btn-google:hover { background: #f0f0f0; }
 
-        /* Ribbon Menu */
+        /* --- HEADER --- */
+        header {
+            height: var(--header-h); background: var(--panel-color); border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center; padding: 0 20px; z-index: 100;
+        }
+        header h1 { font-size: 1.2rem; color: var(--accent-color); display: flex; align-items: center; gap: 8px; }
+        .header-controls { display: flex; align-items: center; gap: 15px; font-size: 0.9rem; }
+        .badge { background: var(--ribbon-bg); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 5px; }
+        .badge-clickable { cursor: pointer; transition: 0.2s; }
+        .badge-clickable:hover { border-color: var(--accent-color); }
+
+        /* --- RIBBON MENU --- */
         .ribbon {
-            height: var(--ribbon-height); width: 100%; z-index: 100;
-            display: flex; align-items: center; padding: 0 20px; gap: 20px;
-            border-bottom: 1px solid var(--glass-border);
-            overflow-x: auto; overflow-y: hidden; white-space: nowrap;
-            -webkit-overflow-scrolling: touch;
+            height: var(--ribbon-h); background: var(--ribbon-bg); border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; padding: 0 10px; overflow-x: auto; overflow-y: hidden; z-index: 90;
         }
-        .ribbon-group {
-            display: flex; gap: 8px; align-items: center;
-            border-right: 1px solid rgba(255,255,255,0.1); padding-right: 20px; height: 70%;
+        .ribbon-tab {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 8px 15px; cursor: pointer; border-radius: 6px; color: var(--text-muted);
+            min-width: 80px; gap: 5px; transition: 0.2s; border: 1px solid transparent;
         }
-        .ribbon-group:last-child { border-right: none; }
-        .brand { font-weight: 800; font-size: 1.1rem; color: var(--accent-blue); display: flex; align-items: center; gap: 8px;}
-        
-        /* Layout Principal */
-        .workspace {
-            display: flex; flex: 1; position: relative; height: calc(100vh - var(--ribbon-height));
-            overflow: hidden;
-        }
+        .ribbon-tab:hover { background: var(--panel-color); color: white; }
+        .ribbon-tab.active { background: rgba(78, 204, 163, 0.1); color: var(--accent-color); border-color: rgba(78, 204, 163, 0.3); }
+        .ribbon-tab span { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .ribbon-divider { width: 1px; height: 40px; background: var(--border-color); margin: 0 10px; }
 
-        /* Paneles Laterales */
-        .sidebar {
-            width: var(--sidebar-width); height: 100%; background: var(--glass-bg);
-            backdrop-filter: blur(10px); flex-shrink: 0;
-            display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: absolute; top: 0; z-index: 40;
+        /* --- MAIN WORKSPACE --- */
+        .workspace {
+            display: flex; flex: 1; position: relative; overflow: hidden;
         }
-        .sidebar-right { right: 0; border-left: 1px solid var(--glass-border); }
-        .sidebar-right.closed { transform: translateX(100%); }
         
-        .sidebar-header {
-            padding: 15px; border-bottom: 1px solid var(--glass-border);
-            display: flex; justify-content: space-between; align-items: center;
-            font-weight: 600; color: var(--accent-green);
+        /* Paneles Desplegables (Slide) */
+        .side-panel {
+            background: var(--panel-color); border-right: 1px solid var(--border-color);
+            width: var(--left-w); display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute; top: 0; bottom: 0; left: 0; z-index: 50;
         }
-        .sidebar-content { padding: 15px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 15px;}
+        .side-panel.closed { transform: translateX(-100%); }
+        
+        .right-panel {
+            border-right: none; border-left: 1px solid var(--border-color);
+            width: var(--right-w); right: 0; left: auto;
+        }
+        .right-panel.closed { transform: translateX(100%); }
+
+        .panel-section { padding: 15px; border-bottom: 1px solid var(--border-color); }
+        .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 10px; font-weight: bold; display: flex; align-items: center; gap: 5px;}
 
         /* Canvas Area */
-        .canvas-container {
-            flex: 1; position: relative; background-color: #f8fafc; /* Fondo blanco para visibilidad física */
-            background-image: 
-                linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+        .canvas-area {
+            flex: 1; position: relative; background-color: #ffffff;
+            background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
             background-size: 20px 20px; overflow: hidden;
-            transition: margin 0.3s ease;
         }
-        canvas { position: absolute; top: 0; left: 0; touch-action: none; cursor: crosshair; z-index: 10; }
+        canvas { cursor: crosshair; touch-action: none; z-index: 1; position: absolute; top: 0; left: 0; }
         
-        #labels-overlay, #overlays-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
+        /* Overlays Canvas */
+        #labels-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: hidden; }
         .canvas-label {
-            position: absolute; background: rgba(255, 255, 255, 0.9);
-            padding: 2px 6px; border-radius: 4px; border: 1px solid var(--accent-blue);
-            font-size: 0.85rem; color: #0f172a; transform: translate(-50%, -100%); 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); white-space: nowrap; pointer-events: auto;
+            position: absolute; background: rgba(255, 255, 255, 0.95); padding: 2px 6px; border-radius: 4px;
+            border: 1px solid #3498db; font-size: 0.9rem; color: #222; transform: translate(-50%, -100%); 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15); white-space: nowrap; pointer-events: auto;
         }
-
+        #text-input-overlay {
+            position: absolute; display: none; background: rgba(255,255,255,0.95); border: 2px dashed var(--accent-color);
+            color: #222; font-family: 'Segoe UI', sans-serif; font-size: 20px; padding: 4px 8px; border-radius: 4px; z-index: 100;
+            outline: none; font-weight: bold; transform: translateY(-50%);
+        }
         #coords-indicator {
-            position: absolute; bottom: 40px; left: 10px; background: var(--glass-bg);
-            color: var(--accent-green); padding: 4px 10px; border-radius: 6px;
-            font-family: monospace; font-size: 0.8rem; border: 1px solid var(--glass-border);
-            backdrop-filter: blur(4px); z-index: 30; pointer-events: none;
+            position: absolute; bottom: 10px; left: 10px; background: var(--glass-bg); color: var(--accent-color);
+            padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; pointer-events: none; z-index: 3; font-family: monospace; border: 1px solid var(--glass-border);
         }
 
-        /* Toggle Button */
-        .panel-toggle {
-            position: absolute; top: 50%; right: var(--sidebar-width); transform: translateY(-50%);
-            width: 24px; height: 48px; background: var(--glass-bg); border: 1px solid var(--glass-border);
-            border-right: none; border-radius: 8px 0 0 8px; cursor: pointer; display: flex;
-            justify-content: center; align-items: center; color: var(--text-main); z-index: 45;
-            transition: right 0.3s, background 0.2s; backdrop-filter: blur(10px);
+        /* --- HERRAMIENTAS Y CONTROLES --- */
+        .btn-list { display: flex; flex-direction: column; gap: 8px; }
+        .btn-action {
+            background: var(--ribbon-bg); color: var(--text-color); border: 1px solid var(--border-color);
+            padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+            font-size: 0.9rem; transition: 0.2s; text-align: left;
         }
-        .panel-toggle:hover { background: rgba(255,255,255,0.2); }
-        .sidebar-right.closed ~ .panel-toggle { right: 0; border-radius: 8px 0 0 8px; border-right: none;}
+        .btn-action:hover { background: #2c2c3e; border-color: #444; }
+        .btn-action.active { background: rgba(78, 204, 163, 0.15); border-color: var(--accent-color); color: var(--accent-color); }
+        .btn-danger { background: rgba(255, 107, 107, 0.1); color: var(--danger-color); border-color: rgba(255, 107, 107, 0.3); }
+        .btn-danger:hover { background: var(--danger-color); color: white; }
 
-        /* Cards & Badges */
-        .card {
-            background: rgba(15, 23, 42, 0.4); border: 1px solid var(--glass-border);
-            border-radius: 8px; padding: 12px;
+        select, input[type="number"], input[type="text"], input[type="password"] {
+            background: var(--ribbon-bg); border: 1px solid var(--border-color); color: white;
+            padding: 8px; border-radius: 4px; width: 100%; font-size: 0.85rem; outline: none; margin-top: 5px;
         }
-        .card-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;}
-        
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;}
-        .badge-pink { background: rgba(255, 179, 186, 0.2); color: var(--accent-pink); border: 1px solid var(--accent-pink); }
-        .badge-green { background: rgba(186, 255, 201, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
-        .badge-blue { background: rgba(186, 225, 255, 0.2); color: var(--accent-blue); border: 1px solid var(--accent-blue); }
-        .badge-yellow { background: rgba(255, 255, 186, 0.2); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
+        select:focus, input:focus { border-color: var(--accent-color); }
 
-        /* Latex Result Box */
-        .latex-box {
-            background: #f8fafc; color: #0f172a; padding: 10px; border-radius: 8px;
-            font-size: 0.85rem; overflow-x: auto; min-height: 80px; border: 1px solid #cbd5e1;
-        }
-
-        /* Modals Generales */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
-            display: none; justify-content: center; align-items: center; z-index: 2000;
-        }
-        .modal-content {
-            background: var(--bg-base); width: 90%; max-width: 450px;
-            padding: 24px; position: relative; border-radius: 12px;
-        }
-        .modal-close {
-            position: absolute; top: 16px; right: 16px; cursor: pointer; color: var(--text-muted);
-            background: none; border: none;
-        }
-        .modal-close:hover { color: var(--danger); }
-
-        /* DCL Window Style */
-        .window-os {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 500px; height: 500px; display: none; flex-direction: column; z-index: 1000;
-            background: #ffffff; color: #000; overflow: hidden;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid #475569;
-            transition: all 0.3s ease;
+        /* --- VENTANA DCL (Draggable) --- */
+        .window-dcl {
+            position: absolute; top: 50px; left: 50px; width: 400px; background: white; border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 500; display: none; flex-direction: column; overflow: hidden;
+            border: 1px solid var(--border-color);
         }
         .window-header {
-            background: #1e293b; padding: 8px 12px; display: flex; justify-content: space-between;
-            align-items: center; cursor: move; color: white; user-select: none;
+            background: var(--panel-color); padding: 8px 12px; display: flex; justify-content: space-between;
+            align-items: center; cursor: move; border-bottom: 1px solid var(--border-color);
         }
-        .window-controls { display: flex; gap: 6px; }
-        .w-btn { width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer; display:flex; justify-content:center; align-items:center;}
-        .w-btn i { width: 8px; height: 8px; color: rgba(0,0,0,0.5); display: none; }
-        .w-btn:hover i { display: block; }
-        .w-close { background: #ff5f56; }
-        .w-min { background: #ffbd2e; }
-        .w-max { background: #27c93f; }
-        .window-body { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #f8fafc;}
-        
-        /* Estados de Ventana DCL */
-        .window-os.minimized { height: 40px !important; top: auto !important; bottom: 0 !important; transform: translateX(-50%) !important; }
-        .window-os.maximized { width: 100vw !important; height: 100vh !important; top: 0 !important; left: 0 !important; transform: none !important; border-radius: 0; }
+        .window-title { font-size: 0.85rem; font-weight: bold; color: white; display: flex; align-items: center; gap: 5px;}
+        .window-controls { display: flex; gap: 8px; }
+        .win-btn { width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer; display: flex; justify-content: center; align-items: center;}
+        .win-close { background: #ff5f56; } .win-min { background: #ffbd2e; } .win-max { background: #27c93f; }
+        .win-content { padding: 10px; background: white; text-align: center; transition: height 0.2s;}
 
-        /* Charge Editor Float Panel */
-        #charge-editor {
-            position: absolute; display: none; z-index: 1500; width: 220px;
-            padding: 15px; transform: translate(15px, -50%);
+        /* --- CONTEXT MENU (Edición Cargas) --- */
+        .context-menu {
+            position: absolute; background: var(--panel-color); border: 1px solid var(--border-color);
+            border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); padding: 15px; z-index: 600;
+            display: none; flex-direction: column; gap: 10px; width: 220px;
         }
+        .context-menu::before {
+            content: ''; position: absolute; top: -6px; left: 20px; width: 10px; height: 10px;
+            background: var(--panel-color); transform: rotate(45deg); border-top: 1px solid var(--border-color); border-left: 1px solid var(--border-color);
+        }
+
+        /* --- CARDS & PANELS --- */
+        .card { background: var(--ribbon-bg); border-radius: 6px; padding: 12px; border-left: 3px solid var(--accent-color); margin-bottom: 10px; font-size: 0.9rem; }
+        .card-warn { border-left-color: var(--force-color); }
+        .card-danger { border-left-color: var(--danger-color); }
+        .latex-box { background: white; color: black; padding: 15px; border-radius: 6px; font-size: 0.85rem; overflow-x: auto; min-height: 80px; }
+
+        /* --- FOOTER LEGAL --- */
+        footer {
+            height: var(--footer-h); background: #0a0a0f; border-top: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center; padding: 0 20px;
+            font-size: 0.75rem; color: var(--text-muted); z-index: 100;
+        }
+        .footer-links a { color: var(--accent-color); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;}
+        .footer-links a:hover { text-decoration: underline; }
 
         /* Chat */
-        .chat-box {
-            height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2);
-            border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
-            font-size: 0.8rem; border: 1px solid var(--glass-border);
-        }
-        .chat-msg { background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 8px; max-width: 90%; word-break: break-word; }
-        .chat-msg.mine { background: rgba(186, 225, 255, 0.15); border: 1px solid rgba(186, 225, 255, 0.3); align-self: flex-end;}
+        #chat-box { height: 200px; overflow-y: auto; background: var(--ribbon-bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px;}
+        .chat-msg { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; font-size: 0.85rem; word-break: break-word;}
+        .chat-mio { background: rgba(78, 204, 163, 0.15); border: 1px solid rgba(78, 204, 163, 0.3); align-self: flex-end;}
 
-        /* Footer */
-        footer {
-            position: absolute; bottom: 0; width: 100%; height: 30px;
-            background: rgba(15, 23, 42, 0.8); border-top: 1px solid var(--glass-border);
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0 20px; font-size: 0.75rem; color: var(--text-muted); z-index: 50;
-        }
-        .footer-links a { color: var(--accent-blue); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-left: 15px;}
-        .footer-links a:hover { color: white; }
     </style>
 </head>
 <body>
 
-<!-- Ribbon Header -->
-<header class="ribbon glass glass-panel">
-    <div class="brand">
-        <i data-lucide="zap" style="color: var(--accent-yellow)"></i> Lab Coulomb IA
-    </div>
-    
-    <div class="ribbon-group">
-        <button class="btn btn-active" onclick="setTool('draw', this)" title="Lápiz de Objetos"><i data-lucide="pen-tool" class="icon-sm"></i> Lápiz IA</button>
-        <button class="btn" onclick="setTool('move', this)" title="Seleccionar/Mover"><i data-lucide="mouse-pointer" class="icon-sm"></i> Selección</button>
-        <button class="btn" onclick="setTool('visibility', this)" title="Ocultar elementos"><i data-lucide="eye-off" class="icon-sm"></i> Visibilidad</button>
-    </div>
-
-    <div class="ribbon-group">
-        <button class="btn" onclick="undo()" title="Deshacer trazo"><i data-lucide="undo" class="icon-sm"></i></button>
-        <button class="btn btn-danger" onclick="limpiarTodo()" title="Limpiar todo"><i data-lucide="trash-2" class="icon-sm"></i></button>
-        <button class="btn" onclick="exportarImagen()" title="Exportar PNG"><i data-lucide="camera" class="icon-sm"></i> Exportar</button>
-    </div>
-
-    <div class="ribbon-group">
-        <div style="display:flex; flex-direction:column; gap:2px;">
-            <label style="font-size:0.65rem; color:var(--text-muted)">U. Carga</label>
-            <select id="charge-unit" class="form-control" style="padding:2px 5px; margin:0; height:auto;" onchange="analizarFisica()">
-                <option value="1e-6">µC</option>
-                <option value="1e-9">nC</option>
-                <option value="1e-3">mC</option>
-                <option value="1">C</option>
-            </select>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:2px;">
-            <label style="font-size:0.65rem; color:var(--text-muted)">Distancia</label>
-            <select id="dist-unit" class="form-control" style="padding:2px 5px; margin:0; height:auto;" onchange="analizarFisica()">
-                <option value="1">m</option>
-                <option value="0.01">cm</option>
-                <option value="1e-3">mm</option>
-                <option value="1e-6">µm</option>
-                <option value="1e-9">nm</option>
-            </select>
-        </div>
-        <button class="btn btn-primary" onclick="analizarFisica()"><i data-lucide="calculator" class="icon-sm"></i> Calcular</button>
-    </div>
-
-    <div class="ribbon-group" style="margin-left: auto; border-right:none;">
-        <span id="user-info-badge" class="badge badge-green" style="display:none; cursor:pointer;" onclick="abrirModalPerfil()">
-            <i data-lucide="user" class="icon-sm"></i> <span id="ui-username">User</span>
-        </span>
-        <button class="btn" onclick="abrirModalGestorSalas()" id="btn-room-mgr" style="display:none;"><i data-lucide="users" class="icon-sm"></i> Salas</button>
-        <button class="btn" onclick="abrirModalGuia()"><i data-lucide="help-circle" class="icon-sm"></i> Guía</button>
-        <button class="btn btn-danger" id="btn-logout" style="display:none;" onclick="cerrarSesion()"><i data-lucide="log-out" class="icon-sm"></i></button>
-    </div>
-</header>
-
-<div class="workspace">
-    <!-- Main Canvas -->
-    <div class="canvas-container" id="canvas-wrapper">
-        <canvas id="main-canvas"></canvas>
-        <div id="overlays-container"></div>
-        <div id="labels-overlay"></div>
-        <div id="coords-indicator">X: 0, Y: 0</div>
-    </div>
-
-    <!-- Sidebar Right (Resultados & Entorno) -->
-    <div class="sidebar sidebar-right glass-panel" id="panel-right">
-        <div class="sidebar-header">
-            <span><i data-lucide="activity" class="icon-sm"></i> Panel de Análisis</span>
-            <span id="current-room-badge" class="badge badge-blue" style="font-size:0.7rem; display:none;">Offline</span>
-        </div>
-        <div class="sidebar-content">
-            
-            <div class="card">
-                <div class="card-title">Enunciado Automático</div>
-                <div id="problem-statement" style="font-size:0.85rem; line-height:1.4;">Dibuja al menos dos cargas.</div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">Validación Visual</div>
-                <div id="validation-box" style="font-size:0.85rem;">...</div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">Desarrollo Matemático</div>
-                <div id="dcl-buttons" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;"></div>
-                <div class="latex-box" id="latex-result">$$\text{Esperando datos...}$$</div>
-            </div>
-
-            <!-- Chat Reducido -->
-            <div class="card" id="chat-container" style="display:none;">
-                <div class="card-title">Chat de Sala</div>
-                <div class="chat-box" id="chat-box"></div>
-                <div style="display:flex; gap:5px; margin-top:8px;">
-                    <input type="text" id="chat-input" class="form-control" placeholder="Mensaje..." style="margin:0; padding:6px;" onkeypress="if(event.key==='Enter') enviarMensajeChat()">
-                    <button class="btn btn-primary" style="padding:6px 10px;" onclick="enviarMensajeChat()"><i data-lucide="send" class="icon-sm"></i></button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Toggle Panel Right -->
-    <div class="panel-toggle" id="toggle-right" onclick="toggleRightPanel()">
-        <i data-lucide="chevron-right"></i>
-    </div>
-</div>
-
-<!-- Footer -->
-<footer>
-    <div>&copy; 2026 Laboratorio Coulomb IA. Todos los derechos reservados.</div>
-    <div class="footer-links">
-        <a href="#" onclick="alert('Redirigiendo a PayPal...')"><i data-lucide="coffee" class="icon-sm"></i> Invítame un café</a>
-        <a href="#" onclick="alert('Abriendo WhatsApp...')"><i data-lucide="message-circle" class="icon-sm"></i> Soporte WA</a>
-    </div>
-</footer>
-
-<!-- MODALS -->
-
-<!-- Modal: Autenticación Forzada -->
-<div class="modal-overlay glass" id="auth-modal" style="display: flex;">
-    <div class="modal-content glass">
-        <h2 style="color: var(--accent-blue); margin-bottom: 10px; display:flex; align-items:center; gap:8px;">
-            <i data-lucide="lock"></i> Acceso al Laboratorio
+<!-- GATE DE AUTENTICACIÓN (Obligatorio) -->
+<div id="auth-gate">
+    <!-- Formulario de Login/Registro -->
+    <div class="glass-panel" id="auth-login-panel">
+        <h2>
+            <svg class="icon icon-lg" style="display:inline; vertical-align:middle; margin-right:5px;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            Laboratorio IA
         </h2>
-        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">
-            Inicia sesión para guardar tu progreso, sincronizar datos y usar salas colaborativas.
-        </p>
+        <p>Autenticación requerida para acceder al simulador y sincronizar salas de trabajo.</p>
         
-        <input type="email" id="auth-email" class="form-control" placeholder="Correo electrónico">
-        <input type="password" id="auth-pass" class="form-control" placeholder="Contraseña">
+        <input type="email" id="auth-email" class="auth-input" placeholder="Correo Electrónico">
+        <input type="password" id="auth-pass" class="auth-input" placeholder="Contraseña">
         
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="iniciarSesion()">Entrar</button>
-            <button class="btn" style="flex:1; justify-content:center;" onclick="registrarUsuario()">Crear Cuenta</button>
+        <button class="btn-auth" onclick="iniciarSesion()">
+            <svg class="icon"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Entrar
+        </button>
+        <button class="btn-auth" style="background: transparent; border: 1px solid var(--accent-color); color: var(--accent-color);" onclick="mostrarRegistro()">
+            <svg class="icon"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M21 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75M7 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg> Crear Cuenta Nueva
+        </button>
+        
+        <div style="display: flex; align-items: center; margin: 10px 0;">
+            <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+            <span style="padding: 0 10px; color: var(--text-muted); font-size: 0.8rem;">O</span>
+            <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
         </div>
-        
-        <div style="text-align: center; margin: 15px 0; color: var(--text-muted); font-size: 0.8rem;">O</div>
-        
-        <button class="btn" style="width: 100%; justify-content: center; background: white; color: black;" onclick="iniciarSesionConGoogle()">
-            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+
+        <button class="btn-auth btn-google" onclick="iniciarSesionConGoogle()">
+            <svg viewBox="0 0 24 24" class="icon" stroke="none" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
             Continuar con Google
+        </button>
+    </div>
+
+    <!-- Formulario de Completar Perfil (Obligatorio) -->
+    <div class="glass-panel" id="auth-profile-panel" style="display: none;">
+        <h2>Perfil Académico</h2>
+        <p>Completa tus datos para ingresar al simulador.</p>
+        
+        <label style="font-size: 0.8rem; color: var(--text-muted);">Edad:</label>
+        <input type="number" id="reg-edad" class="auth-input" placeholder="Ej. 20" min="10" max="99">
+        
+        <label style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Género:</label>
+        <select id="reg-genero" class="auth-input">
+            <option value="">Seleccionar...</option>
+            <option value="M">Masculino</option>
+            <option value="F">Femenino</option>
+            <option value="O">Otro</option>
+        </select>
+        
+        <label style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Carrera Académica:</label>
+        <input type="text" id="reg-carrera" class="auth-input" placeholder="Ingeniería, Física, etc.">
+
+        <button class="btn-auth" style="margin-top: 15px;" onclick="guardarPerfilYEntrar()">
+            <svg class="icon"><path d="M5 12l5 5L20 7"/></svg> Guardar y Entrar
         </button>
     </div>
 </div>
 
-<!-- Modal: Completar Perfil -->
-<div class="modal-overlay glass" id="profile-form-modal">
-    <div class="modal-content glass">
-        <h2 style="color: var(--accent-green); margin-bottom: 10px;">Completar Perfil</h2>
-        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">Ayúdanos a personalizar tu experiencia de aprendizaje.</p>
-        
-        <label style="font-size:0.8rem; color:var(--text-muted)">Edad</label>
-        <input type="number" id="prof-edad" class="form-control" placeholder="Ej: 20" min="10" max="99">
-        
-        <label style="font-size:0.8rem; color:var(--text-muted)">Género</label>
-        <select id="prof-genero" class="form-control">
-            <option value="M">Masculino</option>
-            <option value="F">Femenino</option>
-            <option value="O">Otro / Prefiero no decirlo</option>
-        </select>
-        
-        <label style="font-size:0.8rem; color:var(--text-muted)">Carrera / Área de Estudio</label>
-        <input type="text" id="prof-carrera" class="form-control" placeholder="Ej: Ingeniería de Sistemas">
-        
-        <button class="btn btn-active" style="width: 100%; justify-content:center; margin-top:10px;" onclick="guardarPerfil()">Guardar y Continuar</button>
+<!-- HEADER PRINCIPAL -->
+<header>
+    <h1>
+        <svg class="icon"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Coulomb AI Lab
+    </h1>
+    <div class="header-controls">
+        <div class="badge badge-clickable" id="room-badge" onclick="togglePanel('panel-rooms')">
+            <svg class="icon icon-sm"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M21 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span id="room-info-txt">Desconectado</span>
+        </div>
+        <div class="badge badge-clickable" id="user-stats" onclick="togglePanel('panel-guide')">
+            <svg class="icon icon-sm" stroke="var(--force-color)"><path d="M12 15l-3 3-3-3m6 0l3 3 3-3M2 7l10 5 10-5-10-5z"/></svg>
+            <span id="ui-lvl-txt">Lvl 1</span>
+        </div>
+        <div class="badge" style="border: none; background: transparent;">
+            <svg class="icon icon-sm"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
+            <span id="user-info-txt">Cargando...</span>
+        </div>
+        <button class="btn-action" style="padding: 6px; background: transparent; border: none; color: var(--danger-color);" onclick="cerrarSesion()" title="Cerrar Sesión">
+            <svg class="icon"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>
+    </div>
+</header>
+
+<!-- RIBBON MENU -->
+<div class="ribbon">
+    <div class="ribbon-tab active" onclick="togglePanel('panel-tools', this)">
+        <svg class="icon"><path d="M12 19l7-7 3 3-7 7-3-3zM18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5zM2 2l7.586 7.586M11 11l-4 4"/></svg>
+        <span>Herramientas</span>
+    </div>
+    <div class="ribbon-tab" onclick="togglePanel('panel-data', this)">
+        <svg class="icon"><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4M14 2v6h6M2 15h10M2 18h10"/></svg>
+        <span>Datos</span>
+    </div>
+    <div class="ribbon-tab" onclick="togglePanel('panel-rooms', this)">
+        <svg class="icon"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Salas / Chat</span>
+    </div>
+    <div class="ribbon-tab" onclick="togglePanel('panel-guide', this)">
+        <svg class="icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM12 8v4M12 16h.01"/></svg>
+        <span>Guía IA</span>
+    </div>
+    <div class="ribbon-divider"></div>
+    <!-- Export / Share -->
+    <div class="ribbon-tab" onclick="exportarImagen()">
+        <svg class="icon"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
+        <span>Exportar</span>
+    </div>
+    <div class="ribbon-tab" id="btn-share-room" style="display:none;" onclick="copiarInfoSala()">
+        <svg class="icon"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+        <span>Compartir</span>
     </div>
 </div>
 
-<!-- Modal: Gestor de Salas -->
-<div class="modal-overlay glass" id="room-manager-modal">
-    <div class="modal-content glass" style="max-width: 600px;">
-        <button class="modal-close" onclick="document.getElementById('room-manager-modal').style.display='none'"><i data-lucide="x"></i></button>
-        <h2 style="color: var(--accent-blue); margin-bottom: 20px; display:flex; align-items:center; gap:8px;">
-            <i data-lucide="network"></i> Gestor de Salas Colaborativas
-        </h2>
-        
-        <div style="display:flex; gap:10px; margin-bottom: 20px;">
-            <input type="text" id="new-room-name" class="form-control" style="margin:0; flex:2;" placeholder="Nombre de sala nueva o existente">
-            <input type="password" id="new-room-pass" class="form-control" style="margin:0; flex:1;" placeholder="Clave">
-            <button class="btn btn-primary" onclick="intentarUnirseSala()"><i data-lucide="log-in" class="icon-sm"></i> Conectar</button>
-        </div>
-
-        <h3 style="font-size:1rem; color:var(--text-muted); margin-bottom:10px;">Mis Salas Recientes</h3>
-        <div id="room-list" style="max-height: 200px; overflow-y:auto; background:rgba(0,0,0,0.2); border-radius:8px; padding:10px; border:1px solid var(--glass-border);">
-            <!-- Llenado dinámico JS -->
-        </div>
-    </div>
-</div>
-
-<!-- Panel Flotante: Editor de Carga (Sustituye menú derecho) -->
-<div class="glass" id="charge-editor">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--glass-border); padding-bottom:5px;">
-        <strong id="ce-title" style="color:var(--accent-yellow); font-size:0.9rem;">Carga</strong>
-        <button class="btn" style="padding:2px; background:none; border:none;" onclick="cerrarEditorCarga()"><i data-lucide="x" class="icon-sm"></i></button>
-    </div>
+<!-- WORKSPACE -->
+<div class="workspace">
     
-    <label style="font-size:0.75rem; color:var(--text-muted)">Magnitud (q)</label>
-    <div style="display:flex; gap:5px; margin-bottom:10px;">
-        <input type="number" id="ce-q" class="form-control" style="margin:0; padding:4px;" onchange="aplicarEdicionCarga()">
-        <button class="btn" id="ce-pol-btn" style="padding:4px 8px;" onclick="togglePolaridadCarga()">+/-</button>
+    <!-- PANELES IZQUIERDOS (Desplegables) -->
+    
+    <!-- Panel 1: Herramientas -->
+    <div class="side-panel" id="panel-tools">
+        <div class="panel-section">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M12 19l7-7 3 3-7 7-3-3zM18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5zM2 2l7.586 7.586M11 11l-4 4"/></svg> Motor IA & Dibujo</div>
+            <div class="btn-list">
+                <button class="btn-action active" onclick="setTool('draw', this)" title="Dibuja círculos (cargas) y flechas (vectores)">
+                    <svg class="icon"><path d="M12 2a2 2 0 0 1 2 2c0 1.1-.9 2-2 2s-2-.9-2-2a2 2 0 0 1 2-2zM19 14v4h4v-4h-4zM2 14v4h4v-4H2zM12 22a2 2 0 0 1-2-2c0-1.1.9-2 2-2s2 .9 2 2a2 2 0 0 1-2 2zM6 16h6M12 16h6M12 6v6"/></svg> Lápiz IA (Objetos)
+                </button>
+                <button class="btn-action" onclick="setTool('draw_free', this)">
+                    <svg class="icon"><path d="M12 19l7-7 3 3-7 7-3-3z"/></svg> Marcador Libre
+                </button>
+                <button class="btn-action" onclick="setTool('line', this)">
+                    <svg class="icon"><path d="M5 19L19 5"/></svg> Línea Auxiliar
+                </button>
+            </div>
+        </div>
+        <div class="panel-section">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg> Interacción</div>
+            <div class="btn-list">
+                <button class="btn-action" onclick="setTool('move', this)">
+                    <svg class="icon"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M19 9l3 3-3 3M9 19l3 3 3-3M2 12h20M12 2v20"/></svg> Seleccionar / Mover
+                </button>
+                <button class="btn-action" onclick="setTool('text', this)">
+                    <svg class="icon"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg> Insertar Texto
+                </button>
+                <button class="btn-action" onclick="setTool('visibility', this)">
+                    <svg class="icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg> Ocultar Objeto
+                </button>
+            </div>
+        </div>
+        <div class="panel-section">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Acciones</div>
+            <div class="btn-list">
+                <button class="btn-action" onclick="undo()">
+                    <svg class="icon"><path d="M3 7v6h6M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg> Deshacer Trazo
+                </button>
+                <button class="btn-action btn-danger" onclick="limpiarTodo()">
+                    <svg class="icon"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg> Limpiar Pizarra
+                </button>
+            </div>
+            <div style="margin-top: 15px; display: flex; align-items: center; gap: 10px;">
+                <input type="color" id="pencil-color" value="#ffffff" onchange="state.currentColor = this.value" style="width: 35px; height: 35px; padding: 0; border: none; cursor: pointer; background: transparent;">
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Color de trazo libre</label>
+            </div>
+        </div>
     </div>
 
-    <div style="display:flex; gap:5px; margin-bottom:10px;">
-        <div style="flex:1">
-            <label style="font-size:0.75rem; color:var(--text-muted)">Pos X</label>
-            <input type="number" id="ce-x" class="form-control" style="margin:0; padding:4px;" onchange="aplicarEdicionCarga()">
+    <!-- Panel 2: Datos y Unidades -->
+    <div class="side-panel closed" id="panel-data">
+        <div class="panel-section">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M12 20V10M18 20V4M6 20v-4"/></svg> Parámetros de Sistema</div>
+            
+            <label style="font-size:0.8rem; color:var(--text-muted);">Unidad de Carga Base:</label>
+            <select id="charge-unit" onchange="analizarFisica()">
+                <option value="1e-6">Microcoulombs (µC)</option>
+                <option value="1e-9">Nanocoulombs (nC)</option>
+                <option value="1e-3">MiliCoulombs (mC)</option>
+                <option value="1">Coulombs (C)</option>
+            </select>
+            
+            <label style="font-size:0.8rem; color:var(--text-muted); margin-top:10px; display:block;">Unidad de Distancia:</label>
+            <select id="dist-unit" onchange="analizarFisica()">
+                <option value="1">Metros (m)</option>
+                <option value="0.01">Centímetros (cm)</option>
+                <option value="1e-3">Milímetros (mm)</option>
+                <option value="1e-6">Micrómetros (µm)</option>
+            </select>
+            
+            <label style="font-size:0.8rem; color:var(--text-muted); margin-top:10px; display:block;">Escala de Lienzo:</label>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <input type="number" id="scale-input" value="100" onchange="analizarFisica()">
+                <span style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap;">px = 1 unidad</span>
+            </div>
+
+            <button class="btn-action" style="margin-top: 20px; width: 100%; justify-content: center; background: var(--accent-color); color: #12121a; font-weight: bold;" onclick="analizarFisica()">
+                <svg class="icon"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> VERIFICAR FÍSICA
+            </button>
+            <button id="btn-toggle-dcl" class="btn-action" style="margin-top: 10px; width: 100%; justify-content: center;" onclick="toggleInCanvasDCL()">
+                <svg class="icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg> Proyectar DCL en Lienzo
+            </button>
         </div>
-        <div style="flex:1">
-            <label style="font-size:0.75rem; color:var(--text-muted)">Pos Y</label>
-            <input type="number" id="ce-y" class="form-control" style="margin:0; padding:4px;" onchange="aplicarEdicionCarga()">
+        <div class="panel-section" style="flex:1;">
+            <div class="section-title">Resumen de Cargas</div>
+            <div id="charges-container-side" style="font-size: 0.85rem; color: var(--text-muted);">
+                <i>Dibuja cargas para ver su resumen. Edita sus valores haciendo clic izquierdo sobre ellas en el lienzo.</i>
+            </div>
         </div>
     </div>
-    <button class="btn btn-danger" style="width:100%; justify-content:center; padding:6px;" onclick="eliminarCargaEditada()"><i data-lucide="trash-2" class="icon-sm"></i> Eliminar</button>
+
+    <!-- Panel 3: Salas y Chat -->
+    <div class="side-panel closed" id="panel-rooms">
+        <div class="panel-section">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> Gestión de Salas</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Conéctate a una sala para colaboración en tiempo real y persistencia en la nube.</p>
+            
+            <input type="text" id="room-name" placeholder="ID de la Sala (Ej. grupo_A)">
+            <input type="password" id="room-pass" placeholder="Contraseña">
+            
+            <button class="btn-action" style="margin-top:10px; width:100%; justify-content:center; border-color: var(--accent-color); color: var(--accent-color);" onclick="intentarUnirseSala()">
+                <svg class="icon"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Conectar a Sala
+            </button>
+        </div>
+        <div class="panel-section" style="flex: 1; display: flex; flex-direction: column;">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> Chat de Trabajo</div>
+            <div id="chat-box" style="flex: 1;">
+                <i style="color: var(--text-muted); font-size: 0.8rem;">Conéctate a una sala para chatear.</i>
+            </div>
+            <div style="display: flex; gap: 5px; margin-top: 10px;">
+                <input type="text" id="chat-input" placeholder="Mensaje..." style="margin: 0; flex: 1;" onkeypress="if(event.key === 'Enter') enviarMensajeChat()">
+                <button class="btn-action" style="padding: 8px;" onclick="enviarMensajeChat()">
+                    <svg class="icon"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel 4: Guía y Perfil -->
+    <div class="side-panel closed" id="panel-guide">
+        <div class="panel-section">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM12 8v4M12 16h.01"/></svg> Instrucciones IA</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                <p><b>1. Cargas:</b> Dibuja círculos cerrados para crear cargas. Si dibujas un símbolo "-" dentro, será negativa.</p>
+                <p style="margin-top:8px;"><b>2. Vectores:</b> Dibuja una línea recta larga con una pequeña marca al final (flecha) apuntando desde una carga hacia afuera.</p>
+                <p style="margin-top:8px;"><b>3. Edición:</b> Usa la herramienta "Seleccionar" y haz <b>Clic Izquierdo</b> sobre una carga para editar su magnitud y posición exacta.</p>
+            </div>
+        </div>
+        <div class="panel-section">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M12 15l-3 3-3-3m6 0l3 3 3-3M2 7l10 5 10-5-10-5z"/></svg> Tu Progreso</div>
+            <div class="card" style="border-color: #f1c40f;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>Puntos:</span> <strong id="ui-pts" style="color: #f1c40f;">0</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Misiones completadas:</span> <strong id="ui-tasks">0/3</strong>
+                </div>
+            </div>
+            <div id="ui-logros" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <!-- CANVAS AREA CENTRAL -->
+    <div class="canvas-area" id="canvas-wrapper">
+        <canvas id="main-canvas"></canvas>
+        <button id="float-delete" class="btn-action btn-danger" style="position:absolute; display:none; transform: translate(-50%, -100%); margin-top:-10px; z-index:10; font-size:0.8rem; padding:4px 8px;" onclick="deleteSelected()">
+            <svg class="icon icon-sm"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Eliminar
+        </button>
+        <input type="text" id="text-input-overlay" placeholder="Escribe aquí y presiona Enter...">
+        <div id="labels-overlay"></div>
+        <div id="coords-indicator">x: 0, y: 0</div>
+        
+        <!-- Menú Contextual (Edición Profesional Left-Click) -->
+        <div class="context-menu" id="charge-editor">
+            <div style="font-weight: bold; color: var(--accent-color); border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-bottom: 5px; display:flex; justify-content:space-between;">
+                <span id="ce-title">Carga q1</span>
+                <span style="cursor:pointer; color:var(--text-muted);" onclick="closeChargeEditor()">X</span>
+            </div>
+            <div>
+                <label style="font-size:0.8rem; color:var(--text-muted);">Magnitud (Q):</label>
+                <input type="number" id="ce-q" onchange="applyChargeEdit()">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label style="font-size:0.8rem; color:var(--text-muted);">Pos X:</label>
+                    <input type="number" id="ce-x" onchange="applyChargeEdit()">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:0.8rem; color:var(--text-muted);">Pos Y:</label>
+                    <input type="number" id="ce-y" onchange="applyChargeEdit()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL DERECHO (Resultados y Matemáticas) -->
+    <div class="side-panel right-panel" id="panel-results">
+        <div class="panel-section">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg> Problema</div>
+            <div id="problem-statement" class="card" style="border-color: #9b59b6;">
+                <i>Dibuja cargas fuente para interactuar.</i>
+            </div>
+        </div>
+        <div class="panel-section">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3"/></svg> Validación de IA</div>
+            <div class="card" id="validation-box">...</div>
+        </div>
+        <div class="panel-section" style="flex: 1;">
+            <div class="section-title"><svg class="icon icon-sm"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> Solución Paso a Paso</div>
+            <div id="dcl-buttons" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;"></div>
+            <div class="latex-box" id="latex-result">$$\text{---}$$</div>
+        </div>
+    </div>
+
 </div>
 
-<!-- Ventana OS Flotante: DCL -->
-<div class="window-os glass" id="dcl-window">
-    <div class="window-header" id="dcl-header">
-        <span style="font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:5px;"><i data-lucide="crosshair" class="icon-sm"></i> Diagrama DCL: <span id="dcl-target-name">q</span></span>
+<!-- VENTANA DCL (Draggable) -->
+<div class="window-dcl" id="fbd-window">
+    <div class="window-header" id="fbd-header">
+        <div class="window-title"><svg class="icon icon-sm"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Diagrama de Cuerpo Libre</div>
         <div class="window-controls">
-            <button class="w-btn w-min" onclick="toggleDCLState('min')"><i data-lucide="minus"></i></button>
-            <button class="w-btn w-max" onclick="toggleDCLState('max')"><i data-lucide="maximize-2"></i></button>
-            <button class="w-btn w-close" onclick="closeDCL()"><i data-lucide="x"></i></button>
+            <button class="win-btn win-min" onclick="toggleWinFBD()" title="Minimizar"></button>
+            <button class="win-btn win-max" onclick="maxWinFBD()" title="Maximizar"></button>
+            <button class="win-btn win-close" onclick="closeWinFBD()" title="Cerrar"></button>
         </div>
     </div>
-    <div class="window-body">
-        <canvas id="fbd-canvas" width="500" height="460"></canvas>
+    <div class="win-content" id="fbd-content">
+        <canvas id="fbd-canvas" width="380" height="380" style="background: #fafafa; border-radius: 4px; position:static;"></canvas>
     </div>
 </div>
 
-<!-- Modal: Guía de Usuario -->
-<div class="modal-overlay glass" id="guide-modal">
-    <div class="modal-content glass" style="max-width: 500px;">
-        <button class="modal-close" onclick="document.getElementById('guide-modal').style.display='none'"><i data-lucide="x"></i></button>
-        <h2 style="color: var(--accent-green); margin-bottom: 15px;"><i data-lucide="book-open"></i> Guía Rápida</h2>
-        <ul style="font-size:0.9rem; color:var(--text-main); line-height:1.6; padding-left:20px;">
-            <li><strong>Lápiz IA:</strong> Dibuja círculos cerrados para crear cargas. Dibuja líneas largas para crear vectores de fuerza.</li>
-            <li><strong>Editar Carga:</strong> Haz <b>clic izquierdo</b> sobre cualquier carga para abrir su panel de propiedades (polaridad, valor, coords).</li>
-            <li><strong>Mover:</strong> Selecciona la herramienta 'Selección', haz clic y arrastra cargas. Arrastra el fondo para mover el origen (X=0, Y=0).</li>
-            <li><strong>Cálculo:</strong> Ajusta las unidades en el menú superior y presiona 'Calcular' para ver el desarrollo matemático.</li>
-            <li><strong>Salas:</strong> Usa el Gestor de Salas para invitar amigos. Todo lo dibujado se sincroniza en tiempo real.</li>
-        </ul>
+<!-- FOOTER LEGAL -->
+<footer>
+    <div>Laboratorio Virtual de Física - Inteligencia Artificial © 2026</div>
+    <div class="footer-links">
+        <a href="https://wa.me/573000000000" target="_blank"><svg class="icon icon-sm"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Soporte WhatsApp</a> | 
+        <a href="https://paypal.me/tuusuario" target="_blank"><svg class="icon icon-sm"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg> Invítame un café</a>
     </div>
-</div>
+</footer>
 
-<!-- LOGICA JAVASCRIPT INTEGRADA -->
-<script type="module">
-    // --- IMPORTACIONES FIREBASE V10+ ---
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-    import { getDatabase, ref, set, get, onValue, push, update, remove } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
-    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
-
-    // Reemplazar iconos al cargar
-    lucide.createIcons();
-
-    // Configuración Firebase (Mantenida)
-    const firebaseConfig = {
-        apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
-        authDomain: "laboratorio-de-coulomb.firebaseapp.com",
-        databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
-        projectId: "laboratorio-de-coulomb",
-        storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
-        messagingSenderId: "525944850850",
-        appId: "1:525944850850:web:eca9c0b79809358e8d8afb"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth(app);
-
-    // --- VARIABLES GLOBALES UI Y FÍSICA ---
-    let currentUser = null;
-    let currentRoomRef = null;
-    let chatRoomRef = null;
-    let isReceiving = false;
-    let unsubscribeRoom = null;
-    let unsubscribeChat = null;
-    let currentRoomId = null;
-
+<!-- LÓGICA PRINCIPAL DEL SIMULADOR (IA INTACTA + UI NUEVA) -->
+<script>
     const canvas = document.getElementById('main-canvas');
     const ctx = canvas.getContext('2d');
     const wrapper = document.getElementById('canvas-wrapper');
-    const chargeEditor = document.getElementById('charge-editor');
+    const labelsOverlay = document.getElementById('labels-overlay');
+    const floatDelete = document.getElementById('float-delete');
+    const textOverlay = document.getElementById('text-input-overlay');
     
-    let state = {
-        tool: 'draw',
-        objects: [], rawStrokes: [], currentStroke: [],
-        origin: { x: null, y: null },
-        isDrawing: false, isDragging: false, isDraggingOrigin: false,
-        dragLastX: 0, dragLastY: 0,
-        calculatedForces: [],
-        editingChargeId: null // Id de la carga que se está editando con clic izquierdo
+    // UI Panels Logic
+    const panels = {
+        'panel-tools': document.getElementById('panel-tools'),
+        'panel-data': document.getElementById('panel-data'),
+        'panel-rooms': document.getElementById('panel-rooms'),
+        'panel-guide': document.getElementById('panel-guide')
     };
-    window.appState = state; // Para acceso global si se requiere
 
-    // --- BLOQUEO CLIC DERECHO ---
-    document.addEventListener('contextmenu', event => event.preventDefault());
-
-    // --- FUNCIONES DE VENTANAS Y PANELES ---
-    let rightPanelOpen = true;
-    window.toggleRightPanel = function() {
-        const panel = document.getElementById('panel-right');
-        const toggle = document.getElementById('toggle-right');
-        rightPanelOpen = !rightPanelOpen;
-        if(rightPanelOpen){
-            panel.classList.remove('closed');
-            toggle.innerHTML = '<i data-lucide="chevron-right"></i>';
-        } else {
-            panel.classList.add('closed');
-            toggle.innerHTML = '<i data-lucide="chevron-left"></i>';
-        }
-        lucide.createIcons();
+    function togglePanel(panelId, tabElement) {
+        // Cierra todos los paneles izquierdos
+        for(let id in panels) panels[id].classList.add('closed');
+        document.querySelectorAll('.ribbon-tab').forEach(t => t.classList.remove('active'));
+        
+        // Abre el seleccionado
+        panels[panelId].classList.remove('closed');
+        if(tabElement) tabElement.classList.add('active');
+        
         setTimeout(resizeCanvas, 300);
     }
 
-    // --- SISTEMA DE AUTENTICACIÓN Y PERFIL ---
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            currentUser = user;
-            document.getElementById('auth-modal').style.display = 'none';
-            document.getElementById('btn-logout').style.display = 'inline-flex';
-            document.getElementById('btn-room-mgr').style.display = 'inline-flex';
-            document.getElementById('user-info-badge').style.display = 'inline-flex';
-            document.getElementById('ui-username').innerText = user.email.split('@')[0];
+    let lastSyncTime = 0;
+    function requestSync(immediate = false) {
+        if (!window.enviarEstadoNube) return;
+        const now = Date.now();
+        if (immediate || now - lastSyncTime > 150) { 
+            window.enviarEstadoNube();
+            lastSyncTime = now;
+        }
+    }
 
-            // Verificar Perfil Estudiante
-            const profileRef = ref(db, `usuarios/${user.uid}/perfil`);
-            const snap = await get(profileRef);
-            if (!snap.exists() || !snap.val().carrera) {
-                document.getElementById('profile-form-modal').style.display = 'flex';
-            } else {
-                // Perfil OK, cargar salas
-                cargarListaSalas();
-            }
+    function toggleInCanvasDCL() {
+        state.showInCanvasDCL = !state.showInCanvasDCL;
+        const btn = document.getElementById('btn-toggle-dcl');
+        if (state.showInCanvasDCL) {
+            btn.style.background = 'rgba(255, 107, 107, 0.2)';
+            btn.style.color = '#ff6b6b';
+            btn.style.borderColor = '#ff6b6b';
+            btn.innerHTML = '<svg class="icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg> Ocultar DCL en Lienzo';
         } else {
-            currentUser = null;
-            document.getElementById('auth-modal').style.display = 'flex';
-            document.getElementById('btn-logout').style.display = 'none';
-            document.getElementById('btn-room-mgr').style.display = 'none';
-            document.getElementById('user-info-badge').style.display = 'none';
-            if (unsubscribeRoom) unsubscribeRoom();
-            if (unsubscribeChat) unsubscribeChat();
+            btn.style.background = 'transparent';
+            btn.style.color = 'var(--text-color)';
+            btn.style.borderColor = 'var(--border-color)';
+            btn.innerHTML = '<svg class="icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg> Proyectar DCL en Lienzo';
         }
-    });
-
-    window.iniciarSesion = () => {
-        const email = document.getElementById('auth-email').value.trim();
-        const pass = document.getElementById('auth-pass').value;
-        if(!email || !pass) return alert("Llena los campos");
-        signInWithEmailAndPassword(auth, email, pass).catch(e => alert(e.message));
-    };
-    window.registrarUsuario = () => {
-        const email = document.getElementById('auth-email').value.trim();
-        const pass = document.getElementById('auth-pass').value;
-        if(pass.length < 6) return alert("Mínimo 6 caracteres");
-        createUserWithEmailAndPassword(auth, email, pass).catch(e => alert(e.message));
-    };
-    window.iniciarSesionConGoogle = () => {
-        const provider = new GoogleAuthProvider();
-        signInWithPopup(auth, provider).catch(e => alert(e.message));
-    };
-    window.cerrarSesion = () => signOut(auth);
-
-    window.guardarPerfil = async () => {
-        const edad = document.getElementById('prof-edad').value;
-        const genero = document.getElementById('prof-genero').value;
-        const carrera = document.getElementById('prof-carrera').value.trim();
-        if(!edad || !carrera) return alert("Completa todos los datos.");
-        
-        await update(ref(db, `usuarios/${currentUser.uid}/perfil`), { edad, genero, carrera });
-        document.getElementById('profile-form-modal').style.display = 'none';
-        cargarListaSalas();
-    };
-
-    // --- GESTIÓN DE SALAS ---
-    window.abrirModalGestorSalas = () => {
-        document.getElementById('room-manager-modal').style.display = 'flex';
-        cargarListaSalas();
-    };
-
-    async function cargarListaSalas() {
-        if(!currentUser) return;
-        const salasRef = ref(db, `usuarios/${currentUser.uid}/salas_recientes`);
-        const snap = await get(salasRef);
-        const div = document.getElementById('room-list');
-        div.innerHTML = '';
-        
-        let arrSalas = [];
-        if(snap.exists()) {
-            const data = snap.val();
-            arrSalas = Object.keys(data).map(k => ({id: k, lastAccess: data[k].lastAccess})).sort((a,b) => b.lastAccess - a.lastAccess);
-        }
-
-        if(arrSalas.length === 0) {
-            div.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem;">No tienes salas recientes. Crea una.</span>';
-            return;
-        }
-
-        // Auto-join a la última sala si no estamos en ninguna
-        if(!currentRoomId && arrSalas.length > 0) {
-            conectarASalaLogica(arrSalas[0].id, null, true); // true = skip pass if history
-        }
-
-        arrSalas.forEach(s => {
-            const date = new Date(s.lastAccess).toLocaleDateString();
-            div.innerHTML += `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <div>
-                        <strong style="color:var(--accent-blue)">${s.id}</strong><br>
-                        <small style="color:var(--text-muted)">Último acceso: ${date}</small>
-                    </div>
-                    <div>
-                        <button class="btn btn-primary" style="padding:4px 8px; font-size:0.7rem;" onclick="conectarASalaLogica('${s.id}', null, true)">Entrar</button>
-                        <button class="btn btn-danger" style="padding:4px 8px; font-size:0.7rem;" onclick="eliminarHistorialSala('${s.id}')"><i data-lucide="trash" class="icon-sm" style="margin:0"></i></button>
-                    </div>
-                </div>
-            `;
-        });
-        lucide.createIcons();
+        redraw();
+        requestSync(true); 
     }
 
-    window.intentarUnirseSala = () => {
-        const id = document.getElementById('new-room-name').value.trim();
-        const pass = document.getElementById('new-room-pass').value.trim();
-        if(!id || !pass) return alert("Indica nombre y clave");
-        conectarASalaLogica(id, pass, false);
+    // Estado Global Actualizado
+    let state = {
+        tool: 'draw',
+        currentColor: '#ffffff',
+        isDrawing: false,
+        showInCanvasDCL: false,
+        isDrawingFree: false,
+        isDrawingLine: false,
+        isDragging: false,
+        dragLastX: 0, dragLastY: 0,
+        selectedObjects: [], 
+        selectionBox: null,  
+        isDraggingOrigin: false,
+        origin: { x: null, y: null }, 
+        recognitionTimer: null, 
+        rawStrokes: [],      
+        currentStroke: [],   
+        currentFreeStroke: null,
+        currentLine: null,
+        objects: [],         
+        calculatedForces: [] 
     };
+    
+    window.appState = state;
+    let textPos = {x:0, y:0};
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
 
-    window.eliminarHistorialSala = async (id) => {
-        if(!confirm(`¿Eliminar ${id} de tu historial?`)) return;
-        await remove(ref(db, `usuarios/${currentUser.uid}/salas_recientes/${id}`));
-        cargarListaSalas();
-    };
-
-    async function conectarASalaLogica(salaId, pass, fromHistory) {
-        const passRef = ref(db, 'salas/' + salaId + '/password');
-        const snap = await get(passRef);
-        
-        if (snap.exists()) {
-            if (!fromHistory && snap.val() !== pass) return alert('Clave incorrecta');
-        } else {
-            if(fromHistory) return; // Error raro
-            if(!pass) return alert('Debe indicar clave para crear sala nueva');
-            await set(passRef, pass);
-        }
-
-        // Registrar en historial del usuario
-        await set(ref(db, `usuarios/${currentUser.uid}/salas_recientes/${salaId}`), { lastAccess: Date.now() });
-        
-        // Conectar UI
-        currentRoomId = salaId;
-        document.getElementById('room-manager-modal').style.display = 'none';
-        document.getElementById('current-room-badge').style.display = 'inline-flex';
-        document.getElementById('current-room-badge').innerText = `Sala: ${salaId}`;
-        document.getElementById('chat-container').style.display = 'block';
-
-        if (unsubscribeRoom) unsubscribeRoom();
-        if (unsubscribeChat) unsubscribeChat();
-
-        currentRoomRef = ref(db, 'salas/' + salaId + '/state');
-        chatRoomRef = ref(db, 'salas/' + salaId + '/chat');
-
-        unsubscribeRoom = onValue(currentRoomRef, (snapshot) => {
-            if (isReceiving) return;
-            const data = snapshot.val();
-            if (data && !window.isSendingData) {
-                isReceiving = true;
-                state.objects = data.objects || [];
-                state.origin = data.origin || { x: canvas.width/2, y: canvas.height/2 };
-                state.rawStrokes = data.rawStrokes || [];
-                analizarFisica();
-                redraw();
-                setTimeout(() => { isReceiving = false; }, 100);
-            }
-        });
-
-        unsubscribeChat = onValue(chatRoomRef, (snapshot) => {
-            const box = document.getElementById('chat-box');
-            box.innerHTML = '';
-            const data = snapshot.val();
-            if(data) {
-                Object.values(data).forEach(msg => {
-                    const mine = currentUser.email === msg.email;
-                    box.innerHTML += `
-                        <div class="chat-msg ${mine?'mine':''}">
-                            <small style="color:${mine?'var(--accent-green)':'var(--accent-pink)'}">${msg.email.split('@')[0]}</small><br>
-                            ${msg.text}
-                        </div>
-                    `;
-                });
-                box.scrollTop = box.scrollHeight;
-            }
-        });
-    }
-
-    let syncTimeout = null;
-    function requestSync() {
-        if(!currentRoomRef || isReceiving) return;
-        clearTimeout(syncTimeout);
-        syncTimeout = setTimeout(() => {
-            window.isSendingData = true;
-            set(currentRoomRef, { objects: state.objects, origin: state.origin, rawStrokes: state.rawStrokes })
-                .then(() => window.isSendingData = false)
-                .catch(() => window.isSendingData = false);
-        }, 300); // Debounce
-    }
-
-    window.enviarMensajeChat = () => {
-        const inp = document.getElementById('chat-input');
-        const text = inp.value.trim();
-        if(!text || !chatRoomRef) return;
-        push(chatRoomRef, { email: currentUser.email, text, timestamp: Date.now() });
-        inp.value = '';
-    };
-
-    // --- LÓGICA DE FÍSICA Y CANVAS ---
     function resizeCanvas() {
         canvas.width = wrapper.clientWidth; canvas.height = wrapper.clientHeight;
-        if (state.origin.x === null) state.origin = { x: canvas.width / 2, y: canvas.height / 2 };
-        wrapper.style.backgroundPosition = `${state.origin.x}px ${state.origin.y}px`;
+        if (state.origin.x === null) {
+            state.origin = { x: canvas.width / 2, y: canvas.height / 2 };
+        }
+        updateGridBackground();
         redraw();
     }
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 100);
 
-    function getPhysX(cx) { return cx - state.origin.x; }
-    function getPhysY(cy) { return state.origin.y - cy; }
+    function getPhysX(canvasX) { return canvasX - state.origin.x; }
+    function getPhysY(canvasY) { return state.origin.y - canvasY; }
+    
     function getCoords(e) {
         const r = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -784,210 +670,472 @@
         return { x: clientX - r.left, y: clientY - r.top };
     }
 
-    window.setTool = (t, btn) => {
-        state.tool = t;
-        document.querySelectorAll('.ribbon .btn').forEach(b => b.classList.remove('btn-active'));
-        if(btn) btn.classList.add('btn-active');
-        cerrarEditorCarga();
-    };
+    function distToSegment(p, v, w) {
+        let l2 = Math.pow(w.x - v.x, 2) + Math.pow(w.y - v.y, 2);
+        if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+        let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+    }
 
-    // Eventos Canvas
-    let clickStartX, clickStartY, clickTime;
+    function updateGridBackground() {
+        wrapper.style.backgroundPosition = `${state.origin.x}px ${state.origin.y}px`;
+    }
+
+    // --- Herramienta de Texto ---
+    function finalizeText() {
+        if(textOverlay.style.display !== 'none' && textOverlay.value.trim() !== '') {
+            state.objects.push({
+                type: 'text', id: Date.now(), 
+                text: textOverlay.value, x: textPos.x, y: textPos.y, 
+                color: state.currentColor
+            });
+            textOverlay.value = ''; textOverlay.style.display = 'none';
+            redraw(); requestSync(true);
+        } else {
+            textOverlay.style.display = 'none';
+        }
+    }
+    textOverlay.addEventListener('keydown', e => { if(e.key === 'Enter') finalizeText(); });
+    textOverlay.addEventListener('blur', finalizeText);
+
+    // --- Manejadores de Eventos Canvas ---
+    canvas.addEventListener('mousedown', handleStart);
+    canvas.addEventListener('touchstart', handleStart);
+    canvas.addEventListener('mousemove', handleMove);
+    canvas.addEventListener('touchmove', handleMove);
+    canvas.addEventListener('mouseup', handleEnd);
+    canvas.addEventListener('touchend', handleEnd);
     
-    canvas.addEventListener('mousedown', e => {
-        if(e.button !== 0) return; // Solo clic izquierdo
-        const c = getCoords(e);
-        clickStartX = c.x; clickStartY = c.y; clickTime = Date.now();
+    // --- EDICIÓN PROFESIONAL DE CARGAS (Context Menu) ---
+    let currentEditCharge = null;
+    const editorPanel = document.getElementById('charge-editor');
+    
+    function openChargeEditor(hit) {
+        currentEditCharge = hit;
+        document.getElementById('ce-title').innerText = hit.label;
+        document.getElementById('ce-q').value = hit.q;
+        document.getElementById('ce-x').value = Math.round(hit.physX);
+        document.getElementById('ce-y').value = Math.round(hit.physY);
         
-        cerrarEditorCarga(); // Cierra editor si se clickea otra parte
+        // Position panel near the charge
+        let px = hit.x + 30; let py = hit.y - 30;
+        if(px + 220 > canvas.width) px = hit.x - 250;
+        
+        editorPanel.style.left = px + 'px';
+        editorPanel.style.top = py + 'px';
+        editorPanel.style.display = 'flex';
+        
+        selectObject(hit);
+    }
+    function closeChargeEditor() {
+        editorPanel.style.display = 'none';
+        currentEditCharge = null;
+    }
+    function applyChargeEdit() {
+        if(!currentEditCharge) return;
+        currentEditCharge.q = parseFloat(document.getElementById('ce-q').value);
+        let nx = parseFloat(document.getElementById('ce-x').value);
+        let ny = parseFloat(document.getElementById('ce-y').value);
+        updateCoord(currentEditCharge.id, 'x', nx);
+        updateCoord(currentEditCharge.id, 'y', ny);
+        analizarFisica(); redraw(); requestSync(true);
+    }
+
+    function handleStart(e) {
+        if (e.touches && e.touches.length > 1) return;
+        if (e.touches) e.preventDefault(); 
+        const c = getCoords(e);
+        
+        closeChargeEditor(); // Cerrar si se clickea en otro lado
+
+        if (state.tool !== 'text') finalizeText();
+
+        if (state.tool === 'text') {
+            textPos = {x: c.x, y: c.y};
+            textOverlay.style.left = c.x + 'px'; textOverlay.style.top = c.y + 'px';
+            textOverlay.style.display = 'block'; textOverlay.style.color = state.currentColor;
+            setTimeout(() => textOverlay.focus(), 50);
+            return;
+        }
+
+        if (state.tool === 'line') {
+            selectObject(null);
+            state.isDrawingLine = true;
+            state.currentLine = { type: 'line', id: Date.now(), start: {x: c.x, y: c.y}, end: {x: c.x, y: c.y}, color: state.currentColor };
+            return;
+        }
 
         if (state.tool === 'visibility') {
             const hit = findObjectAt(c);
-            if(hit) { hit.hidden = !hit.hidden; redraw(); requestSync(); }
+            if (hit) {
+                hit.hidden = !hit.hidden;
+                updateUI(); redraw(); requestSync(true); 
+            }
             return;
         }
 
-        if (state.tool === 'move') {
-            if (Math.hypot(c.x - state.origin.x, c.y - state.origin.y) < 30) {
+        if (state.tool === 'move' || state.tool === 'draw') {
+            if (Math.hypot(c.x - state.origin.x, c.y - state.origin.y) < 30 && state.tool === 'move') {
                 state.isDraggingOrigin = true;
                 state.dragLastX = c.x; state.dragLastY = c.y;
-                return;
+                selectObject(null); return;
             }
+
             const hit = findObjectAt(c);
             if (hit) {
+                // Click Izquierdo en carga para abrir editor (Solo en Herramienta Seleccionar/Mover)
+                if(hit.type.startsWith('charge') && state.tool === 'move') {
+                    openChargeEditor(hit);
+                }
+
                 state.isDragging = true;
-                state.editingChargeId = hit.id; // Podría editarse al soltar
                 state.dragLastX = c.x; state.dragLastY = c.y;
+                if (e.shiftKey) {
+                    if (state.selectedObjects.includes(hit)) state.selectedObjects = state.selectedObjects.filter(o => o !== hit);
+                    else state.selectedObjects.push(hit);
+                } else {
+                    if (!state.selectedObjects.includes(hit)) selectObject(hit);
+                }
+                redraw(); return;
+            } else if (state.tool === 'move') {
+                selectObject(null);
+                state.selectionBox = { startX: c.x, startY: c.y, x: c.x, y: c.y, w: 0, h: 0 };
+                redraw(); return;
             }
+        }
+
+        if (state.tool === 'draw_free') {
+            selectObject(null);
+            state.isDrawingFree = true;
+            state.currentFreeStroke = { type: 'free_stroke', id: Date.now(), points: [c], color: state.currentColor };
             return;
         }
 
-        if (state.tool === 'draw') {
+        if(state.tool === 'draw') {
+            if (state.recognitionTimer) { clearTimeout(state.recognitionTimer); state.recognitionTimer = null; }
             state.isDrawing = true;
             state.currentStroke = [c];
+            selectObject(null);
         }
-    });
+    }
 
-    canvas.addEventListener('mousemove', e => {
+    function handleMove(e) {
+        if (e.touches) e.preventDefault();
         const c = getCoords(e);
-        document.getElementById('coords-indicator').innerText = `X: ${Math.round(getPhysX(c.x))}, Y: ${Math.round(getPhysY(c.y))}`;
         
+        document.getElementById('coords-indicator').innerText = `x: ${Math.round(getPhysX(c.x))}, y: ${Math.round(getPhysY(c.y))}`;
+
         if (state.isDraggingOrigin) {
-            state.origin.x += (c.x - state.dragLastX); state.origin.y += (c.y - state.dragLastY);
+            const dx = c.x - state.dragLastX; const dy = c.y - state.dragLastY;
+            state.origin.x += dx; state.origin.y += dy;
             state.dragLastX = c.x; state.dragLastY = c.y;
-            state.objects.filter(o=>o.type.startsWith('charge')).forEach(o => { o.physX=getPhysX(o.x); o.physY=getPhysY(o.y); });
-            wrapper.style.backgroundPosition = `${state.origin.x}px ${state.origin.y}px`;
-            analizarFisica(); redraw(); requestSync();
+            
+            state.objects.forEach(o => {
+                if (o.type.startsWith('charge')) { o.physX = getPhysX(o.x); o.physY = getPhysY(o.y); }
+            });
+            
+            updateGridBackground(); updateUI(); analizarFisica(); redraw(); requestSync(false); 
             return;
         }
 
-        if (state.isDragging && state.editingChargeId) {
-            const obj = state.objects.find(o => o.id === state.editingChargeId);
-            if(obj) {
-                obj.x += (c.x - state.dragLastX); obj.y += (c.y - state.dragLastY);
-                if(obj.type.startsWith('charge')) { obj.physX = getPhysX(obj.x); obj.physY = getPhysY(obj.y); }
-                else if(obj.type==='vector') { 
-                    obj.start.x += (c.x - state.dragLastX); obj.start.y += (c.y - state.dragLastY);
-                    obj.end.x += (c.x - state.dragLastX); obj.end.y += (c.y - state.dragLastY);
+        if (state.selectionBox) {
+            state.selectionBox.x = Math.min(state.selectionBox.startX, c.x);
+            state.selectionBox.y = Math.min(state.selectionBox.startY, c.y);
+            state.selectionBox.w = Math.abs(c.x - state.selectionBox.startX);
+            state.selectionBox.h = Math.abs(c.y - state.selectionBox.startY);
+            redraw(); return;
+        }
+
+        if (state.isDragging && state.selectedObjects.length > 0) {
+            const dx = c.x - state.dragLastX; const dy = c.y - state.dragLastY;
+            
+            // Si arrastró, ocultar editor
+            if(Math.hypot(dx,dy) > 2) closeChargeEditor();
+
+            state.selectedObjects.forEach(obj => {
+                if (obj.type.startsWith('charge')) {
+                    obj.x += dx; obj.y += dy;
+                    obj.physX = getPhysX(obj.x); obj.physY = getPhysY(obj.y);
+                } else if (obj.type === 'vector' || obj.type === 'line') {
+                    obj.start.x += dx; obj.start.y += dy; obj.end.x += dx; obj.end.y += dy;
+                } else if (obj.type === 'free_stroke') {
+                    obj.points.forEach(p => { p.x += dx; p.y += dy; });
+                } else if (obj.type === 'text') {
+                    obj.x += dx; obj.y += dy;
                 }
-                state.dragLastX = c.x; state.dragLastY = c.y;
-                redraw(); requestSync();
-            }
+            });
+
+            state.dragLastX = c.x; state.dragLastY = c.y;
+            updateFloatDelete(); redraw(); requestSync(false); 
             return;
+        } 
+        
+        if (state.isDrawingLine && state.currentLine) {
+            state.currentLine.end = {x: c.x, y: c.y}; redraw(); return;
         }
 
-        if (state.isDrawing) { state.currentStroke.push(c); redraw(); }
-    });
+        if (state.isDrawingFree && state.currentFreeStroke) {
+            state.currentFreeStroke.points.push(c); redraw(); return;
+        }
 
-    canvas.addEventListener('mouseup', e => {
-        if(e.button !== 0) return;
-        const c = getCoords(e);
-        const dist = Math.hypot(c.x - clickStartX, c.y - clickStartY);
-        const timeDiff = Date.now() - clickTime;
+        if (state.isDrawing) {
+            state.currentStroke.push(c); redraw();
+        }
+    }
 
-        if (state.isDraggingOrigin) { state.isDraggingOrigin = false; return; }
+    function handleEnd(e) {
+        if (state.isDraggingOrigin) {
+            state.isDraggingOrigin = false; requestSync(true); return;
+        }
+
+        if (state.selectionBox) {
+            const box = state.selectionBox;
+            const minX = box.x, maxX = box.x + box.w;
+            const minY = box.y, maxY = box.y + box.h;
+            
+            state.selectedObjects = state.objects.filter(o => {
+                if (o.hidden && state.tool !== 'visibility') return false;
+                if (o.type.startsWith('charge') || o.type === 'text') {
+                    return o.x >= minX && o.x <= maxX && o.y >= minY && o.y <= maxY;
+                } else if (o.type === 'vector' || o.type === 'line') {
+                    return o.start.x >= minX && o.start.x <= maxX && o.start.y >= minY && o.start.y <= maxY;
+                }
+                return false;
+            });
+
+            state.selectionBox = null; updateFloatDelete(); updateUI(); redraw(); return;
+        }
 
         if (state.isDragging) {
-            state.isDragging = false;
-            analizarFisica();
-            
-            // Si fue un clic muy rápido y corto sobre una carga en modo move
-            if(dist < 5 && timeDiff < 300) {
-                const obj = state.objects.find(o => o.id === state.editingChargeId);
-                if(obj && obj.type.startsWith('charge')) {
-                    abrirEditorCarga(obj);
-                }
+            state.isDragging = false; updateUI(); analizarFisica(); requestSync(true); 
+            if (window.registrarInteraccion) window.registrarInteraccion(); return;
+        }
+
+        if (state.isDrawingLine && state.currentLine) {
+            state.isDrawingLine = false;
+            if (Math.hypot(state.currentLine.end.x - state.currentLine.start.x, state.currentLine.end.y - state.currentLine.start.y) > 5) {
+                state.objects.push(state.currentLine);
             }
-            state.editingChargeId = null;
-            return;
+            state.currentLine = null; redraw(); requestSync(true); 
+            if (window.registrarInteraccion) window.registrarInteraccion(); return;
+        }
+
+        if (state.isDrawingFree && state.currentFreeStroke) {
+            state.isDrawingFree = false;
+            if (state.currentFreeStroke.points.length > 2) {
+                state.objects.push(state.currentFreeStroke);
+            }
+            state.currentFreeStroke = null; redraw(); requestSync(true); 
+            if (window.registrarInteraccion) window.registrarInteraccion(); return;
         }
 
         if (state.isDrawing) {
             state.isDrawing = false;
-            if (state.currentStroke.length > 5) {
-                state.rawStrokes.push([...state.currentStroke]);
-                setTimeout(detectAndConvert, 800); // IA simplificada
-            }
+            if (state.currentStroke.length > 3) state.rawStrokes.push([...state.currentStroke]);
             state.currentStroke = [];
-            redraw(); requestSync();
+            
+            state.recognitionTimer = setTimeout(() => {
+                detectAndConvert(); state.recognitionTimer = null;
+            }, 1200); 
+            redraw(); requestSync(true); 
+            if (window.registrarInteraccion) window.registrarInteraccion();
         }
-    });
+    }
 
     function findObjectAt(c) {
-        const vis = state.objects.filter(o => !o.hidden);
-        let hit = vis.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30);
-        if(hit) return hit;
-        return vis.find(o => o.type === 'vector' && (Math.hypot(o.start.x - c.x, o.start.y - c.y) < 20 || Math.hypot(o.end.x - c.x, o.end.y - c.y) < 20));
+        const visibleObjects = state.objects.filter(o => state.tool === 'visibility' || !o.hidden);
+        const textObj = visibleObjects.find(o => {
+            if(o.type !== 'text') return false;
+            ctx.font = '20px "Segoe UI", Arial';
+            const w = ctx.measureText(o.text).width;
+            return c.x >= o.x && c.x <= o.x + w && c.y >= o.y && c.y <= o.y + 24;
+        });
+        if(textObj) return textObj;
+
+        const charge = visibleObjects.find(o => o.type.startsWith('charge') && Math.hypot(o.x - c.x, o.y - c.y) < 30);
+        if (charge) return charge;
+
+        const vec = visibleObjects.find(o => o.type === 'vector' && (
+            Math.hypot(o.start.x - c.x, o.start.y - c.y) < 25 || 
+            Math.hypot(o.end.x - c.x, o.end.y - c.y) < 25
+        ));
+        if(vec) return vec;
+
+        const lineObj = visibleObjects.find(o => o.type === 'line' && distToSegment(c, o.start, o.end) < 15);
+        if(lineObj) return lineObj;
+
+        return visibleObjects.find(o => {
+            if(o.type !== 'free_stroke') return false;
+            return o.points.some(p => Math.hypot(p.x - c.x, p.y - c.y) < 15);
+        });
     }
 
-    // --- EDICIÓN FLOTANTE DE CARGA (Clic Izquierdo) ---
-    function abrirEditorCarga(obj) {
-        state.editingChargeId = obj.id;
-        document.getElementById('ce-title').innerText = `Editando ${obj.label}`;
-        document.getElementById('ce-q').value = Math.abs(obj.q);
-        document.getElementById('ce-pol-btn').innerText = obj.type === 'charge_pos' ? '+' : '-';
-        document.getElementById('ce-pol-btn').className = obj.type === 'charge_pos' ? 'btn btn-active' : 'btn btn-danger';
-        document.getElementById('ce-x').value = Math.round(obj.physX);
-        document.getElementById('ce-y').value = Math.round(obj.physY);
-        
-        chargeEditor.style.display = 'block';
-        chargeEditor.style.left = obj.x + 'px';
-        chargeEditor.style.top = obj.y + 'px';
+    function selectObject(obj) {
+        state.selectedObjects = obj ? [obj] : [];
+        updateUI(); updateFloatDelete(); redraw();
+    }
+
+    function updateFloatDelete() {
+        if(state.selectedObjects.length === 0) { floatDelete.style.display = 'none'; return; }
+        let minX = Infinity, minY = Infinity, maxX = -Infinity;
+        state.selectedObjects.forEach(o => {
+            let bx, by;
+            if(o.type.startsWith('charge')) { bx = o.x; by = o.y - 35; }
+            else if(o.type === 'vector' || o.type === 'line') { bx = (o.start.x+o.end.x)/2; by = Math.min(o.start.y, o.end.y) - 20; }
+            else if(o.type === 'text') { bx = o.x + 20; by = o.y - 30; }
+            else if(o.type === 'free_stroke') {
+                const minP = o.points.reduce((prev, curr) => curr.y < prev.y ? curr : prev);
+                bx = minP.x; by = minP.y - 30;
+            }
+            if(bx < minX) minX = bx; if(bx > maxX) maxX = bx;
+            if(by < minY) minY = by;
+        });
+        floatDelete.style.left = ((minX + maxX)/2) + 'px'; 
+        floatDelete.style.top = minY + 'px'; floatDelete.style.display = 'flex';
+    }
+
+    function deleteSelected() {
+        if (state.selectedObjects.length > 0) {
+            state.objects = state.objects.filter(o => !state.selectedObjects.includes(o));
+            state.selectedObjects = []; closeChargeEditor(); floatDelete.style.display = 'none';
+            updateUI(); analizarFisica(); redraw(); requestSync(true);
+        }
+    }
+
+    // --- MOTOR DE IA (GEOMÉTRICA) - INTACTO ---
+    function detectAndConvert() {
+        const groups = groupStrokes(state.rawStrokes);
+        const newObjects = [];
+        const usedIndices = new Set();
+
+        groups.forEach(group => {
+            const bounds = getGroupBounds(group);
+            const type = classifyGroup(group, bounds);
+            
+            if (type !== 'unknown') {
+                if (type.startsWith('charge')) {
+                    const id = state.objects.filter(o => o.type.startsWith('charge')).length + 1;
+                    newObjects.push({
+                        id: id, type: type, label: `q_${id}`,
+                        x: bounds.cx, y: bounds.cy, 
+                        physX: getPhysX(bounds.cx), physY: getPhysY(bounds.cy),
+                        q: type === 'charge_pos' ? 5 : -5,
+                        hasVectors: false
+                    });
+                } else if (type === 'vector') {
+                    const eps = getVectorEndpoints(group);
+                    newObjects.push({
+                        type: 'vector', start: eps.start, end: eps.end,
+                        validation: null, label: '?'
+                    });
+                }
+                group.forEach(i => usedIndices.add(i));
+            }
+        });
+
+        if (newObjects.length > 0) {
+            state.rawStrokes = state.rawStrokes.filter((_, i) => !usedIndices.has(i));
+            state.objects.push(...newObjects);
+            updateUI(); analizarFisica();
+        }
+        redraw(); requestSync(true); 
+    }
+
+    function getGroupBounds(indices) {
+        let allPts = [];
+        indices.forEach(i => { if(state.rawStrokes[i]) state.rawStrokes[i].forEach(p => allPts.push(p)); });
+        if(allPts.length === 0) return { minX:0, maxX:0, minY:0, maxY:0, w:0, h:0, cx:0, cy:0 };
+        return getBounds(allPts);
+    }
+
+    function groupStrokes(strokes) {
+        const groups = []; const visited = new Set();
+        for(let i=0; i<strokes.length; i++) {
+            if(visited.has(i)) continue;
+            const g = [i]; visited.add(i);
+            for(let j=i+1; j<strokes.length; j++) {
+                if(visited.has(j)) continue;
+                if(strokesClose(strokes[i], strokes[j])) { g.push(j); visited.add(j); }
+            }
+            groups.push(g);
+        }
+        return groups;
     }
     
-    window.cerrarEditorCarga = () => { chargeEditor.style.display = 'none'; state.editingChargeId = null; };
-
-    window.aplicarEdicionCarga = () => {
-        const obj = state.objects.find(o => o.id === state.editingChargeId);
-        if(!obj) return;
-        let mag = Math.abs(parseFloat(document.getElementById('ce-q').value) || 1);
-        obj.q = obj.type === 'charge_pos' ? mag : -mag;
-        
-        obj.physX = parseFloat(document.getElementById('ce-x').value) || 0;
-        obj.physY = parseFloat(document.getElementById('ce-y').value) || 0;
-        obj.x = obj.physX + state.origin.x;
-        obj.y = state.origin.y - obj.physY;
-        
-        chargeEditor.style.left = obj.x + 'px'; chargeEditor.style.top = obj.y + 'px';
-        analizarFisica(); redraw(); requestSync();
-    };
-
-    window.togglePolaridadCarga = () => {
-        const obj = state.objects.find(o => o.id === state.editingChargeId);
-        if(!obj) return;
-        obj.type = obj.type === 'charge_pos' ? 'charge_neg' : 'charge_pos';
-        aplicarEdicionCarga();
-        abrirEditorCarga(obj); // refresh UI
-    };
-
-    window.eliminarCargaEditada = () => {
-        state.objects = state.objects.filter(o => o.id !== state.editingChargeId);
-        cerrarEditorCarga(); analizarFisica(); redraw(); requestSync();
+    function strokesClose(s1, s2) {
+        const b1 = getBounds(s1); const b2 = getBounds(s2); const pad = 30; 
+        return !(b2.minX > b1.maxX + pad || b2.maxX < b1.minX - pad || b2.minY > b1.maxY + pad || b2.maxY < b1.minY - pad);
     }
+    
+    function classifyGroup(indices, b) {
+        const strokes = indices.map(i => state.rawStrokes[i]);
+        const r = b.w/b.h;
+        const isCompact = r > 0.5 && r < 2.0 && b.w > 20 && b.h > 20;
 
-    // --- RECONOCIMIENTO IA BÁSICO ---
-    function detectAndConvert() {
-        if(state.rawStrokes.length === 0) return;
-        const last = state.rawStrokes[state.rawStrokes.length-1];
-        const b = getBounds(last);
-        const ratio = b.w/b.h;
-        const distEnds = Math.hypot(last[0].x - last[last.length-1].x, last[0].y - last[last.length-1].y);
-        
-        let newObj = null;
-        if (ratio > 0.5 && ratio < 2 && b.w > 20 && distEnds < 40) {
-            // Círculo -> Carga Positiva (default)
-            const id = Date.now();
-            newObj = { id: id, type: 'charge_pos', label: `q_${state.objects.filter(o=>o.type.startsWith('charge')).length+1}`, x: b.cx, y: b.cy, physX: getPhysX(b.cx), physY: getPhysY(b.cy), q: 5 };
-        } else if (Math.hypot(b.w, b.h) > 50) {
-            // Línea larga -> Vector
-            newObj = { type: 'vector', id: Date.now(), start: last[0], end: last[last.length-1], validation: null, label: '?' };
+        if (isCompact) {
+            let maxL = 0; let boundaryIdx = -1;
+            strokes.forEach((s, i) => {
+                let l = 0;
+                for(let k=0; k<s.length-1; k++) l += Math.hypot(s[k+1].x-s[k].x, s[k+1].y-s[k].y);
+                if (l > maxL) { maxL = l; boundaryIdx = i; }
+            });
+
+            const boundary = strokes[boundaryIdx];
+            const distEnds = Math.hypot(boundary[0].x - boundary[boundary.length-1].x, boundary[0].y - boundary[boundary.length-1].y);
+            const isClosed = distEnds < maxL * 0.4; 
+
+            if (isClosed) {
+                const innerStrokes = strokes.filter((_, i) => i !== boundaryIdx);
+                if (innerStrokes.length === 0) return 'charge_pos';
+                if (innerStrokes.length === 1) {
+                    const inner = innerStrokes[0];
+                    const ib = getBounds(inner);
+                    if (ib.w > ib.h * 1.5) return 'charge_neg';
+                    return 'charge_pos';
+                }
+                return 'charge_pos';
+            }
         }
-
-        if(newObj) {
-            state.objects.push(newObj);
-            state.rawStrokes.pop(); // consumir trazo
-            analizarFisica(); redraw(); requestSync();
-        }
-    }
-    function getBounds(pts) {
-        const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
-        return { w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys), cx:(Math.min(...xs)+Math.max(...xs))/2, cy:(Math.min(...ys)+Math.max(...ys))/2 };
+        
+        const diag = Math.hypot(b.w, b.h);
+        if (diag > 30) return 'vector';
+        return 'unknown';
     }
 
-    // --- CÁLCULO FÍSICO Y MATEMÁTICO ---
-    window.analizarFisica = function() {
+    function getVectorEndpoints(indices) {
+        let maxL = 0; let main = null;
+        const strokes = indices.map(i => state.rawStrokes[i]);
+        strokes.forEach(s => {
+            const l = Math.hypot(s[0].x - s[s.length-1].x, s[0].y - s[s.length-1].y);
+            if(l > maxL) { maxL = l; main = s; }
+        });
+        if(!main) return { start:{x:0,y:0}, end:{x:0,y:0} };
+        
+        const p1 = main[0]; const p2 = main[main.length-1];
+        let d1 = 0; let d2 = 0;
+        strokes.forEach(s => {
+            if(s===main) return;
+            s.forEach(p => {
+                if(Math.hypot(p.x-p1.x, p.y-p1.y) < 30) d1++;
+                if(Math.hypot(p.x-p2.x, p.y-p2.y) < 30) d2++;
+            });
+        });
+        if (d1 > d2) return { start: p2, end: p1 };
+        return { start: p1, end: p2 };
+    }
+
+    // --- CÁLCULO FÍSICO ---
+    function analizarFisica() {
         const charges = state.objects.filter(o => o.type.startsWith('charge'));
         const vectors = state.objects.filter(o => o.type === 'vector');
         const Ke = 8.987e9;
+        const scale = parseFloat(document.getElementById('scale-input').value || 100);
         const distU = parseFloat(document.getElementById('dist-unit').value || 1);
         const chargeU = parseFloat(document.getElementById('charge-unit').value || 1e-6);
-        const scale = 100; // px por unidad
         
-        const box = document.getElementById('problem-statement');
-        if (charges.length < 2) { box.innerHTML = "Dibuja al menos dos cargas fuente."; document.getElementById('latex-result').innerHTML=''; document.getElementById('dcl-buttons').innerHTML=''; return; }
-        
-        box.innerHTML = `Calculando fuerza resultante para sistema de ${charges.length} cargas.<br><small style="color:var(--text-muted)">$k_e = 8.99 \\times 10^9 N\\cdot m^2/C^2$</small>`;
-        renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
+        charges.forEach(c => { c.hasVectors = false; });
+        updateStatement(charges, chargeU);
 
         const interactions = [];
         charges.forEach(tgt => {
@@ -995,207 +1143,648 @@
                 if(tgt.id === src.id) return;
                 const dx = src.physX - tgt.physX; const dy = src.physY - tgt.physY; 
                 let ang = Math.atan2(dy, dx);
-                if(tgt.q * src.q > 0) ang += Math.PI; // repulsión
+                if(tgt.q * src.q > 0) ang += Math.PI;
                 ang = (ang + 4*Math.PI) % (2*Math.PI);
                 const r = Math.hypot(dx, dy) / scale * distU;
                 const mag = r>0 ? (Ke * Math.abs(tgt.q * chargeU * src.q * chargeU))/(r*r) : 0;
                 
-                interactions.push({ target: tgt.id, source: src.id, label: `F_{${src.id}${tgt.id}}`, mag, ang, Fx: mag*Math.cos(ang), Fy: mag*Math.sin(ang), r, t:tgt });
+                interactions.push({ 
+                    target: tgt.id, source: src.id, label: `F_{${src.id}${tgt.id}}`,
+                    mag: mag, angleDeg: (ang*180/Math.PI)%360,
+                    Fx: mag*Math.cos(ang), Fy: mag*Math.sin(ang), r: r,
+                    t: tgt, s: src, ang: ang 
+                });
             });
         });
-        state.calculatedForces = interactions;
 
+        state.calculatedForces = interactions;
         const vBox = document.getElementById('validation-box'); vBox.innerHTML='';
+        
+        if(vectors.length === 0) vBox.innerHTML = '<i>Dibuja flechas de fuerza sobre las cargas.</i>';
+
         vectors.forEach(vec => {
-            const origin = charges.find(c => Math.hypot(c.x - vec.start.x, c.y - vec.start.y) < 50);
-            if(!origin) { vec.validation='warn'; vBox.innerHTML += `<div style="color:var(--accent-yellow)">⚠️ Vector suelto</div>`; return; }
-            
+            const origin = charges.find(c => Math.hypot(c.x - vec.start.x, c.y - vec.start.y) < 60);
+            if(!origin) { 
+                vec.validation='warn'; vec.label='?'; 
+                vBox.innerHTML += `<div style="color:var(--force-color);">⚠️ Vector suelto</div>`; return; 
+            }
+            origin.hasVectors = true; 
             const vAng = (Math.atan2(getPhysY(vec.end.y) - getPhysY(vec.start.y), vec.end.x - vec.start.x) + 4*Math.PI)%(2*Math.PI);
+            
             let best = null; let minD = 100;
-            interactions.filter(i => i.t.id === origin.id).forEach(cand => {
-                let d = Math.abs(cand.ang - vAng); if(d > Math.PI) d = 2*Math.PI - d;
+            const cands = interactions.filter(i => i.t.id === origin.id);
+            cands.forEach(cand => {
+                let d = Math.abs(cand.ang - vAng);
+                if(d > Math.PI) d = 2*Math.PI - d;
                 if(d < minD) { minD = d; best = cand; }
             });
 
-            if(best && minD < 0.5) {
+            if(best && minD < 0.6) {
                 vec.validation = 'correct'; vec.label = best.label;
-                vBox.innerHTML += `<div style="color:var(--accent-green)">✅ Vector correcto: $${best.label}$ en $${origin.label}$</div>`;
+                vBox.innerHTML += `<div style="color:var(--selection-color);">✅ ${best.label} Correcta en ${origin.label}</div>`;
             } else {
                 vec.validation = 'error'; vec.label = '?';
-                vBox.innerHTML += `<div style="color:var(--danger)">❌ Dirección errada en $${origin.label}$</div>`;
+                vBox.innerHTML += `<div style="color:var(--danger-color);">❌ Dirección Errada en ${origin.label}</div>`;
             }
         });
+        
         renderMathInElement(vBox, {delimiters: [{left: "$", right: "$", display: false}]});
-        
-        renderLatex(interactions);
-        setupDCLButtons(interactions);
-    };
+        renderLatex(); setupDCLButtons(); redraw();
+        if (window.verificarTareasFisica) window.verificarTareasFisica();
+    }
+    window.analizarFisica = analizarFisica;
 
-    function renderLatex(interactions) {
-        const box = document.getElementById('latex-result');
-        let html = "";
-        const groups = {}; interactions.forEach(f=>{ if(!groups[f.target]) groups[f.target]=[]; groups[f.target].push(f); });
-        
-        for(const [tid, fs] of Object.entries(groups)) {
-            let sx=0, sy=0;
-            html += `\\textbf{Carga } q_${tid}:\\\\ \\begin{aligned}`;
-            fs.forEach(f=>{ 
-                html += `|\\vec{F}_{${f.source}${f.target}}| &= ${f.mag.toExponential(2)} \\text{ N} \\\\`;
-                sx+=f.Fx; sy+=f.Fy; 
-            });
-            const R = Math.hypot(sx, sy);
-            html += `\\sum F_x &= ${sx.toExponential(2)}, \\quad \\sum F_y = ${sy.toExponential(2)} \\\\`;
-            html += `\\mathbf{F_R} &= \\mathbf{${R.toExponential(2)} \\text{ N}} \\end{aligned} \\\\[1em]`;
+    function updateStatement(charges, unitQ) {
+        const box = document.getElementById('problem-statement');
+        if (charges.length < 2) { 
+            box.innerHTML = "<i>Dibuja al menos dos cargas fuente (+ o -) para calcular su interacción.</i>"; return; 
         }
-        katex.render(html || "\\text{Sin interacciones}", box, {displayMode:true, throwOnError:false});
+        const sources = charges.map(c => `$q_${c.id}$`);
+        let text = `<strong>Problema:</strong> Determinar la magnitud y dirección de la <strong>Fuerza Eléctrica Resultante</strong> sobre cada carga debido a la interacción con el sistema <strong>${sources.join(', ')}</strong>.`;
+        text += `<br><small style="color:var(--text-muted); margin-top:5px; display:block">Considere $k_e = 8.987 \\times 10^9 N\\cdot m^2/C^2$</small>`;
+        box.innerHTML = text;
+        renderMathInElement(box, {delimiters: [{left: "$", right: "$", display: false}]});
     }
 
-    // --- VENTANA DCL TIPO OS ---
-    function setupDCLButtons(interactions) {
-        const d = document.getElementById('dcl-buttons'); d.innerHTML='';
-        const t = new Set(interactions.map(f=>f.target));
-        t.forEach(tid => {
-            const b = document.createElement('button'); b.className='btn btn-primary'; b.style.padding='4px 8px';
-            b.innerHTML=`<i data-lucide="external-link" class="icon-sm"></i> DCL $q_${tid}$`;
-            b.onclick = () => openDCL(tid); d.appendChild(b);
+    function updateCoord(id, axis, val) {
+        const obj = state.objects.find(o => o.id === id);
+        if(!obj) return;
+        const numVal = parseFloat(val);
+        if(isNaN(numVal)) return;
+        if (axis === 'x') { obj.physX = numVal; obj.x = numVal + state.origin.x; } 
+        else { obj.physY = numVal; obj.y = state.origin.y - numVal; }
+        analizarFisica(); redraw(); requestSync(true); 
+    }
+    window.updateCoord = updateCoord;
+
+    function updateUI() {
+        const c = document.getElementById('charges-container-side'); c.innerHTML='';
+        state.objects.filter(o=>o.type.startsWith('charge')).forEach(ch => {
+            const div = document.createElement('div');
+            div.style.padding = '8px'; div.style.background = 'var(--ribbon-bg)'; div.style.marginBottom = '5px'; div.style.borderRadius = '4px'; div.style.borderLeft = state.selectedObjects.includes(ch)? '3px solid var(--selection-color)' : '3px solid #666';
+            if(ch.hidden) div.style.opacity = '0.5';
+            div.innerHTML = `<strong>${ch.label}</strong>: ${ch.q}Q | Pos: (${Math.round(ch.physX)}, ${Math.round(ch.physY)})`;
+            c.appendChild(div);
         });
-        lucide.createIcons();
-        renderMathInElement(d, {delimiters: [{left: "$", right: "$", display: false}]});
     }
-
-    window.openDCL = (id) => {
-        const win = document.getElementById('dcl-window');
-        win.classList.remove('minimized'); win.classList.remove('maximized');
-        win.style.display = 'flex';
-        document.getElementById('dcl-target-name').innerText = `q_${id}`;
-        
-        const cx = document.getElementById('fbd-canvas').getContext('2d');
-        cx.clearRect(0,0,500,500);
-        
-        const fs = state.calculatedForces.filter(f=>f.target==id);
-        const ch = state.objects.find(o=>o.id==id);
-        if(!ch) return;
-        
-        // Ejes
-        cx.strokeStyle='#cbd5e1'; cx.lineWidth=1;
-        cx.beginPath(); cx.moveTo(250,0); cx.lineTo(250,500); cx.moveTo(0,250); cx.lineTo(500,250); cx.stroke();
-        
-        // Partícula
-        cx.beginPath(); cx.arc(250,250,12,0,2*Math.PI); 
-        cx.fillStyle=ch.type==='charge_pos'?'#3b82f6':'#ef4444'; cx.fill();
-        
-        let sx=0, sy=0; fs.forEach(f=>{ sx+=f.Fx; sy+=f.Fy; });
-        const R = Math.hypot(sx, sy);
-        const max = Math.max(...fs.map(f=>f.mag), R, 1e-9); const s = 180/max; 
-
-        // Fuerzas componentes
-        fs.forEach(f=>{ 
-            const dx=f.Fx*s, dy=-f.Fy*s, x2=250+dx, y2=250+dy;
-            cx.strokeStyle='#f59e0b'; cx.fillStyle='#f59e0b'; cx.lineWidth=3;
-            cx.beginPath(); cx.moveTo(250,250); cx.lineTo(x2,y2); cx.stroke();
-            const ang=Math.atan2(y2-250, x2-250);
-            cx.beginPath(); cx.moveTo(x2,y2); cx.lineTo(x2-12*Math.cos(ang-Math.PI/6), y2-12*Math.sin(ang-Math.PI/6)); cx.lineTo(x2-12*Math.cos(ang+Math.PI/6), y2-12*Math.sin(ang+Math.PI/6)); cx.fill();
-            cx.fillStyle='#1e293b'; cx.font="14px Inter"; cx.fillText(f.label.replace(/[{}_]/g,''), x2+10, y2);
-        });
-
-        // Resultante
-        if(R > 0) {
-            const Rx = 250+sx*s, Ry = 250-sy*s;
-            cx.strokeStyle='#ef4444'; cx.fillStyle='#ef4444'; cx.lineWidth=4;
-            cx.beginPath(); cx.moveTo(250,250); cx.lineTo(Rx, Ry); cx.stroke();
-            const aR=Math.atan2(Ry-250, Rx-250);
-            cx.beginPath(); cx.moveTo(Rx,Ry); cx.lineTo(Rx-14*Math.cos(aR-Math.PI/6), Ry-14*Math.sin(aR-Math.PI/6)); cx.lineTo(Rx-14*Math.cos(aR+Math.PI/6), Ry-14*Math.sin(aR+Math.PI/6)); cx.fill();
-            cx.font="bold 16px Inter"; cx.fillText("FR", Rx+15, Ry+5);
-        }
-    };
-
-    window.closeDCL = () => document.getElementById('dcl-window').style.display = 'none';
-    window.toggleDCLState = (state) => {
-        const win = document.getElementById('dcl-window');
-        if(state==='min') { win.classList.toggle('minimized'); win.classList.remove('maximized'); }
-        if(state==='max') { win.classList.toggle('maximized'); win.classList.remove('minimized'); }
-    }
+    window.updateUI = updateUI;
     
-    // Drag window DCL header
-    let isDraggingWin = false, winStartX, winStartY;
-    document.getElementById('dcl-header').addEventListener('mousedown', e => {
-        isDraggingWin = true; winStartX = e.clientX; winStartY = e.clientY;
-    });
-    document.addEventListener('mousemove', e => {
-        if(!isDraggingWin) return;
-        const win = document.getElementById('dcl-window');
-        if(win.classList.contains('maximized') || win.classList.contains('minimized')) return;
-        const rect = win.getBoundingClientRect();
-        win.style.left = (rect.left + e.clientX - winStartX + rect.width/2) + 'px';
-        win.style.top = (rect.top + e.clientY - winStartY + rect.height/2) + 'px';
-        winStartX = e.clientX; winStartY = e.clientY;
-    });
-    document.addEventListener('mouseup', () => isDraggingWin = false);
+    function setTool(t, b) {
+        finalizeText(); state.tool = t;
+        document.querySelectorAll('.btn-action').forEach(el=>el.classList.remove('active'));
+        if(b) b.classList.add('active');
+        if(t !== 'move') selectObject(null);
+    }
+    window.setTool = setTool;
+    
+    function undo() { 
+        if(state.rawStrokes.length>0) state.rawStrokes.pop(); 
+        else if(state.objects.length>0) { state.objects.pop(); updateUI(); analizarFisica(); }
+        redraw(); requestSync(true); 
+    }
+    window.undo = undo;
+    
+    function limpiarTodo() { 
+        state.objects=[]; state.rawStrokes=[]; state.selectedObjects=[]; closeChargeEditor();
+        updateUI(); analizarFisica(); redraw(); 
+        document.getElementById('latex-result').innerText='---'; 
+        document.getElementById('float-delete').style.display='none'; requestSync(true); 
+    }
+    window.limpiarTodo = limpiarTodo;
 
-    // --- RENDERING ---
+    // --- EXPORTAR Y COMPARTIR ---
+    function exportarImagen() {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+        const tCtx = tempCanvas.getContext('2d');
+        tCtx.fillStyle = '#1e1e2e'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        tCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)'; tCtx.lineWidth = 1; tCtx.beginPath();
+        for(let x = state.origin.x % 20; x < tempCanvas.width; x += 20) { tCtx.moveTo(x, 0); tCtx.lineTo(x, tempCanvas.height); }
+        for(let y = state.origin.y % 20; y < tempCanvas.height; y += 20) { tCtx.moveTo(0, y); tCtx.lineTo(tempCanvas.width, y); }
+        tCtx.stroke(); tCtx.drawImage(canvas, 0, 0);
+        const link = document.createElement('a'); link.download = 'Simulacion_Coulomb.png'; link.href = tempCanvas.toDataURL('image/png'); link.click();
+    }
+    window.exportarImagen = exportarImagen;
+
+    function copiarInfoSala() {
+        const salaInfo = document.getElementById('room-info-txt').innerText;
+        if(salaInfo === 'Desconectado') return alert('No estás en ninguna sala.');
+        const texto = `¡Únete a mi simulación en el Laboratorio de Coulomb!\nSala: ${salaInfo}\nLink: ${window.location.href}`;
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(texto).then(() => alert('Datos de la sala copiados al portapapeles.')).catch(() => prompt('Copia este texto:', texto));
+        } else prompt('Copia este texto para invitar a tus compañeros:', texto);
+    }
+    window.copiarInfoSala = copiarInfoSala;
+
+    // --- RENDERIZADO VISUAL ---
+    function drawPath(pts, color = '#999', width = 2) {
+        if(pts.length < 2) return;
+        ctx.strokeStyle = color; ctx.lineWidth = width;
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+    }
+
     function redraw() {
         ctx.clearRect(0,0,canvas.width,canvas.height);
-        document.getElementById('labels-overlay').innerHTML = '';
+        labelsOverlay.innerHTML = '';
         
-        // Origen
         if (state.origin.x !== null) {
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.2)'; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(0, state.origin.y); ctx.lineTo(canvas.width, state.origin.y); ctx.moveTo(state.origin.x, 0); ctx.lineTo(state.origin.x, canvas.height); ctx.stroke();
-            ctx.beginPath(); ctx.arc(state.origin.x, state.origin.y, 4, 0, Math.PI*2); ctx.fillStyle = '#3b82f6'; ctx.fill();
+            ctx.beginPath(); ctx.strokeStyle = 'rgba(78, 204, 163, 0.2)'; ctx.lineWidth = 2;
+            ctx.moveTo(0, state.origin.y); ctx.lineTo(canvas.width, state.origin.y);
+            ctx.moveTo(state.origin.x, 0); ctx.lineTo(state.origin.x, canvas.height); ctx.stroke();
+            ctx.beginPath(); ctx.arc(state.origin.x, state.origin.y, 4, 0, Math.PI*2); ctx.fillStyle = '#4ecca3'; ctx.fill();
+            ctx.font = '12px monospace'; ctx.fillText('+X', canvas.width - 20, state.origin.y - 10); ctx.fillText('+Y', state.origin.x + 10, 20);
+            
+            if (state.isDraggingOrigin) {
+                ctx.beginPath(); ctx.arc(state.origin.x, state.origin.y, 25, 0, Math.PI*2);
+                ctx.strokeStyle = 'rgba(78, 204, 163, 0.8)'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+            }
         }
 
-        state.rawStrokes.forEach(s => {
-            ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(s[0].x, s[0].y);
-            for(let i=1;i<s.length;i++) ctx.lineTo(s[i].x, s[i].y); ctx.stroke();
-        });
-        if(state.currentStroke.length>0) {
-            ctx.strokeStyle='#94a3b8'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(state.currentStroke[0].x, state.currentStroke[0].y);
-            for(let i=1;i<state.currentStroke.length;i++) ctx.lineTo(state.currentStroke[i].x, state.currentStroke[i].y); ctx.stroke();
+        const charges = state.objects.filter(o => o.type.startsWith('charge'));
+        if (charges.length > 1) {
+            ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
+            for (let i = 0; i < charges.length; i++) {
+                for (let j = i + 1; j < charges.length; j++) {
+                    ctx.beginPath(); ctx.moveTo(charges[i].x, charges[i].y); ctx.lineTo(charges[j].x, charges[j].y); ctx.stroke();
+                }
+            }
+            ctx.setLineDash([]); 
+        }
+
+        state.rawStrokes.forEach(s => drawPath(s, 'rgba(255,255,255,0.3)', 2));
+        if(state.currentStroke.length>0) drawPath(state.currentStroke, 'rgba(255,255,255,0.6)', 2);
+        if(state.currentFreeStroke) drawPath(state.currentFreeStroke.points, state.currentFreeStroke.color, 3);
+        
+        if(state.currentLine) {
+            ctx.strokeStyle = state.currentLine.color; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(state.currentLine.start.x, state.currentLine.start.y); 
+            ctx.lineTo(state.currentLine.end.x, state.currentLine.end.y); ctx.stroke();
+        }
+
+        if (state.selectionBox) {
+            ctx.fillStyle = 'rgba(0, 255, 136, 0.1)'; ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 1;
+            ctx.fillRect(state.selectionBox.x, state.selectionBox.y, state.selectionBox.w, state.selectionBox.h);
+            ctx.strokeRect(state.selectionBox.x, state.selectionBox.y, state.selectionBox.w, state.selectionBox.h);
         }
 
         state.objects.forEach(obj => {
             if (obj.hidden && state.tool !== 'visibility') return;
-            ctx.globalAlpha = obj.hidden ? 0.3 : 1;
-            const isEditing = state.editingChargeId === obj.id;
+            const prevAlpha = ctx.globalAlpha;
+            if (obj.hidden) ctx.globalAlpha = 0.3;
+
+            const isSel = state.selectedObjects.includes(obj);
+            ctx.shadowBlur = isSel ? 15 : 0; ctx.shadowColor = '#00ff88';
 
             if(obj.type.startsWith('charge')) {
-                ctx.beginPath(); ctx.arc(obj.x, obj.y, 22, 0, Math.PI*2);
-                ctx.fillStyle = obj.type==='charge_pos' ? 'rgba(59, 130, 246, 0.8)' : 'rgba(239, 68, 68, 0.8)'; ctx.fill();
-                ctx.strokeStyle = isEditing ? '#facc15' : 'white'; ctx.lineWidth = isEditing ? 4 : 2; ctx.stroke();
-                ctx.fillStyle='white'; ctx.font='bold 24px Inter'; ctx.textAlign='center'; ctx.textBaseline='middle';
-                ctx.fillText(obj.type==='charge_pos'?'+':'-', obj.x, obj.y);
-                
-                const d = document.createElement('div'); d.className='canvas-label'; d.style.left=obj.x+25+'px'; d.style.top=obj.y-25+'px';
-                katex.render(obj.label, d, {throwOnError:false}); document.getElementById('labels-overlay').appendChild(d);
+                ctx.beginPath(); ctx.arc(obj.x, obj.y, 20, 0, Math.PI*2);
+                ctx.fillStyle = obj.type==='charge_pos' ? '#3498db' : '#e74c3c'; ctx.fill(); 
+                ctx.strokeStyle = isSel ? '#00ff88' : 'white'; ctx.lineWidth = isSel ? 3 : 2; ctx.stroke();
+                ctx.shadowBlur=0; ctx.fillStyle='white'; ctx.font='bold 24px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.fillText(obj.type==='charge_pos'?'+':'-', obj.x, obj.y+2);
+                addLabel(obj.x+25, obj.y-25, obj.label, obj.hidden);
             } 
             else if(obj.type === 'vector') {
-                const col = obj.validation==='correct'?'#22c55e':obj.validation==='error'?'#ef4444':'#f59e0b';
-                ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 4;
-                ctx.beginPath(); ctx.moveTo(obj.start.x, obj.start.y); ctx.lineTo(obj.end.x, obj.end.y); ctx.stroke();
-                const ang = Math.atan2(obj.end.y-obj.start.y, obj.end.x-obj.start.x);
-                ctx.beginPath(); ctx.moveTo(obj.end.x, obj.end.y); cxTo(ctx, obj.end.x-15*Math.cos(ang-Math.PI/6), obj.end.y-15*Math.sin(ang-Math.PI/6)); cxTo(ctx, obj.end.x-15*Math.cos(ang+Math.PI/6), obj.end.y-15*Math.sin(ang+Math.PI/6)); ctx.fill();
-                
-                if(obj.label) {
-                    const d = document.createElement('div'); d.className='canvas-label'; d.style.left=obj.end.x+'px'; d.style.top=obj.end.y-15+'px';
-                    katex.render(obj.label, d, {throwOnError:false}); document.getElementById('labels-overlay').appendChild(d);
-                }
+                const col = obj.validation==='correct'?'#4ecca3':obj.validation==='error'?'#ff6b6b':'#f1c40f';
+                ctx.strokeStyle = isSel ? '#00ff88' : col; ctx.fillStyle = isSel ? '#00ff88' : col; ctx.lineWidth = isSel ? 5 : 3;
+                drawArrow(obj.start.x, obj.start.y, obj.end.x, obj.end.y); ctx.shadowBlur=0;
+                if(obj.label) addLabel(obj.end.x, obj.end.y-15, obj.label, obj.hidden);
             }
-            ctx.globalAlpha = 1;
+            else if(obj.type === 'line') {
+                ctx.strokeStyle = isSel ? '#00ff88' : obj.color; ctx.lineWidth = isSel ? 4 : 2;
+                ctx.beginPath(); ctx.moveTo(obj.start.x, obj.start.y); ctx.lineTo(obj.end.x, obj.end.y); ctx.stroke(); ctx.shadowBlur = 0;
+            }
+            else if(obj.type === 'free_stroke') {
+                drawPath(obj.points, isSel ? '#00ff88' : obj.color, isSel ? 5 : 3); ctx.shadowBlur=0;
+            }
+            else if(obj.type === 'text') {
+                ctx.fillStyle = isSel ? '#00ff88' : obj.color; ctx.font = 'bold 20px "Segoe UI", Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                ctx.fillText(obj.text, obj.x, obj.y); ctx.shadowBlur=0;
+            }
+            ctx.globalAlpha = prevAlpha;
+        });
+
+        if (state.showInCanvasDCL) {
+            charges.forEach(ch => {
+                if (ch.hasVectors) {
+                    const fs = state.calculatedForces.filter(f => f.target === ch.id);
+                    if(fs.length === 0) return;
+                    let sumFx = 0, sumFy = 0; fs.forEach(f => { sumFx += f.Fx; sumFy += f.Fy; });
+                    const Rmag = Math.hypot(sumFx, sumFy); const maxF = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); const s = 90 / maxF; 
+
+                    ctx.strokeStyle = 'rgba(52, 152, 219, 0.5)'; ctx.fillStyle = 'rgba(52, 152, 219, 0.8)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+                    ctx.beginPath(); ctx.moveTo(ch.x - 120, ch.y); ctx.lineTo(ch.x + 120, ch.y); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(ch.x + 120, ch.y); ctx.lineTo(ch.x + 110, ch.y - 5); ctx.lineTo(ch.x + 110, ch.y + 5); ctx.fill();
+                    ctx.font = 'bold 12px Arial'; ctx.fillText('+x', ch.x + 115, ch.y - 10);
+                    ctx.beginPath(); ctx.moveTo(ch.x, ch.y - 120); ctx.lineTo(ch.x, ch.y + 120); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(ch.x, ch.y - 120); ctx.lineTo(ch.x - 5, ch.y - 110); ctx.lineTo(ch.x + 5, ch.y - 110); ctx.fill();
+                    ctx.fillText('+y', ch.x + 10, ch.y - 115); ctx.setLineDash([]); 
+
+                    fs.forEach(f => {
+                        const dx = f.Fx * s; const dy = -f.Fy * s; const x2 = ch.x + dx; const y2 = ch.y + dy; const col = 'rgba(241, 196, 15, 0.8)'; 
+                        ctx.strokeStyle = 'rgba(241, 196, 15, 0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+                        ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2, ch.y); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(ch.x, y2); ctx.stroke(); ctx.setLineDash([]);
+                        ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2.5; drawArrow(ch.x, ch.y, x2, y2);
+                        ctx.fillStyle = '#f1c40f'; ctx.font = "12px Arial"; ctx.fillText(f.label.replace(/[{}_]/g,''), x2 + 5, y2 - 5);
+                    });
+
+                    if (Rmag > 0) {
+                        const Rdx = sumFx * s; const Rdy = -sumFy * s; const Rx2 = ch.x + Rdx; const Ry2 = ch.y + Rdy; const Rcol = '#ff6b6b';
+                        ctx.strokeStyle = 'rgba(255, 107, 107, 0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+                        ctx.beginPath(); ctx.moveTo(Rx2, Ry2); ctx.lineTo(Rx2, ch.y); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(Rx2, Ry2); ctx.lineTo(ch.x, Ry2); ctx.stroke(); ctx.setLineDash([]);
+                        ctx.strokeStyle = Rcol; ctx.fillStyle = Rcol; ctx.lineWidth = 4; drawArrow(ch.x, ch.y, Rx2, Ry2);
+                        ctx.fillStyle = Rcol; ctx.font = "bold 15px Arial"; ctx.fillText("FR", Rx2 + 8, Ry2 + 8);
+                    }
+                }
+            });
+        }
+    }
+    window.redraw = redraw;
+    
+    function drawArrow(x1, y1, x2, y2) {
+        const head = 15; const ang = Math.atan2(y2-y1, x2-x1);
+        ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x2,y2);
+        ctx.lineTo(x2-head*Math.cos(ang-Math.PI/6), y2-head*Math.sin(ang-Math.PI/6));
+        ctx.lineTo(x2-head*Math.cos(ang+Math.PI/6), y2-head*Math.sin(ang+Math.PI/6)); ctx.fill();
+    }
+
+    function addLabel(x, y, t, hidden = false) {
+        const d = document.createElement('div'); d.className='canvas-label'; d.style.left=x+'px'; d.style.top=y+'px';
+        if (hidden) d.style.opacity = '0.3';
+        katex.render(t, d, {throwOnError:false}); labelsOverlay.appendChild(d);
+    }
+    function getBounds(pts) {
+        const xs = pts.map(p=>p.x); const ys = pts.map(p=>p.y);
+        return { minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys), cx:(Math.min(...xs)+Math.max(...xs))/2, cy:(Math.min(...ys)+Math.max(...ys))/2 };
+    }
+    
+    function renderLatex() {
+        const box = document.getElementById('latex-result'); let html = "";
+        const groups = {}; state.calculatedForces.forEach(f=>{ if(!groups[f.target]) groups[f.target]=[]; groups[f.target].push(f); });
+        
+        if(Object.keys(groups).length===0) html="\\text{Aún sin interacciones correctas}";
+        else {
+            for(const [tid, fs] of Object.entries(groups)) {
+                html += `\\underline{\\text{Análisis de Carga } q_${tid}}:\\\\`;
+                let sx=0, sy=0;
+                html += `\\text{1. Distancia, ángulo y componentes:} \\\\ \\begin{aligned}`;
+                fs.forEach(f=>{ 
+                    html += `r_{${f.source}${f.target}} &= ${f.r.toExponential(2)} \\text{ m}, \\quad \\theta = ${f.angleDeg.toFixed(1)}^\\circ \\\\`;
+                    html += `|\\vec{F}_{${f.source}${f.target}}| &= k_e \\frac{|q_${f.source} q_${f.target}|}{r^2} = ${f.mag.toExponential(2)} \\text{ N} \\\\`;
+                    html += `{F}_{${f.source}${f.target}x} &= ${f.mag.toExponential(2)} \\cos(${f.angleDeg.toFixed(1)}^\\circ) = ${f.Fx.toExponential(2)} \\text{ N} \\\\`;
+                    html += `{F}_{${f.source}${f.target}y} &= ${f.mag.toExponential(2)} \\sin(${f.angleDeg.toFixed(1)}^\\circ) = ${f.Fy.toExponential(2)} \\text{ N} \\\\[0.8em]`;
+                    sx += f.Fx; sy += f.Fy; 
+                });
+                html += `\\end{aligned} \\\\[1em]`;
+                const R = Math.hypot(sx, sy); const Rang = (Math.atan2(sy, sx) * 180 / Math.PI + 360) % 360;
+                html += `\\text{2. Fuerza Resultante:} \\\\ \\begin{aligned}`;
+                html += `\\sum F_x &= \\mathbf{${sx.toExponential(2)} \\text{ N}} \\\\`;
+                html += `\\sum F_y &= \\mathbf{${sy.toExponential(2)} \\text{ N}} \\\\`;
+                html += `|\\vec{F}_R| &= \\sqrt{(${sx.toExponential(2)})^2 + (${sy.toExponential(2)})^2} = \\mathbf{${R.toExponential(2)} \\text{ N}} \\\\`;
+                html += `\\theta_R &= \\tan^{-1}\\left(\\frac{${sy.toExponential(2)}}{${sx.toExponential(2)}}\\right) = \\mathbf{${Rang.toFixed(1)}^\\circ}`;
+                html += `\\end{aligned} \\\\[2em]`;
+            }
+        }
+        katex.render(html, box, {displayMode:true, throwOnError:false});
+    }
+
+    function setupDCLButtons() {
+        const d=document.getElementById('dcl-buttons'); d.innerHTML='';
+        const t = new Set(state.calculatedForces.map(f=>f.target));
+        t.forEach(tid=>{
+            const b=document.createElement('button'); b.className='btn-action'; b.style.padding='4px 8px';
+            b.innerHTML=`<svg class="icon icon-sm"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg> DCL q${tid}`; 
+            b.onclick=()=>openDCL(tid); d.appendChild(b);
         });
     }
-    function cxTo(ctx, x, y) { ctx.lineTo(x,y); }
+    
+    // --- LÓGICA DE VENTANA DCL ARRASTRABLE ---
+    const fbdWin = document.getElementById('fbd-window');
+    const fbdHeader = document.getElementById('fbd-header');
+    let isDraggingFBD = false; let fbdStartX, fbdStartY, fbdInitialX, fbdInitialY;
+    let isWinMax = false; let prevWinRect = {};
 
-    window.limpiarTodo = () => { state.objects=[]; state.rawStrokes=[]; cerrarEditorCarga(); analizarFisica(); redraw(); requestSync(); };
-    window.undo = () => { if(state.rawStrokes.length>0) state.rawStrokes.pop(); else if(state.objects.length>0) state.objects.pop(); cerrarEditorCarga(); analizarFisica(); redraw(); requestSync(); };
-    window.abrirModalGuia = () => document.getElementById('guide-modal').style.display='flex';
+    fbdHeader.addEventListener('mousedown', (e) => {
+        if(e.target.tagName.toLowerCase() === 'button') return;
+        isDraggingFBD = true; fbdStartX = e.clientX; fbdStartY = e.clientY;
+        fbdInitialX = fbdWin.offsetLeft; fbdInitialY = fbdWin.offsetTop;
+        fbdWin.style.zIndex = 1000;
+    });
+    document.addEventListener('mousemove', (e) => {
+        if(!isDraggingFBD) return;
+        const dx = e.clientX - fbdStartX; const dy = e.clientY - fbdStartY;
+        fbdWin.style.left = (fbdInitialX + dx) + 'px'; fbdWin.style.top = (fbdInitialY + dy) + 'px';
+    });
+    document.addEventListener('mouseup', () => { isDraggingFBD = false; });
 
-    window.exportarImagen = () => {
-        const tCanvas = document.createElement('canvas'); tCanvas.width=canvas.width; tCanvas.height=canvas.height;
-        const tc = tCanvas.getContext('2d');
-        tc.fillStyle='#ffffff'; tc.fillRect(0,0,tCanvas.width,tCanvas.height);
-        tc.drawImage(canvas, 0, 0);
-        const link = document.createElement('a'); link.download = 'Coulomb_Lab.png'; link.href = tCanvas.toDataURL('image/png'); link.click();
+    window.toggleWinFBD = function() {
+        const content = document.getElementById('fbd-content');
+        if(content.style.display === 'none') { content.style.display = 'block'; } else { content.style.display = 'none'; }
     };
+    window.maxWinFBD = function() {
+        if(!isWinMax) {
+            prevWinRect = { left: fbdWin.style.left, top: fbdWin.style.top, width: fbdWin.style.width };
+            fbdWin.style.left = '0px'; fbdWin.style.top = 'var(--header-h)'; fbdWin.style.width = '100vw'; 
+            isWinMax = true;
+        } else {
+            fbdWin.style.left = prevWinRect.left; fbdWin.style.top = prevWinRect.top; fbdWin.style.width = prevWinRect.width;
+            isWinMax = false;
+        }
+    };
+    window.closeWinFBD = function() { fbdWin.style.display = 'none'; };
+
+    function openDCL(id) {
+        fbdWin.style.display = 'flex'; document.getElementById('fbd-content').style.display = 'block';
+        if(isWinMax) window.maxWinFBD(); // Restore size if maxed
+        
+        const cx=document.getElementById('fbd-canvas').getContext('2d');
+        const fs = state.calculatedForces.filter(f=>f.target==id);
+        const ch = state.objects.find(o=>o.id==id);
+        
+        cx.clearRect(0,0,380,380);
+        cx.strokeStyle='#ccc'; cx.lineWidth=1;
+        cx.beginPath(); cx.moveTo(190,0); cx.lineTo(190,380); cx.moveTo(0,190); cx.lineTo(380,190); cx.stroke();
+        
+        cx.beginPath(); cx.arc(190,190,10,0,2*Math.PI); 
+        cx.fillStyle=ch.type==='charge_pos'?'#3498db':'#e74c3c'; cx.fill();
+        
+        let sumFx = 0, sumFy = 0; fs.forEach(f => { sumFx += f.Fx; sumFy += f.Fy; });
+        const Rmag = Math.hypot(sumFx, sumFy); const max = Math.max(...fs.map(f=>f.mag), Rmag, 1e-9); const s = 130/max; 
+
+        fs.forEach(f=>{ 
+            const dx=f.Fx*s; const dy=-f.Fy*s; const col='#f1c40f'; const x2=190+dx, y2=190+dy;
+            cx.strokeStyle='rgba(241, 196, 15, 0.4)'; cx.lineWidth=1.5; cx.setLineDash([4, 4]);
+            cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(x2, 190); cx.stroke();
+            cx.beginPath(); cx.moveTo(x2, y2); cx.lineTo(190, y2); cx.stroke(); cx.setLineDash([]);
+
+            cx.strokeStyle=col; cx.fillStyle=col; cx.lineWidth=3;
+            cx.beginPath(); cx.moveTo(190,190); cx.lineTo(x2,y2); cx.stroke();
+            const ang=Math.atan2(y2-190, x2-190);
+            cx.beginPath(); cx.moveTo(x2,y2); 
+            cx.lineTo(x2-10*Math.cos(ang-Math.PI/6), y2-10*Math.sin(ang-Math.PI/6));
+            cx.lineTo(x2-10*Math.cos(ang+Math.PI/6), y2-10*Math.sin(ang+Math.PI/6)); cx.fill();
+            cx.fillStyle='black'; cx.font="14px Arial"; cx.fillText(f.label.replace(/[{}_]/g,''), x2+10, y2);
+        });
+
+        if(fs.length > 0 && Rmag > 0) {
+            const Rdx = sumFx * s; const Rdy = -sumFy * s; const Rx2 = 190 + Rdx; const Ry2 = 190 + Rdy; const Rcol = '#ff6b6b';
+            cx.strokeStyle='rgba(255, 107, 107, 0.4)'; cx.lineWidth=2; cx.setLineDash([4, 4]);
+            cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(Rx2, 190); cx.stroke();
+            cx.beginPath(); cx.moveTo(Rx2, Ry2); cx.lineTo(190, Ry2); cx.stroke(); cx.setLineDash([]);
+            cx.strokeStyle=Rcol; cx.fillStyle=Rcol; cx.lineWidth=4;
+            cx.beginPath(); cx.moveTo(190,190); cx.lineTo(Rx2, Ry2); cx.stroke();
+            const Rang = Math.atan2(Ry2-190, Rx2-190);
+            cx.beginPath(); cx.moveTo(Rx2,Ry2); 
+            cx.lineTo(Rx2-12*Math.cos(Rang-Math.PI/6), Ry2-12*Math.sin(Rang-Math.PI/6));
+            cx.lineTo(Rx2-12*Math.cos(Rang+Math.PI/6), Ry2-12*Math.sin(Rang+Math.PI/6)); cx.fill();
+            cx.fillStyle='#ff6b6b'; cx.font="bold 16px Arial"; cx.fillText("FR", Rx2+12, Ry2+5);
+        }
+    }
+</script>
+
+<!-- LÓGICA DE FIREBASE AVANZADA (Perfiles, Auth y Salas) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, push, update, increment } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+    authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+    databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+    projectId: "laboratorio-de-coulomb",
+    storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+    messagingSenderId: "525944850850",
+    appId: "1:525944850850:web:eca9c0b79809358e8d8afb",
+    measurementId: "G-SZECJNG25E"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const auth = getAuth(app);
+
+  let currentRoomRef = null;
+  let chatRoomRef = null;
+  let isReceiving = false;
+  let unsubscribeRoom = null;
+  let unsubscribeChat = null;
+
+  // --- AUTENTICACIÓN Y PERFIL OBLIGATORIO ---
+  onAuthStateChanged(auth, async (user) => {
+      if (user) {
+          // Revisar si tiene perfil
+          const profileRef = ref(db, 'usuarios/' + user.uid + '/perfil_data');
+          const snap = await get(profileRef);
+          
+          if(snap.exists()) {
+              // Login Exitoso y Perfil Completo
+              cerrarAuthGate();
+              document.getElementById('user-info-txt').innerText = user.email.split('@')[0];
+              if (window.iniciarGamificacion) window.iniciarGamificacion(user.uid);
+              
+              // Intentar reconectar a la última sala
+              if(snap.val().ultima_sala) window.intentarUnirseSalaAuto(snap.val().ultima_sala);
+              else togglePanel('panel-rooms');
+
+          } else {
+              // Necesita completar datos
+              document.getElementById('auth-login-panel').style.display = 'none';
+              document.getElementById('auth-profile-panel').style.display = 'flex';
+          }
+      } else {
+          // Desconectado
+          document.getElementById('auth-gate').style.display = 'flex';
+          document.getElementById('auth-login-panel').style.display = 'flex';
+          document.getElementById('auth-profile-panel').style.display = 'none';
+          document.getElementById('user-info-txt').innerText = 'Desconectado';
+          document.getElementById('ui-lvl-txt').innerText = 'Lvl -';
+          document.getElementById('room-info-txt').innerText = 'Desconectado';
+          
+          if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+          if (unsubscribeChat) { unsubscribeChat(); unsubscribeChat = null; }
+          currentRoomRef = null; chatRoomRef = null;
+          if (window.detenerGamificacion) window.detenerGamificacion();
+          window.limpiarTodo();
+      }
+  });
+
+  function cerrarAuthGate() { document.getElementById('auth-gate').style.display = 'none'; }
+
+  window.guardarPerfilYEntrar = async function() {
+      const edad = document.getElementById('reg-edad').value;
+      const genero = document.getElementById('reg-genero').value;
+      const carrera = document.getElementById('reg-carrera').value.trim();
+      
+      if(!edad || !genero || !carrera) return alert('Por favor completa todos los campos.');
+      
+      const user = auth.currentUser;
+      if(user) {
+          await set(ref(db, 'usuarios/' + user.uid + '/perfil_data'), {
+              edad: edad, genero: genero, carrera: carrera, fecha_registro: Date.now()
+          });
+          cerrarAuthGate();
+          document.getElementById('user-info-txt').innerText = user.email.split('@')[0];
+          if (window.iniciarGamificacion) window.iniciarGamificacion(user.uid);
+          togglePanel('panel-rooms');
+      }
+  };
+
+  window.iniciarSesion = function() {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass = document.getElementById('auth-pass').value;
+      if (!email || !pass) return alert('Llena ambos campos.');
+      signInWithEmailAndPassword(auth, email, pass).catch(e => alert('Error: ' + e.message));
+  };
+
+  window.mostrarRegistro = function() {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass = document.getElementById('auth-pass').value;
+      if (!email || pass.length < 6) return alert('Ingresa correo y clave (min 6 caracteres) para registrar.');
+      createUserWithEmailAndPassword(auth, email, pass).catch(e => alert('Error: ' + e.message));
+  };
+
+  window.iniciarSesionConGoogle = function() {
+      const provider = new GoogleAuthProvider();
+      signInWithPopup(auth, provider).catch(e => alert('Error con Google: ' + e.message));
+  };
+
+  window.cerrarSesion = function() { signOut(auth); };
+
+  // --- SALAS DE TRABAJO ---
+  window.intentarUnirseSalaAuto = async function(salaId) {
+      document.getElementById('room-name').value = salaId;
+      // Tratar de unir sin password (asume que si está guardada como última, puede entrar) o pedirle password
+      conectarASala(salaId);
+      document.getElementById('room-info-txt').innerText = salaId;
+      document.getElementById('btn-share-room').style.display = 'flex';
+  };
+
+  window.intentarUnirseSala = async function() {
+      const salaId = document.getElementById('room-name').value.trim();
+      const salaPass = document.getElementById('room-pass').value.trim();
+      if (!salaId || !salaPass) return alert('Ingresa nombre de sala y contraseña.');
+
+      const passRef = ref(db, 'salas/' + salaId + '/password');
+      try {
+          const snapshot = await get(passRef);
+          if (snapshot.exists() && snapshot.val() !== salaPass) {
+              return alert('Contraseña incorrecta.');
+          } else if (!snapshot.exists()) {
+              await set(passRef, salaPass);
+          }
+          conectarASala(salaId);
+          document.getElementById('room-info-txt').innerText = salaId;
+          document.getElementById('btn-share-room').style.display = 'flex';
+          
+          if(auth.currentUser) update(ref(db, 'usuarios/' + auth.currentUser.uid + '/perfil_data'), { ultima_sala: salaId });
+      } catch (error) { alert('Error conectando a sala.'); }
+  };
+
+  function conectarASala(salaId) {
+      if (unsubscribeRoom) unsubscribeRoom();
+      if (unsubscribeChat) unsubscribeChat();
+
+      currentRoomRef = ref(db, 'salas/' + salaId + '/state');
+      chatRoomRef = ref(db, 'salas/' + salaId + '/chat');
+      
+      unsubscribeRoom = onValue(currentRoomRef, (snapshot) => {
+          const data = snapshot.val();
+          if (data && !window.isSendingData) {
+              isReceiving = true;
+              window.appState.objects = data.objects || [];
+              window.appState.origin = data.origin || { x: null, y: null };
+              window.appState.rawStrokes = data.rawStrokes || [];
+              window.appState.selectedObjects = [];
+              document.getElementById('float-delete').style.display = 'none';
+              window.updateUI(); window.analizarFisica(); window.redraw();
+              setTimeout(() => { isReceiving = false; }, 50);
+          }
+      });
+
+      unsubscribeChat = onValue(chatRoomRef, (snapshot) => {
+          const chatBox = document.getElementById('chat-box'); chatBox.innerHTML = '';
+          const data = snapshot.val();
+          if (data) {
+              Object.values(data).forEach(msg => {
+                  const esMio = auth.currentUser && msg.email === auth.currentUser.email;
+                  const cls = esMio ? 'chat-mio' : '';
+                  const nick = msg.email.split('@')[0];
+                  chatBox.innerHTML += `<div class="chat-msg ${cls}"><b>${nick}:</b> ${msg.text}</div>`;
+              });
+              chatBox.scrollTop = chatBox.scrollHeight;
+          }
+      });
+  }
+
+  window.enviarMensajeChat = function() {
+      const input = document.getElementById('chat-input'); const text = input.value.trim();
+      if (!text || !auth.currentUser || !chatRoomRef) return;
+      push(chatRoomRef, { email: auth.currentUser.email, text: text, timestamp: Date.now() });
+      input.value = '';
+  };
+
+  window.enviarEstadoNube = function() {
+      if (!currentRoomRef || isReceiving || !auth.currentUser) return;
+      window.isSendingData = true;
+      set(currentRoomRef, { objects: window.appState.objects, origin: window.appState.origin, rawStrokes: window.appState.rawStrokes })
+        .then(() => { window.isSendingData = false; });
+  };
+
+  // --- GAMIFICACIÓN ---
+  let gamificationUnsubscribe = null;
+  window.iniciarGamificacion = function(uid) {
+      const perfilRef = ref(db, 'usuarios/' + uid);
+      window.userGameData = { perfil: { puntos: 0, nivel: 1 }, tareas: {} };
+      gamificationUnsubscribe = onValue(perfilRef, (snapshot) => {
+          const data = snapshot.val();
+          if (data && data.perfil) { window.userGameData = data; actualizarUIPerfil(); }
+      });
+  };
+  
+  window.detenerGamificacion = function() {
+      if(gamificationUnsubscribe) gamificationUnsubscribe();
+      window.userGameData = null; window.interaccionesLocales = 0;
+  };
+
+  function actualizarUIPerfil() {
+      const d = window.userGameData; if (!d || !d.perfil) return;
+      document.getElementById('ui-lvl-txt').innerText = `Lvl ${d.perfil.nivel}`;
+      document.getElementById('ui-pts').innerText = d.perfil.puntos;
+      
+      let tareasHechas = 0;
+      if(d.tareas) { Object.values(d.tareas).forEach(v => { if(v) tareasHechas++; }); }
+      document.getElementById('ui-tasks').innerText = `${tareasHechas}/12`;
+  }
+  
+  window.registrarInteraccion = function() {
+      if (!auth.currentUser || !window.userGameData) return;
+      window.interaccionesLocales = (window.interaccionesLocales || 0) + 1;
+      const uid = auth.currentUser.uid;
+      if (window.interaccionesLocales >= 5 && !window.userGameData.tareas?.tarea_3) {
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_3: true });
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) });
+      }
+  };
+
+  window.verificarTareasFisica = function() {
+      if (!auth.currentUser || !window.userGameData) return;
+      const uid = auth.currentUser.uid;
+      const charges = window.appState.objects.filter(o => o.type.startsWith('charge'));
+      const vectors = window.appState.objects.filter(o => o.type === 'vector');
+
+      if (charges.length >= 2 && !window.userGameData.tareas?.tarea_1) {
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_1: true });
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) });
+      }
+      if (vectors.length >= 1 && !window.userGameData.tareas?.tarea_2) {
+          update(ref(db, 'usuarios/' + uid + '/tareas'), { tarea_2: true });
+          update(ref(db, 'usuarios/' + uid + '/perfil'), { puntos: increment(25) });
+      }
+  };
 
 </script>
 </body>
