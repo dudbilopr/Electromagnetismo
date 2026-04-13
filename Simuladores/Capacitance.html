@@ -274,663 +274,175 @@ Continuar con Google
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signInWithRedirect,getRedirectResult,GoogleAuthProvider,signOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import{getDatabase,ref,set,get,update,push,onValue,remove,serverTimestamp,onDisconnect}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import{getDatabase,ref,set as rtSet,get as rtGet,push,onValue,remove as rtRemove}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import{getFirestore,doc,getDoc,setDoc,updateDoc,collection,getDocs,addDoc,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const FC={apiKey:"AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",authDomain:"laboratorio-de-coulomb.firebaseapp.com",databaseURL:"https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",projectId:"laboratorio-de-coulomb",storageBucket:"laboratorio-de-coulomb.firebasestorage.app",messagingSenderId:"525944850850",appId:"1:525944850850:web:eca9c0b79809358e8d8afb"};
-const app=initializeApp(FC),auth=getAuth(app),db=getDatabase(app),gp=new GoogleAuthProvider();
-let CU=null,UP={},curRoom=null,roomUnsub=null,chatUnsub=null;
+const app=initializeApp(FC),auth=getAuth(app),rtdb=getDatabase(app),fs=getFirestore(app),gp=new GoogleAuthProvider();
+let CU=null,UP={},curRoom=null;
 const ADMIN='dudbilopr@gmail.com';
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 
-// Auth handlers
+/* ===== AUTH ===== */
 window.showAuthTab=t=>{$('#loginForm').classList.toggle('hidden',t!=='login');$('#regForm').classList.toggle('hidden',t!=='reg');$$('#authBox .tabs button').forEach((b,i)=>b.classList.toggle('active',i===(t==='login'?0:1)))};
 window.doLogin=async()=>{try{$('#loginErr').classList.add('hidden');await signInWithEmailAndPassword(auth,$('#loginEmail').value,$('#loginPass').value)}catch(e){$('#loginErr').textContent=e.message;$('#loginErr').classList.remove('hidden')}};
 window.doRegister=async()=>{try{$('#regErr').classList.add('hidden');await createUserWithEmailAndPassword(auth,$('#regEmail').value,$('#regPass').value)}catch(e){$('#regErr').textContent=e.message;$('#regErr').classList.remove('hidden')}};
 window.doGoogle=()=>signInWithRedirect(auth,gp);
 window.doLogout=()=>signOut(auth);
-
 getRedirectResult(auth).catch(()=>{});
 
 onAuthStateChanged(auth,async user=>{
 CU=user;
 if(!user){$('#authScreen').classList.remove('hidden');$('#app').classList.add('hidden');$('#hdr').classList.add('hidden');$('#footer').classList.add('hidden');return}
 $('#authScreen').classList.add('hidden');$('#app').classList.remove('hidden');$('#hdr').classList.remove('hidden');$('#footer').classList.remove('hidden');
-// Load or create profile
-const snap=await get(ref(db,`usuarios_capacitores/${user.uid}/perfil`));
-if(snap.exists()){UP=snap.val()}else{UP={nombre:user.displayName||'',alias:'',edad:'',carrera:'',institucion:'',avatar:0,rol:user.email===ADMIN?'admin':'estudiante',puntos:0,nivel:'Novato',estrellas:0,tiempo_sesion:0};await set(ref(db,`usuarios_capacitores/${user.uid}/perfil`),UP)}
+try{
+  const snap=await getDoc(doc(fs,'usuarios_capacitores',user.uid));
+  if(snap.exists()){UP=snap.data()}else{
+    UP={nombre:user.displayName||'',alias:'',edad:'',carrera:'',institucion:'',avatar:0,rol:user.email===ADMIN?'admin':'estudiante',puntos:0,nivel:'Novato',estrellas:0,tiempo_sesion:0,email:user.email};
+    await setDoc(doc(fs,'usuarios_capacitores',user.uid),UP);
+  }
+}catch(e){console.warn('Profile load error:',e);UP={nombre:user.displayName||'',alias:'',edad:'',carrera:'',institucion:'',avatar:0,rol:user.email===ADMIN?'admin':'estudiante',puntos:0,nivel:'Novato',estrellas:0,tiempo_sesion:0,email:user.email}}
 if(user.email===ADMIN){UP.rol='admin';$('#dashBtn').classList.remove('hidden')}else if(UP.rol==='docente'){$('#dashBtn').classList.remove('hidden')}
 loadProfile();initCanvas();showDisclaimer();
-// Time tracking
-const ti=setInterval(()=>{if(CU){UP.tiempo_sesion=(UP.tiempo_sesion||0)+1;update(ref(db,`usuarios_capacitores/${CU.uid}/perfil`),{tiempo_sesion:UP.tiempo_sesion})}},60000);
+setInterval(()=>{if(CU){UP.tiempo_sesion=(UP.tiempo_sesion||0)+1;updateDoc(doc(fs,'usuarios_capacitores',CU.uid),{tiempo_sesion:UP.tiempo_sesion}).catch(()=>{})}},60000);
 window.parent.postMessage({type:'USER_READY',uid:user.uid},'*');
 });
 
-// Disclaimer modal
-function showDisclaimer(){
-if(localStorage.getItem('cap10_disc'))return;
-showModal('Aviso','<p style="font-size:13px;line-height:1.6">Esta aplicaci&oacute;n fue desarrollada con asistencia de IA. Los datos de usuario se almacenan en Firebase. Al continuar, aceptas el uso responsable de tus datos.</p>',()=>{localStorage.setItem('cap10_disc','1')});
-}
-
-// Modal system
-function showModal(title,body,onClose){
-const ov=document.createElement('div');ov.className='modal-overlay';
-ov.innerHTML=`<div class="modal glass"><button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button><h2>${title}</h2>${body}</div>`;
-document.body.appendChild(ov);
-ov.addEventListener('click',e=>{if(e.target===ov){ov.remove();onClose&&onClose()}});
-document.addEventListener('keydown',function h(e){if(e.key==='Escape'){ov.remove();onClose&&onClose();document.removeEventListener('keydown',h)}});
-return ov;
-}
+/* ===== MODAL ===== */
+function showDisclaimer(){if(localStorage.getItem('cap10_disc'))return;showModal('Aviso','<p style="font-size:13px;line-height:1.6">Esta aplicaci\u00f3n fue desarrollada con asistencia de IA. Los datos de usuario se almacenan en Firebase. Al continuar, aceptas el uso responsable de tus datos.</p>',()=>{localStorage.setItem('cap10_disc','1')})}
+function showModal(title,body,onClose){const ov=document.createElement('div');ov.className='modal-overlay';ov.innerHTML=`<div class="modal glass"><button class="close-btn" onclick="this.closest('.modal-overlay').remove()">&times;</button><h2>${title}</h2>${body}</div>`;document.body.appendChild(ov);ov.addEventListener('click',e=>{if(e.target===ov){ov.remove();onClose&&onClose()}});document.addEventListener('keydown',function h(e){if(e.key==='Escape'){ov.remove();onClose&&onClose();document.removeEventListener('keydown',h)}});return ov}
 window.showModal=showModal;
 
-// Theme
+/* ===== THEME/NAV ===== */
 window.toggleTheme=()=>{const d=document.body.dataset.theme==='dark'?'light':'dark';document.body.dataset.theme=d;localStorage.setItem('cap10_theme',d)};
 if(localStorage.getItem('cap10_theme')==='dark')document.body.dataset.theme='dark';
-
-// Navigation
-window.showPage=(id,btn)=>{$$('.page').forEach(p=>p.classList.remove('active'));$('#'+id).classList.add('active');$$('#mainNav button[data-page]').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');$('#mainNav').classList.remove('open');if(id==='simPage')resizeCanvas()};
+window.showPage=(id,btn)=>{$$('.page').forEach(p=>p.classList.remove('active'));$('#'+id).classList.add('active');$$('#mainNav button[data-page]').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');$('#mainNav').classList.remove('open');if(id==='simPage')resizeCanvas();if(id==='roomsPage')loadRooms();if(id==='dashPage')loadDash()};
 window.toggleMenu=()=>$('#mainNav').classList.toggle('open');
 
-// Profile
-const AVATARS=['M12 2a10 10 0 100 20 10 10 0 000-20z','M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'];
-function loadProfile(){
-$('#profName').value=UP.nombre||'';$('#profAlias').value=UP.alias||'';$('#profAge').value=UP.edad||'';$('#profCareer').value=UP.carrera||'';$('#profInst').value=UP.institucion||'';
-$('#statPts').textContent=UP.puntos||0;$('#statLvl').textContent=getLevel(UP.puntos||0);$('#statStars').textContent=UP.estrellas||0;$('#statTime').textContent=(UP.tiempo_sesion||0)+'m';
-const ag=$('#avatarGrid');ag.innerHTML='';
-const colors=['#4285F4','#EA4335','#FBBC05','#34A853','#FF6D00','#AA00FF','#00BFA5','#DD2C00','#2962FF','#C51162','#00C853','#FFD600'];
-for(let i=0;i<12;i++){const d=document.createElement('div');d.style.background=colors[i]+'33';d.style.color=colors[i];d.innerHTML=`<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M12 14c-4 0-7 2-7 4v2h14v-2c0-2-3-4-7-4z"/></svg>`;if(i===(UP.avatar||0))d.classList.add('selected');d.onclick=()=>{ag.querySelectorAll('div').forEach(x=>x.classList.remove('selected'));d.classList.add('selected');UP.avatar=i};ag.appendChild(d)}
-}
-window.saveProfile=async()=>{UP.nombre=$('#profName').value;UP.alias=$('#profAlias').value;UP.edad=$('#profAge').value;UP.carrera=$('#profCareer').value;UP.institucion=$('#profInst').value;try{await update(ref(db,`usuarios_capacitores/${CU.uid}/perfil`),UP);loadProfile();alert('Perfil guardado')}catch(e){showModal('Error','<p>'+e.message+'</p>')}};
-
+/* ===== PROFILE (Firestore) ===== */
+const COLORS=['#4285F4','#EA4335','#FBBC05','#34A853','#FF6D00','#AA00FF','#00BFA5','#DD2C00','#2962FF','#C51162','#00C853','#FFD600'];
+function loadProfile(){$('#profName').value=UP.nombre||'';$('#profAlias').value=UP.alias||'';$('#profAge').value=UP.edad||'';$('#profCareer').value=UP.carrera||'';$('#profInst').value=UP.institucion||'';$('#statPts').textContent=UP.puntos||0;$('#statLvl').textContent=getLevel(UP.puntos||0);$('#statStars').textContent=UP.estrellas||0;$('#statTime').textContent=(UP.tiempo_sesion||0)+'m';const ag=$('#avatarGrid');ag.innerHTML='';for(let i=0;i<12;i++){const d=document.createElement('div');d.style.background=COLORS[i]+'33';d.style.color=COLORS[i];d.innerHTML='<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M12 14c-4 0-7 2-7 4v2h14v-2c0-2-3-4-7-4z"/></svg>';if(i===(UP.avatar||0))d.classList.add('selected');d.onclick=()=>{ag.querySelectorAll('div').forEach(x=>x.classList.remove('selected'));d.classList.add('selected');UP.avatar=i};ag.appendChild(d)}}
+window.saveProfile=async()=>{UP.nombre=$('#profName').value;UP.alias=$('#profAlias').value;UP.edad=$('#profAge').value;UP.carrera=$('#profCareer').value;UP.institucion=$('#profInst').value;try{await setDoc(doc(fs,'usuarios_capacitores',CU.uid),UP,{merge:true});loadProfile();alert('Perfil guardado')}catch(e){showModal('Error','<p>'+e.message+'</p>')}};
 function getLevel(p){if(p>1000)return'Maestro';if(p>500)return'Ingeniero';if(p>200)return'T\u00e9cnico';if(p>50)return'Aprendiz';return'Novato'}
-async function addPoints(n){UP.puntos=(UP.puntos||0)+n;UP.nivel=getLevel(UP.puntos);try{await update(ref(db,`usuarios_capacitores/${CU.uid}/perfil`),{puntos:UP.puntos,nivel:UP.nivel})}catch(e){}}
+async function addPoints(n){UP.puntos=(UP.puntos||0)+n;UP.nivel=getLevel(UP.puntos);try{await updateDoc(doc(fs,'usuarios_capacitores',CU.uid),{puntos:UP.puntos,nivel:UP.nivel})}catch(e){}}
 
-// ============ CIRCUIT SIMULATOR ============
-let cvs,ctx,W,H,components=[],wires=[],nodes=[],dragComp=null,dragOff={x:0,y:0},selComp=null,connecting=false,wireStart=null,history=[],histIdx=-1,pan={x:0,y:0},zoom=1,isPanning=false,panStart={x:0,y:0};
-let compId=0;
+/* ===== CANVAS SIMULATOR ===== */
+let cvs,ctx,W,H,components=[],wires=[],dragComp=null,dragOff={x:0,y:0},selComp=null,connecting=false,wireStart=null,hist=[],histIdx=-1,pan={x:0,y:0},zoom=1,isPanning=false,panStart={x:0,y:0},compId=0;
 
-function initCanvas(){
-cvs=$('#mainCanvas');ctx=cvs.getContext('2d');resizeCanvas();
-// Drag from toolbar
-$$('#toolbar .tool-item').forEach(ti=>{
-ti.addEventListener('dragstart',e=>{e.dataTransfer.setData('type',ti.dataset.type)});
-ti.addEventListener('touchstart',e=>{const t=e.touches[0];dragComp={type:ti.dataset.type,isNew:true,x:0,y:0};},{passive:true});
-});
-cvs.addEventListener('dragover',e=>e.preventDefault());
-cvs.addEventListener('drop',e=>{e.preventDefault();const type=e.dataTransfer.getData('type');if(!type)return;const r=cvs.getBoundingClientRect();addComponent(type,(e.clientX-r.left-pan.x)/zoom,(e.clientY-r.top-pan.y)/zoom)});
-// Mouse events
-cvs.addEventListener('mousedown',onMouseDown);cvs.addEventListener('mousemove',onMouseMove);cvs.addEventListener('mouseup',onMouseUp);
-cvs.addEventListener('contextmenu',e=>{e.preventDefault();onContext(e.clientX,e.clientY,(e.clientX-cvs.getBoundingClientRect().left-pan.x)/zoom,(e.clientY-cvs.getBoundingClientRect().top-pan.y)/zoom)});
-cvs.addEventListener('wheel',e=>{e.preventDefault();const d=e.deltaY>0?0.9:1.1;zoom=Math.max(0.3,Math.min(3,zoom*d));render()},{passive:false});
-// Touch events
-cvs.addEventListener('touchstart',onTouchStart,{passive:false});cvs.addEventListener('touchmove',onTouchMove,{passive:false});cvs.addEventListener('touchend',onTouchEnd);
-// Keyboard
-document.addEventListener('keydown',e=>{if(e.key==='Delete'&&selComp){removeComponent(selComp);selComp=null;render()}if(e.ctrlKey&&e.key==='z'){e.preventDefault();undo()}if(e.ctrlKey&&e.key==='y'){e.preventDefault();redo()}});
-window.addEventListener('resize',resizeCanvas);
-render();
-}
-
+function initCanvas(){cvs=$('#mainCanvas');ctx=cvs.getContext('2d');resizeCanvas();$$('#toolbar .tool-item').forEach(ti=>{ti.addEventListener('dragstart',e=>{e.dataTransfer.setData('type',ti.dataset.type)});ti.addEventListener('touchstart',()=>{dragComp={type:ti.dataset.type,isNew:true}},{passive:true})});cvs.addEventListener('dragover',e=>e.preventDefault());cvs.addEventListener('drop',e=>{e.preventDefault();const type=e.dataTransfer.getData('type');if(!type)return;const r=cvs.getBoundingClientRect();addComp(type,(e.clientX-r.left-pan.x)/zoom,(e.clientY-r.top-pan.y)/zoom)});cvs.addEventListener('mousedown',onMD);cvs.addEventListener('mousemove',onMM);cvs.addEventListener('mouseup',onMU);cvs.addEventListener('contextmenu',e=>{e.preventDefault();const r=cvs.getBoundingClientRect();onCtx(e.clientX,e.clientY,(e.clientX-r.left-pan.x)/zoom,(e.clientY-r.top-pan.y)/zoom)});cvs.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.3,Math.min(3,zoom*(e.deltaY>0?.9:1.1)));render()},{passive:false});cvs.addEventListener('touchstart',onTS,{passive:false});cvs.addEventListener('touchmove',onTM,{passive:false});cvs.addEventListener('touchend',onTE);document.addEventListener('keydown',e=>{if(e.key==='Delete'&&selComp){rmComp(selComp);selComp=null;render()}if(e.ctrlKey&&e.key==='z'){e.preventDefault();undo()}if(e.ctrlKey&&e.key==='y'){e.preventDefault();redo()}});window.addEventListener('resize',resizeCanvas);render()}
 function resizeCanvas(){if(!cvs)return;const wr=$('#canvasWrap');W=wr.clientWidth;H=wr.clientHeight;cvs.width=W;cvs.height=H;render()}
+function addComp(type,x,y){const c={id:compId++,type,x,y,w:80,h:40,rot:0,params:defP(type),nodes:[]};c.nodes=getN(c);components.push(c);pushSt();render();return c}
+function defP(t){switch(t){case'cap_par':return{C:1e-6,label:'C'+compId,kappa:1};case'cap_pol':return{C:10e-6,label:'C'+compId,Vmax:25};case'cap_cer':return{C:.1e-6,label:'C'+compId};case'source':return{V:12,label:'V'};default:return{}}}
+function getN(c){const hw=c.w/2;if(c.rot%180===0)return[{x:c.x-hw,y:c.y,cid:c.id,idx:0},{x:c.x+hw,y:c.y,cid:c.id,idx:1}];return[{x:c.x,y:c.y-hw,cid:c.id,idx:0},{x:c.x,y:c.y+hw,cid:c.id,idx:1}]}
+function updN(c){c.nodes=getN(c)}
+function findN(x,y,ex){const t=12/zoom;let b=null,bd=1e9;for(const c of components)for(const n of c.nodes){if(ex&&n.cid===ex)continue;const d=Math.hypot(n.x-x,n.y-y);if(d<t&&d<bd){bd=d;b=n}}return b}
+function hitT(x,y){for(let i=components.length-1;i>=0;i--){const c=components[i];if(x>=c.x-c.w/2-5&&x<=c.x+c.w/2+5&&y>=c.y-c.h/2-5&&y<=c.y+c.h/2+5)return c}return null}
+function addW(n1,n2){const mx=(n1.x+n2.x)/2;wires.push({points:[{x:n1.x,y:n1.y},{x:mx,y:n1.y},{x:mx,y:n2.y},{x:n2.x,y:n2.y}],c1:n1.cid,c1n:n1.idx,c2:n2.cid,c2n:n2.idx});pushSt();render()}
+function updW(comp){for(const w of wires){if(w.c1===comp.id){const n=comp.nodes[w.c1n];w.points[0]={x:n.x,y:n.y};const mx=(w.points[0].x+w.points[3].x)/2;w.points[1]={x:mx,y:w.points[0].y};w.points[2]={x:mx,y:w.points[3].y}}if(w.c2===comp.id){const n=comp.nodes[w.c2n];w.points[3]={x:n.x,y:n.y};const mx=(w.points[0].x+w.points[3].x)/2;w.points[1]={x:mx,y:w.points[0].y};w.points[2]={x:mx,y:w.points[3].y}}}}
+function rmComp(c){wires=wires.filter(w=>w.c1!==c.id&&w.c2!==c.id);components=components.filter(x=>x!==c);pushSt();render()}
 
-function addComponent(type,x,y){
-const c={id:compId++,type,x,y,w:80,h:40,rot:0,params:getDefParams(type),nodes:[]};
-c.nodes=getNodes(c);
-components.push(c);saveState();render();return c;
-}
+/* Render */
+function render(){if(!ctx)return;ctx.save();ctx.clearRect(0,0,W,H);ctx.translate(pan.x,pan.y);ctx.scale(zoom,zoom);const dk=document.body.dataset.theme==='dark';
+const gs=20;ctx.strokeStyle=dk?'rgba(100,100,200,0.08)':'rgba(0,0,150,0.06)';ctx.lineWidth=.5;const sx=-pan.x/zoom,sy=-pan.y/zoom,ex=sx+W/zoom,ey=sy+H/zoom;for(let x=Math.floor(sx/gs)*gs;x<ex;x+=gs){ctx.beginPath();ctx.moveTo(x,sy);ctx.lineTo(x,ey);ctx.stroke()}for(let y=Math.floor(sy/gs)*gs;y<ey;y+=gs){ctx.beginPath();ctx.moveTo(sx,y);ctx.lineTo(ex,y);ctx.stroke()}
+for(const w of wires){ctx.beginPath();ctx.strokeStyle=dk?'#00aaff':'#0066ff';ctx.lineWidth=2;ctx.moveTo(w.points[0].x,w.points[0].y);for(let i=1;i<w.points.length;i++)ctx.lineTo(w.points[i].x,w.points[i].y);ctx.stroke()}
+for(const c of components)drawC(c,c===selComp,dk);
+for(const c of components)for(const n of c.nodes){ctx.beginPath();ctx.arc(n.x,n.y,4,0,Math.PI*2);ctx.fillStyle=connecting?'#00e5ff':'#666';ctx.fill()}
+ctx.restore()}
 
-function getDefParams(type){
-switch(type){
-case'cap_par':return{C:1e-6,label:'C'+(compId),area:0.01,dist:0.001,kappa:1};
-case'cap_pol':return{C:10e-6,label:'C'+(compId),Vmax:25,polarity:'+'};
-case'cap_cer':return{C:0.1e-6,label:'C'+(compId)};
-case'source':return{V:12,label:'V'};
-case'wire':return{};
-case'voltmeter':return{};
-default:return{}}
-}
-
-function getNodes(c){
-const hw=c.w/2,hh=c.h/2;
-if(c.rot%180===0)return[{x:c.x-hw,y:c.y,cid:c.id,idx:0},{x:c.x+hw,y:c.y,cid:c.id,idx:1}];
-return[{x:c.x,y:c.y-hw,cid:c.id,idx:0},{x:c.x,y:c.y+hw,cid:c.id,idx:1}];
-}
-
-function updateNodes(c){c.nodes=getNodes(c)}
-
-function findNodeAt(x,y,exclude){
-const thresh=12/zoom;let best=null,bd=Infinity;
-for(const c of components){for(const n of c.nodes){if(exclude&&n.cid===exclude)continue;const d=Math.hypot(n.x-x,n.y-y);if(d<thresh&&d<bd){bd=d;best=n}}}
-return best;
-}
-
-// Rendering
-function render(){
-if(!ctx)return;ctx.save();ctx.clearRect(0,0,W,H);ctx.translate(pan.x,pan.y);ctx.scale(zoom,zoom);
-// Grid
-drawGrid();
-// Wires
-for(const w of wires){ctx.beginPath();ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--accent');ctx.lineWidth=2;
-const pts=w.points||[w.n1,w.n2];
-ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke()}
-// Components
-for(const c of components){drawComponent(c,c===selComp)}
-// Nodes
-for(const c of components){for(const n of c.nodes){ctx.beginPath();ctx.arc(n.x,n.y,4,0,Math.PI*2);ctx.fillStyle=connecting?'#00e5ff':'#666';ctx.fill()}}
-ctx.restore();
-}
-
-function drawGrid(){
-const gs=20;ctx.strokeStyle=document.body.dataset.theme==='dark'?'rgba(100,100,200,0.08)':'rgba(0,0,150,0.06)';ctx.lineWidth=0.5;
-const sx=-pan.x/zoom,sy=-pan.y/zoom,ex=sx+W/zoom,ey=sy+H/zoom;
-for(let x=Math.floor(sx/gs)*gs;x<ex;x+=gs){ctx.beginPath();ctx.moveTo(x,sy);ctx.lineTo(x,ey);ctx.stroke()}
-for(let y=Math.floor(sy/gs)*gs;y<ey;y+=gs){ctx.beginPath();ctx.moveTo(sx,y);ctx.lineTo(ex,y);ctx.stroke()}
-}
-
-function drawComponent(c,sel){
-ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.rot*Math.PI/180);
-const hw=c.w/2,hh=c.h/2;
-ctx.strokeStyle=sel?'var(--accent3,#ff3366)':'var(--fg,#333)';ctx.lineWidth=sel?2.5:2;ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--fg')||'#333';
-ctx.strokeStyle=sel?'#ff3366':document.body.dataset.theme==='dark'?'#aac':'#334';
-ctx.fillStyle=document.body.dataset.theme==='dark'?'#ccd':'#223';
-
+function drawC(c,sel,dk){ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.rot*Math.PI/180);const hw=c.w/2,hh=c.h/2;ctx.strokeStyle=sel?'#ff3366':dk?'#aac':'#334';ctx.fillStyle=dk?'#ccd':'#223';ctx.lineWidth=sel?2.5:2;
 switch(c.type){
-case'cap_par':case'cap_cer':
-ctx.beginPath();ctx.moveTo(-hw,0);ctx.lineTo(-8,0);ctx.stroke();
-ctx.beginPath();ctx.moveTo(-8,-hh+4);ctx.lineTo(-8,hh-4);ctx.stroke();
-ctx.beginPath();ctx.moveTo(8,-hh+4);ctx.lineTo(8,hh-4);ctx.stroke();
-ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(hw,0);ctx.stroke();
-break;
-case'cap_pol':
-ctx.beginPath();ctx.moveTo(-hw,0);ctx.lineTo(-8,0);ctx.stroke();
-ctx.beginPath();ctx.moveTo(-8,-hh+4);ctx.lineTo(-8,hh-4);ctx.lineWidth=2;ctx.stroke();
-ctx.beginPath();ctx.arc(8,0,hh-6,Math.PI/2,-Math.PI/2,true);ctx.lineWidth=2.5;ctx.stroke();
-ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(hw,0);ctx.lineWidth=2;ctx.stroke();
-ctx.font='10px sans-serif';ctx.fillText('+',-18,-hh+14);
-break;
-case'source':
-ctx.beginPath();ctx.moveTo(-hw,0);ctx.lineTo(-10,0);ctx.stroke();
-ctx.beginPath();ctx.moveTo(-10,-hh+4);ctx.lineTo(-10,hh-4);ctx.lineWidth=2.5;ctx.stroke();
-ctx.beginPath();ctx.moveTo(6,-hh+10);ctx.lineTo(6,hh-10);ctx.lineWidth=1.5;ctx.stroke();
-ctx.beginPath();ctx.moveTo(6,0);ctx.lineTo(hw,0);ctx.stroke();
-ctx.font='10px sans-serif';ctx.fillText('+',-20,-hh+12);ctx.fillText('\u2013',8,-hh+12);
-break;
-case'voltmeter':
-ctx.beginPath();ctx.arc(0,0,hh,0,Math.PI*2);ctx.stroke();
-ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('V',0,0);
-ctx.beginPath();ctx.moveTo(-hw,0);ctx.lineTo(-hh,0);ctx.stroke();
-ctx.beginPath();ctx.moveTo(hh,0);ctx.lineTo(hw,0);ctx.stroke();
-break;
-case'wire':
-ctx.beginPath();ctx.moveTo(-hw,0);ctx.lineTo(hw,0);ctx.stroke();
-break;
-}
-// Label
+case'cap_par':case'cap_cer':ctx.beginPath();ctx.moveTo(-hw,0);ctx.lineTo(-8,0);ctx.stroke();ctx.beginPath();ctx.moveTo(-8,-hh+4);ctx.lineTo(-8,hh-4);ctx.stroke();ctx.beginPath();ctx.moveTo(8,-hh+4);ctx.lineTo(8,hh-4);ctx.stroke();ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(hw,0);ctx.stroke();break;
+case'cap_pol':ctx.beginPath();ctx.moveTo(-hw,0);ctx.lineTo(-8,0);ctx.stroke();ctx.beginPath();ctx.moveTo(-8,-hh+4);ctx.lineTo(-8,hh-4);ctx.stroke();ctx.beginPath();ctx.arc(8,0,hh-6,Math.PI/2,-Math.PI/2,true);ctx.lineWidth=2.5;ctx.stroke();ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(hw,0);ctx.stroke();ctx.font='10px sans-serif';ctx.fillText('+',-18,-hh+14);break;
+case'source':ctx.beginPath();ctx.moveTo(-hw,0);ctx.lineTo(-10,0);ctx.stroke();ctx.beginPath();ctx.moveTo(-10,-hh+4);ctx.lineTo(-10,hh-4);ctx.lineWidth=2.5;ctx.stroke();ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(6,-hh+10);ctx.lineTo(6,hh-10);ctx.stroke();ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(6,0);ctx.lineTo(hw,0);ctx.stroke();ctx.font='10px sans-serif';ctx.fillText('+',-20,-hh+12);ctx.fillText('\u2013',8,-hh+12);break;
+case'voltmeter':ctx.beginPath();ctx.arc(0,0,hh,0,Math.PI*2);ctx.stroke();ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('V',0,0);ctx.beginPath();ctx.moveTo(-hw,0);ctx.lineTo(-hh,0);ctx.stroke();ctx.beginPath();ctx.moveTo(hh,0);ctx.lineTo(hw,0);ctx.stroke();break;
+case'wire':ctx.beginPath();ctx.moveTo(-hw,0);ctx.lineTo(hw,0);ctx.stroke();break;}
 if(c.params.label){ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillText(c.params.label,0,-hh-6)}
-if(c.params.C){ctx.font='9px sans-serif';ctx.textAlign='center';ctx.fillStyle=document.body.dataset.theme==='dark'?'#8af':'#06a';ctx.fillText(fmtC(c.params.C),0,hh+12)}
-if(c.params.V!==undefined&&c.type==='source'){ctx.font='9px sans-serif';ctx.textAlign='center';ctx.fillStyle=document.body.dataset.theme==='dark'?'#f8a':'#a06';ctx.fillText(c.params.V+'V',0,hh+12)}
-if(sel){ctx.strokeStyle='#00aaff44';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.strokeRect(-hw-6,-hh-6,c.w+12,c.h+12);ctx.setLineDash([])}
-ctx.restore();
-}
-
+if(c.params.C){ctx.font='9px sans-serif';ctx.textAlign='center';ctx.fillStyle=dk?'#8af':'#06a';ctx.fillText(fmtC(c.params.C),0,hh+12)}
+if(c.params.V!==undefined&&c.type==='source'){ctx.font='9px sans-serif';ctx.textAlign='center';ctx.fillStyle=dk?'#f8a':'#a06';ctx.fillText(c.params.V+'V',0,hh+12)}
+if(sel){ctx.strokeStyle='#00aaff44';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.strokeRect(-hw-6,-hh-6,c.w+12,c.h+12);ctx.setLineDash([])}ctx.restore()}
 function fmtC(v){if(v>=1)return v+'F';if(v>=1e-3)return(v*1e3).toFixed(1)+'mF';if(v>=1e-6)return(v*1e6).toFixed(1)+'\u03BCF';if(v>=1e-9)return(v*1e9).toFixed(1)+'nF';return(v*1e12).toFixed(1)+'pF'}
 
-// Mouse handlers
-let lastTouch=null,touchTimer=null;
-function onMouseDown(e){
-const r=cvs.getBoundingClientRect();const mx=(e.clientX-r.left-pan.x)/zoom,my=(e.clientY-r.top-pan.y)/zoom;
-// Check if clicking on a node for wiring
-const nd=findNodeAt(mx,my);
-if(nd&&e.shiftKey){connecting=true;wireStart=nd;return}
-// Check if clicking a component
-const c=hitTest(mx,my);
-if(c){selComp=c;dragComp=c;dragOff={x:mx-c.x,y:my-c.y};render();return}
-selComp=null;isPanning=true;panStart={x:e.clientX-pan.x,y:e.clientY-pan.y};render();
-}
-function onMouseMove(e){
-const r=cvs.getBoundingClientRect();const mx=(e.clientX-r.left-pan.x)/zoom,my=(e.clientY-r.top-pan.y)/zoom;
-if(dragComp&&!dragComp.isNew){dragComp.x=mx-dragOff.x;dragComp.y=my-dragOff.y;updateNodes(dragComp);updateWires(dragComp);render();return}
-if(isPanning){pan.x=e.clientX-panStart.x;pan.y=e.clientY-panStart.y;render();return}
-}
-function onMouseUp(e){
-if(connecting&&wireStart){const r=cvs.getBoundingClientRect();const mx=(e.clientX-r.left-pan.x)/zoom,my=(e.clientY-r.top-pan.y)/zoom;
-const nd=findNodeAt(mx,my,wireStart.cid);if(nd){addWire(wireStart,nd)}connecting=false;wireStart=null;render();return}
-if(dragComp&&!dragComp.isNew){saveState()}
-dragComp=null;isPanning=false;
-}
+/* Mouse/Touch */
+let lastT=null,tTimer=null;
+function onMD(e){const r=cvs.getBoundingClientRect(),mx=(e.clientX-r.left-pan.x)/zoom,my=(e.clientY-r.top-pan.y)/zoom;const nd=findN(mx,my);if(nd&&e.shiftKey){connecting=true;wireStart=nd;return}const c=hitT(mx,my);if(c){selComp=c;dragComp=c;dragOff={x:mx-c.x,y:my-c.y};render();return}selComp=null;isPanning=true;panStart={x:e.clientX-pan.x,y:e.clientY-pan.y};render()}
+function onMM(e){const r=cvs.getBoundingClientRect(),mx=(e.clientX-r.left-pan.x)/zoom,my=(e.clientY-r.top-pan.y)/zoom;if(dragComp&&!dragComp.isNew){dragComp.x=mx-dragOff.x;dragComp.y=my-dragOff.y;updN(dragComp);updW(dragComp);render();return}if(isPanning){pan.x=e.clientX-panStart.x;pan.y=e.clientY-panStart.y;render()}}
+function onMU(e){if(connecting&&wireStart){const r=cvs.getBoundingClientRect(),mx=(e.clientX-r.left-pan.x)/zoom,my=(e.clientY-r.top-pan.y)/zoom;const nd=findN(mx,my,wireStart.cid);if(nd)addW(wireStart,nd);connecting=false;wireStart=null;render();return}if(dragComp&&!dragComp.isNew)pushSt();dragComp=null;isPanning=false}
+function onTS(e){e.preventDefault();if(e.touches.length===1){const t=e.touches[0],r=cvs.getBoundingClientRect(),mx=(t.clientX-r.left-pan.x)/zoom,my=(t.clientY-r.top-pan.y)/zoom;lastT={x:t.clientX,y:t.clientY};const c=hitT(mx,my);if(c){selComp=c;dragComp=c;dragOff={x:mx-c.x,y:my-c.y};tTimer=setTimeout(()=>{onCtx(t.clientX,t.clientY,mx,my);dragComp=null},600);render();return}isPanning=true;panStart={x:t.clientX-pan.x,y:t.clientY-pan.y}}}
+function onTM(e){e.preventDefault();if(tTimer){clearTimeout(tTimer);tTimer=null}if(e.touches.length===1){const t=e.touches[0];if(dragComp){const r=cvs.getBoundingClientRect();dragComp.x=(t.clientX-r.left-pan.x)/zoom-dragOff.x;dragComp.y=(t.clientY-r.top-pan.y)/zoom-dragOff.y;updN(dragComp);updW(dragComp);render();return}if(isPanning){pan.x=t.clientX-panStart.x;pan.y=t.clientY-panStart.y;render()}}if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(lastT&&lastT.pd){zoom=Math.max(.3,Math.min(3,zoom*(d/lastT.pd)))}if(!lastT)lastT={};lastT.pd=d;render()}}
+function onTE(){if(tTimer){clearTimeout(tTimer);tTimer=null}dragComp=null;isPanning=false;if(lastT)lastT.pd=null}
 
-function onTouchStart(e){
-e.preventDefault();if(e.touches.length===1){const t=e.touches[0];const r=cvs.getBoundingClientRect();const mx=(t.clientX-r.left-pan.x)/zoom,my=(t.clientY-r.top-pan.y)/zoom;
-lastTouch={x:t.clientX,y:t.clientY};
-const c=hitTest(mx,my);if(c){selComp=c;dragComp=c;dragOff={x:mx-c.x,y:my-c.y};
-touchTimer=setTimeout(()=>{onContext(t.clientX,t.clientY,mx,my);dragComp=null},600);render();return}
-isPanning=true;panStart={x:t.clientX-pan.x,y:t.clientY-pan.y}}
-}
-function onTouchMove(e){
-e.preventDefault();if(touchTimer){clearTimeout(touchTimer);touchTimer=null}
-if(e.touches.length===1){const t=e.touches[0];
-if(dragComp){const r=cvs.getBoundingClientRect();dragComp.x=(t.clientX-r.left-pan.x)/zoom-dragOff.x;dragComp.y=(t.clientY-r.top-pan.y)/zoom-dragOff.y;updateNodes(dragComp);updateWires(dragComp);render();return}
-if(isPanning){pan.x=t.clientX-panStart.x;pan.y=t.clientY-panStart.y;render()}}
-if(e.touches.length===2){/* pinch zoom */
-const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-if(lastTouch.pinchD){const s=d/lastTouch.pinchD;zoom=Math.max(0.3,Math.min(3,zoom*s))}
-lastTouch.pinchD=d;render()}
-}
-function onTouchEnd(e){if(touchTimer){clearTimeout(touchTimer);touchTimer=null}dragComp=null;isPanning=false;if(lastTouch)lastTouch.pinchD=null}
+/* Context Menu */
+function onCtx(cx,cy,mx,my){const c=hitT(mx,my);if(!c)return;selComp=c;const m=$('#ctxMenu');m.style.display='block';m.style.left=cx+'px';m.style.top=cy+'px';m.innerHTML='<button onclick="editParams()">Editar par\u00e1metros</button><button onclick="rotateComp()">Rotar 90\u00b0</button><button onclick="dupComp()">Duplicar</button><button onclick="delComp()" style="color:#e53935">Eliminar</button>';const hide=()=>{m.style.display='none';document.removeEventListener('click',hide)};setTimeout(()=>document.addEventListener('click',hide),10)}
+window.editParams=()=>{$('#ctxMenu').style.display='none';if(!selComp)return;let h='';const p=selComp.params;if(p.label!==undefined)h+='<div class="form-group"><label>Etiqueta</label><input id="ep_l" value="'+p.label+'"></div>';if(p.C!==undefined)h+='<div class="form-group"><label>Capacitancia (\u03BCF)</label><input id="ep_C" type="number" step="any" value="'+(p.C*1e6).toFixed(2)+'"></div>';if(p.kappa!==undefined)h+='<div class="form-group"><label>\u03BA (diel\u00e9ctrico)</label><input id="ep_k" type="number" step="any" value="'+p.kappa+'"></div>';if(p.V!==undefined)h+='<div class="form-group"><label>Voltaje (V)</label><input id="ep_V" type="number" step="any" value="'+p.V+'"></div>';if(p.Vmax!==undefined)h+='<div class="form-group"><label>V m\u00e1x.</label><input id="ep_Vm" type="number" step="any" value="'+p.Vmax+'"></div>';h+='<button onclick="applyP()">Aplicar</button>';showModal('Editar',h)};
+window.applyP=()=>{if(!selComp)return;const l=$('#ep_l');if(l)selComp.params.label=l.value;const c=$('#ep_C');if(c)selComp.params.C=parseFloat(c.value)*1e-6;const k=$('#ep_k');if(k)selComp.params.kappa=parseFloat(k.value);const v=$('#ep_V');if(v)selComp.params.V=parseFloat(v.value);const vm=$('#ep_Vm');if(vm)selComp.params.Vmax=parseFloat(vm.value);document.querySelector('.modal-overlay')?.remove();pushSt();render()};
+window.rotateComp=()=>{$('#ctxMenu').style.display='none';if(!selComp)return;selComp.rot=(selComp.rot+90)%360;updN(selComp);updW(selComp);pushSt();render()};
+window.dupComp=()=>{$('#ctxMenu').style.display='none';if(!selComp)return;const c=addComp(selComp.type,selComp.x+40,selComp.y+40);Object.assign(c.params,JSON.parse(JSON.stringify(selComp.params)));c.params.label+="'";render()};
+window.delComp=()=>{$('#ctxMenu').style.display='none';if(!selComp)return;rmComp(selComp);selComp=null;render()};
 
-function hitTest(x,y){
-for(let i=components.length-1;i>=0;i--){const c=components[i];if(x>=c.x-c.w/2-5&&x<=c.x+c.w/2+5&&y>=c.y-c.h/2-5&&y<=c.y+c.h/2+5)return c}return null;
-}
+/* Undo/Redo */
+function pushSt(){const s=JSON.stringify({components:components.map(c=>({...c,nodes:[]})),wires});hist=hist.slice(0,histIdx+1);hist.push(s);histIdx=hist.length-1;if(hist.length>50){hist.shift();histIdx--}syncRoom()}
+window.undo=()=>{if(histIdx<=0)return;histIdx--;restSt(hist[histIdx])};
+window.redo=()=>{if(histIdx>=hist.length-1)return;histIdx++;restSt(hist[histIdx])};
+function restSt(s){const d=JSON.parse(s);components=d.components;components.forEach(c=>{c.nodes=getN(c)});wires=d.wires;render()}
+window.clearCanvas=()=>{components=[];wires=[];selComp=null;pushSt();render()};
 
-function addWire(n1,n2){
-// Create orthogonal wire
-const mx=(n1.x+n2.x)/2;
-wires.push({n1:{...n1},n2:{...n2},points:[{x:n1.x,y:n1.y},{x:mx,y:n1.y},{x:mx,y:n2.y},{x:n2.x,y:n2.y}],c1:n1.cid,c1n:n1.idx,c2:n2.cid,c2n:n2.idx});
-saveState();render();
-}
+/* ===== CIRCUIT ANALYSIS ===== */
+window.analyzeCircuit=()=>{const src=components.find(c=>c.type==='source');if(!src){showModal('Error','<p>No se encontr\u00f3 una fuente de voltaje.</p>');return}const caps=components.filter(c=>c.type.startsWith('cap_'));if(!caps.length){showModal('Error','<p>No hay capacitores.</p>');return}const V=src.params.V;const result=solve(src,caps,V);if(!result){showModal('Error','<p>No se pudo analizar. Verifica conexiones.</p>');return}for(const c of caps){if(c.type==='cap_pol'&&result.voltages[c.id]<0){explode(c);showModal('Explosi\u00f3n','<p style="color:var(--accent3)">'+c.params.label+' tiene polaridad invertida. Los electrol\u00edticos explotan al invertir polaridad.</p>');return}}renderSol(result,caps,V);addPoints(10);showPage('solPage',$('nav button[data-page=solPage]'))};
 
-function updateWires(comp){
-for(const w of wires){
-if(w.c1===comp.id){const n=comp.nodes[w.c1n];w.n1={...n};w.points[0]={x:n.x,y:n.y};const mx=(w.points[0].x+w.points[3].x)/2;w.points[1]={x:mx,y:w.points[0].y};w.points[2]={x:mx,y:w.points[3].y}}
-if(w.c2===comp.id){const n=comp.nodes[w.c2n];w.n2={...n};w.points[3]={x:n.x,y:n.y};const mx=(w.points[0].x+w.points[3].x)/2;w.points[1]={x:mx,y:w.points[0].y};w.points[2]={x:mx,y:w.points[3].y}}
-}
-}
-
-function removeComponent(c){
-wires=wires.filter(w=>w.c1!==c.id&&w.c2!==c.id);
-components=components.filter(x=>x!==c);saveState();render();
-}
-
-// Context menu
-function onContext(cx,cy,mx,my){
-const c=hitTest(mx,my);if(!c)return;selComp=c;
-const m=$('#ctxMenu');m.style.display='block';m.style.left=cx+'px';m.style.top=cy+'px';
-m.innerHTML=`
-<button onclick="editParams()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Editar par&aacute;metros</button>
-<button onclick="rotateComp()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg> Rotar 90&deg;</button>
-<button onclick="dupComp()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Duplicar</button>
-<button onclick="delComp()" style="color:#e53935"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg> Eliminar</button>`;
-const hide=()=>{m.style.display='none';document.removeEventListener('click',hide)};
-setTimeout(()=>document.addEventListener('click',hide),10);
-}
-window.editParams=()=>{
-$('#ctxMenu').style.display='none';if(!selComp)return;
-let html='';const p=selComp.params;
-if(p.label!==undefined)html+=`<div class="form-group"><label>Etiqueta</label><input id="ep_label" value="${p.label}"></div>`;
-if(p.C!==undefined)html+=`<div class="form-group"><label>Capacitancia (&mu;F)</label><input id="ep_C" type="number" step="any" value="${(p.C*1e6).toFixed(2)}"></div>`;
-if(p.kappa!==undefined)html+=`<div class="form-group"><label>Constante diel&eacute;ctrica (&kappa;)</label><input id="ep_k" type="number" step="any" value="${p.kappa}"></div>`;
-if(p.V!==undefined)html+=`<div class="form-group"><label>Voltaje (V)</label><input id="ep_V" type="number" step="any" value="${p.V}"></div>`;
-if(p.Vmax!==undefined)html+=`<div class="form-group"><label>Voltaje m&aacute;x. (V)</label><input id="ep_Vm" type="number" step="any" value="${p.Vmax}"></div>`;
-html+=`<button onclick="applyParams()">Aplicar</button>`;
-showModal('Editar Componente',html);
-};
-window.applyParams=()=>{
-if(!selComp)return;
-const l=document.getElementById('ep_label');if(l)selComp.params.label=l.value;
-const c=document.getElementById('ep_C');if(c)selComp.params.C=parseFloat(c.value)*1e-6;
-const k=document.getElementById('ep_k');if(k)selComp.params.kappa=parseFloat(k.value);
-const v=document.getElementById('ep_V');if(v)selComp.params.V=parseFloat(v.value);
-const vm=document.getElementById('ep_Vm');if(vm)selComp.params.Vmax=parseFloat(vm.value);
-document.querySelector('.modal-overlay')?.remove();saveState();render();
-};
-window.rotateComp=()=>{$('#ctxMenu').style.display='none';if(!selComp)return;selComp.rot=(selComp.rot+90)%360;updateNodes(selComp);updateWires(selComp);saveState();render()};
-window.dupComp=()=>{$('#ctxMenu').style.display='none';if(!selComp)return;const c=addComponent(selComp.type,selComp.x+40,selComp.y+40);Object.assign(c.params,JSON.parse(JSON.stringify(selComp.params)));c.params.label=c.params.label?c.params.label+'\'':'';render()};
-window.delComp=()=>{$('#ctxMenu').style.display='none';if(!selComp)return;removeComponent(selComp);selComp=null;render()};
-
-// Undo/Redo
-let saveState=()=>{const s=JSON.stringify({components:components.map(c=>({...c,nodes:[]})),wires});history=history.slice(0,histIdx+1);history.push(s);histIdx=history.length-1;if(history.length>50){history.shift();histIdx--}};
-window.undo=()=>{if(histIdx<=0)return;histIdx--;restoreState(history[histIdx])};
-window.redo=()=>{if(histIdx>=history.length-1)return;histIdx++;restoreState(history[histIdx])};
-function restoreState(s){const d=JSON.parse(s);components=d.components;components.forEach(c=>{c.nodes=getNodes(c)});wires=d.wires;render()}
-window.clearCanvas=()=>{components=[];wires=[];selComp=null;saveState();render()};
-
-// ============ CIRCUIT ANALYSIS ============
-window.analyzeCircuit=()=>{
-// Find source
-const src=components.find(c=>c.type==='source');
-if(!src){showModal('Error','<p>No se encontr&oacute; una fuente de voltaje en el circuito.</p>');return}
-const caps=components.filter(c=>c.type.startsWith('cap_'));
-if(caps.length===0){showModal('Error','<p>No hay capacitores en el circuito.</p>');return}
-
-// Build adjacency graph from wires
-const graph=buildGraph();
-if(!graph){showModal('Error','<p>El circuito tiene conexiones incompletas o un cortocircuito.</p>');return}
-
-// Detect topology
-const V=src.params.V;
-const result=solveCircuit(graph,src,caps,V);
-if(!result){showModal('Error','<p>No se pudo analizar el circuito. Verifica que est&eacute; completo y sin cortocircuitos.</p>');return}
-
-// Check polarized capacitors
-for(const c of caps){
-if(c.type==='cap_pol'&&result.voltages[c.id]<0){
-showExplosion(c);
-showModal('Explosi&oacute;n','<p style="color:var(--accent3)">El capacitor electrol&iacute;tico <b>'+c.params.label+'</b> est&aacute; conectado con polaridad invertida. Los capacitores electrol&iacute;ticos tienen un &oacute;xido diel&eacute;ctrico que solo funciona en una direcci&oacute;n. Al invertir la polaridad, se produce una reacci&oacute;n qu&iacute;mica que genera gas y puede causar la explosi&oacute;n del componente.</p>');
-return;
-}
-}
-
-renderSolution(result,caps,V);
-addPoints(10);
-showPage('solPage',$('nav button[data-page=solPage]'));
-};
-
-function buildGraph(){
-const nodeMap=new Map();// nodeKey -> set of component terminals
-let nid=0;
-// Union-Find to group connected terminals
-const parent={};
-function makeKey(cid,idx){return cid+':'+idx}
-function find(k){if(!parent[k])parent[k]=k;if(parent[k]!==k)parent[k]=find(parent[k]);return parent[k]}
-function union(a,b){const pa=find(a),pb=find(b);if(pa!==pb)parent[pa]=pb}
-
-// All component terminals
-for(const c of components){for(const n of c.nodes)find(makeKey(c.id,n.idx))}
-
-// Wires connect terminals
-for(const w of wires){union(makeKey(w.c1,w.c1n),makeKey(w.c2,w.c2n))}
-
-// Also handle wire components (not just wires array)
-for(const c of components){
-if(c.type==='wire'){// wire has two nodes, they are the same electrical node
-union(makeKey(c.id,0),makeKey(c.id,1))}
-}
-
-// Build node groups
-const groups={};
-for(const c of components){for(const n of c.nodes){const k=makeKey(c.id,n.idx);const g=find(k);if(!groups[g])groups[g]=[];groups[g].push({cid:c.id,nidx:n.idx})}}
-return{groups,find,makeKey};
-}
-
-function solveCircuit(graph,src,caps,V){
-const{find,makeKey}=graph;
-// Get source terminal nodes
-const srcN0=find(makeKey(src.id,0));//+ terminal
-const srcN1=find(makeKey(src.id,1));//- terminal
-
-// Build capacitor network between src terminals
-// Simplified: detect series and parallel combinations
-const capInfos=caps.map(c=>({id:c.id,C:c.params.C*(c.params.kappa||1),label:c.params.label,n0:find(makeKey(c.id,0)),n1:find(makeKey(c.id,1))}));
-
-// Try to reduce the network
-const steps=[];
-let network=[...capInfos];
-let nodeNames={};nodeNames[srcN0]='a';nodeNames[srcN1]='b';let nn=0;
-for(const ci of network){if(!nodeNames[ci.n0])nodeNames[ci.n0]=String.fromCharCode(99+nn++);if(!nodeNames[ci.n1])nodeNames[ci.n1]=String.fromCharCode(99+nn++)}
-
-let reduced=true;
-while(network.length>1&&reduced){
-reduced=false;
-// Find parallel: same n0,n1 pair
-for(let i=0;i<network.length&&!reduced;i++){
-for(let j=i+1;j<network.length&&!reduced;j++){
-if((network[i].n0===network[j].n0&&network[i].n1===network[j].n1)||(network[i].n0===network[j].n1&&network[i].n1===network[j].n0)){
-const Ceq=network[i].C+network[j].C;
-const lbl=network[i].label+'+'+network[j].label;
-steps.push({type:'parallel',comps:[network[i],network[j]],Ceq,label:lbl,formula:`C_{eq}=${network[i].label}+${network[j].label}=${fmtCk(network[i].C)}+${fmtCk(network[j].C)}=${fmtCk(Ceq)}`});
-const newC={id:'eq_'+steps.length,C:Ceq,label:lbl,n0:network[i].n0,n1:network[i].n1};
-network=network.filter((x,k)=>k!==i&&k!==j);network.push(newC);reduced=true;
-}}}
-if(reduced)continue;
-// Find series: two caps sharing a node that connects ONLY to those two caps
-const nodeCounts={};
-for(const c of network){nodeCounts[c.n0]=(nodeCounts[c.n0]||0)+1;nodeCounts[c.n1]=(nodeCounts[c.n1]||0)+1}
-for(let i=0;i<network.length&&!reduced;i++){
-for(let j=i+1;j<network.length&&!reduced;j++){
-// Check if they share exactly one node and that node connects only to these two
-let shared=null;
-if(network[i].n1===network[j].n0&&nodeCounts[network[i].n1]===2)shared=network[i].n1;
-else if(network[i].n0===network[j].n1&&nodeCounts[network[i].n0]===2)shared=network[i].n0;
-else if(network[i].n0===network[j].n0&&nodeCounts[network[i].n0]===2)shared=network[i].n0;
-else if(network[i].n1===network[j].n1&&nodeCounts[network[i].n1]===2)shared=network[i].n1;
-if(shared!==null){
-const Ceq=1/(1/network[i].C+1/network[j].C);
-const lbl='('+network[i].label+','+network[j].label+')';
-steps.push({type:'series',comps:[network[i],network[j]],Ceq,label:lbl,formula:`\\frac{1}{C_{eq}}=\\frac{1}{${network[i].label}}+\\frac{1}{${network[j].label}}=\\frac{1}{${fmtCk(network[i].C)}}+\\frac{1}{${fmtCk(network[j].C)}}`,Ceq_str:fmtCk(Ceq)});
-// Determine remaining nodes
-const ci=network[i],cj=network[j];
-let na=ci.n0===shared?ci.n1:ci.n0;
-let nb=cj.n0===shared?cj.n1:cj.n0;
-const newC={id:'eq_'+steps.length,C:Ceq,label:lbl,n0:na,n1:nb};
-network=network.filter((x,k)=>k!==i&&k!==j);network.push(newC);reduced=true;
-}}}
-}
-
-if(network.length!==1)return null;
-const Ceq=network[0].C;
-const Qtot=Ceq*V;
-
-// Expansion: compute V,Q for each original cap
-const voltages={},charges={};
-// Work backwards through steps
-const eqVals={};eqVals[network[0].id||network[0].label]={V,Q:Qtot};
-
-for(let s=steps.length-1;s>=0;s--){
-const st=steps[s];const parent=eqVals[st.comps[0].id]||eqVals[st.comps[1].id]||eqVals['eq_'+(s+1)]||{V,Q:Qtot};
-if(st.type==='parallel'){
-const Vp=parent.V||V;
-for(const c of st.comps){const q=c.C*Vp;eqVals[c.id]={V:Vp,Q:q};if(typeof c.id==='number'){voltages[c.id]=Vp;charges[c.id]=q}}
-}else{
-const Qs=parent.Q||Qtot;
-for(const c of st.comps){const v=Qs/c.C;eqVals[c.id]={V:v,Q:Qs};if(typeof c.id==='number'){voltages[c.id]=v;charges[c.id]=Qs}}
-}
-}
-// If only one cap, assign directly
+function solve(src,caps,V){
+const par={};function mk(a,b){return a+':'+b}function find(k){if(!par[k])par[k]=k;if(par[k]!==k)par[k]=find(par[k]);return par[k]}function union(a,b){par[find(a)]=find(b)}
+for(const c of components)for(const n of c.nodes)find(mk(c.id,n.idx));
+for(const w of wires)union(mk(w.c1,w.c1n),mk(w.c2,w.c2n));
+for(const c of components)if(c.type==='wire')union(mk(c.id,0),mk(c.id,1));
+const srcN0=find(mk(src.id,0)),srcN1=find(mk(src.id,1));
+const ci=caps.map(c=>({id:c.id,C:c.params.C*(c.params.kappa||1),label:c.params.label,n0:find(mk(c.id,0)),n1:find(mk(c.id,1))}));
+const steps=[];let net=[...ci],red=true;
+while(net.length>1&&red){red=false;
+for(let i=0;i<net.length&&!red;i++)for(let j=i+1;j<net.length&&!red;j++){if((net[i].n0===net[j].n0&&net[i].n1===net[j].n1)||(net[i].n0===net[j].n1&&net[i].n1===net[j].n0)){const Ceq=net[i].C+net[j].C,lbl=net[i].label+'+'+net[j].label;steps.push({type:'parallel',comps:[net[i],net[j]],Ceq,formula:`C_{eq}=${net[i].label}+${net[j].label}=${fk(net[i].C)}+${fk(net[j].C)}=${fk(Ceq)}`});const nc={id:'eq_'+steps.length,C:Ceq,label:lbl,n0:net[i].n0,n1:net[i].n1};net=net.filter((_,k)=>k!==i&&k!==j);net.push(nc);red=true}}
+if(red)continue;
+const nc={};for(const c of net){nc[c.n0]=(nc[c.n0]||0)+1;nc[c.n1]=(nc[c.n1]||0)+1}
+for(let i=0;i<net.length&&!red;i++)for(let j=i+1;j<net.length&&!red;j++){let sh=null;if(net[i].n1===net[j].n0&&nc[net[i].n1]===2)sh=net[i].n1;else if(net[i].n0===net[j].n1&&nc[net[i].n0]===2)sh=net[i].n0;else if(net[i].n0===net[j].n0&&nc[net[i].n0]===2)sh=net[i].n0;else if(net[i].n1===net[j].n1&&nc[net[i].n1]===2)sh=net[i].n1;if(sh!==null){const Ceq=1/(1/net[i].C+1/net[j].C),lbl='('+net[i].label+','+net[j].label+')';steps.push({type:'series',comps:[net[i],net[j]],Ceq,formula:`\\frac{1}{C_{eq}}=\\frac{1}{${net[i].label}}+\\frac{1}{${net[j].label}}`,Ceq_str:fk(Ceq)});const na=net[i].n0===sh?net[i].n1:net[i].n0,nb=net[j].n0===sh?net[j].n1:net[j].n0;net=net.filter((_,k)=>k!==i&&k!==j);net.push({id:'eq_'+steps.length,C:Ceq,label:lbl,n0:na,n1:nb});red=true}}}
+if(net.length!==1)return null;
+const Ceq=net[0].C,Qt=Ceq*V,voltages={},charges={},ev={};ev[net[0].id]={V,Q:Qt};
+for(let s=steps.length-1;s>=0;s--){const st=steps[s],p=ev[st.comps[0].id]||ev[st.comps[1].id]||ev['eq_'+(s+1)]||{V,Q:Qt};if(st.type==='parallel'){const Vp=p.V||V;for(const c of st.comps){const q=c.C*Vp;ev[c.id]={V:Vp,Q:q};if(typeof c.id==='number'){voltages[c.id]=Vp;charges[c.id]=q}}}else{const Qs=p.Q||Qt;for(const c of st.comps){const v=Qs/c.C;ev[c.id]={V:v,Q:Qs};if(typeof c.id==='number'){voltages[c.id]=v;charges[c.id]=Qs}}}}
 if(caps.length===1&&!voltages[caps[0].id]){voltages[caps[0].id]=V;charges[caps[0].id]=caps[0].params.C*V}
+return{Ceq,V,Qt,steps,voltages,charges}}
+function fk(v){if(v>=1)return v.toFixed(2)+'F';if(v>=1e-3)return(v*1e3).toFixed(2)+'mF';if(v>=1e-6)return(v*1e6).toFixed(2)+'\\mu F';if(v>=1e-9)return(v*1e9).toFixed(2)+'nF';return(v*1e12).toFixed(2)+'pF'}
+function fn(v){if(v>=1)return v.toFixed(4)+'F';if(v>=1e-3)return(v*1e3).toFixed(4)+'mF';if(v>=1e-6)return(v*1e6).toFixed(4)+'\u03BCF';return(v*1e9).toFixed(4)+'nF'}
 
-return{Ceq,V,Qtot,steps,voltages,charges};
-}
+function renderSol(res,caps,V){const el=$('#solContent');let h='<h2 style="text-align:center;margin-bottom:24px">Soluci\u00f3n Paso a Paso</h2>';
+res.steps.forEach((s,i)=>{h+=`<div class="step-card glass"><h3>Paso ${i+1}: ${s.type==='parallel'?'Paralelo':'Serie'}</h3><p>${s.comps.map(c=>c.label).join(' y ')} en <b>${s.type==='parallel'?'paralelo':'serie'}</b>.</p>`;h+='<div class="katex-display">'+katex.renderToString(s.formula,{displayMode:true})+'</div>';if(s.Ceq_str)h+='<div class="katex-display">'+katex.renderToString('C_{eq}='+s.Ceq_str,{displayMode:true})+'</div>';h+='</div>'});
+h+='<div class="step-card glass"><h3>Resultado</h3><div class="katex-display">'+katex.renderToString('C_{eq}='+fk(res.Ceq),{displayMode:true})+'</div><div class="katex-display">'+katex.renderToString('Q='+fk(res.Qt),{displayMode:true})+'</div></div>';
+h+='<div class="step-card glass"><h3>Tabla Resumen</h3><table class="summary-table"><thead><tr><th>Comp.</th><th>C</th><th>V</th><th>Q</th><th>E</th></tr></thead><tbody>';
+for(const c of caps){const Cv=c.params.C*(c.params.kappa||1),Vv=res.voltages[c.id]||0,Qv=res.charges[c.id]||0,Ev=.5*Cv*Vv*Vv;h+=`<tr><td>${c.params.label}</td><td>${fn(Cv)}</td><td>${Vv.toFixed(4)}</td><td>${Qv.toExponential(3)}</td><td>${Ev.toExponential(3)}</td></tr>`}
+const Et=.5*res.Ceq*V*V;h+=`<tr style="font-weight:700"><td>C_eq</td><td>${fn(res.Ceq)}</td><td>${V}</td><td>${res.Qt.toExponential(3)}</td><td>${Et.toExponential(3)}</td></tr></tbody></table></div>`;
+h+='<div class="step-card glass"><h3>Energ\u00eda</h3><div class="katex-display">'+katex.renderToString('E=\\frac{1}{2}C_{eq}V^2='+Et.toExponential(3)+'\\text{ J}',{displayMode:true})+'</div></div>';
+el.innerHTML=h}
 
-function fmtCk(v){if(v>=1)return v.toFixed(2)+'F';if(v>=1e-3)return(v*1e3).toFixed(2)+'mF';if(v>=1e-6)return(v*1e6).toFixed(2)+'\\mu F';if(v>=1e-9)return(v*1e9).toFixed(2)+'nF';return(v*1e12).toFixed(2)+'pF'}
-function fmtCn(v){if(v>=1)return v.toFixed(4)+'F';if(v>=1e-3)return(v*1e3).toFixed(4)+'mF';if(v>=1e-6)return(v*1e6).toFixed(4)+'\u03BCF';if(v>=1e-9)return(v*1e9).toFixed(4)+'nF';return(v*1e12).toFixed(4)+'pF'}
+function explode(c){const ps=[];for(let i=0;i<30;i++)ps.push({x:c.x,y:c.y,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,life:1,r:Math.random()*4+2,col:['#f33','#f90','#ff0','#f60'][~~(Math.random()*4)]});let f=0;(function a(){if(f++>60)return render();ctx.save();ctx.translate(pan.x,pan.y);ctx.scale(zoom,zoom);for(const p of ps){p.x+=p.vx;p.y+=p.vy;p.life-=.016;if(p.life<=0)continue;ctx.globalAlpha=p.life;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.col;ctx.fill()}ctx.restore();requestAnimationFrame(a)})()}
 
-function renderSolution(res,caps,V){
-const el=$('#solContent');let html='<h2 style="text-align:center;margin-bottom:24px">Soluci&oacute;n Paso a Paso</h2>';
-// Reduction steps
-res.steps.forEach((s,i)=>{
-html+=`<div class="step-card glass"><h3>Paso ${i+1}: Reducci&oacute;n ${s.type==='parallel'?'en Paralelo':'en Serie'}</h3>`;
-html+=`<p>${s.comps.map(c=>c.label).join(' y ')} est&aacute;n en <b>${s.type==='parallel'?'paralelo':'serie'}</b>.</p>`;
-if(s.type==='parallel'){
-html+=`<div class="katex-display">${katex.renderToString(`C_{eq}=${s.comps.map(c=>c.label).join('+')}`,{displayMode:true})}</div>`;
-html+=`<div class="katex-display">${katex.renderToString(s.formula,{displayMode:true})}</div>`;
-}else{
-html+=`<div class="katex-display">${katex.renderToString(`\\frac{1}{C_{eq}}=`+s.comps.map(c=>`\\frac{1}{${c.label}}`).join('+'),{displayMode:true})}</div>`;
-html+=`<div class="katex-display">${katex.renderToString(s.formula,{displayMode:true})}</div>`;
-html+=`<div class="katex-display">${katex.renderToString(`C_{eq}=${s.Ceq_str}`,{displayMode:true})}</div>`;
-}
-html+=`</div>`;
-});
-
-// Total
-html+=`<div class="step-card glass"><h3>Resultado Final</h3>`;
-html+=`<div class="katex-display">${katex.renderToString(`C_{eq}=${fmtCk(res.Ceq)}`,{displayMode:true})}</div>`;
-html+=`<div class="katex-display">${katex.renderToString(`Q_{total}=C_{eq}\\cdot V=${fmtCk(res.Ceq)}\\cdot ${V}V=${fmtCk(res.Qtot)}`,{displayMode:true})}</div>`;
-html+=`</div>`;
-
-// Summary table
-html+=`<div class="step-card glass"><h3>Tabla Resumen</h3><table class="summary-table"><thead><tr><th>Componente</th><th>C</th><th>V (V)</th><th>Q (C)</th><th>E (J)</th></tr></thead><tbody>`;
-for(const c of caps){
-const Cv=c.params.C*(c.params.kappa||1);const Vv=res.voltages[c.id]||0;const Qv=res.charges[c.id]||0;const Ev=0.5*Cv*Vv*Vv;
-html+=`<tr><td>${c.params.label}</td><td>${fmtCn(Cv)}</td><td>${Vv.toFixed(4)}</td><td>${Qv.toExponential(3)}</td><td>${Ev.toExponential(3)}</td></tr>`;
-}
-const Etot=0.5*res.Ceq*V*V;
-html+=`<tr style="font-weight:700"><td>C_eq</td><td>${fmtCn(res.Ceq)}</td><td>${V.toFixed(2)}</td><td>${res.Qtot.toExponential(3)}</td><td>${Etot.toExponential(3)}</td></tr>`;
-html+=`</tbody></table></div>`;
-
-// Energy formula
-html+=`<div class="step-card glass"><h3>Energ&iacute;a Almacenada</h3>`;
-html+=`<div class="katex-display">${katex.renderToString(`E=\\frac{1}{2}C_{eq}V^2=\\frac{1}{2}(${fmtCk(res.Ceq)})(${V})^2=${Etot.toExponential(3)}\\text{ J}`,{displayMode:true})}</div></div>`;
-
-el.innerHTML=html;
-}
-
-// Explosion animation
-function showExplosion(c){
-const particles=[];for(let i=0;i<30;i++)particles.push({x:c.x,y:c.y,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8,life:1,r:Math.random()*4+2,color:['#ff3333','#ff9900','#ffff00','#ff6600'][Math.floor(Math.random()*4)]});
-let frame=0;
-function anim(){if(frame++>60)return render();
-ctx.save();ctx.translate(pan.x,pan.y);ctx.scale(zoom,zoom);
-render();ctx.save();ctx.translate(pan.x,pan.y);ctx.scale(zoom,zoom);
-for(const p of particles){p.x+=p.vx;p.y+=p.vy;p.life-=0.016;if(p.life<=0)continue;ctx.globalAlpha=p.life;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.color;ctx.fill()}
-ctx.restore();ctx.restore();requestAnimationFrame(anim)}
-anim();
-}
-
-// ============ ROOMS ============
-window.createRoom=async()=>{
-const name=$('#newRoomName').value.trim();if(!name)return;
-const pw=$('#newRoomPass').value.trim();
-try{const rid=push(ref(db,'salas_capacitores')).key;
-await set(ref(db,`salas_capacitores/${rid}`),{name,password:pw||null,creator:CU.uid,createdAt:Date.now(),state:null,members:{}});
-$('#newRoomName').value='';$('#newRoomPass').value='';
-addPoints(5);loadRooms();}catch(e){showModal('Error de permisos','<p>No se pudo crear la sala. Verifica que las reglas de Firebase incluyan la ruta <code>salas_capacitores</code>.</p><p style="font-size:11px;color:var(--fg2);margin-top:8px">'+e.message+'</p>')}
-};
-
-async function loadRooms(){
-if(!CU)return;
-const rl=$('#roomList');
-try{const snap=await get(ref(db,'salas_capacitores'));
-rl.innerHTML='';
-if(!snap.exists()){rl.innerHTML='<p style="color:var(--fg2);font-size:13px">No hay salas creadas a&uacute;n.</p>';return}
-snap.forEach(ch=>{
-const r=ch.val();const d=document.createElement('div');d.className='room-card glass';
-d.innerHTML=`<div><b>${r.name}</b><br><span style="font-size:11px;color:var(--fg2)">${r.password?'Con contrase\u00f1a':'Abierta'} &middot; ${Object.keys(r.members||{}).length} miembros</span></div><button class="btn-sm" onclick="joinRoom('${ch.key}',${!!r.password})">Unirse</button>`;
-rl.appendChild(d);
-});}catch(e){rl.innerHTML='<p style="color:var(--accent3);font-size:12px">No se pudieron cargar las salas. Las reglas de Firebase deben incluir <code>salas_capacitores</code>.</p>'}
-}
-// Load rooms only after auth is confirmed (called from showPage)
-window._loadRoomsOnNav=()=>{if(CU)loadRooms()};
-
-window.joinRoom=async(rid,hasPw)=>{
-try{
-if(hasPw){
-const pw=prompt('Contrase\u00f1a de la sala:');
-const snap=await get(ref(db,`salas_capacitores/${rid}/password`));
-if(snap.val()&&snap.val()!==pw){alert('Contrase\u00f1a incorrecta');return}
-}
-curRoom=rid;
-await set(ref(db,`salas_capacitores/${rid}/members/${CU.uid}`),{email:CU.email,joined:Date.now()});
-const nameSnap=await get(ref(db,`salas_capacitores/${rid}/name`));
-$('#roomTitle').textContent=nameSnap.val()||'Sala';
-$('#inRoom').classList.remove('hidden');
-
-// Listen to state
-roomUnsub=onValue(ref(db,`salas_capacitores/${rid}/state`),snap=>{
-if(snap.exists()){const s=snap.val();try{const d=JSON.parse(s);components=d.components||[];components.forEach(c=>c.nodes=getNodes(c));wires=d.wires||[];render()}catch(e){}}
-});
-// Listen to members
-onValue(ref(db,`salas_capacitores/${rid}/members`),snap=>{
-$('#roomMembers').textContent='Miembros: '+(snap.exists()?Object.keys(snap.val()).length:0);
-});
-// Chat
-chatUnsub=onValue(ref(db,`salas_capacitores/${rid}/chat`),snap=>{
-const msgs=$('#chatMsgs');msgs.innerHTML='';
-if(!snap.exists())return;
-snap.forEach(ch=>{const m=ch.val();const d=document.createElement('div');d.className='chat-msg'+(m.uid===CU.uid?' mine':'');d.innerHTML=`<div class="meta">${m.email}</div>${m.text}`;msgs.appendChild(d)});
-msgs.scrollTop=msgs.scrollHeight;
-});
-addPoints(5);
-}catch(e){showModal('Error','<p>No se pudo unir a la sala: '+e.message+'</p>')}
-};
-
-window.leaveRoom=async()=>{
-if(!curRoom)return;
-try{await remove(ref(db,`salas_capacitores/${curRoom}/members/${CU.uid}`));}catch(e){}
-curRoom=null;$('#inRoom').classList.add('hidden');$('#chatPanel').classList.remove('open');
-};
+/* ===== ROOMS (RTDB) ===== */
+window.createRoom=async()=>{const name=$('#newRoomName').value.trim();if(!name)return;const pw=$('#newRoomPass').value.trim();try{const rid=push(ref(rtdb,'salas_capacitores')).key;await rtSet(ref(rtdb,'salas_capacitores/'+rid),{name,password:pw||null,creator:CU.uid,createdAt:Date.now(),state:null,members:{}});$('#newRoomName').value='';$('#newRoomPass').value='';addPoints(5);loadRooms()}catch(e){showModal('Error','<p>'+e.message+'</p>')}};
+async function loadRooms(){if(!CU)return;const rl=$('#roomList');try{const snap=await rtGet(ref(rtdb,'salas_capacitores'));rl.innerHTML='';if(!snap.exists()){rl.innerHTML='<p style="color:var(--fg2)">No hay salas a\u00fan.</p>';return}snap.forEach(ch=>{const r=ch.val(),d=document.createElement('div');d.className='room-card glass';d.innerHTML='<div><b>'+r.name+'</b><br><span style="font-size:11px;color:var(--fg2)">'+(r.password?'Con contrase\u00f1a':'Abierta')+' \u00b7 '+Object.keys(r.members||{}).length+' miembros</span></div><button class="btn-sm" onclick="joinRoom(\''+ch.key+'\','+!!r.password+')">Unirse</button>';rl.appendChild(d)})}catch(e){rl.innerHTML='<p style="color:var(--accent3)">'+e.message+'</p>'}}
+window.joinRoom=async(rid,hasPw)=>{try{if(hasPw){const pw=prompt('Contrase\u00f1a:');const snap=await rtGet(ref(rtdb,'salas_capacitores/'+rid+'/password'));if(snap.val()&&snap.val()!==pw){alert('Incorrecta');return}}curRoom=rid;await rtSet(ref(rtdb,'salas_capacitores/'+rid+'/members/'+CU.uid),{email:CU.email,joined:Date.now()});const ns=await rtGet(ref(rtdb,'salas_capacitores/'+rid+'/name'));$('#roomTitle').textContent=ns.val()||'Sala';$('#inRoom').classList.remove('hidden');onValue(ref(rtdb,'salas_capacitores/'+rid+'/state'),s=>{if(s.exists()){try{const d=JSON.parse(s.val());components=d.components||[];components.forEach(c=>c.nodes=getN(c));wires=d.wires||[];render()}catch(e){}}});onValue(ref(rtdb,'salas_capacitores/'+rid+'/members'),s=>{$('#roomMembers').textContent='Miembros: '+(s.exists()?Object.keys(s.val()).length:0)});onValue(ref(rtdb,'salas_capacitores/'+rid+'/chat'),s=>{const m=$('#chatMsgs');m.innerHTML='';if(!s.exists())return;s.forEach(ch=>{const msg=ch.val(),d=document.createElement('div');d.className='chat-msg'+(msg.uid===CU.uid?' mine':'');d.innerHTML='<div class="meta">'+msg.email+'</div>'+msg.text;m.appendChild(d)});m.scrollTop=m.scrollHeight});addPoints(5)}catch(e){showModal('Error','<p>'+e.message+'</p>')}};
+window.leaveRoom=async()=>{if(!curRoom)return;try{await rtRemove(ref(rtdb,'salas_capacitores/'+curRoom+'/members/'+CU.uid))}catch(e){}curRoom=null;$('#inRoom').classList.add('hidden');$('#chatPanel').classList.remove('open')};
 window.toggleChat=()=>$('#chatPanel').classList.toggle('open');
-window.sendChat=async()=>{
-if(!curRoom)return;const txt=$('#chatTxt').value.trim();if(!txt)return;
-try{await push(ref(db,`salas_capacitores/${curRoom}/chat`),{uid:CU.uid,email:CU.email,text:txt,ts:Date.now()});
-$('#chatTxt').value='';addPoints(2);}catch(e){showModal('Error','<p>No se pudo enviar el mensaje: '+e.message+'</p>')}
-};
+window.sendChat=async()=>{if(!curRoom)return;const txt=$('#chatTxt').value.trim();if(!txt)return;try{await push(ref(rtdb,'salas_capacitores/'+curRoom+'/chat'),{uid:CU.uid,email:CU.email,text:txt,ts:Date.now()});$('#chatTxt').value='';addPoints(2)}catch(e){showModal('Error','<p>'+e.message+'</p>')}};
+function syncRoom(){if(!curRoom)return;try{rtSet(ref(rtdb,'salas_capacitores/'+curRoom+'/state'),JSON.stringify({components:components.map(c=>({...c,nodes:[]})),wires}))}catch(e){}}
 
-// Sync circuit to room
-function syncToRoom(){
-if(!curRoom)return;
-try{const s=JSON.stringify({components:components.map(c=>({...c,nodes:[]})),wires});
-set(ref(db,`salas_capacitores/${curRoom}/state`),s);}catch(e){}
-}
-// Override saveState to also sync
-const _origSave=saveState;
-saveState=()=>{_origSave();syncToRoom()};
+/* ===== GUIDE ===== */
+window.showGuide=()=>{const steps=['Arrastra componentes desde la barra lateral al lienzo.','Mant\u00e9n Shift + clic en un terminal para cablear. Clic en otro terminal para conectar.','Clic derecho (long press en m\u00f3vil) para editar par\u00e1metros, rotar o eliminar.','Presiona Analizar para resolver y ver la soluci\u00f3n paso a paso.','Crea salas para colaborar en tiempo real.'];let i=0;function show(){document.querySelector('.guide-overlay')?.remove();if(i>=steps.length)return;const ov=document.createElement('div');ov.className='guide-overlay';const b=document.createElement('div');b.className='guide-box glass';b.innerHTML='<h3>Paso '+(i+1)+'/'+steps.length+'</h3><p>'+steps[i]+'</p><div class="guide-btns"><button class="btn-ghost btn-sm" onclick="this.closest(\'.guide-overlay\').remove()">Omitir</button><button class="btn-sm" id="gN">'+(i<steps.length-1?'Siguiente':'Fin')+'</button></div>';b.style.cssText='top:50%;left:50%;transform:translate(-50%,-50%)';ov.appendChild(b);document.body.appendChild(ov);b.querySelector('#gN').onclick=()=>{i++;show()}}show()};
 
-// ============ GUIDE ============
-window.showGuide=()=>{
-const steps=[
-{text:'Arrastra componentes desde la barra lateral al lienzo para comenzar.',target:'#toolbar',pos:'right'},
-{text:'Mantén Shift y haz clic en un terminal para iniciar un cable. Haz clic en otro terminal para conectar.',target:'#canvasWrap',pos:'center'},
-{text:'Haz clic derecho (o mantén presionado en m\u00f3vil) sobre un componente para editar sus par\u00e1metros, rotarlo o eliminarlo.',target:'#canvasWrap',pos:'center'},
-{text:'Presiona "Analizar" para resolver el circuito y ver la soluci\u00f3n paso a paso.',target:'#simActions',pos:'top'},
-{text:'Crea o \u00fanete a salas para trabajar en circuitos con otros estudiantes en tiempo real.',target:'#mainNav',pos:'bottom'},
-];
-let idx=0;
-function show(){
-document.querySelector('.guide-overlay')?.remove();
-if(idx>=steps.length)return;
-const ov=document.createElement('div');ov.className='guide-overlay';
-const box=document.createElement('div');box.className='guide-box glass';
-box.innerHTML=`<h3>Paso ${idx+1} de ${steps.length}</h3><p>${steps[idx].text}</p><div class="guide-btns"><button class="btn-ghost btn-sm" onclick="this.closest('.guide-overlay').remove()">Omitir</button><button class="btn-sm" id="guideNext">${idx<steps.length-1?'Siguiente':'Finalizar'}</button></div>`;
-box.style.top='50%';box.style.left='50%';box.style.transform='translate(-50%,-50%)';
-ov.appendChild(box);document.body.appendChild(ov);
-box.querySelector('#guideNext').onclick=()=>{idx++;show()};
-}
-show();
-};
+/* ===== RATING (Firestore) ===== */
+window.showRating=()=>{let stars=0;let h='<div style="display:flex;gap:4px;margin:12px 0;justify-content:center" id="rs">';for(let i=1;i<=5;i++)h+='<svg width="32" height="32" viewBox="0 0 24 24" fill="var(--glass2)" stroke="var(--accent)" stroke-width="1.5" style="cursor:pointer" data-s="'+i+'"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>';h+='</div><div class="form-group"><label>Comentario</label><textarea id="rc" rows="3"></textarea></div><button onclick="submitR()">Enviar</button>';const m=showModal('Califica',h);setTimeout(()=>{m.querySelectorAll('#rs svg').forEach(s=>{s.onclick=()=>{stars=+s.dataset.s;m.querySelectorAll('#rs svg').forEach((v,i)=>{v.setAttribute('fill',i<stars?'var(--accent)':'var(--glass2)')})}})},50);window._st=()=>stars};
+window.submitR=async()=>{const s=window._st?window._st():0;if(!s)return;try{await addDoc(collection(fs,'ratings_capacitores'),{uid:CU.uid,email:CU.email,stars:s,comment:$('#rc')?.value||'',ts:serverTimestamp()});document.querySelector('.modal-overlay')?.remove();alert('Gracias')}catch(e){showModal('Error','<p>'+e.message+'</p>')}};
 
-// ============ RATING ============
-window.showRating=()=>{
-let stars=0;
-let html=`<div style="display:flex;gap:4px;margin:12px 0;justify-content:center" id="ratingStars">`;
-for(let i=1;i<=5;i++)html+=`<svg width="32" height="32" viewBox="0 0 24 24" fill="var(--glass2)" stroke="var(--accent)" stroke-width="1.5" style="cursor:pointer" data-star="${i}"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>`;
-html+=`</div><div class="form-group"><label>Comentario (opcional)</label><textarea id="ratingComment" rows="3"></textarea></div><button onclick="submitRating()">Enviar</button>`;
-const m=showModal('Califica la App',html);
-setTimeout(()=>{m.querySelectorAll('#ratingStars svg').forEach(s=>{s.onclick=()=>{stars=parseInt(s.dataset.star);m.querySelectorAll('#ratingStars svg').forEach((sv,i)=>{sv.setAttribute('fill',i<stars?'var(--accent)':'var(--glass2)')})}})},50);
-window._ratingStars=()=>stars;
-};
-window.submitRating=async()=>{
-const s=window._ratingStars?window._ratingStars():0;if(!s)return;
-const c=document.getElementById('ratingComment')?.value||'';
-try{await push(ref(db,'ratings_capacitores'),{uid:CU.uid,stars:s,comment:c,ts:Date.now()});
-document.querySelector('.modal-overlay')?.remove();alert('Gracias por tu calificaci\u00f3n');}catch(e){showModal('Error','<p>No se pudo enviar la calificaci\u00f3n: '+e.message+'</p>')}
-};
+/* ===== DASHBOARD (Firestore) ===== */
+async function loadDash(){if(!CU||CU.email!==ADMIN)return;try{const snap=await getDocs(collection(fs,'usuarios_capacitores'));let h='<table class="user-table"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Nivel</th><th>Pts</th><th></th></tr></thead><tbody>';const ud=[];snap.forEach(d=>{const u=d.data();ud.push({uid:d.id,...u});h+='<tr><td>'+(u.nombre||'-')+'</td><td>'+(u.email||'-')+'</td><td>'+(u.rol||'estudiante')+'</td><td>'+(u.nivel||'Novato')+'</td><td>'+(u.puntos||0)+'</td><td><button class="btn-sm btn-ghost" onclick="togRole(\''+d.id+"','"+u.rol+"')\">"+((u.rol==='docente')?'Est.':'Doc.')+'</button></td></tr>'});h+='</tbody></table>';$('#dashUsers').innerHTML=h;const cv=$('#dashChart');if(!cv)return;const cx=cv.getContext('2d');cv.width=cv.parentElement.clientWidth-40;cx.clearRect(0,0,cv.width,200);const mp=Math.max(...ud.map(u=>u.puntos||1),1),bw=Math.min(40,cv.width/Math.max(ud.length,1)-4);const dk=document.body.dataset.theme==='dark';ud.forEach((u,i)=>{cx.fillStyle=dk?'#00aaff':'#0066ff';cx.fillRect(i*(bw+4)+20,180-(u.puntos||0)/mp*160,bw,(u.puntos||0)/mp*160);cx.fillStyle=dk?'#aab':'#444';cx.font='9px sans-serif';cx.fillText((u.alias||u.nombre||'?').substring(0,6),i*(bw+4)+20,195)})}catch(e){$('#dashUsers').innerHTML='<p style="color:var(--accent3)">'+e.message+'</p>'}}
+window.togRole=async(uid,cur)=>{try{await updateDoc(doc(fs,'usuarios_capacitores',uid),{rol:cur==='docente'?'estudiante':'docente'});loadDash()}catch(e){showModal('Error','<p>'+e.message+'</p>')}};
 
-// ============ ADMIN DASHBOARD ============
-async function loadDash(){
-if(!CU||CU.email!==ADMIN)return;
-try{const snap=await get(ref(db,'usuarios_capacitores'));
-if(!snap.exists())return;
-let html='<table class="user-table"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Nivel</th><th>Puntos</th><th>Acci\u00f3n</th></tr></thead><tbody>';
-const userData=[];
-snap.forEach(ch=>{const u=ch.val().perfil;if(u){userData.push({uid:ch.key,...u});html+=`<tr><td>${u.nombre||'-'}</td><td>${u.alias||'-'}</td><td>${u.rol||'estudiante'}</td><td>${u.nivel||'Novato'}</td><td>${u.puntos||0}</td><td><button class="btn-sm btn-ghost" onclick="toggleRole('${ch.key}','${u.rol}')">${u.rol==='docente'?'Hacer Estudiante':'Hacer Docente'}</button></td></tr>`}});
-html+='</tbody></table>';
-$('#dashUsers').innerHTML=html;
-const canvas=$('#dashChart');if(!canvas)return;
-const cctx=canvas.getContext('2d');canvas.width=canvas.parentElement.clientWidth-40;
-cctx.clearRect(0,0,canvas.width,200);
-const maxP=Math.max(...userData.map(u=>u.puntos||1),1);
-const bw=Math.min(40,canvas.width/userData.length-4);
-userData.forEach((u,i)=>{
-const h=(u.puntos||0)/maxP*160;
-cctx.fillStyle=document.body.dataset.theme==='dark'?'#00aaff':'#0066ff';
-cctx.fillRect(i*(bw+4)+20,180-h,bw,h);
-cctx.fillStyle=document.body.dataset.theme==='dark'?'#aab':'#444';
-cctx.font='9px sans-serif';cctx.fillText((u.alias||u.nombre||'?').substring(0,6),i*(bw+4)+20,195);
-});}catch(e){$('#dashUsers').innerHTML='<p style="color:var(--accent3)">Error cargando datos: '+e.message+'</p>'}
-}
-window.toggleRole=async(uid,cur)=>{
-const nr=cur==='docente'?'estudiante':'docente';
-try{await update(ref(db,`usuarios_capacitores/${uid}/perfil`),{rol:nr});loadDash();}catch(e){showModal('Error','<p>'+e.message+'</p>')}
-};
-
-// Load dashboard when navigating to it
-const origShowPage=window.showPage;
-window.showPage=(id,btn)=>{origShowPage(id,btn);if(id==='dashPage')loadDash();if(id==='roomsPage')loadRooms()};
-
-// PostMessage listener
-window.addEventListener('message',e=>{
-if(e.data?.type==='GET_PROGRESS'){window.parent.postMessage({type:'PROGRESS_UPDATE',lesson:'capacitores',completed:true,score:UP.puntos||0},'*')}
-if(e.data?.type==='LOAD_LESSON'){/* Could load specific lesson config */}
-});
-
+/* ===== POSTMESSAGE ===== */
+window.addEventListener('message',e=>{if(e.data?.type==='GET_PROGRESS')window.parent.postMessage({type:'PROGRESS_UPDATE',lesson:'capacitores',completed:true,score:UP.puntos||0},'*')});
 </script>
 </body>
 </html>
