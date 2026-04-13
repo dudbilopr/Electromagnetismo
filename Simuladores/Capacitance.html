@@ -44,7 +44,7 @@ input,select{padding:10px 12px;border-radius:8px;border:1px solid var(--glass-bo
 .btn:hover{background:var(--accent-hover);transform:translateY(-2px)}
 .btn-outline{background:transparent;border:1px solid var(--accent);color:var(--accent)}
 .btn-outline:hover{background:var(--accent);color:#fff}
-#katex-container{background:rgba(0,0,0,0.05);padding:12px;border-radius:8px;overflow-x:auto;font-size:0.9rem}
+#katex-container{background:rgba(0,0,0,0.05);padding:12px;border-radius:8px;overflow-x:auto;font-size:0.9rem;display:flex;flex-direction:column;gap:8px;}
 .dark #katex-container{background:rgba(255,255,255,0.05)}
 .chat-container{flex:1;display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:300px}
 .chat-msg{padding:8px 12px;border-radius:8px;background:rgba(0,0,0,0.05);font-size:0.85rem}
@@ -72,7 +72,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
 <main>
     <aside class="sidebar sidebar-left glass" id="toolbar">
         <button class="tool-btn active" data-tool="select" title="Seleccionar/Mover"><i class="ph ph-cursor"></i></button>
-        <button class="tool-btn" data-tool="wire" title="Conectar Cables"><i class="ph ph-line-segment"></i></button>
+        <button class="tool-btn" data-tool="wire" title="Conectar Cables (Clic a clic)"><i class="ph ph-line-segment"></i></button>
         <button class="tool-btn" data-tool="battery" title="Fuente DC"><i class="ph ph-battery-full"></i></button>
         <button class="tool-btn" data-tool="cap_ceramic" title="Capacitor Cerámico"><i class="ph ph-asterisk"></i></button>
         <button class="tool-btn" data-tool="cap_electro" title="Capacitor Electrolítico"><i class="ph ph-cylinder"></i></button>
@@ -201,7 +201,6 @@ const auth = getAuth(app);
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'capacitance10';
 
-// Inicializar token de autenticación si existe en el entorno
 const initAuth = async () => {
     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
         try { await signInWithCustomToken(auth, __initial_auth_token); } catch(e) {}
@@ -212,18 +211,18 @@ initAuth();
 // ==========================================
 // 2. ESTADO GLOBAL & UTILIDADES MINIFICADAS
 // ==========================================
-let st = { user:null, profile:null, room:null, tool:'select', theme:'dark', pan:{x:0, y:0}, zoom:1, comps:[], wires:[], nodes:[], sel:null, dragging:null, mx:0, my:0, isMdown:false, rtdbRef:null, particles:[] };
+let st = { user:null, profile:null, room:null, tool:'select', theme:'dark', pan:{x:0, y:0}, zoom:1, comps:[], wires:[], nodes:[], sel:null, dragging:null, mx:0, my:0, isMdown:false, rtdbRef:null, particles:[], routingStart:null, tempWireEnd:null };
 
 const $ = id => document.getElementById(id);
 const $$ = q => document.querySelectorAll(q);
 const toast = m => { const t=$('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); };
 const modal = (id, show) => $(id).classList[show?'add':'remove']('active');
 const uid = () => Math.random().toString(36).substr(2,9);
-const snap = v => Math.round(v/20)*20; // Orthogonal Grid Snap 20px
+const snap = v => Math.round(v/20)*20; 
 const dist = (x1,y1,x2,y2) => Math.hypot(x2-x1, y2-y1);
 
 // ==========================================
-// 3. GATEKEEPER FIREBASE & AUTH (COOP SOL)
+// 3. GATEKEEPER FIREBASE & AUTH 
 // ==========================================
 onAuthStateChanged(auth, async u => {
     st.user = u;
@@ -257,10 +256,7 @@ $('btn-login-email').onclick = async () => {
 
 $('btn-login-google').onclick = async () => {
     try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-    catch(e) { 
-        toast("Google bloqueado por seguridad (COOP). Por favor, usa Correo y Contraseña."); 
-        console.error("Popup bloqueado por política COOP:", e); 
-    }
+    catch(e) { toast("Google bloqueado por seguridad (COOP). Por favor, usa Correo y Contraseña."); }
 };
 $('btn-logout').onclick = () => { signOut(auth); modal('modal-profile', false); if(st.room) leaveRoom(); };
 
@@ -285,6 +281,10 @@ $('btn-save-profile').onclick = async () => {
     toast('Perfil guardado'); modal('modal-profile', false);
 };
 
+// Cancelar ruteo con Escape o Clic Derecho
+window.addEventListener('keydown', e => { if(e.key==='Escape') { st.routingStart = null; render(); } });
+$('sim').addEventListener('contextmenu', e => { e.preventDefault(); st.routingStart = null; render(); });
+
 // ==========================================
 // 5. MOTOR RTDB & MULTIUSUARIO
 // ==========================================
@@ -296,7 +296,7 @@ $('btn-join-room').onclick = async () => {
     st.rtdbRef = ref(rtdb, `salas_capacitores/${id}`);
     onValue(st.rtdbRef, s => {
         const d = s.val();
-        if(d && d.state && !st.isMdown) { // Sync only if not actively dragging
+        if(d && d.state && !st.isMdown) {
             st.comps = d.state.comps||[];
             st.wires = d.state.wires||[];
             st.nodes = d.state.nodes||[];
@@ -339,13 +339,12 @@ const cv = $('sim'); const ctx = cv.getContext('2d');
 
 $$('.tool-btn[data-tool]').forEach(b => b.onclick = (e) => {
     $$('.tool-btn').forEach(btn=>btn.classList.remove('active'));
-    b.classList.add('active'); st.tool = b.dataset.tool; st.sel = null; renderProps();
+    b.classList.add('active'); st.tool = b.dataset.tool; st.sel = null; st.routingStart = null; renderProps();
 });
 
 const getMouse = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX||e.touches[0].clientX)-r.left, y: (e.clientY||e.touches[0].clientY)-r.top }; };
 const wToC = (x,y) => ({ x: (x - st.pan.x)/st.zoom, y: (y - st.pan.y)/st.zoom });
 
-// Physics Classes & Utils
 const createNode = (x,y) => { let n={id:uid(),x,y}; st.nodes.push(n); return n; };
 const getNode = (x,y) => st.nodes.find(n=>dist(n.x,n.y,x,y)<15) || createNode(x,y);
 
@@ -360,9 +359,18 @@ cv.onmousedown = cv.ontouchstart = e => {
         renderProps();
     } else if(st.tool==='wire') {
         let n = getNode(snap(wc.x), snap(wc.y));
-        st.sel = {type:'temp_wire', n1:n, x2:n.x, y2:n.y};
+        if(!st.routingStart) {
+            st.routingStart = n;
+        } else {
+            if(st.routingStart.id !== n.id) { // Solo guarda si no es click en el mismo punto
+                st.wires.push({id:uid(), n1:st.routingStart.id, n2:n.id, path:[{x:st.routingStart.x, y:st.routingStart.y}, {x:n.x, y:n.y}]});
+                syncState();
+            }
+            // Verifica si el nodo tocado ya es parte de un componente para finalizar auto
+            let onComp = st.comps.some(c => dist(c.x-20,c.y,n.x,n.y)<20 || dist(c.x+20,c.y,n.x,n.y)<20);
+            st.routingStart = onComp ? null : n; 
+        }
     } else {
-        // Place Component
         let isSource = st.tool==='battery';
         let c = { id:uid(), type:st.tool, x:snap(wc.x), y:snap(wc.y), rot:0, 
                   val: isSource ? 12 : 10, unit: isSource?'V':'µF', 
@@ -372,25 +380,20 @@ cv.onmousedown = cv.ontouchstart = e => {
 };
 
 cv.onmousemove = cv.ontouchmove = e => {
-    if(!st.isMdown) return;
     const m = getMouse(e); const wc = wToC(m.x, m.y);
-    if(st.dragging==='pan') { st.pan.x += (m.x-st.mx); st.pan.y += (m.y-st.my); st.mx=m.x; st.my=m.y; }
-    else if(st.sel && st.sel.type==='temp_wire') { st.sel.x2 = snap(wc.x); st.sel.y2 = snap(wc.y); }
-    else if(st.sel && st.dragging) { st.sel.x = snap(wc.x - st.dragging.x); st.sel.y = snap(wc.y - st.dragging.y); }
-    render();
+    if(st.tool==='wire' && st.routingStart) {
+        st.tempWireEnd = {x: snap(wc.x), y: snap(wc.y)};
+        render();
+    }
+    if(!st.isMdown) return;
+    if(st.dragging==='pan') { st.pan.x += (m.x-st.mx); st.pan.y += (m.y-st.my); st.mx=m.x; st.my=m.y; render(); }
+    else if(st.sel && st.dragging) { st.sel.x = snap(wc.x - st.dragging.x); st.sel.y = snap(wc.y - st.dragging.y); render(); }
 };
 
 cv.onmouseup = cv.ontouchend = e => {
     st.isMdown = false;
-    if(st.sel && st.sel.type==='temp_wire') {
-        let n2 = getNode(st.sel.x2, st.sel.y2);
-        if(st.sel.n1.id !== n2.id) {
-            st.wires.push({id:uid(), n1:st.sel.n1.id, n2:n2.id, path:[{x:st.sel.n1.x,y:st.sel.n1.y}, {x:st.sel.x2, y:st.sel.n1.y}, {x:st.sel.x2,y:st.sel.y2}]}); // Orthogonal A* dummy
-        }
-        st.sel = null; syncState();
-    }
     if(st.dragging && st.dragging !== 'pan') syncState();
-    st.dragging = null; render();
+    st.dragging = null;
 };
 cv.onwheel = e => { e.preventDefault(); const zs = e.deltaY>0?0.9:1.1; st.zoom*=zs; render(); };
 
@@ -399,28 +402,35 @@ const drawComp = (c) => {
     ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot*Math.PI/180);
     ctx.strokeStyle = st.sel?.id===c.id ? 'var(--accent)' : 'var(--text)'; ctx.lineWidth = 2; ctx.fillStyle = 'var(--text)';
     
-    // Nodes visual connection points
-    ctx.beginPath(); ctx.arc(-20,0,3,0,6); ctx.arc(20,0,3,0,6); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-20,0); ctx.lineTo(-10,0); ctx.moveTo(20,0); ctx.lineTo(10,0); ctx.stroke();
-    
-    if(c.exploded) {
-        ctx.fillStyle='red'; ctx.font='20px Arial'; ctx.fillText('💥', -10, 5);
-        ctx.restore(); return;
+    if(c.exploded) { ctx.fillStyle='red'; ctx.font='20px Arial'; ctx.fillText('💥', -10, 5); ctx.restore(); return; }
+
+    // Generar Pines Generales EXCEPTO para Electrolitico (que los redibuja diferente para no solapar)
+    if(c.type !== 'cap_electro') {
+        ctx.beginPath(); ctx.arc(-20,0,3,0,6); ctx.arc(20,0,3,0,6); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-20,0); ctx.lineTo(-10,0); ctx.moveTo(20,0); ctx.lineTo(10,0); ctx.stroke();
     }
 
+    ctx.font='12px sans-serif'; 
     if(c.type==='battery') {
         ctx.beginPath(); ctx.moveTo(-10,-15); ctx.lineTo(-10,15); ctx.moveTo(10,-8); ctx.lineTo(10,8); ctx.stroke();
         ctx.fillText('+', -20, -10);
     } else if(c.type==='cap_ceramic') {
         ctx.beginPath(); ctx.moveTo(-10,-12); ctx.lineTo(-10,12); ctx.moveTo(10,-12); ctx.lineTo(10,12); ctx.stroke();
     } else if(c.type==='cap_electro') {
-        ctx.beginPath(); ctx.moveTo(-10,-12); ctx.lineTo(-10,12); // Recta (+)
-        ctx.arc(15, 0, 13, 2.5, 3.8); // Curva (-)
-        ctx.stroke(); ctx.fillText('+', -20, -10);
+        // Electrolitico Corregido
+        ctx.beginPath(); ctx.arc(-20,0,3,0,6); ctx.arc(20,0,3,0,6); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-20,0); ctx.lineTo(-5,0); ctx.moveTo(20,0); ctx.lineTo(5,0); ctx.stroke(); // Pines cortos
+        
+        ctx.beginPath(); ctx.moveTo(-5,-12); ctx.lineTo(-5,12); // Recta (+)
+        ctx.moveTo(5,-12); ctx.quadraticCurveTo(12, 0, 5, 12); // Curva (-)
+        ctx.stroke(); 
+        
+        ctx.fillText('+', -20, -12); ctx.fillText('-', 10, -12);
     } else if(c.type==='multimeter') {
         ctx.strokeRect(-15,-10,30,20); ctx.font='10px sans-serif'; ctx.fillText('V/C', -10, 3);
     }
-    ctx.font='12px sans-serif'; ctx.fillText(`${c.val}${c.unit}`, -15, 25);
+    
+    ctx.fillText(`${c.val}${c.unit}`, -15, 25);
     ctx.restore();
 };
 
@@ -428,7 +438,6 @@ const render = () => {
     ctx.fillStyle = st.theme==='dark' ? '#0b0f19' : '#f0f4f8'; ctx.fillRect(0,0,cv.width,cv.height);
     ctx.save(); ctx.translate(st.pan.x, st.pan.y); ctx.scale(st.zoom, st.zoom);
     
-    // Grid
     ctx.strokeStyle = st.theme==='dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'; ctx.lineWidth=1;
     ctx.beginPath();
     let l=-st.pan.x/st.zoom, r=l+cv.width/st.zoom, t=-st.pan.y/st.zoom, b=t+cv.height/st.zoom;
@@ -436,22 +445,19 @@ const render = () => {
     for(let y=snap(t); y<b; y+=20) { ctx.moveTo(l,y); ctx.lineTo(r,y); }
     ctx.stroke();
 
-    // Wires
     ctx.strokeStyle = st.theme==='dark' ? '#cbd5e1' : '#475569'; ctx.lineWidth = 2;
     st.wires.forEach(w => {
-        ctx.beginPath(); ctx.moveTo(w.path[0].x, w.path[0].y);
-        w.path.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(w.path[0].x, w.path[0].y); w.path.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
     });
-    if(st.sel && st.sel.type==='temp_wire') {
-        ctx.beginPath(); ctx.moveTo(st.sel.n1.x, st.sel.n1.y); ctx.lineTo(st.sel.x2, st.sel.n1.y); ctx.lineTo(st.sel.x2, st.sel.y2); ctx.stroke();
+    
+    if(st.routingStart && st.tempWireEnd) {
+        ctx.strokeStyle = 'var(--accent)';
+        ctx.beginPath(); ctx.moveTo(st.routingStart.x, st.routingStart.y); ctx.lineTo(st.tempWireEnd.x, st.tempWireEnd.y); ctx.stroke();
     }
     
-    // Nodes
     ctx.fillStyle = 'var(--accent)'; st.nodes.forEach(n => { ctx.beginPath(); ctx.arc(n.x,n.y,4,0,6); ctx.fill(); });
-    // Comps
     st.comps.forEach(drawComp);
     
-    // Particles (Explosions)
     st.particles.forEach((p,i) => {
         ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6); ctx.fill();
         p.x+=p.vx; p.y+=p.vy; p.a-=0.02; if(p.a<=0) st.particles.splice(i,1);
@@ -463,14 +469,17 @@ const render = () => {
 
 const renderProps = () => {
     const pc = $('props-content');
-    if(!st.sel || st.sel.type==='temp_wire') { pc.innerHTML = 'Selecciona un componente...'; return; }
+    if(!st.sel) { pc.innerHTML = 'Selecciona un componente...'; return; }
     let c = st.sel;
     pc.innerHTML = `
         <div class="input-group"><label>Tipo</label><input disabled value="${c.type}"></div>
+        <div class="input-group"><label>Rotar (Grados)</label>
+            <input type="range" id="prop-rot" min="0" max="270" step="90" value="${c.rot}"></div>
         <div class="input-group"><label>Valor (${c.unit})</label><input type="number" id="prop-val" value="${c.val}"></div>
         ${c.type.includes('cap') ? `<div class="input-group"><label>Max V</label><input type="number" id="prop-max" value="${c.maxV}"></div>` : ''}
         <button class="btn btn-outline" id="btn-del-comp" style="margin-top:8px; border-color:var(--danger); color:var(--danger);">Eliminar</button>
     `;
+    $('prop-rot').onchange = e => { st.sel.rot = parseInt(e.target.value); syncState(); render(); };
     $('prop-val').onchange = e => { st.sel.val = parseFloat(e.target.value); syncState(); render(); };
     if($('prop-max')) $('prop-max').onchange = e => { st.sel.maxV = parseFloat(e.target.value); syncState(); render(); };
     $('btn-del-comp').onclick = () => { st.comps = st.comps.filter(x=>x.id!==c.id); st.sel=null; syncState(); render(); renderProps(); };
@@ -479,13 +488,11 @@ const renderProps = () => {
 $('btn-clear').onclick = () => { st.comps=[]; st.wires=[]; st.nodes=[]; syncState(); render(); $('katex-container').innerHTML='Circuito limpio'; };
 
 // ==========================================
-// 7. MOTOR MATEMÁTICO (SOLVER Y KATEX)
+// 7. MOTOR MATEMÁTICO AVANZADO (SOLVER & EXPANSION)
 // ==========================================
-// Identifies component connections by matching coordinates (snap proximity)
 const buildGraph = () => {
     let edges = []; let vSrc = null;
     st.comps.forEach(c => {
-        // Find nodes at -20 and +20 based on rotation
         let rad = c.rot*Math.PI/180;
         let nx1 = c.x - 20*Math.cos(rad), ny1 = c.y - 20*Math.sin(rad);
         let nx2 = c.x + 20*Math.cos(rad), ny2 = c.y + 20*Math.sin(rad);
@@ -496,7 +503,7 @@ const buildGraph = () => {
             if(c.type==='battery') vSrc = edge; else edges.push(edge);
         }
     });
-    // Add wire connections as zero-resistance shorts (merge nodes)
+    
     let nMap = {}; st.nodes.forEach(n=>nMap[n.id]=n.id);
     const find = (i) => nMap[i]===i ? i : nMap[i]=find(nMap[i]);
     const union = (i,j) => nMap[find(i)] = find(j);
@@ -507,95 +514,176 @@ const buildGraph = () => {
     return { edges: edges.filter(e=>e.n1!==e.n2), vSrc };
 };
 
+const getMiniSVG = (edges) => {
+    let minX=1e5, minY=1e5, maxX=-1e5, maxY=-1e5;
+    let actNodes = new Set();
+    edges.forEach(e=>{ actNodes.add(e.n1); actNodes.add(e.n2); });
+    if(actNodes.size===0) return '';
+    st.nodes.forEach(n => {
+        if(actNodes.has(n.id)) {
+            if(n.x<minX) minX=n.x; if(n.x>maxX) maxX=n.x;
+            if(n.y<minY) minY=n.y; if(n.y>maxY) maxY=n.y;
+        }
+    });
+    minX-=40; minY-=40; maxX+=40; maxY+=40;
+    
+    let svg = `<svg viewBox="${minX} ${minY} ${maxX-minX} ${maxY-minY}" style="width:100%; max-height:120px; border:1px solid var(--glass-border); border-radius:8px; margin:8px 0; background:rgba(0,0,0,0.2)">`;
+    edges.forEach(e => {
+        let n1 = st.nodes.find(n=>n.id===e.n1), n2 = st.nodes.find(n=>n.id===e.n2);
+        if(n1 && n2) {
+            let mx = (n1.x+n2.x)/2, my = (n1.y+n2.y)/2;
+            svg += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="var(--accent)" stroke-width="2"/>`;
+            svg += `<circle cx="${mx}" cy="${my}" r="12" fill="var(--bg2)" stroke="var(--accent)"/>`;
+            svg += `<text x="${mx}" y="${my+4}" font-size="10" fill="var(--text)" text-anchor="middle">${e.id.substring(0,3)}</text>`;
+        }
+    });
+    return svg + `</svg>`;
+};
+
 $('btn-solve').onclick = () => {
     if(!auth.currentUser) return toast('Debe iniciar sesión para resolver');
     let { edges, vSrc } = buildGraph();
-    if(!vSrc) return $('katex-container').innerHTML = '<span style="color:var(--danger)">Error: No hay fuente de voltaje DC.</span>';
-    if(edges.length===0) return $('katex-container').innerHTML = '<span style="color:var(--danger)">Error: No hay capacitores conectados.</span>';
-
-    let kStr = `\\textbf{Análisis del Circuito:}\\\\ \\\\ V_{fuente} = ${vSrc.val}V\\\\`;
-    let iter = 0; let workingEdges = JSON.parse(JSON.stringify(edges));
+    let kc = $('katex-container'); kc.innerHTML = '';
     
-    // Algoritmo de Reducción (Series/Parallel Simplificado)
-    while(workingEdges.length > 1 && iter < 20) {
+    if(!vSrc) { kc.innerHTML = '<span style="color:var(--danger)">Error: No hay fuente de voltaje DC.</span>'; return; }
+    if(edges.length===0) { kc.innerHTML = '<span style="color:var(--danger)">Error: No hay capacitores.</span>'; return; }
+
+    let blocks = [{type:'math', content:`\\textbf{Reducción del Circuito:}\\\\ V_{fuente} = ${vSrc.val}V`}];
+    let step = 1; let workingEdges = JSON.parse(JSON.stringify(edges));
+    let history = [];
+    
+    // Algoritmo de Reducción Grupal (BFS & Agrupación Masiva)
+    while(workingEdges.length > 1 && step < 50) {
         let reduced = false;
-        // Find Parallel (same nodes)
-        for(let i=0; i<workingEdges.length; i++) {
-            for(let j=i+1; j<workingEdges.length; j++) {
-                let e1 = workingEdges[i], e2 = workingEdges[j];
-                if((e1.n1===e2.n1 && e1.n2===e2.n2) || (e1.n1===e2.n2 && e1.n2===e2.n1)) {
-                    let cEq = e1.val + e2.val;
-                    kStr += `C_{eqP} = C_{${e1.id.substring(0,3)}} + C_{${e2.id.substring(0,3)}} = ${e1.val} + ${e2.val} = ${cEq.toFixed(2)}\\mu F\\\\`;
-                    workingEdges.splice(j, 1); workingEdges[i].val = cEq; workingEdges[i].id = e1.id+'+'+e2.id;
-                    reduced = true; break;
-                }
-            } if(reduced) break;
-        }
-        if(!reduced) {
-            // Find Series (node with degree 2)
-            let nCounts = {}; workingEdges.forEach(e=>{ nCounts[e.n1]=(nCounts[e.n1]||0)+1; nCounts[e.n2]=(nCounts[e.n2]||0)+1; });
-            for(let n in nCounts) {
-                if(nCounts[n]===2 && n!==vSrc.n1 && n!==vSrc.n2) {
-                    let connected = workingEdges.filter(e=>e.n1===n || e.n2===n);
-                    if(connected.length===2) {
-                        let e1=connected[0], e2=connected[1];
-                        let cEq = 1 / ((1/e1.val) + (1/e2.val));
-                        kStr += `C_{eqS} = \\left(\\frac{1}{C_{${e1.id.substring(0,3)}}} + \\frac{1}{C_{${e2.id.substring(0,3)}}}\\right)^{-1} = ${cEq.toFixed(2)}\\mu F\\\\`;
-                        let nOther1 = e1.n1===n ? e1.n2 : e1.n1; let nOther2 = e2.n1===n ? e2.n2 : e2.n1;
-                        workingEdges = workingEdges.filter(e=>e.id!==e1.id && e.id!==e2.id);
-                        workingEdges.push({id:e1.id+'|'+e2.id, n1:nOther1, n2:nOther2, val:cEq});
-                        reduced=true; break;
-                    }
-                }
+        
+        // Buscar múltiples paralelos (mismos 2 nodos)
+        let pMap = {};
+        workingEdges.forEach(e => {
+            let k = e.n1<e.n2 ? `${e.n1}-${e.n2}` : `${e.n2}-${e.n1}`;
+            (pMap[k]=pMap[k]||[]).push(e);
+        });
+        
+        for(let k in pMap) {
+            if(pMap[k].length > 1) { // 2, 3 o N capacitores paralelos
+                let group = pMap[k];
+                let cEq = group.reduce((s,c)=>s+c.val,0);
+                let names = group.map(c=>`C_{${c.id.substring(0,3)}}`).join(' + ');
+                
+                blocks.push({type:'math', content:`\\text{Paso } ${step}: \\text{Paralelo masivo } \\Rightarrow C_{eq${step}} = ${names} = ${cEq.toFixed(2)}\\mu F`});
+                
+                workingEdges = workingEdges.filter(e => !group.includes(e));
+                let eqEdge = {id:`eq${step}`, val:cEq, n1:group[0].n1, n2:group[0].n2, isEq:true, comps:group, type:'P'};
+                workingEdges.push(eqEdge); history.push(eqEdge);
+                blocks.push({type:'svg', svg: getMiniSVG(workingEdges)});
+                step++; reduced=true; break;
             }
         }
-        if(!reduced) break; // Irreducible topology with this simple logic
-        iter++;
+        if(reduced) continue;
+
+        // Buscar Múltiples Series (Grafos lineales contiguos grado 2)
+        let nCounts = {};
+        workingEdges.forEach(e=>{ nCounts[e.n1]=(nCounts[e.n1]||0)+1; nCounts[e.n2]=(nCounts[e.n2]||0)+1; });
+
+        let d2Nodes = Object.keys(nCounts).filter(n => nCounts[n]===2 && n!==vSrc.n1 && n!==vSrc.n2);
+        if(d2Nodes.length > 0) {
+            let chainNodes = new Set(), chainEdges = new Set(), queue = [d2Nodes[0]];
+            while(queue.length > 0) {
+                let n = queue.pop();
+                if(chainNodes.has(n)) continue;
+                chainNodes.add(n);
+                let attached = workingEdges.filter(e => e.n1===n || e.n2===n);
+                attached.forEach(e => {
+                    chainEdges.add(e);
+                    let other = e.n1===n ? e.n2 : e.n1;
+                    if(nCounts[other]===2 && other!==vSrc.n1 && other!==vSrc.n2) queue.push(other);
+                });
+            }
+            
+            let group = Array.from(chainEdges);
+            if(group.length > 1) { // 2, 3 o N en serie
+                let invSum = group.reduce((s,c)=>s+(1/c.val), 0);
+                let cEq = 1/invSum;
+                let names = group.map(c=>`\\frac{1}{C_{${c.id.substring(0,3)}}}`).join(' + ');
+                blocks.push({type:'math', content:`\\text{Paso } ${step}: \\text{Serie masiva } \\Rightarrow C_{eq${step}} = \\left(${names}\\right)^{-1} = ${cEq.toFixed(2)}\\mu F`});
+
+                let endNodes = [];
+                group.forEach(e => {
+                    if(!chainNodes.has(e.n1)) endNodes.push(e.n1);
+                    if(!chainNodes.has(e.n2)) endNodes.push(e.n2);
+                });
+
+                workingEdges = workingEdges.filter(e => !group.includes(e));
+                let eqEdge = {id:`eq${step}`, val:cEq, n1:endNodes[0], n2:endNodes[1], isEq:true, comps:group, type:'S'};
+                workingEdges.push(eqEdge); history.push(eqEdge);
+                blocks.push({type:'svg', svg: getMiniSVG(workingEdges)});
+                step++; reduced=true;
+            }
+        }
+        if(!reduced) break; // Irreductible
     }
 
-    let Ctot = workingEdges.length===1 ? workingEdges[0].val : edges.reduce((s,c)=>s+c.val,0); // Fallback
+    let Ctot = workingEdges.length===1 ? workingEdges[0].val : edges.reduce((s,c)=>s+c.val,0);
     let Qtot = Ctot * vSrc.val;
-    kStr += `\\\\ \\textbf{Resultado Total:}\\\\ C_{eq} = ${Ctot.toFixed(2)}\\mu F\\\\ Q_{total} = C_{eq} \\times V = ${Qtot.toFixed(2)}\\mu C`;
-    
-    // Render KaTeX
-    try { katex.render(kStr, $('katex-container'), {throwOnError: false, displayMode: true}); } 
-    catch(e) { $('katex-container').innerText = kStr; }
+    blocks.push({type:'math', content:`\\textbf{Resultado Equivalente:}\\\\ C_{eq} = ${Ctot.toFixed(2)}\\mu F \\\\ Q_{total} = ${Qtot.toFixed(2)}\\mu C`});
 
-    // Expansión & Tabla (Aproximación directa para nodos asumiendo resolución full MNA omitida por tokens, se calcula UI V/Q teóricos base)
+    // Fase de Expansión (Backward Propagation de Volts y Cargas)
+    blocks.push({type:'math', content:`\\rule{8cm}{0.4pt} \\\\ \\textbf{Expansión Inversa (Cálculo Físico):}`});
+    
+    // Nivel Raiz
+    workingEdges.forEach(e => { e.V = vSrc.val; e.Q = e.val * e.V; });
+
+    for(let i = history.length - 1; i >= 0; i--) {
+        let eq = history[i];
+        if(eq.type === 'P') {
+            eq.comps.forEach(c => { c.V = eq.V; c.Q = c.val * c.V; });
+            let t = `C_{${eq.id}} \\text{ (Paralelo): } V = ${eq.V.toFixed(2)}V \\Rightarrow ` +
+                    eq.comps.map(c => `Q_{${c.id.substring(0,3)}} = ${(c.Q).toFixed(2)}\\mu C`).join(', ');
+            blocks.push({type:'math', content: t});
+        } else if(eq.type === 'S') {
+            eq.comps.forEach(c => { c.Q = eq.Q; c.V = c.Q / c.val; });
+            let t = `C_{${eq.id}} \\text{ (Serie): } Q = ${eq.Q.toFixed(2)}\\mu C \\Rightarrow ` +
+                    eq.comps.map(c => `V_{${c.id.substring(0,3)}} = ${(c.V).toFixed(2)}V`).join(', ');
+            blocks.push({type:'math', content: t});
+        }
+    }
+
+    // Renderizar Dom
+    blocks.forEach(b => {
+        let div = document.createElement('div');
+        if(b.type === 'math') {
+            try { katex.render(b.content, div, {displayMode: true}); } catch(e){ div.innerText = b.content; }
+        } else if (b.type === 'svg') div.innerHTML = b.svg;
+        kc.appendChild(div);
+    });
+
+    // Validar Requisitos Físicos en Tabla
     let tb = $('table-results'); tb.style.display='block';
-    let html = '<table><tr><th>Capacitor</th><th>C (µF)</th><th>V (Voltios)</th><th>Q (µC)</th><th>U (µJ)</th></tr>';
+    let html = '<table><tr><th>Cap</th><th>C (µF)</th><th>V (Voltios)</th><th>Q (µC)</th><th>U (µJ)</th></tr>';
     
     let allOk = true;
     edges.forEach(e => {
-        // En paralelo directo a la fuente para demo (el algoritmo full de expansión requiere tracking de voltajes nodales)
-        let vCap = vSrc.val; // Simplified for display
-        let qCap = e.val * vCap;
-        let uCap = 0.5 * e.val * (vCap*vCap);
-        
-        // Physics Check: Polarity and MaxV
+        let vCap = e.V || 0; let qCap = e.Q || 0; let uCap = 0.5 * e.val * (vCap*vCap);
         let cRef = e.ref;
-        if(cRef.polar && vCap < 0) { // Reverse bias
-            cRef.exploded = true; allOk = false;
-            triggerExplosion(cRef.x, cRef.y);
-            html += `<tr style="color:var(--danger)"><td>${e.id.substring(0,4)} (Explotó)</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`;
-        } else if (cRef.maxV && Math.abs(vCap) > cRef.maxV) { // Overvoltage
-            cRef.exploded = true; allOk = false;
-            triggerExplosion(cRef.x, cRef.y);
-            html += `<tr style="color:var(--danger)"><td>${e.id.substring(0,4)} (Sobrecarga)</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`;
+        // Fisica: Polaridad inversa o exceso de maxV rompe el sistema
+        if(cRef.polar && vCap < 0) {
+            cRef.exploded = true; allOk = false; triggerExplosion(cRef.x, cRef.y);
+            html += `<tr style="color:var(--danger)"><td>${e.id.substring(0,4)} 💥</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`;
+        } else if (cRef.maxV && Math.abs(vCap) > cRef.maxV) {
+            cRef.exploded = true; allOk = false; triggerExplosion(cRef.x, cRef.y);
+            html += `<tr style="color:var(--danger)"><td>${e.id.substring(0,4)} ⚡</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`;
         } else {
             html += `<tr><td>${e.id.substring(0,4)}</td><td>${e.val}</td><td>${vCap.toFixed(2)}</td><td>${qCap.toFixed(2)}</td><td>${uCap.toFixed(2)}</td></tr>`;
         }
     });
     html += '</table>'; tb.innerHTML = html; render(); syncState();
 
-if(allOk) {
-    toast('¡Circuito resuelto con éxito! +10 puntos');
-    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', st.user.uid), { puntos: increment(10) });
-    // API PostMessage
-    window.parent.postMessage({ type: 'PROGRESS_UPDATE', lesson: 'capacitores', completed: true, score: 100 }, '*');
-} else {
-    toast('Fallo crítico en componentes. Revisa las especificaciones.');
-}
+    if(allOk) {
+        toast('¡Circuito resuelto con éxito!');
+        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', st.user.uid), { puntos: increment(10) });
+        window.parent.postMessage({ type: 'PROGRESS_UPDATE', lesson: 'capacitores', completed: true, score: 100 }, '*');
+    } else {
+        toast('Fallo crítico en componentes.');
+    }
 };
 
 const triggerExplosion = (x,y) => {
@@ -627,7 +715,6 @@ $('btn-submit-rate').onclick = async () => {
     toast('¡Gracias por calificar!'); modal('modal-rate', false);
 };
 
-// Init
 const resize = () => { cv.width = cv.parentElement.clientWidth; cv.height = cv.parentElement.clientHeight; render(); };
 window.addEventListener('resize', resize);
 resize(); 
