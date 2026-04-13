@@ -339,10 +339,10 @@ const ag=$('#avatarGrid');ag.innerHTML='';
 const colors=['#4285F4','#EA4335','#FBBC05','#34A853','#FF6D00','#AA00FF','#00BFA5','#DD2C00','#2962FF','#C51162','#00C853','#FFD600'];
 for(let i=0;i<12;i++){const d=document.createElement('div');d.style.background=colors[i]+'33';d.style.color=colors[i];d.innerHTML=`<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M12 14c-4 0-7 2-7 4v2h14v-2c0-2-3-4-7-4z"/></svg>`;if(i===(UP.avatar||0))d.classList.add('selected');d.onclick=()=>{ag.querySelectorAll('div').forEach(x=>x.classList.remove('selected'));d.classList.add('selected');UP.avatar=i};ag.appendChild(d)}
 }
-window.saveProfile=async()=>{UP.nombre=$('#profName').value;UP.alias=$('#profAlias').value;UP.edad=$('#profAge').value;UP.carrera=$('#profCareer').value;UP.institucion=$('#profInst').value;await update(ref(db,`usuarios_capacitores/${CU.uid}/perfil`),UP);loadProfile();alert('Perfil guardado')};
+window.saveProfile=async()=>{UP.nombre=$('#profName').value;UP.alias=$('#profAlias').value;UP.edad=$('#profAge').value;UP.carrera=$('#profCareer').value;UP.institucion=$('#profInst').value;try{await update(ref(db,`usuarios_capacitores/${CU.uid}/perfil`),UP);loadProfile();alert('Perfil guardado')}catch(e){showModal('Error','<p>'+e.message+'</p>')}};
 
 function getLevel(p){if(p>1000)return'Maestro';if(p>500)return'Ingeniero';if(p>200)return'T\u00e9cnico';if(p>50)return'Aprendiz';return'Novato'}
-async function addPoints(n){UP.puntos=(UP.puntos||0)+n;UP.nivel=getLevel(UP.puntos);await update(ref(db,`usuarios_capacitores/${CU.uid}/perfil`),{puntos:UP.puntos,nivel:UP.nivel})}
+async function addPoints(n){UP.puntos=(UP.puntos||0)+n;UP.nivel=getLevel(UP.puntos);try{await update(ref(db,`usuarios_capacitores/${CU.uid}/perfil`),{puntos:UP.puntos,nivel:UP.nivel})}catch(e){}}
 
 // ============ CIRCUIT SIMULATOR ============
 let cvs,ctx,W,H,components=[],wires=[],nodes=[],dragComp=null,dragOff={x:0,y:0},selComp=null,connecting=false,wireStart=null,history=[],histIdx=-1,pan={x:0,y:0},zoom=1,isPanning=false,panStart={x:0,y:0};
@@ -778,25 +778,29 @@ anim();
 window.createRoom=async()=>{
 const name=$('#newRoomName').value.trim();if(!name)return;
 const pw=$('#newRoomPass').value.trim();
-const rid=push(ref(db,'salas_capacitores')).key;
+try{const rid=push(ref(db,'salas_capacitores')).key;
 await set(ref(db,`salas_capacitores/${rid}`),{name,password:pw||null,creator:CU.uid,createdAt:Date.now(),state:null,members:{}});
 $('#newRoomName').value='';$('#newRoomPass').value='';
-addPoints(5);loadRooms();
+addPoints(5);loadRooms();}catch(e){showModal('Error de permisos','<p>No se pudo crear la sala. Verifica que las reglas de Firebase incluyan la ruta <code>salas_capacitores</code>.</p><p style="font-size:11px;color:var(--fg2);margin-top:8px">'+e.message+'</p>')}
 };
 
 async function loadRooms(){
-const snap=await get(ref(db,'salas_capacitores'));
-const rl=$('#roomList');rl.innerHTML='';
-if(!snap.exists())return;
+if(!CU)return;
+const rl=$('#roomList');
+try{const snap=await get(ref(db,'salas_capacitores'));
+rl.innerHTML='';
+if(!snap.exists()){rl.innerHTML='<p style="color:var(--fg2);font-size:13px">No hay salas creadas a&uacute;n.</p>';return}
 snap.forEach(ch=>{
 const r=ch.val();const d=document.createElement('div');d.className='room-card glass';
 d.innerHTML=`<div><b>${r.name}</b><br><span style="font-size:11px;color:var(--fg2)">${r.password?'Con contrase\u00f1a':'Abierta'} &middot; ${Object.keys(r.members||{}).length} miembros</span></div><button class="btn-sm" onclick="joinRoom('${ch.key}',${!!r.password})">Unirse</button>`;
 rl.appendChild(d);
-});
+});}catch(e){rl.innerHTML='<p style="color:var(--accent3);font-size:12px">No se pudieron cargar las salas. Las reglas de Firebase deben incluir <code>salas_capacitores</code>.</p>'}
 }
-setTimeout(loadRooms,1500);
+// Load rooms only after auth is confirmed (called from showPage)
+window._loadRoomsOnNav=()=>{if(CU)loadRooms()};
 
 window.joinRoom=async(rid,hasPw)=>{
+try{
 if(hasPw){
 const pw=prompt('Contrase\u00f1a de la sala:');
 const snap=await get(ref(db,`salas_capacitores/${rid}/password`));
@@ -824,25 +828,26 @@ snap.forEach(ch=>{const m=ch.val();const d=document.createElement('div');d.class
 msgs.scrollTop=msgs.scrollHeight;
 });
 addPoints(5);
+}catch(e){showModal('Error','<p>No se pudo unir a la sala: '+e.message+'</p>')}
 };
 
 window.leaveRoom=async()=>{
 if(!curRoom)return;
-await remove(ref(db,`salas_capacitores/${curRoom}/members/${CU.uid}`));
+try{await remove(ref(db,`salas_capacitores/${curRoom}/members/${CU.uid}`));}catch(e){}
 curRoom=null;$('#inRoom').classList.add('hidden');$('#chatPanel').classList.remove('open');
 };
 window.toggleChat=()=>$('#chatPanel').classList.toggle('open');
 window.sendChat=async()=>{
 if(!curRoom)return;const txt=$('#chatTxt').value.trim();if(!txt)return;
-await push(ref(db,`salas_capacitores/${curRoom}/chat`),{uid:CU.uid,email:CU.email,text:txt,ts:Date.now()});
-$('#chatTxt').value='';addPoints(2);
+try{await push(ref(db,`salas_capacitores/${curRoom}/chat`),{uid:CU.uid,email:CU.email,text:txt,ts:Date.now()});
+$('#chatTxt').value='';addPoints(2);}catch(e){showModal('Error','<p>No se pudo enviar el mensaje: '+e.message+'</p>')}
 };
 
 // Sync circuit to room
 function syncToRoom(){
 if(!curRoom)return;
-const s=JSON.stringify({components:components.map(c=>({...c,nodes:[]})),wires});
-set(ref(db,`salas_capacitores/${curRoom}/state`),s);
+try{const s=JSON.stringify({components:components.map(c=>({...c,nodes:[]})),wires});
+set(ref(db,`salas_capacitores/${curRoom}/state`),s);}catch(e){}
 }
 // Override saveState to also sync
 const _origSave=saveState;
@@ -884,22 +889,20 @@ window._ratingStars=()=>stars;
 window.submitRating=async()=>{
 const s=window._ratingStars?window._ratingStars():0;if(!s)return;
 const c=document.getElementById('ratingComment')?.value||'';
-await push(ref(db,'ratings_capacitores'),{uid:CU.uid,stars:s,comment:c,ts:Date.now()});
-document.querySelector('.modal-overlay')?.remove();alert('Gracias por tu calificaci\u00f3n');
+try{await push(ref(db,'ratings_capacitores'),{uid:CU.uid,stars:s,comment:c,ts:Date.now()});
+document.querySelector('.modal-overlay')?.remove();alert('Gracias por tu calificaci\u00f3n');}catch(e){showModal('Error','<p>No se pudo enviar la calificaci\u00f3n: '+e.message+'</p>')}
 };
 
 // ============ ADMIN DASHBOARD ============
 async function loadDash(){
 if(!CU||CU.email!==ADMIN)return;
-const snap=await get(ref(db,'usuarios_capacitores'));
+try{const snap=await get(ref(db,'usuarios_capacitores'));
 if(!snap.exists())return;
 let html='<table class="user-table"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Nivel</th><th>Puntos</th><th>Acci\u00f3n</th></tr></thead><tbody>';
 const userData=[];
 snap.forEach(ch=>{const u=ch.val().perfil;if(u){userData.push({uid:ch.key,...u});html+=`<tr><td>${u.nombre||'-'}</td><td>${u.alias||'-'}</td><td>${u.rol||'estudiante'}</td><td>${u.nivel||'Novato'}</td><td>${u.puntos||0}</td><td><button class="btn-sm btn-ghost" onclick="toggleRole('${ch.key}','${u.rol}')">${u.rol==='docente'?'Hacer Estudiante':'Hacer Docente'}</button></td></tr>`}});
 html+='</tbody></table>';
 $('#dashUsers').innerHTML=html;
-
-// Simple chart
 const canvas=$('#dashChart');if(!canvas)return;
 const cctx=canvas.getContext('2d');canvas.width=canvas.parentElement.clientWidth-40;
 cctx.clearRect(0,0,canvas.width,200);
@@ -911,17 +914,16 @@ cctx.fillStyle=document.body.dataset.theme==='dark'?'#00aaff':'#0066ff';
 cctx.fillRect(i*(bw+4)+20,180-h,bw,h);
 cctx.fillStyle=document.body.dataset.theme==='dark'?'#aab':'#444';
 cctx.font='9px sans-serif';cctx.fillText((u.alias||u.nombre||'?').substring(0,6),i*(bw+4)+20,195);
-});
+});}catch(e){$('#dashUsers').innerHTML='<p style="color:var(--accent3)">Error cargando datos: '+e.message+'</p>'}
 }
 window.toggleRole=async(uid,cur)=>{
 const nr=cur==='docente'?'estudiante':'docente';
-await update(ref(db,`usuarios_capacitores/${uid}/perfil`),{rol:nr});
-loadDash();
+try{await update(ref(db,`usuarios_capacitores/${uid}/perfil`),{rol:nr});loadDash();}catch(e){showModal('Error','<p>'+e.message+'</p>')}
 };
 
 // Load dashboard when navigating to it
 const origShowPage=window.showPage;
-window.showPage=(id,btn)=>{origShowPage(id,btn);if(id==='dashPage')loadDash()};
+window.showPage=(id,btn)=>{origShowPage(id,btn);if(id==='dashPage')loadDash();if(id==='roomsPage')loadRooms()};
 
 // PostMessage listener
 window.addEventListener('message',e=>{
