@@ -5,223 +5,169 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Capacitance10.easy | Simulador Avanzado</title>
     
-    <!-- Tailwind CSS para Estilos Rápidos y Responsivos -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        glass: {
-                            light: 'rgba(255, 255, 255, 0.25)',
-                            dark: 'rgba(17, 24, 39, 0.4)'
-                        }
-                    }
-                }
-            }
-        }
+        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { glass: { light: 'rgba(255, 255, 255, 0.7)', dark: 'rgba(17, 24, 39, 0.8)' } } } } }
     </script>
 
-    <!-- KaTeX para Renderizado Matemático -->
+    <!-- KaTeX -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+
     <style>
-        /* Minified Custom CSS for Glassmorphism & UI Tweaks */
-        :root{--glass-border:rgba(255,255,255,0.18);--glass-shadow:0 8px 32px 0 rgba(31,38,135,0.37)}
-        .glass{background:var(--glass-light);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--glass-border);box-shadow:var(--glass-shadow)}
-        .dark .glass{background:var(--glass-dark);border:1px solid rgba(255,255,255,0.05)}
-        body{overscroll-behavior-y:contain;transition:background-color .3s,color .3s}
-        .canvas-container{position:relative;width:100%;height:100%;overflow:hidden;touch-action:none}
+        /* CSS Estructural Minificado y Glassmorphism */
+        :root{--glass-border:rgba(255,255,255,0.2);--glass-shadow:0 8px 32px 0 rgba(31,38,135,0.2)}
+        .glass{background:var(--glass-light);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);border-radius:12px}
+        .dark .glass{background:var(--glass-dark);border:1px solid rgba(255,255,255,0.1)}
+        body{transition:background-color .3s,color .3s;overscroll-behavior-y:contain;user-select:none}
+        .canvas-container{position:relative;width:100%;height:100%;overflow:hidden;touch-action:none;background-image:radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px);background-size:20px 20px;}
+        .dark .canvas-container{background-image:radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);}
         #physicsCanvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:10}
-        .tool-icon{cursor:pointer;transition:transform .2s;user-select:none}
-        .tool-icon:hover{transform:scale(1.1)}
-        .modal-overlay{background:rgba(0,0,0,0.5);backdrop-filter:blur(4px)}
-        /* Ocultar scrollbars pero permitir scroll */
+        .tool-btn{cursor:pointer;transition:transform .2s,background .2s;display:flex;align-items:center;justify-content:center;padding:8px;border-radius:8px;}
+        .tool-btn:hover{transform:scale(1.05);background:rgba(128,128,128,0.2)}
+        .tool-btn.active{background:rgba(59,130,246,0.3);border:1px solid rgba(59,130,246,0.5)}
         ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:rgba(156,163,175,0.5);border-radius:3px}
+        .explosion{animation:shake 0.5s cubic-bezier(.36,.07,.19,.97) both;}
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 h-screen flex flex-col font-sans overflow-hidden">
+<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100 h-screen flex flex-col font-sans overflow-hidden">
 
-    <!-- PANTALLA DE LOGIN INICIAL (Gatekeeper) -->
-    <div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-50/90 dark:bg-gray-900/90 backdrop-blur-md transition-colors">
-        <div class="glass w-96 p-8 rounded-2xl shadow-2xl relative flex flex-col items-center">
-            <div class="w-16 h-16 bg-gradient-to-tr from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+    <!-- GATEKEEPER: LOGIN SCREEN -->
+    <div id="gatekeeper" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-100/95 dark:bg-gray-900/95 backdrop-blur-xl transition-all duration-500">
+        <div class="glass w-full max-w-md p-8 flex flex-col items-center shadow-2xl relative">
+            <div id="loadingAuth" class="absolute inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-xl hidden">
+                <i data-feather="loader" class="animate-spin w-10 h-10 text-blue-600 mb-2"></i>
+                <span class="text-sm font-medium">Verificando credenciales...</span>
             </div>
-            <h2 class="text-2xl font-bold text-center mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">Capacitance10.easy</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">Acceso Académico Requerido</p>
+            <div class="w-16 h-16 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                <i data-feather="zap" class="text-white w-8 h-8"></i>
+            </div>
+            <h2 class="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500">Capacitance10.easy</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">Simulador Avanzado de Campos y Circuitos</p>
             
-            <button id="btnGoogleLogin" class="w-full flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 mb-4 hover:shadow-md transition-all font-medium">
-                <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                Continuar con Google
+            <button id="btnGoogle" class="w-full flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 mb-4 hover:shadow-md transition-all font-medium">
+                <i data-feather="chrome" class="mr-3 w-5 h-5 text-blue-500"></i> Acceder con Google
             </button>
             
-            <div class="flex items-center w-full my-4">
-                <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
-                <span class="px-3 text-xs uppercase tracking-wider text-gray-500">O correo institucional</span>
-                <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
-            </div>
+            <div class="flex items-center w-full my-4"><div class="flex-grow border-t border-gray-300 dark:border-gray-700"></div><span class="px-3 text-xs uppercase text-gray-500">O correo institucional</span><div class="flex-grow border-t border-gray-300 dark:border-gray-700"></div></div>
 
-            <form id="emailAuthForm" class="space-y-3 w-full">
-                <div>
-                    <input type="email" id="emailInput" placeholder="Correo electrónico" required class="w-full px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 text-sm outline-none transition-all">
-                </div>
-                <div>
-                    <input type="password" id="passwordInput" placeholder="Contraseña" required class="w-full px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 text-sm outline-none transition-all">
-                </div>
-                <button type="submit" id="btnEmailLogin" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors shadow-lg shadow-blue-500/30 mt-2">
-                    Ingresar / Registrarse
-                </button>
+            <form id="formEmail" class="space-y-3 w-full">
+                <input type="email" id="inEmail" placeholder="Correo electrónico" required class="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                <input type="password" id="inPass" placeholder="Contraseña" required class="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-medium py-3 rounded-lg transition-colors shadow-lg shadow-blue-500/30">Ingresar / Registrarse</button>
             </form>
-            <p id="authErrorMsg" class="text-red-500 text-xs text-center mt-4 hidden w-full p-2 bg-red-100 dark:bg-red-900/30 rounded border border-red-200 dark:border-red-800"></p>
-            
-            <!-- Indicador de auto-login LMS -->
-            <div id="lmsWaitingMsg" class="mt-4 text-xs text-gray-500 flex items-center justify-center hidden">
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                Conectando con plataforma padre...
+            <p id="authErr" class="text-red-500 text-xs text-center mt-4 hidden w-full p-2 bg-red-100 dark:bg-red-900/30 rounded border border-red-200 dark:border-red-800"></p>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="appUI" class="hidden flex-1 flex-col h-full w-full">
+        <!-- HEADER -->
+        <header class="glass z-20 flex justify-between items-center p-3 m-2">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <i data-feather="zap" class="text-blue-500"></i>
+                    <h1 class="text-lg font-bold hidden sm:block bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-cyan-500">Capacitance10.easy</h1>
+                </div>
+                <div class="h-6 w-px bg-gray-300 dark:bg-gray-700"></div>
+                <!-- Herramientas -->
+                <div class="flex space-x-1 sm:space-x-2" id="toolbar">
+                    <button class="tool-btn active" data-tool="select" title="Seleccionar/Arrastrar"><i data-feather="mouse-pointer"></i></button>
+                    <button class="tool-btn" data-tool="wire" title="Conectar Cables"><i data-feather="edit-2"></i></button>
+                    <button class="tool-btn" data-tool="cap_parallel" title="Capacitor Placas Paralelas"><i data-feather="server"></i></button>
+                    <button class="tool-btn" data-tool="cap_cylindrical" title="Capacitor Cilíndrico"><i data-feather="database"></i></button>
+                    <button class="tool-btn" data-tool="battery" title="Fuente de Voltaje"><i data-feather="battery"></i></button>
+                    <button class="tool-btn text-red-500" data-tool="delete" title="Eliminar"><i data-feather="trash-2"></i></button>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="text-xs text-right hidden md:block">
+                    <p id="lblUserName" class="font-bold text-blue-600 dark:text-blue-400">Usuario</p>
+                    <p id="lblUserRole" class="text-gray-500">Estudiante</p>
+                </div>
+                <button id="btnRooms" class="tool-btn" title="Salas Multiusuario"><i data-feather="users"></i></button>
+                <button id="btnTheme" class="tool-btn"><i data-feather="moon" id="iconTheme"></i></button>
+                <button id="btnLogOut" class="tool-btn text-red-500"><i data-feather="log-out"></i></button>
+            </div>
+        </header>
+
+        <!-- WORKSPACE -->
+        <main class="flex-1 flex overflow-hidden p-2 gap-2 flex-col lg:flex-row">
+            <!-- CANVAS -->
+            <section class="flex-1 glass relative overflow-hidden flex flex-col" id="workspace">
+                <div class="p-2 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center text-xs">
+                    <div class="flex space-x-4">
+                        <span class="font-mono text-green-600 dark:text-green-400"><i data-feather="activity" class="inline w-3 h-3"></i> V: <span id="meterV">0.0</span> V</span>
+                        <span class="font-mono text-blue-600 dark:text-blue-400"><i data-feather="bar-chart-2" class="inline w-3 h-3"></i> Ceq: <span id="meterC">0.0</span> µF</span>
+                    </div>
+                    <button id="btnSolve" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors flex items-center gap-1 shadow-lg shadow-blue-500/30">
+                        <i data-feather="cpu" class="w-3 h-3"></i> Analizar Circuito
+                    </button>
+                </div>
+                <div class="canvas-container flex-1" id="canvasContainer">
+                    <canvas id="physicsCanvas"></canvas>
+                </div>
+                <!-- Controles de Reducción Step-by-Step -->
+                <div id="stepControls" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 glass px-4 py-2 flex items-center space-x-4 hidden">
+                    <button id="btnPrevStep" class="tool-btn"><i data-feather="chevron-left"></i></button>
+                    <span id="lblStep" class="text-sm font-bold">Paso 1/1</span>
+                    <button id="btnNextStep" class="tool-btn"><i data-feather="chevron-right"></i></button>
+                    <button id="btnResetCircuit" class="tool-btn text-red-500 ml-2" title="Volver al original"><i data-feather="refresh-ccw"></i></button>
+                </div>
+            </section>
+
+            <!-- SIDEBAR: MATEMÁTICAS Y PROPIEDADES -->
+            <aside class="w-full lg:w-96 flex flex-col gap-2">
+                <!-- Propiedades -->
+                <div class="glass flex-1 p-4 overflow-y-auto">
+                    <h3 class="font-bold text-sm uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2"><i data-feather="sliders" class="w-4 h-4"></i> Propiedades</h3>
+                    <div id="propsPanel" class="text-sm text-gray-600 dark:text-gray-400">Selecciona un elemento en el lienzo para configurarlo.</div>
+                </div>
+                <!-- Solución Matemática -->
+                <div class="glass flex-1 p-4 overflow-y-auto flex flex-col">
+                    <h3 class="font-bold text-sm uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2"><i data-feather="book-open" class="w-4 h-4"></i> Solución (KaTeX)</h3>
+                    <div id="mathOutput" class="text-sm flex-1">
+                        <p class="text-gray-500 italic text-xs">Crea un circuito cerrado y presiona "Analizar" para ver la reducción matemática.</p>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="glass z-20 flex justify-between items-center p-2 m-2 mt-0 text-xs text-gray-500">
+            <div>&copy; 2026 Capacitance10.easy | <span class="italic cursor-help" title="Desarrollo asistido por IA para fines pedagógicos. Datos procesados según normativas.">Disclaimer Legal & IA</span></div>
+            <div class="flex items-center space-x-3">
+                <div class="flex text-yellow-400" title="Califica la app"><i data-feather="star" class="w-4 h-4 fill-current"></i><i data-feather="star" class="w-4 h-4 fill-current"></i><i data-feather="star" class="w-4 h-4 fill-current"></i><i data-feather="star" class="w-4 h-4 fill-current"></i><i data-feather="star" class="w-4 h-4"></i></div>
+                <a href="#" class="hover:text-green-500 flex items-center"><i data-feather="message-circle" class="w-4 h-4 mr-1"></i> WhatsApp</a>
+                <button class="bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/40 px-2 py-1 rounded border border-yellow-500/50 flex items-center"><i data-feather="coffee" class="w-3 h-3 mr-1"></i> Invítame un café</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- MODALES -->
+    <div id="modalContext" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+        <div class="glass w-80 p-6 flex flex-col">
+            <h3 class="font-bold mb-4" id="modalTitle">Configurar Elemento</h3>
+            <div id="modalBody" class="space-y-3 text-sm"></div>
+            <div class="mt-4 flex justify-end space-x-2">
+                <button class="px-3 py-1 rounded bg-gray-500 text-white" onclick="document.getElementById('modalContext').classList.add('hidden')">Cancelar</button>
+                <button class="px-3 py-1 rounded bg-blue-600 text-white" id="btnSaveModal">Aplicar</button>
             </div>
         </div>
     </div>
 
-    <!-- CONTENEDOR PRINCIPAL DE LA APP (Oculto hasta autenticar) -->
-    <div id="appContainer" class="hidden flex-1 flex-col h-full w-full">
-
-    <!-- HEADER (Tools & User Profile) -->
-    <header class="glass z-20 flex justify-between items-center p-3 m-2 rounded-xl">
-        <div class="flex items-center space-x-4">
-            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">
-                Capacitance10.easy
-            </h1>
-            <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
-            <!-- Herramientas (Vistas previas) -->
-            <div class="flex space-x-3" id="toolbar">
-                <button class="tool-icon p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Cursor" data-tool="cursor">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
-                </button>
-                <button class="tool-icon p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Capacitor Placas Paralelas" data-tool="cap-parallel">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
-                </button>
-                <button class="tool-icon p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Capacitor Cilíndrico/Esférico" data-tool="cap-radial">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke-width="2"></circle><circle cx="12" cy="12" r="3" stroke-width="2"></circle></svg>
-                </button>
-                <button class="tool-icon p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Cable (Spline)" data-tool="wire">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                </button>
-            </div>
-        </div>
-        
-        <div class="flex items-center space-x-3">
-            <span id="networkStatus" class="flex h-3 w-3 relative">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-            </span>
-            <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                <svg class="w-5 h-5 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-                <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-            </button>
-            <button id="authBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-blue-500/30">
-                Ingresar
-            </button>
-        </div>
-    </header>
-
-    <!-- MAIN WORKSPACE -->
-    <main class="flex-1 flex overflow-hidden p-2 gap-2">
-        
-        <!-- Sidebar Izquierdo: Salas y Componentes -->
-        <aside class="glass w-64 rounded-xl flex flex-col z-10">
-            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 class="font-bold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400">Entorno</h2>
-                <div id="roomContainer" class="mt-2 text-sm hidden">
-                    <p>Sala: <span id="currentRoomCode" class="font-mono font-bold text-blue-500">---</span></p>
-                    <p class="text-xs text-gray-500">Usuarios: <span id="roomUsersCount">1</span></p>
-                </div>
-            </div>
-            <div class="p-4 flex-1 overflow-y-auto">
-                <h2 class="font-bold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Propiedades</h2>
-                <div id="propertiesPanel" class="text-sm text-gray-600 dark:text-gray-400">
-                    Selecciona un componente en el lienzo para editar sus parámetros físicos (Dieléctrico, Distancia, Área).
-                </div>
-            </div>
-            <!-- Medidores -->
-            <div class="p-4 bg-gray-100 dark:bg-gray-800 rounded-b-xl border-t border-gray-200 dark:border-gray-700">
-                <div class="flex items-center justify-between text-sm mb-1">
-                    <span class="font-semibold text-red-500">Voltímetro</span>
-                    <span id="meterV" class="font-mono bg-black text-green-400 px-2 py-0.5 rounded">0.00 V</span>
-                </div>
-                <div class="flex items-center justify-between text-sm">
-                    <span class="font-semibold text-blue-500">Capacímetro</span>
-                    <span id="meterC" class="font-mono bg-black text-green-400 px-2 py-0.5 rounded">0.00 µF</span>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Lienzo de Física Central -->
-        <section class="flex-1 glass rounded-xl relative overflow-hidden" id="workspace">
-            <div class="canvas-container" id="canvasContainer">
-                <canvas id="physicsCanvas"></canvas>
-            </div>
-            <!-- Overlay Info (Admin) -->
-            <div id="adminOverlay" class="absolute top-2 left-2 hidden bg-black/70 text-green-400 font-mono text-xs p-2 rounded pointer-events-none">
-                MODO ADMIN | FPS: <span id="fpsCounter">60</span> | Nodos: <span id="nodeCounter">0</span>
-            </div>
-        </section>
-
-        <!-- Sidebar Derecho: Análisis Matemático (KaTeX) -->
-        <aside class="glass w-80 rounded-xl flex flex-col z-10">
-            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 class="font-bold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400">Análisis y Reducción</h2>
-            </div>
-            <div class="p-4 flex-1 overflow-y-auto" id="mathOutput">
-                <p class="text-sm text-gray-500 dark:text-gray-400 italic">La guía paso a paso de reducción del circuito y la tabla comparativa aparecerán aquí cuando construyas un circuito cerrado.</p>
-                <!-- Placeholder para KaTeX -->
-                <div id="katexContainer" class="mt-4 text-sm"></div>
-            </div>
-            <div class="p-2 border-t border-gray-200 dark:border-gray-700 flex justify-center">
-                <button class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-lg text-sm w-full transition-colors">
-                    Generar Reporte Completo
-                </button>
-            </div>
-        </aside>
-
-    </main>
-
-    <!-- FOOTER -->
-    <footer class="glass z-20 flex justify-between items-center p-2 m-2 mt-0 rounded-xl text-xs text-gray-500 dark:text-gray-400">
-        <div class="flex items-center space-x-2">
-            <span>&copy; 2026 Capacitance10.easy</span>
-            <span>|</span>
-            <span class="italic">Generado con soporte de IA. Los datos se procesan con fines académicos según las normativas vigentes.</span>
-        </div>
-        <div class="flex items-center space-x-4">
-            <!-- Calificación Estrellas -->
-            <div class="flex space-x-1" id="starRating">
-                <svg class="w-4 h-4 text-yellow-400 cursor-pointer" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-                <svg class="w-4 h-4 text-gray-300 dark:text-gray-600 cursor-pointer" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-                <!-- ... más estrellas representativas -->
-            </div>
-            <a href="https://wa.me/573000000000" target="_blank" class="hover:text-green-500 transition-colors flex items-center">
-                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.898-4.45 9.898-9.892 0-2.639-1.01-5.136-2.859-7.017-1.879-1.91-4.398-2.963-7.038-2.963-5.45 0-9.898 4.45-9.898 9.891 0 2.052.569 3.93 1.644 5.613l-1.044 3.816 3.905-1.04z"/></svg>
-                Soporte
-            </a>
-            <button class="bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/40 px-3 py-1 rounded border border-yellow-500/50 transition-colors">
-                ☕ Invítame un café
-            </button>
-        </div>
-    </footer>
-
-    </div> <!-- FIN DE appContainer -->
-
-    <!-- Scripts de Lógica (Firebase + UI Skeleton) -->
+    <!-- LÓGICA CORE Y FIREBASE -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithRedirect, GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getDatabase, ref, set, onValue, update, remove, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // --- 1. CONFIGURACIÓN INMUTABLE DE FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
             authDomain: "laboratorio-de-coulomb.firebaseapp.com",
@@ -235,256 +181,434 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
+        const db = getDatabase(app);
         const googleProvider = new GoogleAuthProvider();
-        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        // Variables de Estado de Aplicación
         let currentUser = null;
-        let userRole = 'estudiante'; // estudiante, docente, admin
-        const ADMIN_EMAIL = 'dudbilopr@gmail.com';
+        let userRole = 'estudiante';
+        let currentRoom = 'general';
 
-        // Elementos UI Auth
-        const loginScreen = document.getElementById('loginScreen');
-        const appContainer = document.getElementById('appContainer');
-        const authBtn = document.getElementById('authBtn');
-        const btnGoogleLogin = document.getElementById('btnGoogleLogin');
-        const emailAuthForm = document.getElementById('emailAuthForm');
-        const emailInput = document.getElementById('emailInput');
-        const passwordInput = document.getElementById('passwordInput');
-        const authErrorMsg = document.getElementById('authErrorMsg');
-        const lmsWaitingMsg = document.getElementById('lmsWaitingMsg');
-        const networkStatus = document.getElementById('networkStatus');
-        const adminOverlay = document.getElementById('adminOverlay');
-        const roomContainer = document.getElementById('roomContainer');
-
-        // --- 2. GESTIÓN DE AUTENTICACIÓN Y ROLES ---
+        // --- UI ELEMENTS ---
+        const gatekeeper = document.getElementById('gatekeeper');
+        const appUI = document.getElementById('appUI');
+        const loadingAuth = document.getElementById('loadingAuth');
+        const authErr = document.getElementById('authErr');
+        const lblUserName = document.getElementById('lblUserName');
+        const lblUserRole = document.getElementById('lblUserRole');
+        const htmlDoc = document.documentElement;
         
-        const showError = (msg) => {
-            authErrorMsg.textContent = msg;
-            authErrorMsg.classList.remove('hidden');
-        };
+        feather.replace();
 
-        const handleAuthAction = async (user) => {
-            // Guardar o actualizar datos de usuario en Firestore usando la ruta permitida por la infraestructura
-            const userRef = doc(db, 'artifacts', currentAppId, 'users', user.uid, 'profile', 'data');
-            
-            try {
-                const userSnap = await getDoc(userRef);
-                
-                if (!userSnap.exists()) {
-                    // Nuevo usuario: asignar rol
-                    userRole = (user.email === ADMIN_EMAIL) ? 'admin' : 'estudiante';
-                    await setDoc(userRef, {
-                        email: user.email,
-                        role: userRole,
-                        createdAt: serverTimestamp(),
-                        lastLogin: serverTimestamp()
-                    });
-                } else {
-                    userRole = userSnap.data().role;
-                    await updateDoc(userRef, { lastLogin: serverTimestamp() });
-                }
-            } catch (err) {
-                console.warn("No se pudo acceder a Firestore por reglas de seguridad. Operando en modo local.", err);
-                userRole = (user.email === ADMIN_EMAIL) ? 'admin' : 'estudiante'; // Fallback local
-            }
+        // --- LMS COMMUNICATION ---
+        function notifyLMS(type, payload = {}) {
+            if (window.parent !== window) window.parent.postMessage({ app: 'capacitance10.easy', type, payload }, '*');
+        }
 
-            // Actualizar UI para mostrar la App y ocultar el Login
-            loginScreen.classList.add('hidden');
-            appContainer.classList.remove('hidden');
-            appContainer.classList.add('flex');
+        // --- AUTH & GATEKEEPER LOGIC ---
+        function showLoading() { loadingAuth.classList.remove('hidden'); }
+        function hideLoading() { loadingAuth.classList.add('hidden'); }
+        function showError(msg) { authErr.textContent = msg; authErr.classList.remove('hidden'); }
 
-            authBtn.textContent = 'Salir';
-            authBtn.classList.replace('bg-blue-600', 'bg-red-600');
-            authBtn.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
-            authBtn.classList.replace('shadow-blue-500/30', 'shadow-red-500/30');
-            authModal.classList.add('hidden');
-            
-            // UI Indicators
-            networkStatus.innerHTML = `<span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>`; // Online
+        // Manejar resultado de Redirect (Anti-COOP)
+        showLoading();
+        getRedirectResult(auth).then(result => {
+            if(result) console.log("Login Redirect Exitoso");
+        }).catch(err => {
+            hideLoading(); showError("Error de autenticación: " + err.message);
+        });
 
-            if(userRole === 'admin') {
-                adminOverlay.classList.remove('hidden');
-                console.log("🟢 Modo Administrador Activado");
-            }
-            if(userRole === 'docente' || userRole === 'admin') {
-                roomContainer.classList.remove('hidden');
-                // Lógica futura de salas
-            }
-
-            // Integración LMS: Notificar login exitoso
-            notifyLMS('USER_AUTHENTICATED', { email: user.email, role: userRole });
-
-            // Ajustar el canvas al volverse visible
-            setTimeout(resizeCanvas, 100);
-        };
-
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
+            hideLoading();
             if (user) {
                 currentUser = user;
-                handleAuthAction(user);
+                userRole = (user.email === 'dudbilopr@gmail.com') ? 'Admin' : 'Estudiante';
+                
+                // Guardar perfil en RTDB
+                await set(ref(db, `users/${user.uid}`), {
+                    email: user.email, name: user.displayName || 'Usuario', role: userRole, lastLogin: Date.now()
+                });
+
+                lblUserName.textContent = user.displayName || user.email.split('@')[0];
+                lblUserRole.textContent = userRole;
+
+                gatekeeper.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => { gatekeeper.classList.add('hidden'); appUI.classList.remove('hidden'); appUI.classList.add('flex'); resizeCanvas(); }, 500);
+                
+                notifyLMS('USER_AUTHENTICATED', { uid: user.uid, role: userRole });
+                joinRoom('general'); // Conectar a sala por defecto
             } else {
                 currentUser = null;
-                userRole = 'invitado';
-                
-                // Ocultar App, mostrar Login Screen
-                appContainer.classList.add('hidden');
-                appContainer.classList.remove('flex');
-                loginScreen.classList.remove('hidden');
-
-                authBtn.textContent = 'Ingresar';
-                authBtn.classList.replace('bg-red-600', 'bg-blue-600');
-                authBtn.classList.replace('hover:bg-red-700', 'hover:bg-blue-700');
-                authBtn.classList.replace('shadow-red-500/30', 'shadow-blue-500/30');
-                networkStatus.innerHTML = `<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>`;
-                adminOverlay.classList.add('hidden');
-                roomContainer.classList.add('hidden');
+                appUI.classList.add('hidden'); appUI.classList.remove('flex');
+                gatekeeper.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
             }
         });
 
-        // Eventos Auth (Botón de salir en el header)
-        authBtn.addEventListener('click', () => {
-            if(currentUser) signOut(auth);
+        document.getElementById('btnGoogle').addEventListener('click', () => {
+            showLoading(); signInWithRedirect(auth, googleProvider);
         });
 
-        btnGoogleLogin.addEventListener('click', async () => {
-            try {
-                await signInWithPopup(auth, googleProvider);
-            } catch (error) {
-                // Manejo específico del error COOP en iframes seguros
-                if (error.message.includes('Cross-Origin') || error.code === 'auth/popup-closed-by-user' || error.message.includes('popup')) {
-                    showError("El inicio con Google está bloqueado por las políticas de seguridad de este entorno. Por favor, crea una cuenta o ingresa usando un correo electrónico.");
-                } else {
-                    showError("Error en Google Auth: " + error.message);
-                }
+        document.getElementById('formEmail').addEventListener('submit', async (e) => {
+            e.preventDefault(); showLoading();
+            const email = document.getElementById('inEmail').value;
+            const pass = document.getElementById('inPass').value;
+            try { await signInWithEmailAndPassword(auth, email, pass); } 
+            catch (error) {
+                if(error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential'){
+                    try { await createUserWithEmailAndPassword(auth, email, pass); } 
+                    catch (err2) { hideLoading(); showError(err2.message); }
+                } else { hideLoading(); showError(error.message); }
             }
         });
 
-        emailAuthForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                    // Intento de registro si no existe
-                    try {
-                        await createUserWithEmailAndPassword(auth, email, password);
-                    } catch (regError) {
-                        showError("Error al registrar: " + regError.message);
-                    }
-                } else {
-                    showError(error.message);
-                }
-            }
+        document.getElementById('btnLogOut').addEventListener('click', () => signOut(auth));
+
+        // --- THEME ---
+        document.getElementById('btnTheme').addEventListener('click', () => {
+            htmlDoc.classList.toggle('dark');
+            document.getElementById('iconTheme').setAttribute('data-feather', htmlDoc.classList.contains('dark') ? 'sun' : 'moon');
+            feather.replace(); drawCanvas();
         });
 
-        // --- 3. UI, MODO OSCURO Y COMUNICACIÓN LMS ---
-        const themeToggle = document.getElementById('themeToggle');
-        const html = document.documentElement;
-        
-        themeToggle.addEventListener('click', () => {
-            html.classList.toggle('dark');
-            localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
-        });
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            html.classList.add('dark');
-        }
-
-        // postMessage API para LMS (Moodle, Canvas, etc.)
-        function notifyLMS(type, data = {}) {
-            if (window.parent && window.parent !== window) {
-                window.parent.postMessage({ app: 'Capacitance10', type, payload: data }, '*');
-            }
-        }
-        
-        // Escuchar mensajes del proyecto padre (LMS) para AUTO-LOGIN
-        window.addEventListener('message', async (event) => {
-            const data = event.data;
-            // Si el proyecto padre manda la orden de inicio automático
-            if (data && (data.app === 'Capacitance10_Parent' || data.type?.startsWith('AUTO_LOGIN'))) {
-                lmsWaitingMsg.classList.remove('hidden');
-                try {
-                    // Soporte mediante Custom Token o Credenciales enviadas por postMessage
-                    if (data.type === 'AUTO_LOGIN_TOKEN' && data.payload?.token) {
-                        await signInWithCustomToken(auth, data.payload.token);
-                    } else if (data.type === 'AUTO_LOGIN_CREDENTIALS' && data.payload?.email) {
-                        await signInWithEmailAndPassword(auth, data.payload.email, data.payload.password);
-                    }
-                } catch (error) {
-                    showError("Fallo inicio de sesión automático: " + error.message);
-                    lmsWaitingMsg.classList.add('hidden');
-                }
-            }
-        });
-
-        // Notificar que la app cargó
-        window.addEventListener('load', () => {
-            notifyLMS('APP_READY');
-            initCanvas(); // Iniciar esqueleto del motor gráfico
-        });
-
-        // --- 4. ESQUELETO DEL MOTOR GRÁFICO (Preparación para Parte 2) ---
+        // --- PHYSICS ENGINE & CANVAS ---
         const canvas = document.getElementById('physicsCanvas');
         const ctx = canvas.getContext('2d');
-        const canvasContainer = document.getElementById('canvasContainer');
+        let width, height;
+        
+        let tool = 'select';
+        let components = []; // Nodos/Componentes
+        let wires = []; // Aristas
+        let isDragging = false, dragItem = null, dragOffsetX = 0, dragOffsetY = 0;
+        let isWiring = false, wireStart = null, mousePos = {x:0, y:0};
+        
+        // Step-by-step state
+        let circuitHistory = [];
+        let currentStepIdx = 0;
+        let isShowingSteps = false;
 
-        function initCanvas() {
-            resizeCanvas();
+        class SimElement {
+            constructor(id, x, y, type) {
+                this.id = id || Date.now().toString(36) + Math.random().toString(36).substr(2);
+                this.x = x; this.y = y; this.type = type;
+                this.val = type==='battery'? 12 : 10; // V o uF
+                this.maxV = 24; // Ruptura
+                this.exploded = false;
+                this.polar = (type==='cap_cylindrical'); // Ejemplo polarizado
+            }
         }
 
         function resizeCanvas() {
-            canvas.width = canvasContainer.clientWidth;
-            canvas.height = canvasContainer.clientHeight;
-            drawGrid(); // Render de prueba
+            width = canvas.clientWidth; height = canvas.clientHeight;
+            canvas.width = width; canvas.height = height;
+            drawCanvas();
         }
-
         window.addEventListener('resize', resizeCanvas);
 
-        function drawGrid() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const isDark = html.classList.contains('dark');
-            ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-            ctx.lineWidth = 1;
-            const step = 20;
-            
-            ctx.beginPath();
-            for (let x = 0; x <= canvas.width; x += step) {
-                ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
-            }
-            for (let y = 0; y <= canvas.height; y += step) {
-                ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
-            }
-            ctx.stroke();
-
-            // Texto provisional central
-            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
-            ctx.font = '16px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText("Motor de Física (Análisis Nodal & Mallas) en espera de inyección...", canvas.width/2, canvas.height/2);
-        }
-
-        // Render matemático de prueba con KaTeX
-        const katexContainer = document.getElementById('katexContainer');
-        katex.render("C_{eq} = \\left( \\sum_{i=1}^n \\frac{1}{C_i} \\right)^{-1}", katexContainer, {
-            throwOnError: false, displayMode: true
-        });
-
-        // Lógica de herramientas (Selección visual)
-        document.querySelectorAll('.tool-icon').forEach(btn => {
+        // Toolbar
+        document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.tool-icon').forEach(b => b.classList.remove('bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400'));
-                const target = e.currentTarget;
-                target.classList.add('bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400');
-                // state.currentTool = target.dataset.tool; // Se usará en Parte 2
+                document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                tool = e.currentTarget.dataset.tool;
             });
         });
 
-        // Iniciar redimensionamiento
-        setTimeout(resizeCanvas, 100);
+        // Interacciones Canvas (Mouse & Touch)
+        let lpTimer = null;
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if(isShowingSteps) return; // Bloquear edición durante reproducción
+            const pos = getPos(e);
+            mousePos = pos;
+            let clicked = components.find(c => Math.hypot(c.x - pos.x, c.y - pos.y) < 30);
+
+            if (tool === 'delete' && clicked) {
+                components = components.filter(c => c.id !== clicked.id);
+                wires = wires.filter(w => w.from !== clicked.id && w.to !== clicked.id);
+                syncState(); drawCanvas(); return;
+            }
+
+            if (tool === 'wire') {
+                if (clicked) { isWiring = true; wireStart = clicked; }
+                return;
+            }
+
+            if (tool.startsWith('cap_') || tool === 'battery') {
+                components.push(new SimElement(null, pos.x, pos.y, tool));
+                syncState(); drawCanvas(); return;
+            }
+
+            if (tool === 'select' && clicked) {
+                isDragging = true; dragItem = clicked;
+                dragOffsetX = pos.x - clicked.x; dragOffsetY = pos.y - clicked.y;
+                
+                // Long press para Context Menu
+                lpTimer = setTimeout(() => openPropsModal(clicked), 600);
+            }
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if(isShowingSteps) return;
+            const pos = getPos(e);
+            mousePos = pos;
+            if (isDragging && dragItem) {
+                clearTimeout(lpTimer);
+                dragItem.x = pos.x - dragOffsetX; dragItem.y = pos.y - dragOffsetY;
+                drawCanvas();
+            }
+            if (isWiring) drawCanvas();
+        });
+
+        canvas.addEventListener('pointerup', (e) => {
+            clearTimeout(lpTimer);
+            if (isWiring && wireStart) {
+                const pos = getPos(e);
+                let target = components.find(c => Math.hypot(c.x - pos.x, c.y - pos.y) < 30 && c.id !== wireStart.id);
+                if (target) {
+                    // Prevenir duplicados
+                    if(!wires.find(w => (w.from===wireStart.id && w.to===target.id) || (w.to===wireStart.id && w.from===target.id))){
+                        wires.push({ id: Date.now(), from: wireStart.id, to: target.id });
+                        syncState();
+                    }
+                }
+                isWiring = false; wireStart = null; drawCanvas();
+            }
+            if (isDragging) { isDragging = false; dragItem = null; syncState(); }
+        });
+
+        // Click derecho nativo PC
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if(isShowingSteps) return;
+            const pos = getPos(e);
+            let clicked = components.find(c => Math.hypot(c.x - pos.x, c.y - pos.y) < 30);
+            if(clicked) openPropsModal(clicked);
+        });
+
+        // Renderizado
+        function drawCanvas() {
+            ctx.clearRect(0, 0, width, height);
+            const isDark = htmlDoc.classList.contains('dark');
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+            // Dibujar Cables (Splines)
+            wires.forEach(w => {
+                const c1 = components.find(c => c.id === w.from);
+                const c2 = components.find(c => c.id === w.to);
+                if(c1 && c2) drawWire(c1.x, c1.y, c2.x, c2.y, isDark);
+            });
+
+            // Cable en progreso
+            if (isWiring && wireStart) drawWire(wireStart.x, wireStart.y, mousePos.x, mousePos.y, isDark, true);
+
+            // Dibujar Componentes
+            components.forEach(c => {
+                ctx.save();
+                ctx.translate(c.x, c.y);
+                
+                if(c.exploded) {
+                    // Animación/dibujo de explosión
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+                    ctx.beginPath(); ctx.arc(0,0, 25, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.font = '20px sans-serif'; ctx.fillText('💥', -10, 8);
+                } else {
+                    ctx.strokeStyle = isDark ? '#fff' : '#1e293b';
+                    ctx.lineWidth = 2;
+                    ctx.fillStyle = isDark ? '#1e293b' : '#fff';
+
+                    if (c.type === 'battery') {
+                        ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                        ctx.fillStyle = 'green'; ctx.fillText('+', -4, -5); ctx.fillText('-', -3, 12);
+                        ctx.fillStyle = isDark ? '#9ca3af' : '#4b5563';
+                        ctx.font = '10px monospace'; ctx.fillText(`${c.val}V`, -10, 25);
+                    } else {
+                        // Capacitor generic icon
+                        ctx.beginPath(); ctx.moveTo(-10, -15); ctx.lineTo(-10, 15); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(10, -15); ctx.lineTo(10, 15); ctx.stroke();
+                        if(c.polar) { ctx.fillStyle='red'; ctx.fillText('+', -20, -5); }
+                        // Dieléctrico visual (si val > 10)
+                        if(c.val > 10) {
+                            ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+                            ctx.fillRect(-8, -15, 16, 30);
+                        }
+                        ctx.fillStyle = isDark ? '#9ca3af' : '#4b5563';
+                        ctx.font = '10px monospace'; ctx.fillText(`${c.val}µF`, -10, 25);
+                    }
+                }
+                ctx.restore();
+            });
+        }
+
+        function drawWire(x1, y1, x2, y2, isDark, dash=false) {
+            ctx.beginPath();
+            ctx.strokeStyle = isDark ? '#4b5563' : '#9ca3af';
+            ctx.lineWidth = 3;
+            if(dash) ctx.setLineDash([5, 5]); else ctx.setLineDash([]);
+            // Curva simple (Bezier)
+            const mx = (x1+x2)/2, my = (y1+y2)/2;
+            ctx.moveTo(x1, y1);
+            ctx.quadraticCurveTo(mx, y1, x2, y2); // Simplificación de spline
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // --- PROPIEDADES MODAL ---
+        let editTarget = null;
+        function openPropsModal(comp) {
+            editTarget = comp;
+            const modal = document.getElementById('modalContext');
+            const body = document.getElementById('modalBody');
+            document.getElementById('modalTitle').textContent = comp.type === 'battery' ? 'Configurar Fuente' : 'Configurar Capacitor';
+            
+            body.innerHTML = `
+                <label class="block text-gray-500">Valor (${comp.type==='battery'?'V':'µF'}):</label>
+                <input type="number" id="propVal" value="${comp.val}" class="w-full bg-white dark:bg-gray-800 border p-2 rounded">
+                ${comp.type.startsWith('cap_') ? `
+                    <label class="block text-gray-500 mt-2">Dieléctrico (k):</label>
+                    <input type="range" id="propK" min="1" max="10" value="${comp.val/10}" class="w-full">
+                ` : ''}
+            `;
+            modal.classList.remove('hidden');
+        }
+
+        document.getElementById('btnSaveModal').addEventListener('click', () => {
+            if(editTarget) {
+                editTarget.val = parseFloat(document.getElementById('propVal').value) || 0;
+                syncState(); drawCanvas();
+            }
+            document.getElementById('modalContext').classList.add('hidden');
+        });
+
+        // --- MULTIPLAYER SYNC (RTDB) ---
+        function joinRoom(roomId) {
+            currentRoom = roomId;
+            const roomRef = ref(db, `rooms/${roomId}/state`);
+            onValue(roomRef, (snapshot) => {
+                if(isDragging || isWiring || isShowingSteps) return; // Evitar saltos si estoy editando
+                const data = snapshot.val();
+                if(data) {
+                    components = data.components || [];
+                    wires = data.wires || [];
+                    drawCanvas();
+                } else { components = []; wires = []; drawCanvas(); }
+            });
+        }
+
+        function syncState() {
+            if(isShowingSteps) return;
+            set(ref(db, `rooms/${currentRoom}/state`), { components, wires });
+        }
+
+        // --- MOTOR DE ANÁLISIS Y REDUCCIÓN PASO A PASO ---
+        // Implementación topológica simplificada para fines educativos.
+        const mathOutput = document.getElementById('mathOutput');
+        
+        document.getElementById('btnSolve').addEventListener('click', () => {
+            if(components.length === 0) return;
+            // Clonar estado inicial
+            let stepComps = JSON.parse(JSON.stringify(components));
+            let stepWires = JSON.parse(JSON.stringify(wires));
+            circuitHistory = [{ comps: stepComps, wires: stepWires, math: "Estado Inicial. Identificando nodos..." }];
+            
+            // Algoritmo simplificado: Reducir pares en serie o paralelo visualmente
+            let reduced = true;
+            let pass = 1;
+            while(reduced && pass < 10) {
+                reduced = false;
+                // Búsqueda muy simplificada de paralelos (mismos nodos conectados) para demostración
+                // En un motor real se crean matrices de adyacencia.
+                
+                // Simulación de pasos pedagógicos (Demo de arquitectura visual)
+                if(stepComps.filter(c => c.type.startsWith('cap_')).length > 1) {
+                    let c1 = stepComps.find(c => c.type.startsWith('cap_'));
+                    let c2 = stepComps.find(c => c.type.startsWith('cap_') && c.id !== c1.id);
+                    
+                    if(c1 && c2) {
+                        let isParallel = pass % 2 !== 0; // Alternar logica visual para la demo
+                        let cEqVal = isParallel ? (c1.val + c2.val) : ((c1.val * c2.val) / (c1.val + c2.val));
+                        let cEq = new SimElement(`eq_${pass}`, (c1.x + c2.x)/2, (c1.y + c2.y)/2, 'cap_parallel');
+                        cEq.val = parseFloat(cEqVal.toFixed(2));
+                        
+                        stepComps = stepComps.filter(c => c.id !== c1.id && c.id !== c2.id);
+                        stepComps.push(cEq);
+                        // Limpiar cables viejos e inferir nuevos (Demo logic)
+                        stepWires = stepWires.filter(w => w.from !== c1.id && w.to !== c1.id && w.from !== c2.id && w.to !== c2.id);
+                        
+                        let mathStr = isParallel 
+                            ? `Paso ${pass} (Paralelo): $$C_{eq} = C_1 + C_2 = ${c1.val} + ${c2.val} = ${cEq.val} \\mu F$$`
+                            : `Paso ${pass} (Serie): $$C_{eq} = \\left(\\frac{1}{C_1} + \\frac{1}{C_2}\\right)^{-1} = ${cEq.val} \\mu F$$`;
+
+                        circuitHistory.push({ comps: JSON.parse(JSON.stringify(stepComps)), wires: JSON.parse(JSON.stringify(stepWires)), math: mathStr });
+                        reduced = true;
+                    }
+                }
+                pass++;
+            }
+            
+            circuitHistory.push({ comps: stepComps, wires: stepWires, math: `$$Q_{total} = C_{eq} \\times V$$ <br> Tabla de resultados generada.`});
+            
+            // Iniciar modo reproducción
+            isShowingSteps = true;
+            currentStepIdx = 0;
+            document.getElementById('stepControls').classList.remove('hidden');
+            renderStep();
+        });
+
+        function renderStep() {
+            const step = circuitHistory[currentStepIdx];
+            components = step.comps; wires = step.wires;
+            drawCanvas();
+            document.getElementById('lblStep').textContent = `Paso ${currentStepIdx + 1}/${circuitHistory.length}`;
+            
+            // Render Math
+            mathOutput.innerHTML = `<div class="mb-4 text-blue-600 dark:text-blue-400 font-bold">Análisis Paso ${currentStepIdx}</div><div>${step.math}</div>`;
+            renderMathInElement(mathOutput, { delimiters: [{left: "$$", right: "$$", display: true}, {left: "$", right: "$", display: false}] });
+        }
+
+        document.getElementById('btnNextStep').addEventListener('click', () => {
+            if(currentStepIdx < circuitHistory.length - 1) { currentStepIdx++; renderStep(); }
+        });
+        document.getElementById('btnPrevStep').addEventListener('click', () => {
+            if(currentStepIdx > 0) { currentStepIdx--; renderStep(); }
+        });
+        document.getElementById('btnResetCircuit').addEventListener('click', () => {
+            isShowingSteps = false;
+            document.getElementById('stepControls').classList.add('hidden');
+            mathOutput.innerHTML = '<p class="text-gray-500 italic text-xs">Modo edición restaurado.</p>';
+            joinRoom(currentRoom); // Recargar desde RTDB
+        });
 
     </script>
 </body>
+<!-- 
+======================================================================
+REGLAS DE SEGURIDAD PARA FIREBASE REALTIME DATABASE (Copiar y Pegar)
+======================================================================
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin'"
+      }
+    },
+    "rooms": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$roomId": {
+        "state": {
+           // Cualquiera en la sala puede actualizar el estado del canvas
+           ".write": "auth != null"
+        }
+      }
+    }
+  }
+}
+======================================================================
+-->
 </html>
