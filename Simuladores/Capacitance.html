@@ -237,6 +237,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
+        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         // Variables de Estado de Aplicación
         let currentUser = null;
@@ -265,22 +266,28 @@
         };
 
         const handleAuthAction = async (user) => {
-            // Guardar o actualizar datos de usuario en Firestore
-            const userRef = doc(db, 'users', user.uid);
-            const userSnap = await getDoc(userRef);
+            // Guardar o actualizar datos de usuario en Firestore usando la ruta permitida por la infraestructura
+            const userRef = doc(db, 'artifacts', currentAppId, 'users', user.uid, 'profile', 'data');
             
-            if (!userSnap.exists()) {
-                // Nuevo usuario: asignar rol
-                userRole = (user.email === ADMIN_EMAIL) ? 'admin' : 'estudiante';
-                await setDoc(userRef, {
-                    email: user.email,
-                    role: userRole,
-                    createdAt: serverTimestamp(),
-                    lastLogin: serverTimestamp()
-                });
-            } else {
-                userRole = userSnap.data().role;
-                await updateDoc(userRef, { lastLogin: serverTimestamp() });
+            try {
+                const userSnap = await getDoc(userRef);
+                
+                if (!userSnap.exists()) {
+                    // Nuevo usuario: asignar rol
+                    userRole = (user.email === ADMIN_EMAIL) ? 'admin' : 'estudiante';
+                    await setDoc(userRef, {
+                        email: user.email,
+                        role: userRole,
+                        createdAt: serverTimestamp(),
+                        lastLogin: serverTimestamp()
+                    });
+                } else {
+                    userRole = userSnap.data().role;
+                    await updateDoc(userRef, { lastLogin: serverTimestamp() });
+                }
+            } catch (err) {
+                console.warn("No se pudo acceder a Firestore por reglas de seguridad. Operando en modo local.", err);
+                userRole = (user.email === ADMIN_EMAIL) ? 'admin' : 'estudiante'; // Fallback local
             }
 
             // Actualizar UI para mostrar la App y ocultar el Login
@@ -345,7 +352,12 @@
             try {
                 await signInWithPopup(auth, googleProvider);
             } catch (error) {
-                showError("Error en Google Auth: " + error.message);
+                // Manejo específico del error COOP en iframes seguros
+                if (error.message.includes('Cross-Origin') || error.code === 'auth/popup-closed-by-user' || error.message.includes('popup')) {
+                    showError("El inicio con Google está bloqueado por las políticas de seguridad de este entorno. Por favor, crea una cuenta o ingresa usando un correo electrónico.");
+                } else {
+                    showError("Error en Google Auth: " + error.message);
+                }
             }
         });
 
