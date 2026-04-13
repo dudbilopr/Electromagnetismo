@@ -102,7 +102,6 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
 </header>
 
 <div class="tabs-container" id="tabs-bar">
-    <!-- Pestañas dinámicas aquí -->
     <button class="btn btn-outline" id="btn-add-tab" style="padding:4px 8px; font-size:0.75rem; margin-bottom:4px; height:fit-content; align-self:flex-end;">+ Nuevo Lienzo</button>
 </div>
 
@@ -118,8 +117,8 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="2" y1="12" x2="8" y2="12"/>
                 <line x1="8" y1="6" x2="8" y2="18"/>
-                <path d="M14 6 Q 19 12 14 18"/>
-                <line x1="12" y1="12" x2="22" y2="12"/>
+                <path d="M16 6 Q 10 12 16 18"/>
+                <line x1="13" y1="12" x2="22" y2="12"/>
                 <text x="3" y="10" font-size="8" fill="currentColor" stroke="none">+</text>
             </svg>
         </button>
@@ -652,10 +651,10 @@ const drawComp = (c) => {
     } else if(c.type==='cap_ceramic') {
         ctx.beginPath(); ctx.moveTo(-10,-12); ctx.lineTo(-10,12); ctx.moveTo(10,-12); ctx.lineTo(10,12); ctx.stroke();
     } else if(c.type==='cap_electro') {
-        // Símbolo Electrolítico Perfecto IEEE: Placa recta (izquierda) | Curva convexa apuntando derecha )
+        // Símbolo Electrolítico IEEE Curva Invertida | (
         ctx.beginPath(); ctx.moveTo(-20,0); ctx.lineTo(-5,0); ctx.moveTo(20,0); ctx.lineTo(5,0); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(-5,-12); ctx.lineTo(-5,12); // Placa Recta (+)
-        ctx.moveTo(5,-12); ctx.quadraticCurveTo(12, 0, 5, 12); // Curva hacia la derecha ( )
+        ctx.moveTo(5,-12); ctx.quadraticCurveTo(-2, 0, 5, 12); // Curva hacia la izquierda (
         ctx.stroke(); 
         ctx.fillText('+', -22, -10); ctx.fillText('-', 12, -10);
     } else if(c.type==='multimeter') {
@@ -862,6 +861,52 @@ const buildGraph = () => {
     return { edges: edges.filter(e=>e.n1!==e.n2), vSrc };
 };
 
+// Algoritmo para limpiar cables muertos visuales en los pasos de reducción
+const pruneStepWires = (comps, wires, sourceEdge) => {
+    let activeNodes = new Set();
+    comps.forEach(c => {
+        if(c.isEq) {
+            if(c.n1) activeNodes.add(c.n1);
+            if(c.n2) activeNodes.add(c.n2);
+        } else {
+            let rad = c.rot*Math.PI/180;
+            let p1 = {x: c.x - 20*Math.cos(rad), y: c.y - 20*Math.sin(rad)};
+            let p2 = {x: c.x + 20*Math.cos(rad), y: c.y + 20*Math.sin(rad)};
+            cur().nodes.forEach(n => {
+                if(dist(n.x,n.y,p1.x,p1.y)<30 || dist(n.x,n.y,p2.x,p2.y)<30) activeNodes.add(n.id);
+            });
+        }
+    });
+    if(sourceEdge) { activeNodes.add(sourceEdge.n1); activeNodes.add(sourceEdge.n2); }
+    
+    let adj = {};
+    wires.forEach(w => {
+        if(!w.n1 || !w.n2) return;
+        adj[w.n1] = adj[w.n1] || []; adj[w.n1].push(w);
+        adj[w.n2] = adj[w.n2] || []; adj[w.n2].push(w);
+    });
+    
+    let visitedWires = new Set();
+    let q = Array.from(activeNodes);
+    let visitedNodes = new Set(q);
+    
+    while(q.length > 0) {
+        let curr = q.shift();
+        if(adj[curr]) {
+            adj[curr].forEach(w => {
+                if(!visitedWires.has(w.id)) {
+                    visitedWires.add(w.id);
+                    let nxt = w.n1 === curr ? w.n2 : w.n1;
+                    if(!visitedNodes.has(nxt)) {
+                        visitedNodes.add(nxt); q.push(nxt);
+                    }
+                }
+            });
+        }
+    }
+    return wires.filter(w => w.dashed || visitedWires.has(w.id));
+};
+
 const setTimelineView = (idx) => {
     let tCur = cur();
     if(idx < 0 || !tCur.circuitStates || tCur.circuitStates.length===0) {
@@ -931,10 +976,12 @@ $('btn-solve').onclick = () => {
                 group.forEach(g => { curComps = curComps.filter(c => c.id !== g.id); }); 
                 
                 let n1Obj = cur().nodes.find(n=>n.id===group[0].n1) || {x:cx-40, y:cy}; let n2Obj = cur().nodes.find(n=>n.id===group[0].n2) || {x:cx+40, y:cy};
-                curComps.push({ id: `eq${step}`, type:'cap_ceramic', x:cx, y:cy, val:cEq, unit:'µF', rot:0, isEq:true, stepColor:sColor });
+                curComps.push({ id: `eq${step}`, type:'cap_ceramic', x:cx, y:cy, val:cEq, unit:'µF', rot:0, isEq:true, stepColor:sColor, n1: group[0].n1, n2: group[0].n2 });
                 curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx-20,y:cy}, {x:cx-20,y:n1Obj.y}, {x:n1Obj.x,y:n1Obj.y}] });
                 curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx+20,y:cy}, {x:cx+20,y:n2Obj.y}, {x:n2Obj.x,y:n2Obj.y}] });
                 
+                // Ocultar cables muertos
+                curWires = pruneStepWires(curComps, curWires, vSrc);
                 cur().circuitStates.push({ comps: curComps, wires: curWires, nodes: cur().nodes, name: `Paso ${step}: Eq Paralelo` });
                 step++; reduced=true; break;
             }
@@ -969,10 +1016,12 @@ $('btn-solve').onclick = () => {
                 group.forEach(g => { curComps = curComps.filter(c => c.id !== g.id); });
                 
                 let n1Obj = cur().nodes.find(n=>n.id===endNodes[0]) || {x:cx-40, y:cy}; let n2Obj = cur().nodes.find(n=>n.id===endNodes[1]) || {x:cx+40, y:cy};
-                curComps.push({ id: `eq${step}`, type:'cap_ceramic', x:cx, y:cy, val:cEq, unit:'µF', rot:0, isEq:true, stepColor:sColor });
+                curComps.push({ id: `eq${step}`, type:'cap_ceramic', x:cx, y:cy, val:cEq, unit:'µF', rot:0, isEq:true, stepColor:sColor, n1: endNodes[0], n2: endNodes[1] });
                 curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx-20,y:cy}, {x:cx-20,y:n1Obj.y}, {x:n1Obj.x,y:n1Obj.y}] });
                 curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx+20,y:cy}, {x:cx+20,y:n2Obj.y}, {x:n2Obj.x,y:n2Obj.y}] });
                 
+                // Ocultar cables muertos
+                curWires = pruneStepWires(curComps, curWires, vSrc);
                 cur().circuitStates.push({ comps: curComps, wires: curWires, nodes: cur().nodes, name: `Paso ${step}: Eq Serie` });
                 step++; reduced=true;
             }
@@ -1027,7 +1076,7 @@ $('btn-solve').onclick = () => {
         let isReverse = distFromPos[cRef.n2] < distFromPos[cRef.n1];
         if(cRef.polar && isReverse) { vCap = -Math.abs(vCap||1); } // Forzar negativo si está al revés
 
-        if(cRef.polar && vCap < 0) { cRef.exploded = true; allOk = false; triggerExplosion(cRef.x, cRef.y); html += `<tr style="${bgStr} color:var(--danger);"><td>${e.id.substring(0,4)} 💥 (Polaridad Inversa)</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`; } 
+        if(cRef.polar && vCap < 0) { cRef.exploded = true; allOk = false; triggerExplosion(cRef.x, cRef.y); html += `<tr style="${bgStr} color:var(--danger);"><td>${e.id.substring(0,4)} 💥 (Polar Inversa)</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`; } 
         else if (cRef.maxV && Math.abs(vCap) > cRef.maxV) { cRef.exploded = true; allOk = false; triggerExplosion(cRef.x, cRef.y); html += `<tr style="${bgStr} color:var(--danger);"><td>${e.id.substring(0,4)} ⚡ (Sobrevoltaje)</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`; } 
         else { html += `<tr style="${bgStr}"><td><b>${e.id.substring(0,4)}</b></td><td>${e.val.toFixed(2)}</td><td>${vCap.toFixed(2)}</td><td>${qCap.toFixed(2)}</td><td>${uCap.toFixed(2)}</td></tr>`; }
     });
