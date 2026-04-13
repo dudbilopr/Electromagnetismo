@@ -59,6 +59,11 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
 .dark .metric-card{background:rgba(255,255,255,0.05);}
 .metric-val{font-size:1.5rem; font-weight:bold; color:var(--accent);}
 
+/* Estilos de Panel Expandido y Físicas */
+.panel-expanded { position: fixed !important; top: 5% !important; left: 5% !important; width: 90% !important; height: 90% !important; z-index: 1000 !important; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+.physics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; background: rgba(0,0,0,0.1); padding: 8px; border-radius: 8px; }
+.dark .physics-grid { background: rgba(255,255,255,0.05); }
+
 /* Estilos de Pestañas (Múltiples Lienzos) */
 .tabs-container{display:flex; padding:8px 16px 0; background:rgba(0,0,0,0.1); gap:4px; overflow-x:auto; border-bottom:1px solid var(--glass-border);}
 .dark .tabs-container{background:rgba(255,255,255,0.05);}
@@ -86,8 +91,8 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
         <button class="tool-btn active" data-tool="select" title="Seleccionar/Mover (Arrastra para Multi-selección)"><i class="ph ph-cursor"></i></button>
         <button class="tool-btn" data-tool="wire" title="Conectar Cables (Nodos Continuos)"><i class="ph ph-line-segment"></i></button>
         <button class="tool-btn" data-tool="battery" title="Fuente DC"><i class="ph ph-battery-full"></i></button>
-        <button class="tool-btn" data-tool="cap_ceramic" title="Capacitor Cerámico"><i class="ph ph-asterisk"></i></button>
-        <button class="tool-btn" data-tool="cap_electro" title="Capacitor Electrolítico"><i class="ph ph-cylinder"></i></button>
+        <button class="tool-btn" data-tool="cap_ceramic" title="Capacitor Placas Paralelas"><i class="ph ph-pause" style="transform: rotate(90deg);"></i></button>
+        <button class="tool-btn" data-tool="cap_electro" title="Capacitor Electrolítico"><i class="ph ph-battery-plus"></i></button>
         <button class="tool-btn" data-tool="multimeter" title="Multímetro"><i class="ph ph-gauge"></i></button>
         <button class="tool-btn" data-tool="eraser" title="Borrador (Click para eliminar)" style="color:var(--danger); border-color:var(--danger);"><i class="ph ph-eraser"></i></button>
         <div style="flex:1;"></div>
@@ -123,8 +128,11 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
             <div id="props-content" style="font-size:0.85rem; opacity:0.8;">Selecciona un componente...</div>
         </div>
         
-        <div class="glass-panel panel-section" style="flex:1; display:flex; flex-direction:column;">
-            <div class="panel-title">Análisis & Matemáticas</div>
+        <div class="glass-panel panel-section" style="flex:1; display:flex; flex-direction:column;" id="math-panel">
+            <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
+                Análisis & Matemáticas
+                <button id="btn-math-expand" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:1.2rem;"><i class="ph ph-arrows-out"></i></button>
+            </div>
             <button class="btn" id="btn-show-steps" style="display:none; margin-bottom:8px; font-size:0.8rem; padding:6px;"><i class="ph ph-eye"></i> Ver Reducción Real en Lienzo</button>
             <div id="katex-container" style="flex:1;">Esperando circuito...</div>
             <div id="table-results" style="display:none; margin-top:8px;"></div>
@@ -289,6 +297,13 @@ initAuth();
 // ==========================================
 const STEP_COLORS = ['rgba(59,130,246,1)', 'rgba(16,185,129,1)', 'rgba(245,158,11,1)', 'rgba(139,92,246,1)', 'rgba(236,72,153,1)', 'rgba(20,184,166,1)'];
 const uid = () => Math.random().toString(36).substr(2,9);
+const snap = v => Math.round(v/20)*20; 
+const dist = (x1,y1,x2,y2) => Math.hypot(x2-x1, y2-y1);
+
+const $ = id => document.getElementById(id);
+const $$ = q => document.querySelectorAll(q);
+const toast = m => { const t=$('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); };
+const modal = (id, show) => $(id).classList[show?'add':'remove']('active');
 
 let st = { 
     user:null, profile:null, room:null, tool:'select', theme:'dark', 
@@ -299,15 +314,29 @@ let st = {
     routingStart:null, tempWireEnd:null
 };
 st.activeTabId = st.tabs[0].id;
-
 const cur = () => st.tabs.find(t => t.id === st.activeTabId) || st.tabs[0];
 
-const $ = id => document.getElementById(id);
-const $$ = q => document.querySelectorAll(q);
-const toast = m => { const t=$('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); };
-const modal = (id, show) => $(id).classList[show?'add':'remove']('active');
-const snap = v => Math.round(v/20)*20; 
-const dist = (x1,y1,x2,y2) => Math.hypot(x2-x1, y2-y1);
+// Constantes Físicas
+const E0 = 8.854e-12; // Permitividad del vacío
+const DIEL = { vacio:1, teflon:2.1, papel:3.7, vidrio:7.5, ceramica:100 };
+
+// Auto-cálculo de capacitancia
+const calcPhysicsC = (c) => {
+    let er1 = DIEL[c.er1||'vacio'], er2 = DIEL[c.er2||'vacio'];
+    let erEq = er1;
+    if(c.composite === 'serie') erEq = 1 / (0.5/er1 + 0.5/er2);
+    else if(c.composite === 'paralelo') erEq = (er1 + er2) / 2;
+    
+    let C_f = 0;
+    if(c.geom === 'paralelas') C_f = (erEq * E0 * c.A) / c.d;
+    else if(c.geom === 'cilindrico') C_f = (2 * Math.PI * erEq * E0 * c.L) / Math.log(c.b / c.a);
+    else if(c.geom === 'esferico') C_f = (4 * Math.PI * erEq * E0) / ((1/c.a) - (1/c.b));
+    
+    let mult = 1e-6; // default µF
+    if(c.unit==='mF') mult = 1e-3; else if(c.unit==='nF') mult = 1e-9; else if(c.unit==='pF') mult = 1e-12;
+    c.val = C_f / mult;
+    return c.val;
+};
 
 // Generador UI Pestañas
 const renderTabs = () => {
@@ -514,9 +543,11 @@ cv.onmousedown = cv.ontouchstart = e => {
         }
     } else {
         let isSource = st.tool==='battery';
+        let isCap = st.tool.includes('cap');
         let c = { id:uid(), type:st.tool, x:snap(wc.x), y:snap(wc.y), rot:0, 
                   val: isSource ? 12 : 10, unit: isSource?'V':'µF', 
-                  maxV: isSource?null:50, polar: st.tool==='cap_electro', exploded:false };
+                  maxV: isSource?null:50, polar: st.tool==='cap_electro', exploded:false,
+                  geom: isCap?'paralelas':null, A:0.01, d:0.001, a:0.001, b:0.002, L:0.05, er1:'vacio', er2:'vacio', composite:'none' };
         cur().comps.push(c); syncState(); render();
     }
 };
@@ -617,6 +648,32 @@ const drawComp = (c) => {
         ctx.strokeRect(-15,-10,30,20); ctx.font='10px sans-serif'; ctx.fillText('V/C', -10, 3);
     }
     
+    // Dibujar Campo Eléctrico y Cargas si el circuito está resuelto
+    if(c.type.includes('cap') && c.V !== undefined && !c.isEq && !c.exploded) {
+        let qCount = Math.min(6, Math.max(2, Math.floor(Math.abs(c.Q)/10))); // Físicamente representativo
+        let sL = c.V >= 0 ? '+' : '-'; let sR = c.V >= 0 ? '-' : '+';
+        ctx.font = '8px monospace'; ctx.textAlign = 'center';
+        
+        // Cargas
+        for(let i=0; i<qCount; i++) {
+            let oy = -10 + (20/(qCount-1||1))*i;
+            ctx.fillStyle = c.V >= 0 ? 'rgba(239, 68, 68, 0.8)' : 'rgba(14, 165, 233, 0.8)';
+            ctx.fillText(sL, -12, oy+3);
+            ctx.fillStyle = c.V >= 0 ? 'rgba(14, 165, 233, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+            ctx.fillText(sR, 12, oy+3);
+        }
+        
+        // Campo Eléctrico (Flechas)
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)'; ctx.lineWidth = 1; ctx.beginPath();
+        for(let i=0; i<3; i++) {
+            let oy = -8 + 8*i;
+            ctx.moveTo(-8, oy); ctx.lineTo(8, oy);
+            if(c.V >= 0) { ctx.lineTo(5, oy-2); ctx.moveTo(8, oy); ctx.lineTo(5, oy+2); } // ->
+            else { ctx.moveTo(-8, oy); ctx.lineTo(-5, oy-2); ctx.moveTo(-8, oy); ctx.lineTo(-5, oy+2); } // <-
+        }
+        ctx.stroke(); ctx.textAlign = 'left'; // reset
+    }
+    
     // Etiqueta del equivalente (ej. eq1, eq2) o valor
     ctx.fillStyle = c.isEq ? strokeCol : 'var(--text)';
     ctx.fillText(c.isEq ? c.id : `${c.val}${c.unit}`, -15, 25);
@@ -692,14 +749,84 @@ const renderProps = () => {
         <div class="input-group"><label>Tipo</label><input disabled value="${c.type}"></div>
         <div class="input-group"><label>Rotar (Grados)</label>
             <input type="range" id="prop-rot" min="0" max="270" step="90" value="${c.rot}"></div>
-        <div class="input-group"><label>Valor (${c.unit})</label><input type="number" id="prop-val" value="${c.val}"></div>
-        ${c.type.includes('cap') ? `<div class="input-group"><label>Max V</label><input type="number" id="prop-max" value="${c.maxV}"></div>` : ''}
-        <button class="btn btn-outline" id="btn-del-comp" style="margin-top:8px; border-color:var(--danger); color:var(--danger);">Eliminar</button>
+        <div class="input-group"><label>Valor Numérico</label>
+            <div style="display:flex; gap:4px;">
+                <input type="number" id="prop-val" value="${c.val.toFixed(4)}" style="flex:1;">
+                <select id="prop-unit" style="width:70px;">
+                    ${['mF','µF','nF','pF'].map(u=>`<option value="${u}" ${c.unit===u?'selected':''}>${u}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+        ${c.type.includes('cap') ? `<div class="input-group"><label>Max V (Ruptura)</label><input type="number" id="prop-max" value="${c.maxV}"></div>` : ''}
     `;
-    $('prop-rot').onchange = e => { st.sel[0].rot = parseInt(e.target.value); syncState(); render(); };
-    $('prop-val').onchange = e => { st.sel[0].val = parseFloat(e.target.value); syncState(); render(); };
-    if($('prop-max')) $('prop-max').onchange = e => { st.sel[0].maxV = parseFloat(e.target.value); syncState(); render(); };
+
+    // Constructor Avanzado de Físicas
+    if(c.type.includes('cap')) {
+        pc.innerHTML += `
+        <div style="margin-top:12px; border-top:1px solid var(--glass-border); padding-top:8px;">
+            <div class="panel-title" style="font-size:0.75rem;">Física del Capacitor</div>
+            <div class="input-group"><label>Geometría</label>
+                <select id="prop-geom">
+                    <option value="paralelas" ${c.geom==='paralelas'?'selected':''}>Placas Paralelas</option>
+                    <option value="cilindrico" ${c.geom==='cilindrico'?'selected':''}>Cilíndrico</option>
+                    <option value="esferico" ${c.geom==='esferico'?'selected':''}>Esférico</option>
+                </select>
+            </div>
+            
+            <div class="physics-grid" id="phys-vars">
+                ${c.geom==='paralelas' ? `<div class="input-group"><label>Área (m²)</label><input type="number" id="p-A" value="${c.A}" step="0.001"></div><div class="input-group"><label>Dist. d (m)</label><input type="number" id="p-d" value="${c.d}" step="0.001"></div>` : ''}
+                ${c.geom==='cilindrico' ? `<div class="input-group"><label>Radio Int. a (m)</label><input type="number" id="p-a" value="${c.a}" step="0.001"></div><div class="input-group"><label>Radio Ext. b (m)</label><input type="number" id="p-b" value="${c.b}" step="0.001"></div><div class="input-group" style="grid-column: span 2;"><label>Largo L (m)</label><input type="number" id="p-L" value="${c.L}" step="0.001"></div>` : ''}
+                ${c.geom==='esferico' ? `<div class="input-group"><label>Radio Int. a (m)</label><input type="number" id="p-a" value="${c.a}" step="0.001"></div><div class="input-group"><label>Radio Ext. b (m)</label><input type="number" id="p-b" value="${c.b}" step="0.001"></div>` : ''}
+            </div>
+
+            <div class="input-group" style="margin-top:8px;"><label>Estructura Dieléctrica</label>
+                <select id="prop-comp">
+                    <option value="none" ${c.composite==='none'?'selected':''}>Simple (1 Material)</option>
+                    <option value="serie" ${c.composite==='serie'?'selected':''}>Compuesto (Capas en Serie)</option>
+                    <option value="paralelo" ${c.composite==='paralelo'?'selected':''}>Compuesto (Capas Paralelas)</option>
+                </select>
+            </div>
+            
+            <div class="physics-grid">
+                <div class="input-group"><label>Material ${c.composite!=='none'?'1':''}</label>
+                    <select id="prop-d1">${Object.keys(DIEL).map(k=>`<option value="${k}" ${c.er1===k?'selected':''}>${k.toUpperCase()}</option>`).join('')}</select>
+                </div>
+                ${c.composite!=='none' ? `<div class="input-group"><label>Material 2</label>
+                    <select id="prop-d2">${Object.keys(DIEL).map(k=>`<option value="${k}" ${c.er2===k?'selected':''}>${k.toUpperCase()}</option>`).join('')}</select>
+                </div>` : ''}
+            </div>
+        </div>`;
+    }
+
+    pc.innerHTML += `<button class="btn btn-outline" id="btn-del-comp" style="margin-top:12px; width:100%; border-color:var(--danger); color:var(--danger);"><i class="ph ph-trash"></i> Eliminar Componente</button>`;
+
+    // Event Listeners Físicos
+    const recalc = () => { if(c.type.includes('cap')) { calcPhysicsC(c); renderProps(); } syncState(); render(); };
+
+    $('prop-rot').onchange = e => { c.rot = parseInt(e.target.value); syncState(); render(); };
+    $('prop-val').onchange = e => { c.val = parseFloat(e.target.value); syncState(); render(); };
+    $('prop-unit').onchange = e => { c.unit = e.target.value; recalc(); };
+    if($('prop-max')) $('prop-max').onchange = e => { c.maxV = parseFloat(e.target.value); syncState(); render(); };
+    
+    if(c.type.includes('cap')) {
+        $('prop-geom').onchange = e => { c.geom = e.target.value; recalc(); };
+        $('prop-comp').onchange = e => { c.composite = e.target.value; recalc(); };
+        $('prop-d1').onchange = e => { c.er1 = e.target.value; recalc(); };
+        if($('prop-d2')) $('prop-d2').onchange = e => { c.er2 = e.target.value; recalc(); };
+        
+        ['p-A','p-d','p-a','p-b','p-L'].forEach(id => {
+            if($(id)) $(id).onchange = e => { c[id.split('-')[1]] = parseFloat(e.target.value); recalc(); };
+        });
+    }
+
     $('btn-del-comp').onclick = () => { cur().comps = cur().comps.filter(x=>x.id!==c.id); st.sel=[]; syncState(); render(); renderProps(); };
+};
+
+// Toggle Panel de Matemáticas
+$('btn-math-expand').onclick = () => {
+    $('math-panel').classList.toggle('panel-expanded');
+    let isExp = $('math-panel').classList.contains('panel-expanded');
+    $('btn-math-expand').innerHTML = isExp ? '<i class="ph ph-arrows-in"></i>' : '<i class="ph ph-arrows-out"></i>';
 };
 
 $('btn-clear').onclick = () => { cur().comps=[]; cur().wires=[]; cur().nodes=[]; setTimelineView(-1); syncState(); render(); $('katex-container').innerHTML='Circuito limpio'; $('btn-show-steps').style.display='none'; $('table-results').style.display='none';};
