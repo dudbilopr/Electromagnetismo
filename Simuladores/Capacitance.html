@@ -18,7 +18,7 @@ body{background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);
 header{display:flex;justify-content:space-between;align-items:center;padding:12px 24px;z-index:10;border-bottom:1px solid var(--glass-border)}
 .logo{font-weight:800;font-size:1.2rem;display:flex;align-items:center;gap:8px;color:var(--accent)}
 main{flex:1;display:flex;position:relative;overflow:hidden}
-canvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;touch-action:none}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;touch-action:none; outline:none;}
 .sidebar{width:300px;z-index:10;display:flex;flex-direction:column;gap:12px;padding:12px;overflow-y:auto}
 .sidebar-left{width:80px;align-items:center}
 .sidebar-right{width:350px;right:0;position:absolute;height:100%}
@@ -58,6 +58,14 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
 .metric-card{flex:1; padding:12px; border-radius:8px; background:rgba(0,0,0,0.05); text-align:center;}
 .dark .metric-card{background:rgba(255,255,255,0.05);}
 .metric-val{font-size:1.5rem; font-weight:bold; color:var(--accent);}
+
+/* Estilos de Pestañas (Múltiples Lienzos) */
+.tabs-container{display:flex; padding:8px 16px 0; background:rgba(0,0,0,0.1); gap:4px; overflow-x:auto; border-bottom:1px solid var(--glass-border);}
+.dark .tabs-container{background:rgba(255,255,255,0.05);}
+.tab-btn{padding:8px 16px; border-radius:8px 8px 0 0; border:1px solid var(--glass-border); border-bottom:none; background:transparent; color:var(--text); cursor:pointer; font-size:0.85rem; display:flex; align-items:center; gap:8px;}
+.tab-btn.active{background:var(--glass-bg); border-color:var(--accent); color:var(--accent); font-weight:bold;}
+.tab-btn:hover:not(.active){background:rgba(0,0,0,0.05);}
+.dark .tab-btn:hover:not(.active){background:rgba(255,255,255,0.05);}
 </style>
 </head>
 <body class="dark">
@@ -75,29 +83,37 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
 
 <main>
     <aside class="sidebar sidebar-left glass" id="toolbar">
-        <button class="tool-btn active" data-tool="select" title="Seleccionar/Mover"><i class="ph ph-cursor"></i></button>
-        <button class="tool-btn" data-tool="wire" title="Conectar Cables (Clic a clic)"><i class="ph ph-line-segment"></i></button>
+        <button class="tool-btn active" data-tool="select" title="Seleccionar/Mover (Arrastra para Multi-selección)"><i class="ph ph-cursor"></i></button>
+        <button class="tool-btn" data-tool="wire" title="Conectar Cables (Nodos Continuos)"><i class="ph ph-line-segment"></i></button>
         <button class="tool-btn" data-tool="battery" title="Fuente DC"><i class="ph ph-battery-full"></i></button>
         <button class="tool-btn" data-tool="cap_ceramic" title="Capacitor Cerámico"><i class="ph ph-asterisk"></i></button>
         <button class="tool-btn" data-tool="cap_electro" title="Capacitor Electrolítico"><i class="ph ph-cylinder"></i></button>
         <button class="tool-btn" data-tool="multimeter" title="Multímetro"><i class="ph ph-gauge"></i></button>
+        <button class="tool-btn" data-tool="eraser" title="Borrador (Click para eliminar)" style="color:var(--danger); border-color:var(--danger);"><i class="ph ph-eraser"></i></button>
         <div style="flex:1;"></div>
         <button class="tool-btn" id="btn-solve" title="Resolver Circuito"><i class="ph ph-calculator"></i></button>
-        <button class="tool-btn" id="btn-clear" title="Limpiar Lienzo"><i class="ph ph-trash"></i></button>
+        <button class="tool-btn" id="btn-clear" title="Limpiar Lienzo Actual"><i class="ph ph-trash"></i></button>
     </aside>
 
-    <div id="canvas-container" style="flex:1; position:relative;">
-        <canvas id="sim"></canvas>
+    <div style="flex:1; display:flex; flex-direction:column; position:relative;">
+        <div class="tabs-container" id="tabs-bar">
+            <!-- Pestañas dinámicas aquí -->
+            <button class="btn btn-outline" id="btn-add-tab" style="padding:4px 8px; font-size:0.75rem; margin-bottom:4px; height:fit-content; align-self:flex-end;">+ Nuevo Lienzo</button>
+        </div>
         
-        <!-- Timeline Viewer Controls -->
-        <div id="step-viewer-panel" class="glass-panel" style="display:none; position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:20; flex-direction:row; align-items:center; gap:16px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-            <button class="btn btn-outline" id="btn-step-prev" style="padding:6px 12px;"><i class="ph ph-caret-left"></i> Anterior</button>
-            <div style="display:flex; flex-direction:column; align-items:center;">
-                <span id="step-viewer-label" style="font-weight:bold; font-size:1.1rem; color:var(--accent);">Circuito Original</span>
-                <span style="font-size:0.75rem; opacity:0.8;">Visor Pedagógico de Reducción</span>
+        <div id="canvas-container" style="flex:1; position:relative;">
+            <canvas id="sim" tabindex="0"></canvas>
+            
+            <!-- Timeline Viewer Controls -->
+            <div id="step-viewer-panel" class="glass-panel" style="display:none; position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:20; flex-direction:row; align-items:center; gap:16px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                <button class="btn btn-outline" id="btn-step-prev" style="padding:6px 12px;"><i class="ph ph-caret-left"></i> Anterior</button>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <span id="step-viewer-label" style="font-weight:bold; font-size:1.1rem; color:var(--accent);">Circuito Original</span>
+                    <span style="font-size:0.75rem; opacity:0.8;">Visor Pedagógico (Redibujado Real)</span>
+                </div>
+                <button class="btn btn-outline" id="btn-step-next" style="padding:6px 12px;">Siguiente <i class="ph ph-caret-right"></i></button>
+                <button class="btn" id="btn-step-close" style="padding:6px 12px; background:var(--danger); border:none;"><i class="ph ph-x"></i> Salir</button>
             </div>
-            <button class="btn btn-outline" id="btn-step-next" style="padding:6px 12px;">Siguiente <i class="ph ph-caret-right"></i></button>
-            <button class="btn" id="btn-step-close" style="padding:6px 12px; background:var(--danger); border:none;"><i class="ph ph-x"></i> Salir</button>
         </div>
     </div>
 
@@ -109,7 +125,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
         
         <div class="glass-panel panel-section" style="flex:1; display:flex; flex-direction:column;">
             <div class="panel-title">Análisis & Matemáticas</div>
-            <button class="btn" id="btn-show-steps" style="display:none; margin-bottom:8px; font-size:0.8rem; padding:6px;"><i class="ph ph-eye"></i> Ver Circuito Reducido en Lienzo</button>
+            <button class="btn" id="btn-show-steps" style="display:none; margin-bottom:8px; font-size:0.8rem; padding:6px;"><i class="ph ph-eye"></i> Ver Reducción Real en Lienzo</button>
             <div id="katex-container" style="flex:1;">Esperando circuito...</div>
             <div id="table-results" style="display:none; margin-top:8px;"></div>
         </div>
@@ -193,7 +209,6 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
     <div class="modal glass" style="width:900px; max-width:95%;">
         <div class="modal-header">Dashboard Profesional <button class="close-btn"><i class="ph ph-x"></i></button></div>
         
-        <!-- Métricas KPI -->
         <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
             <div class="metric-card">Total Usuarios<div class="metric-val" id="dash-tot-usr">0</div></div>
             <div class="metric-card">Promedio Puntos<div class="metric-val" id="dash-avg-pts">0</div></div>
@@ -260,7 +275,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const rtdb = getDatabase(app);
 const auth = getAuth(app);
-
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'capacitance10';
 
 const initAuth = async () => {
@@ -271,25 +285,64 @@ const initAuth = async () => {
 initAuth();
 
 // ==========================================
-// 2. ESTADO GLOBAL & UTILIDADES MINIFICADAS
+// 2. ESTADO GLOBAL & TABS MULTI-LIENZO
 // ==========================================
-const STEP_COLORS = ['rgba(59,130,246,0.3)', 'rgba(16,185,129,0.3)', 'rgba(245,158,11,0.3)', 'rgba(139,92,246,0.3)', 'rgba(236,72,153,0.3)', 'rgba(20,184,166,0.3)'];
+const STEP_COLORS = ['rgba(59,130,246,1)', 'rgba(16,185,129,1)', 'rgba(245,158,11,1)', 'rgba(139,92,246,1)', 'rgba(236,72,153,1)', 'rgba(20,184,166,1)'];
+const uid = () => Math.random().toString(36).substr(2,9);
 
 let st = { 
-    user:null, profile:null, room:null, tool:'select', theme:'dark', pan:{x:0, y:0}, zoom:1, 
-    comps:[], wires:[], nodes:[], sel:null, dragging:null, mx:0, my:0, isMdown:false, rtdbRef:null, particles:[], 
-    routingStart:null, tempWireEnd:null,
-    circuitStates: [], // Almacenará los pasos históricos de dibujo
-    currentViewIdx: -1 // -1 significa Modo Edición / Lienzo real
+    user:null, profile:null, room:null, tool:'select', theme:'dark', 
+    tabs: [ { id: uid(), name: 'Ejemplo 1', comps: [], wires: [], nodes: [], pan:{x:0, y:0}, zoom:1, circuitStates:[], currentViewIdx:-1 } ],
+    activeTabId: null,
+    sel: [], clipboard: [], selBox: null,
+    dragging: null, mx:0, my:0, isMdown:false, rtdbRef:null, particles:[], 
+    routingStart:null, tempWireEnd:null
 };
+st.activeTabId = st.tabs[0].id;
+
+const cur = () => st.tabs.find(t => t.id === st.activeTabId) || st.tabs[0];
 
 const $ = id => document.getElementById(id);
 const $$ = q => document.querySelectorAll(q);
 const toast = m => { const t=$('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); };
 const modal = (id, show) => $(id).classList[show?'add':'remove']('active');
-const uid = () => Math.random().toString(36).substr(2,9);
 const snap = v => Math.round(v/20)*20; 
 const dist = (x1,y1,x2,y2) => Math.hypot(x2-x1, y2-y1);
+
+// Generador UI Pestañas
+const renderTabs = () => {
+    const bar = $('tabs-bar');
+    // Mantener el botón de añadir al final
+    const addBtn = $('btn-add-tab');
+    bar.innerHTML = '';
+    st.tabs.forEach((t, i) => {
+        let btn = document.createElement('button');
+        btn.className = `tab-btn ${t.id === st.activeTabId ? 'active' : ''}`;
+        btn.innerHTML = `${t.name} <i class="ph ph-x" data-id="${t.id}" style="opacity:0.5; font-size:0.8rem;"></i>`;
+        btn.onclick = (e) => {
+            if(e.target.tagName === 'I') {
+                if(st.tabs.length > 1) {
+                    st.tabs = st.tabs.filter(tab => tab.id !== t.id);
+                    if(st.activeTabId === t.id) st.activeTabId = st.tabs[0].id;
+                    renderTabs(); syncState(); render();
+                } else toast('No puedes cerrar el último lienzo');
+            } else {
+                st.activeTabId = t.id;
+                st.sel = [];
+                renderTabs(); render();
+            }
+        };
+        bar.appendChild(btn);
+    });
+    bar.appendChild(addBtn);
+};
+$('btn-add-tab').onclick = () => {
+    let newTab = { id: uid(), name: `Ejemplo ${st.tabs.length+1}`, comps: [], wires: [], nodes: [], pan:{x:0, y:0}, zoom:1, circuitStates:[], currentViewIdx:-1 };
+    st.tabs.push(newTab);
+    st.activeTabId = newTab.id;
+    st.sel = [];
+    renderTabs(); syncState(); render();
+};
 
 // ==========================================
 // 3. GATEKEEPER FIREBASE & AUTH 
@@ -307,6 +360,7 @@ onAuthStateChanged(auth, async u => {
         
         $('btn-admin').style.display = st.profile?.rol==='Admin' ? 'block' : 'none';
         toast(`Bienvenido ${st.profile?.alias || 'Usuario'}`);
+        renderTabs();
     } else {
         st.profile = null;
         $('btn-admin').style.display = 'none';
@@ -314,6 +368,7 @@ onAuthStateChanged(auth, async u => {
     }
 });
 
+// Auth modales...
 $('btn-login-email').onclick = async () => {
     const e = $('auth-email').value, p = $('auth-pass').value;
     if(!e||!p) return toast('Llene campos');
@@ -324,10 +379,8 @@ $('btn-login-email').onclick = async () => {
         } else toast(err.message);
     }
 };
-
 $('btn-login-google').onclick = async () => {
-    try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-    catch(e) { toast("Google bloqueado por seguridad (COOP). Por favor, usa Correo y Contraseña."); }
+    try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch(e) { toast("Google bloqueado (COOP). Usa Correo/Contraseña."); }
 };
 $('btn-logout').onclick = () => { signOut(auth); modal('modal-profile', false); if(st.room) leaveRoom(); };
 
@@ -343,39 +396,26 @@ $('btn-profile').onclick = () => {
     $('prof-role').innerText = st.profile.rol;
     $('prof-level').innerText = st.profile.nivel;
     $('prof-points').innerText = st.profile.puntos;
-    
-    // Cargar datos al form
     $('prof-alias-input').value = st.profile.alias || '';
     $('prof-edad-input').value = st.profile.edad || '';
     $('prof-carrera-input').value = st.profile.carrera || '';
     $('prof-avatar-select').value = st.profile.avatar || 'ph-user-circle';
     $('prof-avatar-icon').innerHTML = `<i class="ph ${st.profile.avatar || 'ph-user-circle'}"></i>`;
-    
     modal('modal-profile', true);
 };
-
-$('prof-avatar-select').onchange = e => {
-    $('prof-avatar-icon').innerHTML = `<i class="ph ${e.target.value}"></i>`;
-};
-
+$('prof-avatar-select').onchange = e => { $('prof-avatar-icon').innerHTML = `<i class="ph ${e.target.value}"></i>`; };
 $('btn-save-profile').onclick = async () => {
     if(!auth.currentUser) return;
-    st.profile.alias = $('prof-alias-input').value;
-    st.profile.edad = $('prof-edad-input').value;
-    st.profile.carrera = $('prof-carrera-input').value;
-    st.profile.avatar = $('prof-avatar-select').value;
-    
+    st.profile.alias = $('prof-alias-input').value; st.profile.edad = $('prof-edad-input').value;
+    st.profile.carrera = $('prof-carrera-input').value; st.profile.avatar = $('prof-avatar-select').value;
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', st.user.uid), {
         alias: st.profile.alias, edad: st.profile.edad, carrera: st.profile.carrera, avatar: st.profile.avatar
     });
     toast('Perfil guardado con éxito'); modal('modal-profile', false);
 };
 
-window.addEventListener('keydown', e => { if(e.key==='Escape') { st.routingStart = null; render(); } });
-$('sim').addEventListener('contextmenu', e => { e.preventDefault(); st.routingStart = null; render(); });
-
 // ==========================================
-// 5. MOTOR RTDB & MULTIUSUARIO
+// 5. MOTOR RTDB & MULTIUSUARIO (Sincroniza todos los Tabs)
 // ==========================================
 $('btn-rooms').onclick = () => modal('modal-rooms', true);
 $('btn-join-room').onclick = async () => {
@@ -385,11 +425,11 @@ $('btn-join-room').onclick = async () => {
     st.rtdbRef = ref(rtdb, `salas_capacitores/${id}`);
     onValue(st.rtdbRef, s => {
         const d = s.val();
-        if(d && d.state && !st.isMdown && st.currentViewIdx === -1) { // Bloquear update si estamos en visor temporal
-            st.comps = d.state.comps||[];
-            st.wires = d.state.wires||[];
-            st.nodes = d.state.nodes||[];
-            render();
+        if(d && d.state && !st.isMdown && cur().currentViewIdx === -1) {
+            st.tabs = d.state.tabs || st.tabs;
+            // Si el tab activo ya no existe por sincronizacion, ir al primero
+            if(!st.tabs.find(t=>t.id === st.activeTabId)) st.activeTabId = st.tabs[0].id;
+            renderTabs(); render();
         }
     });
     const chatRef = ref(rtdb, `salas_capacitores/${id}/chat`);
@@ -417,7 +457,7 @@ $('btn-send-chat').onclick = () => {
 };
 const syncState = () => {
     if(!auth.currentUser || !st.room || !st.rtdbRef) return;
-    set(ref(rtdb, `salas_capacitores/${st.room}/state`), { comps:st.comps, wires:st.wires, nodes:st.nodes });
+    set(ref(rtdb, `salas_capacitores/${st.room}/state`), { tabs: st.tabs });
 };
 
 // ==========================================
@@ -427,82 +467,136 @@ const cv = $('sim'); const ctx = cv.getContext('2d');
 
 $$('.tool-btn[data-tool]').forEach(b => b.onclick = (e) => {
     $$('.tool-btn').forEach(btn=>btn.classList.remove('active'));
-    b.classList.add('active'); st.tool = b.dataset.tool; st.sel = null; st.routingStart = null; renderProps();
-    if(st.currentViewIdx !== -1) setTimelineView(-1); // Salir del modo visor al seleccionar herramienta
+    b.classList.add('active'); st.tool = b.dataset.tool; st.sel = []; st.routingStart = null; renderProps();
+    if(cur().currentViewIdx !== -1) setTimelineView(-1); 
 });
 
 const getMouse = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX||e.touches[0].clientX)-r.left, y: (e.clientY||e.touches[0].clientY)-r.top }; };
-const wToC = (x,y) => ({ x: (x - st.pan.x)/st.zoom, y: (y - st.pan.y)/st.zoom });
+const wToC = (x,y) => ({ x: (x - cur().pan.x)/cur().zoom, y: (y - cur().pan.y)/cur().zoom });
 
-const createNode = (x,y) => { let n={id:uid(),x,y}; st.nodes.push(n); return n; };
-const getNode = (x,y) => st.nodes.find(n=>dist(n.x,n.y,x,y)<15) || createNode(x,y);
+const createNode = (x,y) => { let n={id:uid(),x,y}; cur().nodes.push(n); return n; };
+const getNode = (x,y) => cur().nodes.find(n=>dist(n.x,n.y,x,y)<15) || createNode(x,y);
 
 cv.onmousedown = cv.ontouchstart = e => {
     if(!auth.currentUser) return toast('Accede para usar simulador');
-    if(st.currentViewIdx !== -1) return toast('Estás en modo visor temporal. Cierra el visor para editar.');
+    if(cur().currentViewIdx !== -1) return toast('Modo visor activado. Cierra el visor para editar.');
+    cv.focus();
     
     st.isMdown = true; const m = getMouse(e); const wc = wToC(m.x, m.y); st.mx=m.x; st.my=m.y;
     
     if(st.tool==='select') {
-        st.sel = st.comps.find(c=>dist(c.x,c.y,wc.x,wc.y)<30);
-        if(st.sel) st.dragging = {x:wc.x-st.sel.x, y:wc.y-st.sel.y};
-        else st.dragging = 'pan';
+        let clickedComp = cur().comps.find(c=>dist(c.x,c.y,wc.x,wc.y)<30);
+        if(clickedComp) {
+            if(!st.sel.includes(clickedComp)) st.sel = [clickedComp]; // Selección simple, reemplaza
+            st.dragging = { active: true, items: st.sel.map(c => ({ id: c.id, dx: wc.x - c.x, dy: wc.y - c.y })) };
+        } else {
+            st.sel = [];
+            st.selBox = { startX: wc.x, startY: wc.y, endX: wc.x, endY: wc.y };
+        }
         renderProps();
+    } else if(st.tool==='eraser') {
+        let clickedComp = cur().comps.find(c=>dist(c.x,c.y,wc.x,wc.y)<30);
+        if(clickedComp) {
+            cur().comps = cur().comps.filter(c => c.id !== clickedComp.id);
+            st.sel = []; syncState(); render();
+        }
     } else if(st.tool==='wire') {
         let n = getNode(snap(wc.x), snap(wc.y));
         if(!st.routingStart) {
             st.routingStart = n;
         } else {
             if(st.routingStart.id !== n.id) { 
-                st.wires.push({id:uid(), n1:st.routingStart.id, n2:n.id, path:[{x:st.routingStart.x, y:st.routingStart.y}, {x:n.x, y:n.y}]});
+                cur().wires.push({id:uid(), n1:st.routingStart.id, n2:n.id, path:[{x:st.routingStart.x, y:st.routingStart.y}, {x:n.x, y:n.y}]});
                 syncState();
             }
-            let onComp = st.comps.some(c => dist(c.x-20,c.y,n.x,n.y)<20 || dist(c.x+20,c.y,n.x,n.y)<20);
-            st.routingStart = onComp ? null : n; 
+            let onComp = cur().comps.some(c => dist(c.x-20,c.y,n.x,n.y)<20 || dist(c.x+20,c.y,n.x,n.y)<20);
+            st.routingStart = onComp ? null : n; // Si tocó un componente, suelta el cable, sino, encadena
         }
     } else {
         let isSource = st.tool==='battery';
         let c = { id:uid(), type:st.tool, x:snap(wc.x), y:snap(wc.y), rot:0, 
                   val: isSource ? 12 : 10, unit: isSource?'V':'µF', 
                   maxV: isSource?null:50, polar: st.tool==='cap_electro', exploded:false };
-        st.comps.push(c); syncState(); render();
+        cur().comps.push(c); syncState(); render();
     }
 };
 
 cv.onmousemove = cv.ontouchmove = e => {
     const m = getMouse(e); const wc = wToC(m.x, m.y);
-    if(st.tool==='wire' && st.routingStart) { st.tempWireEnd = {x: snap(wc.x), y: snap(wc.y)}; render(); }
+    if(st.tool==='wire' && st.routingStart) { 
+        // Auto-snap a nodo existente cercano (Ayuda visual)
+        let nearNode = cur().nodes.find(n => dist(n.x,n.y, wc.x, wc.y) < 20);
+        if(nearNode) st.tempWireEnd = {x: nearNode.x, y: nearNode.y};
+        else st.tempWireEnd = {x: snap(wc.x), y: snap(wc.y)}; 
+        render(); 
+    }
     if(!st.isMdown) return;
-    if(st.dragging==='pan') { st.pan.x += (m.x-st.mx); st.pan.y += (m.y-st.my); st.mx=m.x; st.my=m.y; render(); }
-    else if(st.sel && st.dragging && st.currentViewIdx === -1) { st.sel.x = snap(wc.x - st.dragging.x); st.sel.y = snap(wc.y - st.dragging.y); render(); }
+    
+    if(st.selBox && st.tool==='select') {
+        st.selBox.endX = wc.x; st.selBox.endY = wc.y; render();
+    } else if(st.dragging && st.tool==='select' && cur().currentViewIdx === -1) { 
+        st.dragging.items.forEach(d => {
+            let c = cur().comps.find(x => x.id === d.id);
+            if(c) { c.x = snap(wc.x - d.dx); c.y = snap(wc.y - d.dy); }
+        });
+        render(); 
+    } else {
+        cur().pan.x += (m.x-st.mx); cur().pan.y += (m.y-st.my); st.mx=m.x; st.my=m.y; render();
+    }
 };
 
 cv.onmouseup = cv.ontouchend = e => {
     st.isMdown = false;
+    if(st.selBox) {
+        let minX = Math.min(st.selBox.startX, st.selBox.endX), maxX = Math.max(st.selBox.startX, st.selBox.endX);
+        let minY = Math.min(st.selBox.startY, st.selBox.endY), maxY = Math.max(st.selBox.startY, st.selBox.endY);
+        st.sel = cur().comps.filter(c => c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY);
+        st.selBox = null;
+        renderProps();
+    }
     if(st.dragging && st.dragging !== 'pan') syncState();
     st.dragging = null;
+    render();
 };
-cv.onwheel = e => { e.preventDefault(); const zs = e.deltaY>0?0.9:1.1; st.zoom*=zs; render(); };
+cv.onwheel = e => { e.preventDefault(); const zs = e.deltaY>0?0.9:1.1; cur().zoom*=zs; render(); };
+
+// Hotkeys (Copy/Paste & Delete)
+window.addEventListener('keydown', e => { 
+    if(e.key==='Escape') { st.routingStart = null; st.sel = []; render(); renderProps(); } 
+    if((e.key==='Delete' || e.key==='Backspace') && st.sel.length > 0 && document.activeElement === cv) {
+        cur().comps = cur().comps.filter(c => !st.sel.includes(c));
+        st.sel = []; syncState(); render(); renderProps();
+    }
+    if(e.ctrlKey && e.key==='c' && st.sel.length > 0 && document.activeElement === cv) {
+        st.clipboard = JSON.parse(JSON.stringify(st.sel));
+        toast(`${st.clipboard.length} items copiados`);
+    }
+    if(e.ctrlKey && e.key==='v' && st.clipboard.length > 0 && document.activeElement === cv) {
+        st.sel = [];
+        st.clipboard.forEach(c => {
+            let clone = JSON.parse(JSON.stringify(c));
+            clone.id = uid(); clone.x += 30; clone.y += 30; // Desfase
+            cur().comps.push(clone); st.sel.push(clone);
+        });
+        syncState(); render(); renderProps();
+    }
+});
+$('sim').addEventListener('contextmenu', e => { e.preventDefault(); st.routingStart = null; render(); });
+
 
 // Render Logic
 const drawComp = (c) => {
     ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot*Math.PI/180);
     
-    // Si es un componente equivalente virtual (de los pasos), dibujar distintivo
-    if(c.isEq) {
-        ctx.fillStyle = c.stepColor || 'var(--accent)';
-        ctx.globalAlpha = 0.8;
-        ctx.fillRect(-15, -15, 30, 30);
-        ctx.fillStyle = '#fff'; ctx.font='bold 10px sans-serif'; ctx.fillText(c.id.substring(0,4), -12, 4);
-        ctx.restore(); return;
-    }
+    // Circuito Reducido en color específico, sin el fondo transparente gigante
+    let strokeCol = st.sel.some(s=>s.id===c.id) ? 'var(--accent)' : 'var(--text)';
+    if(c.isEq) { strokeCol = c.stepColor || 'var(--accent)'; }
+    ctx.strokeStyle = strokeCol; ctx.lineWidth = 2; ctx.fillStyle = 'var(--text)';
 
-    ctx.strokeStyle = st.sel?.id===c.id ? 'var(--accent)' : 'var(--text)'; ctx.lineWidth = 2; ctx.fillStyle = 'var(--text)';
     if(c.exploded) { ctx.fillStyle='red'; ctx.font='20px Arial'; ctx.fillText('💥', -10, 5); ctx.restore(); return; }
 
-    // Generar Pines Generales EXCEPTO para Electrolitico (que los redibuja diferente para no solapar la curva)
     if(c.type !== 'cap_electro') {
-        ctx.beginPath(); ctx.arc(-20,0,3,0,6); ctx.arc(20,0,3,0,6); ctx.fill();
+        ctx.beginPath(); ctx.arc(-20,0,3,0,6); ctx.arc(20,0,3,0,6); ctx.fill(); // Pines visuales
         ctx.beginPath(); ctx.moveTo(-20,0); ctx.lineTo(-10,0); ctx.moveTo(20,0); ctx.lineTo(10,0); ctx.stroke();
     }
 
@@ -513,39 +607,41 @@ const drawComp = (c) => {
     } else if(c.type==='cap_ceramic') {
         ctx.beginPath(); ctx.moveTo(-10,-12); ctx.lineTo(-10,12); ctx.moveTo(10,-12); ctx.lineTo(10,12); ctx.stroke();
     } else if(c.type==='cap_electro') {
-        // Electrolitico Corregido (Curva abraza a la placa recta y tiene signos +- legibles)
         ctx.beginPath(); ctx.arc(-20,0,3,0,6); ctx.arc(20,0,3,0,6); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(-20,0); ctx.lineTo(-5,0); ctx.moveTo(20,0); ctx.lineTo(5,0); ctx.stroke(); // Pines cortos
-        
+        ctx.beginPath(); ctx.moveTo(-20,0); ctx.lineTo(-5,0); ctx.moveTo(20,0); ctx.lineTo(5,0); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(-5,-12); ctx.lineTo(-5,12); // Recta (+) a la izquierda
-        ctx.moveTo(5,-12); ctx.quadraticCurveTo(-2, 0, 5, 12); // Curva (-) abraza hacia la izquierda
+        ctx.moveTo(5,-12); ctx.quadraticCurveTo(-2, 0, 5, 12); // Curva (-) abraza a la izquierda
         ctx.stroke(); 
-        
         ctx.fillText('+', -20, -12); ctx.fillText('-', 10, -12);
     } else if(c.type==='multimeter') {
         ctx.strokeRect(-15,-10,30,20); ctx.font='10px sans-serif'; ctx.fillText('V/C', -10, 3);
     }
     
-    ctx.fillText(`${c.val}${c.unit}`, -15, 25);
+    // Etiqueta del equivalente (ej. eq1, eq2) o valor
+    ctx.fillStyle = c.isEq ? strokeCol : 'var(--text)';
+    ctx.fillText(c.isEq ? c.id : `${c.val}${c.unit}`, -15, 25);
     ctx.restore();
 };
 
 const render = () => {
+    let tCur = cur();
     ctx.fillStyle = st.theme==='dark' ? '#0b0f19' : '#f0f4f8'; ctx.fillRect(0,0,cv.width,cv.height);
-    ctx.save(); ctx.translate(st.pan.x, st.pan.y); ctx.scale(st.zoom, st.zoom);
+    ctx.save(); ctx.translate(tCur.pan.x, tCur.pan.y); ctx.scale(tCur.zoom, tCur.zoom);
     
+    // Grid
     ctx.strokeStyle = st.theme==='dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'; ctx.lineWidth=1;
     ctx.beginPath();
-    let l=-st.pan.x/st.zoom, r=l+cv.width/st.zoom, t=-st.pan.y/st.zoom, b=t+cv.height/st.zoom;
-    for(let x=snap(l); x<r; x+=20) { ctx.moveTo(x,t); ctx.lineTo(x,b); }
-    for(let y=snap(t); y<b; y+=20) { ctx.moveTo(l,y); ctx.lineTo(r,y); }
+    let l=-tCur.pan.x/tCur.zoom, r=l+cv.width/tCur.zoom, top=-tCur.pan.y/tCur.zoom, b=top+cv.height/tCur.zoom;
+    for(let x=snap(l); x<r; x+=20) { ctx.moveTo(x,top); ctx.lineTo(x,b); }
+    for(let y=snap(top); y<b; y+=20) { ctx.moveTo(l,y); ctx.lineTo(r,y); }
     ctx.stroke();
 
-    // Source Selector for Rendering (Original or Step Timeline)
-    let renderComps = st.currentViewIdx === -1 ? st.comps : st.circuitStates[st.currentViewIdx].comps;
-    let renderWires = st.currentViewIdx === -1 ? st.wires : st.circuitStates[st.currentViewIdx].wires;
+    let renderComps = tCur.currentViewIdx === -1 ? tCur.comps : tCur.circuitStates[tCur.currentViewIdx].comps;
+    let renderWires = tCur.currentViewIdx === -1 ? tCur.wires : tCur.circuitStates[tCur.currentViewIdx].wires;
+    let renderNodes = tCur.currentViewIdx === -1 ? tCur.nodes : tCur.circuitStates[tCur.currentViewIdx].nodes;
 
-    ctx.strokeStyle = st.theme==='dark' ? '#cbd5e1' : '#475569'; ctx.lineWidth = 2;
+    // Dibujar Cables
+    ctx.lineWidth = 2;
     renderWires.forEach(w => {
         if(w.dashed) { ctx.setLineDash([5,5]); ctx.strokeStyle = w.color || 'var(--accent)'; }
         else { ctx.setLineDash([]); ctx.strokeStyle = st.theme==='dark' ? '#cbd5e1' : '#475569'; }
@@ -554,14 +650,27 @@ const render = () => {
     });
     ctx.setLineDash([]); // Reset
     
-    if(st.routingStart && st.tempWireEnd && st.currentViewIdx === -1) {
+    // Cable en enrutamiento temporal
+    if(st.routingStart && st.tempWireEnd && tCur.currentViewIdx === -1) {
         ctx.strokeStyle = 'var(--accent)';
         ctx.beginPath(); ctx.moveTo(st.routingStart.x, st.routingStart.y); ctx.lineTo(st.tempWireEnd.x, st.tempWireEnd.y); ctx.stroke();
     }
     
-    ctx.fillStyle = 'var(--accent)'; st.nodes.forEach(n => { ctx.beginPath(); ctx.arc(n.x,n.y,4,0,6); ctx.fill(); });
+    // Puntos de conexión (Nodos continuos y explícitos)
+    ctx.fillStyle = 'var(--accent)'; 
+    renderNodes.forEach(n => { ctx.beginPath(); ctx.arc(n.x,n.y,4,0,Math.PI*2); ctx.fill(); });
+    
+    // Componentes
     renderComps.forEach(drawComp);
     
+    // Dibujar caja de selección
+    if(st.selBox && st.tool==='select' && tCur.currentViewIdx === -1) {
+        ctx.fillStyle = 'rgba(14, 165, 233, 0.2)'; ctx.strokeStyle = 'var(--accent)'; ctx.setLineDash([5,5]);
+        let x = Math.min(st.selBox.startX, st.selBox.endX), y = Math.min(st.selBox.startY, st.selBox.endY);
+        let w = Math.abs(st.selBox.endX - st.selBox.startX), h = Math.abs(st.selBox.endY - st.selBox.startY);
+        ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
+    }
+
     st.particles.forEach((p,i) => {
         ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6); ctx.fill();
         p.x+=p.vx; p.y+=p.vy; p.a-=0.02; if(p.a<=0) st.particles.splice(i,1);
@@ -573,8 +682,12 @@ const render = () => {
 
 const renderProps = () => {
     const pc = $('props-content');
-    if(!st.sel) { pc.innerHTML = 'Selecciona un componente...'; return; }
-    let c = st.sel;
+    if(st.sel.length === 0) { pc.innerHTML = 'Selecciona un componente...'; return; }
+    if(st.sel.length > 1) { pc.innerHTML = `<b>${st.sel.length} items seleccionados</b><br><button class="btn btn-outline" id="btn-del-multi" style="margin-top:8px; border-color:var(--danger); color:var(--danger);">Eliminar Todos</button>`; 
+        $('btn-del-multi').onclick = () => { cur().comps = cur().comps.filter(c => !st.sel.includes(c)); st.sel=[]; syncState(); render(); renderProps(); };
+        return; 
+    }
+    let c = st.sel[0];
     pc.innerHTML = `
         <div class="input-group"><label>Tipo</label><input disabled value="${c.type}"></div>
         <div class="input-group"><label>Rotar (Grados)</label>
@@ -583,85 +696,80 @@ const renderProps = () => {
         ${c.type.includes('cap') ? `<div class="input-group"><label>Max V</label><input type="number" id="prop-max" value="${c.maxV}"></div>` : ''}
         <button class="btn btn-outline" id="btn-del-comp" style="margin-top:8px; border-color:var(--danger); color:var(--danger);">Eliminar</button>
     `;
-    $('prop-rot').onchange = e => { st.sel.rot = parseInt(e.target.value); syncState(); render(); };
-    $('prop-val').onchange = e => { st.sel.val = parseFloat(e.target.value); syncState(); render(); };
-    if($('prop-max')) $('prop-max').onchange = e => { st.sel.maxV = parseFloat(e.target.value); syncState(); render(); };
-    $('btn-del-comp').onclick = () => { st.comps = st.comps.filter(x=>x.id!==c.id); st.sel=null; syncState(); render(); renderProps(); };
+    $('prop-rot').onchange = e => { st.sel[0].rot = parseInt(e.target.value); syncState(); render(); };
+    $('prop-val').onchange = e => { st.sel[0].val = parseFloat(e.target.value); syncState(); render(); };
+    if($('prop-max')) $('prop-max').onchange = e => { st.sel[0].maxV = parseFloat(e.target.value); syncState(); render(); };
+    $('btn-del-comp').onclick = () => { cur().comps = cur().comps.filter(x=>x.id!==c.id); st.sel=[]; syncState(); render(); renderProps(); };
 };
 
-$('btn-clear').onclick = () => { st.comps=[]; st.wires=[]; st.nodes=[]; setTimelineView(-1); syncState(); render(); $('katex-container').innerHTML='Circuito limpio'; $('btn-show-steps').style.display='none'; $('table-results').style.display='none';};
+$('btn-clear').onclick = () => { cur().comps=[]; cur().wires=[]; cur().nodes=[]; setTimelineView(-1); syncState(); render(); $('katex-container').innerHTML='Circuito limpio'; $('btn-show-steps').style.display='none'; $('table-results').style.display='none';};
 
 // ==========================================
 // 7. MOTOR MATEMÁTICO AVANZADO (SOLVER & EXPANSION)
 // ==========================================
 const buildGraph = () => {
     let edges = []; let vSrc = null;
-    st.comps.forEach(c => {
+    cur().comps.forEach(c => {
         let rad = c.rot*Math.PI/180;
         let nx1 = c.x - 20*Math.cos(rad), ny1 = c.y - 20*Math.sin(rad);
         let nx2 = c.x + 20*Math.cos(rad), ny2 = c.y + 20*Math.sin(rad);
-        let n1 = st.nodes.find(n=>dist(n.x,n.y,nx1,ny1)<25);
-        let n2 = st.nodes.find(n=>dist(n.x,n.y,nx2,ny2)<25);
+        let n1 = cur().nodes.find(n=>dist(n.x,n.y,nx1,ny1)<25);
+        let n2 = cur().nodes.find(n=>dist(n.x,n.y,nx2,ny2)<25);
         if(n1&&n2) {
-            let edge = { id:c.id, type:c.type, val:c.val, n1:n1.id, n2:n2.id, ref:c }; // ref apunta al componente real original
+            let edge = { id:c.id, type:c.type, val:c.val, n1:n1.id, n2:n2.id, ref:c }; 
             if(c.type==='battery') vSrc = edge; else edges.push(edge);
         }
     });
     
-    let nMap = {}; st.nodes.forEach(n=>nMap[n.id]=n.id);
+    let nMap = {}; cur().nodes.forEach(n=>nMap[n.id]=n.id);
     const find = (i) => nMap[i]===i ? i : nMap[i]=find(nMap[i]);
     const union = (i,j) => nMap[find(i)] = find(j);
-    st.wires.forEach(w => union(w.n1, w.n2));
+    cur().wires.forEach(w => union(w.n1, w.n2));
     
     edges.forEach(e => { e.n1 = find(e.n1); e.n2 = find(e.n2); });
     if(vSrc) { vSrc.n1 = find(vSrc.n1); vSrc.n2 = find(vSrc.n2); }
     return { edges: edges.filter(e=>e.n1!==e.n2), vSrc };
 };
 
-// Timeline Viewer Logic
 const setTimelineView = (idx) => {
-    if(idx < 0 || !st.circuitStates || st.circuitStates.length===0) {
-        $('step-viewer-panel').style.display = 'none';
-        st.currentViewIdx = -1;
+    let tCur = cur();
+    if(idx < 0 || !tCur.circuitStates || tCur.circuitStates.length===0) {
+        $('step-viewer-panel').style.display = 'none'; tCur.currentViewIdx = -1;
     } else {
-        if(idx >= st.circuitStates.length) idx = st.circuitStates.length-1;
+        if(idx >= tCur.circuitStates.length) idx = tCur.circuitStates.length-1;
         $('step-viewer-panel').style.display = 'flex';
-        st.currentViewIdx = idx;
-        $('step-viewer-label').innerText = st.circuitStates[idx].name;
+        tCur.currentViewIdx = idx;
+        $('step-viewer-label').innerText = tCur.circuitStates[idx].name;
     }
     render();
 };
-$('btn-step-prev').onclick = () => { if(st.currentViewIdx > 0) setTimelineView(st.currentViewIdx - 1); };
-$('btn-step-next').onclick = () => { if(st.currentViewIdx < st.circuitStates.length - 1) setTimelineView(st.currentViewIdx + 1); };
+$('btn-step-prev').onclick = () => { if(cur().currentViewIdx > 0) setTimelineView(cur().currentViewIdx - 1); };
+$('btn-step-next').onclick = () => { if(cur().currentViewIdx < cur().circuitStates.length - 1) setTimelineView(cur().currentViewIdx + 1); };
 $('btn-step-close').onclick = () => setTimelineView(-1);
 $('btn-show-steps').onclick = () => setTimelineView(0);
 
 
 $('btn-solve').onclick = () => {
     if(!auth.currentUser) return toast('Debe iniciar sesión para resolver');
-    
-    // Clear old visual steps colors
-    st.comps.forEach(c => c.stepBg = null);
+    cur().comps.forEach(c => c.stepBg = null); // Limpiar colores viejos
 
     let { edges, vSrc } = buildGraph();
     let kc = $('katex-container'); kc.innerHTML = '';
     
     if(!vSrc) { kc.innerHTML = '<span style="color:var(--danger)">Error: No hay fuente de voltaje DC conectada a nodos válidos.</span>'; return; }
-    if(edges.length===0) { kc.innerHTML = '<span style="color:var(--danger)">Error: No hay capacitores en bucle cerrado.</span>'; return; }
+    if(edges.length===0) { kc.innerHTML = '<span style="color:var(--danger)">Error: No hay capacitores en bucle.</span>'; return; }
 
     let blocks = [{type:'math', content:`\\textbf{Fase de Reducción:}\\\\ V_{fuente} = ${vSrc.val}V`}];
-    let step = 1; let workingEdges = JSON.parse(JSON.stringify(edges)); // Clona edges lógicos para reducirlos
-    let history = []; // Historial de transformaciones lógicas
+    let step = 1; let workingEdges = JSON.parse(JSON.stringify(edges)); 
+    let history = []; 
     
-    // Iniciar Timeline Engine (Guardar estado Original)
-    st.circuitStates = [ { comps: JSON.parse(JSON.stringify(st.comps)), wires: JSON.parse(JSON.stringify(st.wires)), name: "Paso 0: Circuito Original" } ];
+    // Iniciar Estado Original en la pestaña actual
+    cur().circuitStates = [ { comps: JSON.parse(JSON.stringify(cur().comps)), wires: JSON.parse(JSON.stringify(cur().wires)), nodes: JSON.parse(JSON.stringify(cur().nodes)), name: "Paso 0: Circuito Original" } ];
     
-    // Algoritmo de Reducción Grupal Masiva
     while(workingEdges.length > 1 && step < 50) {
         let reduced = false;
         let sColor = STEP_COLORS[(step-1) % STEP_COLORS.length];
         
-        // Buscar múltiples Paralelos (Mismos 2 nodos topológicos)
         let pMap = {};
         workingEdges.forEach(e => {
             let k = e.n1<e.n2 ? `${e.n1}-${e.n2}` : `${e.n2}-${e.n1}`;
@@ -669,7 +777,7 @@ $('btn-solve').onclick = () => {
         });
         
         for(let k in pMap) {
-            if(pMap[k].length > 1) { // 2, 3 o N en paralelo
+            if(pMap[k].length > 1) { 
                 let group = pMap[k];
                 let cEq = group.reduce((s,c)=>s+c.val,0);
                 let names = group.map(c=>`C_{${c.id.substring(0,3)}}`).join(' + ');
@@ -679,31 +787,31 @@ $('btn-solve').onclick = () => {
                 workingEdges = workingEdges.filter(e => !group.includes(e));
                 workingEdges.push(eqEdge); history.push(eqEdge);
                 
-                // Generar Estado Canvas
-                let curComps = JSON.parse(JSON.stringify(st.circuitStates[st.circuitStates.length-1].comps));
-                let curWires = JSON.parse(JSON.stringify(st.circuitStates[st.circuitStates.length-1].wires));
+                // Generar circuito visual realista
+                let lastState = cur().circuitStates[cur().circuitStates.length-1];
+                let curComps = JSON.parse(JSON.stringify(lastState.comps));
+                let curWires = JSON.parse(JSON.stringify(lastState.wires));
                 
-                let cx = 0, cy = 0, actCount=0;
-                group.forEach(g => {
-                    let rRef = st.comps.find(c=>c.id===g.id); if(rRef){ cx+=rRef.x; cy+=rRef.y; actCount++; }
-                    curComps = curComps.filter(c => c.id !== g.id); // Eliminar antiguos
-                });
-                if(actCount>0) { cx/=actCount; cy/=actCount; } else { cx=200; cy=200; }
+                // Usamos la posición del primer elemento del grupo para el nuevo capacitor y enrutamos ortogonalmente
+                let anchor = curComps.find(c => c.id === group[0].id);
+                let cx = anchor ? anchor.x : 200, cy = anchor ? anchor.y : 200;
                 
-                let n1Obj = st.nodes.find(n=>n.id===group[0].n1) || {x:cx-40, y:cy};
-                let n2Obj = st.nodes.find(n=>n.id===group[0].n2) || {x:cx+40, y:cy};
+                group.forEach(g => { curComps = curComps.filter(c => c.id !== g.id); }); // Eliminar antiguos
+                
+                let n1Obj = cur().nodes.find(n=>n.id===group[0].n1) || {x:cx-40, y:cy};
+                let n2Obj = cur().nodes.find(n=>n.id===group[0].n2) || {x:cx+40, y:cy};
                 curComps.push({ id: `eq${step}`, type:'cap_ceramic', x:cx, y:cy, val:cEq, unit:'µF', rot:0, isEq:true, stepColor:sColor });
-                curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx-20,y:cy},{x:n1Obj.x,y:n1Obj.y}] });
-                curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx+20,y:cy},{x:n2Obj.x,y:n2Obj.y}] });
                 
-                st.circuitStates.push({ comps: curComps, wires: curWires, name: `Paso ${step}: Equivalente Paralelo` });
-
+                // Enrutamiento Ortogonal Limpio (Simulando pegado de cables realista)
+                curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx-20,y:cy}, {x:cx-20,y:n1Obj.y}, {x:n1Obj.x,y:n1Obj.y}] });
+                curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx+20,y:cy}, {x:cx+20,y:n2Obj.y}, {x:n2Obj.x,y:n2Obj.y}] });
+                
+                cur().circuitStates.push({ comps: curComps, wires: curWires, nodes: cur().nodes, name: `Paso ${step}: Equivalente Paralelo` });
                 step++; reduced=true; break;
             }
         }
         if(reduced) continue;
 
-        // Buscar múltiples Series (Nodos con grado 2 continuo)
         let nCounts = {};
         workingEdges.forEach(e=>{ nCounts[e.n1]=(nCounts[e.n1]||0)+1; nCounts[e.n2]=(nCounts[e.n2]||0)+1; });
 
@@ -723,7 +831,7 @@ $('btn-solve').onclick = () => {
             }
             
             let group = Array.from(chainEdges);
-            if(group.length > 1) { // 2, 3 o N en serie
+            if(group.length > 1) { 
                 let invSum = group.reduce((s,c)=>s+(1/c.val), 0);
                 let cEq = 1/invSum;
                 let names = group.map(c=>`\\frac{1}{C_{${c.id.substring(0,3)}}}`).join(' + ');
@@ -739,42 +847,38 @@ $('btn-solve').onclick = () => {
                 workingEdges = workingEdges.filter(e => !group.includes(e));
                 workingEdges.push(eqEdge); history.push(eqEdge);
                 
-                // Generar Estado Canvas
-                let curComps = JSON.parse(JSON.stringify(st.circuitStates[st.circuitStates.length-1].comps));
-                let curWires = JSON.parse(JSON.stringify(st.circuitStates[st.circuitStates.length-1].wires));
+                let lastState = cur().circuitStates[cur().circuitStates.length-1];
+                let curComps = JSON.parse(JSON.stringify(lastState.comps));
+                let curWires = JSON.parse(JSON.stringify(lastState.wires));
                 
-                let cx = 0, cy = 0, actCount=0;
-                group.forEach(g => {
-                    let rRef = st.comps.find(c=>c.id===g.id); if(rRef){ cx+=rRef.x; cy+=rRef.y; actCount++; }
-                    curComps = curComps.filter(c => c.id !== g.id);
-                });
-                if(actCount>0) { cx/=actCount; cy/=actCount; } else { cx=200; cy=200; }
+                let anchor = curComps.find(c => c.id === group[0].id);
+                let cx = anchor ? anchor.x : 200, cy = anchor ? anchor.y : 200;
                 
-                let n1Obj = st.nodes.find(n=>n.id===endNodes[0]) || {x:cx-40, y:cy};
-                let n2Obj = st.nodes.find(n=>n.id===endNodes[1]) || {x:cx+40, y:cy};
+                group.forEach(g => { curComps = curComps.filter(c => c.id !== g.id); });
+                
+                let n1Obj = cur().nodes.find(n=>n.id===endNodes[0]) || {x:cx-40, y:cy};
+                let n2Obj = cur().nodes.find(n=>n.id===endNodes[1]) || {x:cx+40, y:cy};
                 curComps.push({ id: `eq${step}`, type:'cap_ceramic', x:cx, y:cy, val:cEq, unit:'µF', rot:0, isEq:true, stepColor:sColor });
-                curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx-20,y:cy},{x:n1Obj.x,y:n1Obj.y}] });
-                curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx+20,y:cy},{x:n2Obj.x,y:n2Obj.y}] });
                 
-                st.circuitStates.push({ comps: curComps, wires: curWires, name: `Paso ${step}: Equivalente Serie` });
+                // Enrutamiento Ortogonal Limpio (Simulando pegado de cables realista)
+                curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx-20,y:cy}, {x:cx-20,y:n1Obj.y}, {x:n1Obj.x,y:n1Obj.y}] });
+                curWires.push({ id:uid(), dashed:true, color:sColor, path:[{x:cx+20,y:cy}, {x:cx+20,y:n2Obj.y}, {x:n2Obj.x,y:n2Obj.y}] });
+                
+                cur().circuitStates.push({ comps: curComps, wires: curWires, nodes: cur().nodes, name: `Paso ${step}: Equivalente Serie` });
 
                 step++; reduced=true;
             }
         }
-        if(!reduced) break; // Irreductible (Puente de wheatstone, etc)
+        if(!reduced) break; 
     }
 
     let Ctot = workingEdges.length===1 ? workingEdges[0].val : edges.reduce((s,c)=>s+c.val,0);
     let Qtot = Ctot * vSrc.val;
     blocks.push({type:'math', content:`\\textbf{Resultado Circuito Final:}\\\\ C_{eq} = ${Ctot.toFixed(2)}\\mu F \\\\ Q_{total} = ${Qtot.toFixed(2)}\\mu C`});
 
-    // Fase de Expansión (Cálculo Físico por Retro-Propagación hacia los reales)
     blocks.push({type:'math', content:`\\rule{8cm}{0.4pt} \\\\ \\textbf{Expansión Inversa (Voltajes y Cargas):}`});
-    
-    // Nivel Raiz (Para todos los equivalentes supervivientes)
     workingEdges.forEach(e => { e.V = vSrc.val; e.Q = e.val * e.V; });
 
-    // Propagar V y Q devolviendose por el historial hasta llegar a las hojas (los capacitores originales)
     for(let i = history.length - 1; i >= 0; i--) {
         let eq = history[i];
         let eqV = eq.V || 0; let eqQ = eq.Q || 0;
@@ -782,7 +886,7 @@ $('btn-solve').onclick = () => {
         if(eq.type === 'P') {
             eq.comps.forEach(c => { 
                 c.V = eqV; c.Q = c.val * eqV; 
-                if(c.ref) { c.ref.V = c.V; c.ref.Q = c.Q; c.ref.stepBg = eq.color; } // Atar al comp visual real
+                if(c.ref) { c.ref.V = c.V; c.ref.Q = c.Q; c.ref.stepBg = eq.color; } 
             });
             let t = `C_{${eq.id}} \\text{ (Deshacer Paralelo): } V = ${eqV.toFixed(2)}V \\Rightarrow ` +
                     eq.comps.map(c => `Q_{${c.id.substring(0,3)}} = ${(c.Q).toFixed(2)}\\mu C`).join(', ');
@@ -790,7 +894,7 @@ $('btn-solve').onclick = () => {
         } else if(eq.type === 'S') {
             eq.comps.forEach(c => { 
                 c.Q = eqQ; c.V = eqQ / c.val; 
-                if(c.ref) { c.ref.V = c.V; c.ref.Q = c.Q; c.ref.stepBg = eq.color; } // Atar al comp visual real
+                if(c.ref) { c.ref.V = c.V; c.ref.Q = c.Q; c.ref.stepBg = eq.color; }
             });
             let t = `C_{${eq.id}} \\text{ (Deshacer Serie): } Q = ${eqQ.toFixed(2)}\\mu C \\Rightarrow ` +
                     eq.comps.map(c => `V_{${c.id.substring(0,3)}} = ${(c.V).toFixed(2)}V`).join(', ');
@@ -798,7 +902,6 @@ $('btn-solve').onclick = () => {
         }
     }
 
-    // Renderizar Dom Matemático
     blocks.forEach(b => {
         let div = document.createElement('div');
         try { katex.render(b.content, div, {displayMode: true}); } catch(e){ div.innerText = b.content; }
@@ -806,16 +909,13 @@ $('btn-solve').onclick = () => {
     });
 
     $('btn-show-steps').style.display = 'block';
-
-    // Generar y Colorear Tabla con los valores propagados
     let tb = $('table-results'); tb.style.display='block';
     let html = '<table><tr><th>Cap</th><th>C (µF)</th><th>V (Voltios)</th><th>Q (µC)</th><th>U (µJ)</th></tr>';
     
     let allOk = true;
     edges.forEach(e => {
-        // Obtenemos los valores guardados en el objeto de referencia visual (cRef)
         let cRef = e.ref;
-        let vCap = cRef.V || e.V || 0; // Fallback a e.V para los que no se redujeron
+        let vCap = cRef.V || e.V || 0; 
         let qCap = cRef.Q || e.Q || 0;
         let uCap = 0.5 * e.val * (vCap*vCap);
         
@@ -855,7 +955,6 @@ $('btn-admin').onclick = async () => {
     modal('modal-admin', true);
     toast('Cargando Insights...');
     
-    // Traer Usuarios y calcular métricas
     const qUsr = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
     let totalUsr = 0, sumPts = 0;
     const tb = $('admin-table').querySelector('tbody'); tb.innerHTML = '';
@@ -869,7 +968,6 @@ $('btn-admin').onclick = async () => {
     $('dash-tot-usr').innerText = totalUsr;
     $('dash-avg-pts').innerText = totalUsr>0 ? Math.round(sumPts/totalUsr) : 0;
 
-    // Traer Valoraciones
     const qRtg = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'ratings'));
     let totalRtg = 0, sumStars = 0;
     qRtg.forEach(d => {
@@ -883,9 +981,7 @@ $('btn-admin').onclick = async () => {
     $('dash-avg-star').innerText = totalRtg>0 ? (sumStars/totalRtg).toFixed(1) + ' ★' : 'N/A';
 };
 
-// Lógica Sistema de Calificación Multi-Variable
 $('btn-rate').onclick = () => modal('modal-rate', true);
-
 $$('.star-group i').forEach(s => s.onclick = (e) => {
     let val = parseInt(e.target.dataset.val);
     let group = e.target.closest('.star-group');
@@ -902,22 +998,16 @@ $('btn-submit-rate').onclick = async () => {
     let comment = $('rate-comment').value;
 
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'ratings', st.user.uid), { 
-        ts:Date.now(),
-        uid: st.user.uid,
-        alias: st.profile.alias,
-        q_ease: ease,
-        q_pedagogy: pedagogy,
-        q_stability: stability,
-        comment: comment
+        ts:Date.now(), uid: st.user.uid, alias: st.profile.alias, q_ease: ease, q_pedagogy: pedagogy, q_stability: stability, comment: comment
     }, {merge:true});
 
     toast('¡Evaluación guardada exitosamente!'); modal('modal-rate', false);
 };
 
-// Init Canvas Event
 const resize = () => { cv.width = cv.parentElement.clientWidth; cv.height = cv.parentElement.clientHeight; render(); };
 window.addEventListener('resize', resize);
 resize(); 
+renderTabs(); // Renderizar pestañas iniciales
 </script>
 </body>
 </html>
