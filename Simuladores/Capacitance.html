@@ -1,600 +1,629 @@
 <!DOCTYPE html>
-<html lang="es" class="light">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Capacitance10.easy | Lab Avanzado</title>
-    <!-- Tailwind & UI Libraries -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>capacitance10.easy | Advanced Circuit Lab</title>
+    
+    <!-- Librerías Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config={darkMode:'class',theme:{extend:{colors:{glass:{light:'rgba(255,255,255,0.7)',dark:'rgba(17,24,39,0.85)'}}}}}</script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script src="https://unpkg.com/feather-icons"></script>
-    <!-- Minified Structural CSS -->
+    
     <style>
-        :root{--brdr:rgba(255,255,255,0.2);--shdw:0 8px 32px 0 rgba(31,38,135,0.2)}
-        .glass{background:var(--glass-light);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--brdr);box-shadow:var(--shdw);border-radius:12px}
-        .dark .glass{background:var(--glass-dark);border:1px solid rgba(255,255,255,0.08)}
-        .input-glass{width:100%;background:rgba(150,150,150,0.1);border:1px solid var(--brdr);color:inherit;padding:.75rem;border-radius:8px;outline:none;transition:all .3s}
-        .input-glass:focus{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,0.3)}
-        body{transition:background-color .3s,color .3s;overscroll-behavior-y:contain;user-select:none;margin:0;padding:0;overflow:hidden}
-        .bg-grid{background-image:radial-gradient(circle,rgba(0,0,0,0.15) 1px,transparent 1px);background-size:24px 24px}
-        .dark .bg-grid{background-image:radial-gradient(circle,rgba(255,255,255,0.1) 1px,transparent 1px)}
-        .tool-btn{cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;padding:8px;border-radius:8px;position:relative}
-        .tool-btn:hover{transform:translateY(-2px);background:rgba(128,128,128,0.2)}
-        .tool-btn.active{background:rgba(59,130,246,0.25);border:1px solid rgba(59,130,246,0.6);color:#3b82f6}
-        ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:rgba(156,163,175,0.5);border-radius:3px}
-        /* Selection Box & Animation */
-        #selectionBox{position:absolute;border:1px dashed #3b82f6;background:rgba(59,130,246,0.1);pointer-events:none;z-index:50;display:none}
-        .anim-explode{animation:shake 0.4s cubic-bezier(.36,.07,.19,.97) both}
-        @keyframes shake{10%,90%{transform:translate3d(-2px,0,0)}20%,80%{transform:translate3d(4px,0,0)}30%,50%,70%{transform:translate3d(-8px,0,0)}40%,60%{transform:translate3d(8px,0,0)}}
+        :root { --glass-bg: rgba(255, 255, 255, 0.1); --glass-border: rgba(255, 255, 255, 0.2); --accent: #3b82f6; }
+        .dark { --glass-bg: rgba(15, 23, 42, 0.7); --glass-border: rgba(255, 255, 255, 0.1); --text: #f8fafc; }
+        
+        body { transition: background 0.3s ease; overflow: hidden; font-family: 'Inter', sans-serif; }
+        .glass { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 12px; }
+        .canvas-container { cursor: crosshair; touch-action: none; position: relative; }
+        
+        /* Minificación estructural CSS */
+        .btn-icon { padding:8px; border-radius:8px; transition:all 0.2s; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .btn-icon:hover { background:rgba(59,130,246,0.2); transform:scale(1.05); }
+        .node { width:10px; height:10px; border-radius:50%; background:#fff; border:2px solid #3b82f6; position:absolute; pointer-events:none; }
+        
+        /* Gatekeeper */
+        #gatekeeper { position:fixed; inset:0; z-index:9999; background: #0f172a; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; }
+        .hidden-app { display: none !important; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+
+        @keyframes explode {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(2.5); opacity: 0.8; filter: hue-rotate(90deg) blur(2px); }
+            100% { transform: scale(3); opacity: 0; }
+        }
+        .explosion-fx { animation: explode 0.5s forwards; pointer-events: none; position: absolute; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 h-screen flex flex-col font-sans">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
 
-    <!-- GATEKEEPER (COOP Safe) -->
-    <div id="gatekeeper" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-2xl transition-all duration-700">
-        <div class="glass w-full max-w-md p-8 flex flex-col items-center shadow-2xl relative border-t-4 border-t-blue-500">
-            <div id="loadingAuth" class="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-xl">
-                <i data-feather="loader" class="animate-spin w-12 h-12 text-blue-600 mb-4"></i>
-                <span class="text-sm font-semibold tracking-wider text-blue-600 dark:text-blue-400">INICIALIZANDO SISTEMA...</span>
+    <!-- GATEKEEPER (UI Lock) -->
+    <div id="gatekeeper">
+        <div class="text-center p-8 glass max-w-md w-full">
+            <h1 class="text-3xl font-bold mb-6">capacitance<span class="text-blue-500">10.easy</span></h1>
+            <div id="auth-loading" class="mb-4">Iniciando sistema...</div>
+            <div id="auth-controls" class="space-y-4 hidden">
+                <button onclick="loginGoogle()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold flex items-center justify-center gap-2">
+                    <i data-feather="log-in"></i> Acceder con Google
+                </button>
+                <div class="text-sm text-slate-400">Solo usuarios autorizados pueden acceder al laboratorio.</div>
             </div>
-            <div class="w-16 h-16 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg rotate-3">
-                <i data-feather="zap" class="text-white w-8 h-8"></i>
-            </div>
-            <h2 class="text-3xl font-extrabold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500">Capacitance10.easy</h2>
-            <p class="text-xs font-mono text-gray-500 mb-6 tracking-widest uppercase">Plataforma Académica</p>
-            
-            <button id="btnGoogle" class="w-full flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3.5 mb-4 hover:shadow-lg transition-all font-semibold">
-                <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                Ingreso Institucional (Google)
-            </button>
-            
-            <div class="flex items-center w-full my-3"><div class="flex-grow border-t border-gray-300 dark:border-gray-700"></div><span class="px-3 text-xs font-mono text-gray-400">O CREDENCIALES</span><div class="flex-grow border-t border-gray-300 dark:border-gray-700"></div></div>
-            
-            <form id="formEmail" class="space-y-3 w-full">
-                <input type="email" id="inEmail" placeholder="Correo electrónico" required class="input-glass">
-                <input type="password" id="inPass" placeholder="Contraseña" required class="input-glass">
-                <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 text-white font-bold py-3.5 rounded-lg transition-all shadow-lg shadow-blue-500/30">Acceder al Laboratorio</button>
-            </form>
-            <p id="authErr" class="text-red-500 text-xs text-center mt-4 hidden w-full p-2 bg-red-100 dark:bg-red-900/30 rounded border border-red-200 dark:border-red-800"></p>
         </div>
     </div>
 
     <!-- MAIN APP LAYOUT -->
-    <div id="appUI" class="hidden flex-1 flex-col h-full w-full">
-        <!-- HEADER -->
-        <header class="glass z-30 flex justify-between items-center p-2 m-2">
-            <div class="flex items-center space-x-4">
-                <div class="flex items-center space-x-2 pl-2">
-                    <i data-feather="zap" class="text-blue-500"></i>
-                    <h1 class="text-lg font-bold hidden sm:block bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-cyan-500">C10.easy</h1>
-                </div>
-                <div class="h-6 w-px bg-gray-300 dark:bg-gray-700"></div>
-                <!-- Core Tools -->
-                <div class="flex space-x-1" id="toolbar">
-                    <button class="tool-btn active" data-tool="select" title="Seleccionar/Mover"><i data-feather="mouse-pointer" class="w-5 h-5"></i></button>
-                    <button class="tool-btn" data-tool="wire" title="Conectar Cables (Spline)"><i data-feather="edit-3" class="w-5 h-5"></i></button>
-                    <button class="tool-btn" data-tool="cap_parallel" title="Placas Paralelas"><i data-feather="server" class="w-5 h-5"></i></button>
-                    <button class="tool-btn" data-tool="cap_cyl" title="Cilíndrico"><i data-feather="database" class="w-5 h-5"></i></button>
-                    <button class="tool-btn" data-tool="cap_polar" title="Polarizado (Electrolítico)"><i data-feather="battery-charging" class="w-5 h-5 text-blue-400"></i></button>
-                    <button class="tool-btn" data-tool="battery" title="Fuente DC"><i data-feather="battery" class="w-5 h-5 text-green-500"></i></button>
-                    <button class="tool-btn text-red-500 hover:text-red-600" data-tool="delete" title="Eliminar"><i data-feather="trash-2" class="w-5 h-5"></i></button>
+    <div id="app" class="flex flex-col h-screen hidden-app">
+        
+        <!-- Navbar -->
+        <nav class="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 glass m-2 rounded-xl">
+            <div class="flex items-center gap-4">
+                <span class="font-bold text-xl tracking-tight">capacitance<span class="text-blue-500">10.easy</span></span>
+                <div class="h-6 w-px bg-slate-300 dark:bg-slate-700"></div>
+                <div class="flex gap-2" id="canvas-tabs">
+                    <button class="px-3 py-1 rounded bg-blue-500 text-white text-xs">Lienzo Principal</button>
                 </div>
             </div>
             
-            <div class="flex items-center space-x-3 pr-2">
-                <!-- User Meta -->
-                <div class="text-xs text-right hidden md:block border-r border-gray-300 dark:border-gray-700 pr-3">
-                    <p id="lblUserName" class="font-bold text-blue-600 dark:text-blue-400">Cargando...</p>
-                    <p class="text-gray-500 font-mono">Rol: <span id="lblUserRole">Est</span> | Nivel <span id="lblUserLvl" class="text-yellow-500 font-bold">1</span></p>
+            <div class="flex items-center gap-4">
+                <div id="user-info" class="text-xs text-right mr-2 hidden md:block">
+                    <div id="user-name" class="font-bold">...</div>
+                    <div id="user-role" class="opacity-70 italic uppercase">Estudiante</div>
                 </div>
-                <!-- Action Buttons -->
-                <button id="btnAdmin" class="tool-btn text-purple-500 hidden" title="Panel Admin"><i data-feather="bar-chart"></i></button>
-                <button id="btnRooms" class="tool-btn text-green-500" title="Salas Multiusuario"><i data-feather="users"></i></button>
-                <button id="btnTheme" class="tool-btn"><i data-feather="moon" id="iconTheme"></i></button>
-                <button id="btnLogOut" class="tool-btn text-red-500" title="Cerrar Sesión"><i data-feather="log-out"></i></button>
+                <button onclick="toggleTheme()" class="btn-icon"><i data-feather="sun" id="theme-icon"></i></button>
+                <button onclick="logout()" class="btn-icon text-red-400"><i data-feather="power"></i></button>
             </div>
-        </header>
+        </nav>
 
-        <!-- MULTI-TAB MANAGER -->
-        <div class="px-2 flex space-x-2 z-20" id="tabContainer">
-            <button class="tab-btn bg-white dark:bg-gray-800 px-4 py-1.5 rounded-t-lg text-sm font-bold border-t border-l border-r border-gray-200 dark:border-gray-700 text-blue-600 dark:text-blue-400" data-tab="0">Circuito 1</button>
-            <button id="btnAddTab" class="px-2 py-1.5 text-gray-500 hover:text-blue-500"><i data-feather="plus" class="w-4 h-4"></i></button>
-        </div>
-
-        <!-- MAIN WORKSPACE -->
-        <main class="flex-1 flex overflow-hidden p-2 pt-0 gap-2 flex-col lg:flex-row relative">
+        <main class="flex-1 flex overflow-hidden p-2 gap-2">
             
-            <!-- LEFT PANEL: Rooms & Chat -->
-            <aside id="leftPanel" class="w-full lg:w-72 glass flex-col hidden z-30 absolute lg:relative h-full shadow-2xl lg:shadow-none">
-                <div class="p-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 rounded-t-xl">
-                    <h3 class="font-bold text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-2"><i data-feather="hash" class="w-4 h-4"></i> Sala: <span id="lblRoom" class="text-gray-800 dark:text-white">general</span></h3>
-                    <div class="flex gap-2">
-                        <button id="btnChangeRoom" class="text-gray-500 hover:text-blue-500"><i data-feather="edit" class="w-4 h-4"></i></button>
-                        <button id="btnCloseLeft" class="lg:hidden text-gray-500 hover:text-red-500"><i data-feather="x" class="w-4 h-4"></i></button>
+            <!-- Toolbar Izquierda -->
+            <aside class="w-16 md:w-64 flex flex-col gap-2">
+                <div class="glass flex-1 p-4 overflow-y-auto">
+                    <h3 class="text-xs font-bold uppercase mb-4 opacity-50 hidden md:block">Componentes</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div onclick="spawn('source')" class="p-3 glass hover:border-blue-500 cursor-pointer text-center group">
+                            <i data-feather="battery" class="mx-auto mb-1"></i>
+                            <span class="text-[10px] block opacity-0 group-hover:opacity-100 md:opacity-100">Fuente V</span>
+                        </div>
+                        <div onclick="spawn('cap_np')" class="p-3 glass hover:border-blue-500 cursor-pointer text-center group">
+                            <i data-feather="box" class="mx-auto mb-1"></i>
+                            <span class="text-[10px] block opacity-0 group-hover:opacity-100 md:opacity-100">Cap (NP)</span>
+                        </div>
+                        <div onclick="spawn('cap_p')" class="p-3 glass hover:border-blue-500 cursor-pointer text-center group">
+                            <i data-feather="shield" class="mx-auto mb-1"></i>
+                            <span class="text-[10px] block opacity-0 group-hover:opacity-100 md:opacity-100">Cap (+)</span>
+                        </div>
+                        <div onclick="toggleWiringMode()" id="wire-btn" class="p-3 glass hover:border-blue-500 cursor-pointer text-center group">
+                            <i data-feather="share-2" class="mx-auto mb-1"></i>
+                            <span class="text-[10px] block opacity-0 group-hover:opacity-100 md:opacity-100">Cables</span>
+                        </div>
                     </div>
-                </div>
-                <div class="flex-1 p-3 overflow-y-auto flex flex-col gap-2" id="chatMessages"></div>
-                <div class="p-3 border-t border-gray-200 dark:border-gray-700 flex gap-2">
-                    <input type="text" id="inChat" class="input-glass text-sm py-2" placeholder="Mensaje...">
-                    <button id="btnSendChat" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition"><i data-feather="send" class="w-4 h-4"></i></button>
+
+                    <div class="mt-8 space-y-4 hidden md:block">
+                        <h3 class="text-xs font-bold uppercase opacity-50">Sala de Estudio</h3>
+                        <div id="room-list" class="space-y-2">
+                            <!-- Listado dinámico -->
+                        </div>
+                        <button onclick="createRoom()" class="w-full text-xs py-2 bg-blue-600 rounded text-white">+ Crear Sala</button>
+                    </div>
                 </div>
             </aside>
 
-            <!-- CENTER CANVAS -->
-            <section class="flex-1 glass relative overflow-hidden flex flex-col shadow-inner" id="workspace">
-                <div class="p-2 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center text-xs bg-white/40 dark:bg-black/40">
-                    <div class="flex space-x-4 font-mono items-center">
-                        <span class="text-green-600 dark:text-green-400 font-bold flex items-center gap-1"><i data-feather="activity" class="w-3 h-3"></i> $V_{red}$: <span id="meterV" class="bg-gray-100 dark:bg-gray-800 px-1 rounded shadow-inner text-gray-800 dark:text-white">0.0</span> V</span>
-                        <span class="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1"><i data-feather="bar-chart-2" class="w-3 h-3"></i> $C_{eq}$: <span id="meterC" class="bg-gray-100 dark:bg-gray-800 px-1 rounded shadow-inner text-gray-800 dark:text-white">0.0</span> µF</span>
-                    </div>
-                    <div class="flex gap-2">
-                        <button id="btnClear" class="tool-btn text-red-500 py-1 px-2 border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20" title="Limpiar Lienzo"><i data-feather="rotate-ccw" class="w-4 h-4"></i></button>
-                        <button id="btnSolve" class="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 text-white px-4 py-1.5 rounded-lg transition-all flex items-center gap-2 shadow-md shadow-blue-500/20 font-bold">
-                            <i data-feather="cpu" class="w-4 h-4"></i> Analizar Mallas
-                        </button>
-                    </div>
-                </div>
+            <!-- Área Central (Canvas) -->
+            <section class="flex-1 glass relative overflow-hidden canvas-container" id="viewport">
+                <canvas id="mainCanvas"></canvas>
                 
-                <div class="flex-1 relative bg-grid cursor-crosshair overflow-hidden" id="canvasContainer">
-                    <div id="selectionBox"></div>
-                    <canvas id="physicsCanvas" class="absolute top-0 left-0 w-full h-full z-10 touch-none"></canvas>
-                </div>
-
-                <!-- Step-by-Step Playback Controls -->
-                <div id="stepControls" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 glass px-4 py-2 flex items-center space-x-4 hidden z-20 shadow-2xl border-blue-500/30">
-                    <button id="btnPrevStep" class="tool-btn text-blue-600"><i data-feather="chevron-left"></i></button>
-                    <span id="lblStep" class="text-sm font-bold min-w-[80px] text-center bg-gray-100 dark:bg-gray-800 rounded px-2 py-1">Paso 1</span>
-                    <button id="btnNextStep" class="tool-btn text-blue-600"><i data-feather="chevron-right"></i></button>
-                    <div class="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-2"></div>
-                    <button id="btnResetCircuit" class="tool-btn text-amber-500 hover:text-amber-600" title="Volver a Edición"><i data-feather="edit-2"></i></button>
+                <!-- Chat Flotante -->
+                <div id="chat-widget" class="absolute bottom-4 right-4 w-72 h-80 glass flex flex-col hidden">
+                    <div class="p-2 border-b border-white/10 flex justify-between items-center">
+                        <span class="text-xs font-bold">Chat de Sala</span>
+                        <button onclick="toggleChat()" class="text-xs opacity-50">X</button>
+                    </div>
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-2 space-y-2 text-xs"></div>
+                    <div class="p-2">
+                        <input type="text" id="chat-input" placeholder="Escribe algo..." class="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs">
+                    </div>
                 </div>
             </section>
 
-            <!-- RIGHT PANEL: Math & Props -->
-            <aside class="w-full lg:w-96 flex flex-col gap-2 z-20">
-                <div class="glass h-[35%] p-4 flex flex-col">
-                    <h3 class="font-bold text-xs uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2"><i data-feather="sliders" class="w-4 h-4"></i> Inspector Físico</h3>
-                    <div id="propsPanel" class="text-sm text-gray-600 dark:text-gray-400 flex-1 overflow-y-auto">
-                        <div class="flex flex-col items-center justify-center h-full text-center opacity-40">
-                            <i data-feather="mouse-pointer" class="w-8 h-8 mb-2"></i>
-                            <p class="text-xs">Selecciona componentes para ver/editar. Long-press en móviles.</p>
-                        </div>
+            <!-- Panel Derecho (Análisis) -->
+            <aside class="w-72 hidden lg:flex flex-col gap-2">
+                <div class="glass flex-1 p-4 overflow-y-auto">
+                    <h3 class="text-sm font-bold border-b border-white/10 pb-2 mb-4">Análisis Matemático</h3>
+                    <div id="math-output" class="text-sm space-y-4">
+                        <p class="opacity-50 italic">Selecciona un circuito para analizar...</p>
                     </div>
-                </div>
-                <div class="glass flex-1 p-4 flex flex-col relative">
-                    <h3 class="font-bold text-xs uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2"><i data-feather="book-open" class="w-4 h-4"></i> Memoria de Reducción</h3>
-                    <div id="mathOutput" class="text-sm flex-1 overflow-y-auto pr-2 space-y-3 font-serif">
-                        <div class="flex flex-col items-center justify-center h-full text-center opacity-40 text-xs font-sans">
-                            <i data-feather="git-merge" class="w-8 h-8 mb-2"></i>
-                            <p>Construye un circuito y ejecuta "Analizar Mallas" para generar la solución KaTeX paso a paso.</p>
+                    
+                    <div class="mt-8 h-px bg-white/10"></div>
+                    
+                    <div id="component-props" class="mt-4 hidden">
+                        <h4 class="text-xs font-bold uppercase mb-2">Propiedades</h4>
+                        <div class="space-y-2">
+                            <label class="block text-[10px]">Valor (μF/V)</label>
+                            <input type="number" id="prop-value" class="w-full bg-white/5 border border-white/10 p-1 text-xs">
+                            <button onclick="deleteSelected()" class="w-full py-1 bg-red-900/40 text-red-400 text-xs rounded border border-red-500/20">Eliminar</button>
                         </div>
                     </div>
                 </div>
             </aside>
         </main>
 
-        <!-- FOOTER -->
-        <footer class="glass z-30 flex justify-between items-center p-2 m-2 mt-0 text-xs text-gray-500 dark:text-gray-400 font-mono">
-            <div class="flex items-center gap-3 pl-2">
-                <span>&copy; 2026 capacitance10.easy</span>
-                <span class="hidden md:inline border-l pl-3 border-gray-300 dark:border-gray-700">App desarrollada con IA. Datos sujetos a tratamiento.</span>
-            </div>
-            <div class="flex items-center space-x-4 pr-2">
-                <div class="flex text-yellow-400 cursor-pointer hover:scale-105 transition-transform" title="Calificar Plataforma">
-                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        <!-- Footer -->
+        <footer class="h-12 glass mx-2 mb-2 flex items-center justify-between px-6 text-[10px] opacity-70">
+            <div>&copy; 2024 capacitance10.easy | Todos los derechos reservados</div>
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-1" id="star-rating">
+                    <span class="cursor-pointer hover:text-yellow-400" onclick="rate(1)">★</span>
+                    <span class="cursor-pointer hover:text-yellow-400" onclick="rate(2)">★</span>
+                    <span class="cursor-pointer hover:text-yellow-400" onclick="rate(3)">★</span>
+                    <span class="cursor-pointer hover:text-yellow-400" onclick="rate(4)">★</span>
+                    <span class="cursor-pointer hover:text-yellow-400" onclick="rate(5)">★</span>
                 </div>
-                <a href="https://wa.me/573000000000" target="_blank" class="hover:text-green-500 flex items-center transition-colors"><i data-feather="message-circle" class="w-3 h-3 mr-1"></i> Soporte</a>
-                <button class="bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 px-3 py-1.5 rounded-md border border-amber-500/30 flex items-center font-bold transition-all"><i data-feather="coffee" class="w-3 h-3 mr-1"></i> Invítame un café</button>
+                <a href="https://wa.me/573000000000" target="_blank" class="flex items-center gap-1 hover:text-green-400 transition-colors">
+                    <i data-feather="message-circle" class="w-3 h-3"></i> WhatsApp
+                </a>
+                <a href="https://paypal.me/user" target="_blank" class="bg-blue-600/20 text-blue-400 px-3 py-1 rounded-full border border-blue-500/30 hover:bg-blue-500 hover:text-white transition-all">
+                    Invítame un café
+                </a>
             </div>
         </footer>
     </div>
 
-    <!-- CONTEXT MODAL (Properties Edit) -->
-    <div id="modalContext" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
-        <div class="glass w-80 p-6 flex flex-col shadow-2xl rounded-2xl border-t-4 border-t-blue-500">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2"><i data-feather="settings" class="text-blue-500"></i> <span id="modalTitle">Parámetros</span></h3>
-                <button onclick="document.getElementById('modalContext').classList.add('hidden')" class="text-gray-400 hover:text-red-500"><i data-feather="x"></i></button>
-            </div>
-            <div id="modalBody" class="space-y-4 text-sm font-medium"></div>
-            <div class="mt-6 flex justify-end space-x-2">
-                <button onclick="document.getElementById('modalContext').classList.add('hidden')" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors">Cancelar</button>
-                <button id="btnSaveModal" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-colors">Aplicar Cambios</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- CORE LOGIC: JS MODULE (Firebase + Physics + UI) -->
+    <!-- Firebase SDK (Modular) -->
     <script type="module">
-        // 1. FIREBASE IMPORTS (Strict CDN mapping for provided config)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
-        import { getAuth, signInWithRedirect, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getDatabase, ref, set, get, onValue, push, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-        import { getFirestore, doc, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getAuth, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getDatabase, ref, set, onValue, push, serverTimestamp, update, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+        import { getFirestore, doc, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-        // CONFIG EXACTA SOLICITADA
+        // CONFIGURACIÓN PROPORCIONADA
         const firebaseConfig = {
-            apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA", authDomain: "laboratorio-de-coulomb.firebaseapp.com",
-            databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com", projectId: "laboratorio-de-coulomb",
-            storageBucket: "laboratorio-de-coulomb.firebasestorage.app", messagingSenderId: "525944850850",
-            appId: "1:525944850850:web:eca9c0b79809358e8d8afb", measurementId: "G-SZECJNG25E"
+            apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
+            authDomain: "laboratorio-de-coulomb.firebaseapp.com",
+            databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com",
+            projectId: "laboratorio-de-coulomb",
+            storageBucket: "laboratorio-de-coulomb.firebasestorage.app",
+            messagingSenderId: "525944850850",
+            appId: "1:525944850850:web:eca9c0b79809358e8d8afb",
+            measurementId: "G-SZECJNG25E"
         };
+
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
         const auth = getAuth(app);
         const db = getDatabase(app);
-        const firestore = getFirestore(app);
-        const googleProvider = new GoogleAuthProvider();
+        const fs = getFirestore(app);
+        const provider = new GoogleAuthProvider();
 
-        // 2. GLOBAL STATE
-        let currentUser = null, userProfile = {};
-        const ADMIN_EMAIL = 'dudbilopr@gmail.com';
-        let currentRoom = 'general';
-        let tabs = [{ id: 0, comps: [], wires: [], nodes: [] }];
-        let activeTab = 0, nextTabId = 1;
-        let tool = 'select', isPlaying = false, stepIdx = 0, history = [];
-        let tStart = Date.now();
+        // Estructura de Rutas Críticas
+        const APP_ID = "1:525944850850:web:eca9c0b79809358e8d8afb";
+        let currentUser = null;
+        let currentRoomId = null;
 
-        // Canvas Data
-        let canvas = document.getElementById('physicsCanvas'), ctx = canvas.getContext('2d'), cw, ch;
-        let drag = { active: false, items: [], ox: 0, oy: 0 }, wireState = { active: false, startNode: null, mx: 0, my: 0 };
-        let selBox = { active: false, sx: 0, sy: 0, ex: 0, ey: 0 };
+        // --- GATEKEEPER Y AUTH ---
+        window.loginGoogle = () => signInWithRedirect(auth, provider);
+        window.logout = () => signOut(auth).then(() => location.reload());
 
-        const e0 = 8.854e-12; // Permittivity
-
-        // DOM Setup
-        feather.replace();
-        const D = {
-            gate: document.getElementById('gatekeeper'), app: document.getElementById('appUI'), load: document.getElementById('loadingAuth'), err: document.getElementById('authErr'),
-            uName: document.getElementById('lblUserName'), uRole: document.getElementById('lblUserRole'), uLvl: document.getElementById('lblUserLvl'),
-            math: document.getElementById('mathOutput'), props: document.getElementById('propsPanel'),
-            modal: document.getElementById('modalContext'), mBody: document.getElementById('modalBody'), mTitle: document.getElementById('modalTitle'),
-            sBox: document.getElementById('selectionBox')
-        };
-
-        // 3. AUTHENTICATION & GATEKEEPER (ANTI-COOP)
-        getRedirectResult(auth).catch(e => { D.err.textContent = "Error Redirección: " + e.message; D.err.classList.remove('hidden'); D.load.classList.add('hidden'); });
+        // Manejo de redirección inicial
+        getRedirectResult(auth).catch(err => {
+            console.error("COOP Error preventivo:", err);
+            document.getElementById('auth-loading').innerText = "Error de autenticación. Reintenta.";
+        });
 
         onAuthStateChanged(auth, async (user) => {
-            D.load.classList.add('hidden');
             if (user) {
                 currentUser = user;
-                let isAdm = user.email === ADMIN_EMAIL;
+                const userRef = doc(fs, `artifacts/${APP_ID}/users/${user.uid}`);
+                const snap = await getDoc(userRef);
                 
-                // RUTAS ESTRICTAS /usuarios/{uid}
-                const usrRef = ref(db, `usuarios/${user.uid}/perfil`);
-                try {
-                    const snap = await get(usrRef);
-                    if(!snap.exists()) {
-                        userProfile = { nombre: user.displayName || user.email.split('@')[0], rol: isAdm?'Admin':'Estudiante', nivel: 1, puntos: 0, tiempo_sesion: 0 };
-                        await set(usrRef, userProfile);
-                        // Public Directory in Firestore (Regla anti PERMISSION_DENIED)
-                        await setDoc(doc(firestore, `public/data/directory/${user.uid}`), { nombre: userProfile.nombre, rol: userProfile.rol });
-                    } else { userProfile = snap.val(); }
-                } catch(e) { console.warn("Modo local forzado por DB", e); userProfile = { nombre: user.email.split('@')[0], rol: isAdm?'Admin':'Estudiante', nivel: 1, puntos: 0 }; }
+                let userData = {
+                    uid: user.uid,
+                    displayName: user.displayName,
+                    email: user.email,
+                    photoURL: user.photoURL,
+                    role: user.email === 'dudbilopr@gmail.com' ? 'Admin' : 'Estudiante',
+                    lastSeen: serverTimestamp()
+                };
 
-                D.uName.textContent = userProfile.nombre; D.uRole.textContent = userProfile.rol; D.uLvl.textContent = userProfile.nivel;
-                if(isAdm) document.getElementById('btnAdmin').classList.remove('hidden');
-
-                // UI Transition
-                D.gate.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
-                setTimeout(() => { D.gate.classList.add('hidden'); D.app.classList.remove('hidden'); D.app.classList.add('flex'); resizeCanvas(); joinRoom('general'); }, 700);
-
-                // Integración LMS
-                if(window.parent !== window) window.parent.postMessage({ app: 'capacitance10.easy', event: 'LOGIN', uid: user.uid }, '*');
-            } else {
-                currentUser = null; D.app.classList.add('hidden'); D.app.classList.remove('flex'); D.gate.classList.remove('hidden', 'opacity-0', 'scale-95', 'pointer-events-none');
-            }
-        });
-
-        document.getElementById('btnGoogle').addEventListener('click', () => { D.load.classList.remove('hidden'); signInWithRedirect(auth, googleProvider); });
-        document.getElementById('formEmail').addEventListener('submit', async(e)=>{ e.preventDefault(); D.load.classList.remove('hidden'); try{ await signInWithEmailAndPassword(auth, document.getElementById('inEmail').value, document.getElementById('inPass').value); }catch(er){ if(er.code==='auth/user-not-found' || er.code==='auth/invalid-credential'){ try{ await createUserWithEmailAndPassword(auth, document.getElementById('inEmail').value, document.getElementById('inPass').value); }catch(e2){ D.load.classList.add('hidden'); D.err.textContent=e2.message; D.err.classList.remove('hidden'); } }else{ D.load.classList.add('hidden'); D.err.textContent=er.message; D.err.classList.remove('hidden'); } } });
-        document.getElementById('btnLogOut').addEventListener('click', () => {
-            // Update session time
-            if(currentUser) { let t = Math.floor((Date.now()-tStart)/60000); set(ref(db, `usuarios/${currentUser.uid}/perfil/tiempo_sesion`), (userProfile.tiempo_sesion||0)+t); }
-            signOut(auth);
-        });
-
-        // 4. UI LOGIC (Theme, Tabs, Panels)
-        document.getElementById('btnTheme').addEventListener('click', () => { document.documentElement.classList.toggle('dark'); document.getElementById('iconTheme').setAttribute('data-feather', document.documentElement.classList.contains('dark')?'sun':'moon'); feather.replace(); drawCanvas(); });
-        document.getElementById('btnRooms').addEventListener('click', () => { const lp=document.getElementById('leftPanel'); lp.classList.toggle('hidden'); lp.classList.toggle('flex'); resizeCanvas(); });
-        document.getElementById('btnCloseLeft').addEventListener('click', () => { document.getElementById('leftPanel').classList.add('hidden'); resizeCanvas(); });
-        
-        document.getElementById('btnAddTab').addEventListener('click', () => {
-            let nId = nextTabId++; tabs.push({ id: nId, comps: [], wires: [], nodes: [] });
-            let btn = document.createElement('button'); btn.className = `tab-btn px-4 py-1.5 rounded-t-lg text-sm text-gray-500 hover:text-blue-500`; btn.dataset.tab = nId; btn.innerText = `Circuito ${nId+1}`;
-            document.getElementById('tabContainer').insertBefore(btn, document.getElementById('btnAddTab'));
-            switchTab(nId);
-        });
-        document.getElementById('tabContainer').addEventListener('click', (e) => { if(e.target.classList.contains('tab-btn')) switchTab(parseInt(e.target.dataset.tab)); });
-
-        function switchTab(id) {
-            activeTab = id;
-            document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('bg-white', 'dark:bg-gray-800', 'font-bold', 'border-t', 'border-l', 'border-r', 'text-blue-600', 'dark:text-blue-400'); b.classList.add('text-gray-500'); if(parseInt(b.dataset.tab) === id) { b.classList.add('bg-white', 'dark:bg-gray-800', 'font-bold', 'border-t', 'border-l', 'border-r', 'text-blue-600', 'dark:text-blue-400'); b.classList.remove('text-gray-500'); } });
-            drawCanvas(); D.math.innerHTML=''; updatePropsPanel();
-        }
-        const CTX = () => tabs.find(t => t.id === activeTab); // Current Tab Context
-
-        document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.addEventListener('click', (e) => { if(isPlaying)return; document.querySelectorAll('.tool-btn[data-tool]').forEach(btn=>btn.classList.remove('active')); e.currentTarget.classList.add('active'); tool=e.currentTarget.dataset.tool; }));
-
-        // 5. PHYSICS ENGINE & CANVAS
-        class CNode { constructor(x,y,pId) { this.id=Date.now().toString(36)+Math.random().toString(36).substr(2); this.x=x; this.y=y; this.parent=pId; } }
-        class Component {
-            constructor(type, x, y) {
-                this.id = Date.now().toString(36)+Math.random().toString(36).substr(2); this.type = type; this.x = x; this.y = y; this.rot = 0; this.selected = false; this.exploded = false; this.v = 0; this.q = 0;
-                if(type === 'battery') { this.val = 12; } else { this.area = 0.05; this.dist = 0.005; this.k = 1; this.vMax = 50; this.polar = (type==='cap_polar'); this.updateC(); }
-                // Nodes (Terminals)
-                this.n1 = new CNode(x-30, y, this.id); this.n2 = new CNode(x+30, y, this.id);
-            }
-            updateC() { if(this.type.startsWith('cap_')){ let c = (this.k * e0 * this.area)/this.dist; this.val = c * 1e6; } } // µF
-            updateNodes() {
-                let dx = Math.cos(this.rot)*30, dy = Math.sin(this.rot)*30;
-                this.n1.x = this.x - dx; this.n1.y = this.y - dy;
-                this.n2.x = this.x + dx; this.n2.y = this.y + dy;
-            }
-        }
-
-        function resizeCanvas() { cw=D.app.clientWidth; ch=D.app.clientHeight; canvas.width=cw; canvas.height=ch; drawCanvas(); }
-        window.addEventListener('resize', resizeCanvas);
-
-        // Input Handling
-        const getP = (e) => { const r=canvas.getBoundingClientRect(); return { x:(e.touches?e.touches[0].clientX:e.clientX)-r.left, y:(e.touches?e.touches[0].clientY:e.clientY)-r.top }; };
-        let lpT = null;
-
-        canvas.addEventListener('pointerdown', (e) => {
-            if(isPlaying) return; const p=getP(e);
-            let ctxData = CTX();
-            // Hit detection (Nodes first, then Components)
-            let hNode = null, hComp = null;
-            ctxData.comps.forEach(c => {
-                if(Math.hypot(c.n1.x-p.x, c.n1.y-p.y)<15) hNode = c.n1;
-                else if(Math.hypot(c.n2.x-p.x, c.n2.y-p.y)<15) hNode = c.n2;
-                else if(Math.hypot(c.x-p.x, c.y-p.y)<35) hComp = c;
-            });
-
-            if(tool === 'delete') {
-                if(hComp) { ctxData.comps = ctxData.comps.filter(c=>c.id!==hComp.id); ctxData.wires = ctxData.wires.filter(w=>w.n1!==hComp.n1.id && w.n2!==hComp.n1.id && w.n1!==hComp.n2.id && w.n2!==hComp.n2.id); }
-                syncDB(); drawCanvas(); updatePropsPanel(); return;
-            }
-            if(tool === 'wire') { if(hNode) { wireState.active=true; wireState.startNode=hNode; wireState.mx=p.x; wireState.my=p.y; } return; }
-            if(tool !== 'select') { let c=new Component(tool, p.x, p.y); ctxData.comps.push(c); syncDB(); drawCanvas(); return; }
-            
-            // Tool Select
-            if(hComp) {
-                if(!hComp.selected) { ctxData.comps.forEach(c=>c.selected=false); hComp.selected=true; }
-                drag.active=true; drag.items=ctxData.comps.filter(c=>c.selected);
-                drag.items.forEach(i=>{ i._ox=p.x-i.x; i._oy=p.y-i.y; });
-                updatePropsPanel(hComp);
-                // LONG PRESS for mobile Context Menu
-                lpT = setTimeout(()=>{ drag.active=false; openContext(hComp); }, 600);
-            } else {
-                ctxData.comps.forEach(c=>c.selected=false); updatePropsPanel();
-                selBox.active=true; selBox.sx=p.x; selBox.sy=p.y; selBox.ex=p.x; selBox.ey=p.y;
-                D.sBox.style.display='block'; D.sBox.style.left=p.x+'px'; D.sBox.style.top=p.y+'px'; D.sBox.style.width='0px'; D.sBox.style.height='0px';
-            }
-            drawCanvas();
-        });
-
-        canvas.addEventListener('pointermove', (e) => {
-            if(isPlaying) return; const p=getP(e);
-            if(drag.active) { clearTimeout(lpT); drag.items.forEach(i=>{ i.x=p.x-i._ox; i.y=p.y-i._oy; i.updateNodes(); }); drawCanvas(); }
-            if(wireState.active) { wireState.mx=p.x; wireState.my=p.y; drawCanvas(); }
-            if(selBox.active) {
-                selBox.ex=p.x; selBox.ey=p.y;
-                let rx=Math.min(selBox.sx,selBox.ex), ry=Math.min(selBox.sy,selBox.ey), rw=Math.abs(selBox.sx-selBox.ex), rh=Math.abs(selBox.sy-selBox.ey);
-                D.sBox.style.left=rx+'px'; D.sBox.style.top=ry+'px'; D.sBox.style.width=rw+'px'; D.sBox.style.height=rh+'px';
-                CTX().comps.forEach(c => { c.selected = (c.x>rx && c.x<rx+rw && c.y>ry && c.y<ry+rh); }); drawCanvas();
-            }
-        });
-
-        canvas.addEventListener('pointerup', (e) => {
-            clearTimeout(lpT); const p=getP(e);
-            if(wireState.active && wireState.startNode) {
-                let hNode = null; CTX().comps.forEach(c=>{ if(Math.hypot(c.n1.x-p.x, c.n1.y-p.y)<20) hNode=c.n1; else if(Math.hypot(c.n2.x-p.x, c.n2.y-p.y)<20) hNode=c.n2; });
-                if(hNode && hNode.id !== wireState.startNode.id && hNode.parent !== wireState.startNode.parent) {
-                    // Prevent duplicate wires
-                    if(!CTX().wires.find(w=>(w.n1===wireState.startNode.id && w.n2===hNode.id)||(w.n2===wireState.startNode.id && w.n1===hNode.id)))
-                        CTX().wires.push({id:Date.now().toString(), n1:wireState.startNode.id, n2:hNode.id});
-                    syncDB();
-                }
-                wireState.active=false; drawCanvas();
-            }
-            if(drag.active) { drag.active=false; syncDB(); }
-            if(selBox.active) { selBox.active=false; D.sBox.style.display='none'; }
-        });
-        canvas.addEventListener('contextmenu', e=>{ e.preventDefault(); if(isPlaying)return; const p=getP(e); let c=CTX().comps.find(x=>Math.hypot(x.x-p.x, x.y-p.y)<35); if(c) openContext(c); });
-
-        // Rendering Render
-        function drawCanvas() {
-            ctx.clearRect(0,0,cw,ch); let dDat=CTX(), isD=document.documentElement.classList.contains('dark');
-            ctx.lineCap='round'; ctx.lineJoin='round';
-            
-            // Wires (Spline)
-            dDat.wires.forEach(w => {
-                let node1, node2;
-                dDat.comps.forEach(c=>{ if(c.n1.id===w.n1)node1=c.n1; if(c.n2.id===w.n1)node1=c.n2; if(c.n1.id===w.n2)node2=c.n1; if(c.n2.id===w.n2)node2=c.n2; });
-                if(node1 && node2) {
-                    ctx.beginPath(); ctx.strokeStyle=isD?'#475569':'#94a3b8'; ctx.lineWidth=3;
-                    let mx=(node1.x+node2.x)/2, my=(node1.y+node2.y)/2 + Math.hypot(node1.x-node2.x,node1.y-node2.y)*0.15; // Spline sag
-                    ctx.moveTo(node1.x,node1.y); ctx.quadraticCurveTo(mx,my,node2.x,node2.y); ctx.stroke();
-                }
-            });
-            if(wireState.active && wireState.startNode) {
-                ctx.beginPath(); ctx.strokeStyle='#3b82f6'; ctx.lineWidth=3; ctx.setLineDash([5,5]);
-                ctx.moveTo(wireState.startNode.x, wireState.startNode.y); ctx.lineTo(wireState.mx, wireState.my); ctx.stroke(); ctx.setLineDash([]);
-            }
-
-            // Components
-            dDat.comps.forEach(c => {
-                ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot);
-                if(c.selected) { ctx.beginPath(); ctx.arc(0,0,38,0,Math.PI*2); ctx.fillStyle=isD?'rgba(59,130,246,0.2)':'rgba(59,130,246,0.1)'; ctx.fill(); }
-                
-                // Draw Terminals
-                ctx.fillStyle=isD?'#cbd5e1':'#475569'; ctx.beginPath(); ctx.arc(-30,0,4,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(30,0,4,0,Math.PI*2); ctx.fill();
-                ctx.strokeStyle=isD?'#cbd5e1':'#475569'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-30,0); ctx.lineTo(-10,0); ctx.moveTo(30,0); ctx.lineTo(10,0); ctx.stroke();
-
-                if(c.exploded) {
-                    ctx.fillStyle='rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(0,0,25,0,Math.PI*2); ctx.fill();
-                    ctx.fillStyle='#fff'; ctx.font='20px sans-serif'; ctx.fillText('❌',-10,7);
+                if (!snap.exists()) {
+                    await setDoc(userRef, userData);
                 } else {
-                    ctx.strokeStyle=isD?'#f8fafc':'#0f172a'; ctx.lineWidth=2.5;
-                    if(c.type==='battery'){
-                        ctx.fillStyle=isD?'#1e293b':'#fff'; ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.fill(); ctx.stroke();
-                        ctx.fillStyle='#22c55e'; ctx.font='16px bold'; ctx.fillText('+',-6,-4); ctx.fillStyle='#ef4444'; ctx.fillText('-',-4,12);
-                    } else {
-                        // Capacitor Types
-                        if(c.type==='cap_parallel' || c.type==='cap_polar' || c.type.startsWith('Ceq')){
-                            ctx.beginPath(); ctx.moveTo(-10,-18); ctx.lineTo(-10,18); ctx.moveTo(10,-18); ctx.lineTo(10,18); ctx.stroke();
-                        } else if(c.type==='cap_cyl') {
-                            ctx.beginPath(); ctx.arc(-10,0,18,Math.PI/2, Math.PI*1.5); ctx.stroke();
-                            ctx.beginPath(); ctx.arc(10,0,18,Math.PI/2, Math.PI*1.5, true); ctx.stroke();
-                        }
-                        if(c.polar) { ctx.fillStyle='#ef4444'; ctx.font='14px sans-serif'; ctx.fillText('+',-24,-10); }
-                        
-                        // Physics Vectors: Dielectric & E-Field
-                        if(c.k>1) { ctx.fillStyle='rgba(59,130,246,0.3)'; ctx.fillRect(-8,-18,16,36); }
-                        if(c.v>0 && !isPlaying && !c.exploded) {
-                            ctx.strokeStyle='rgba(239,68,68,0.6)'; ctx.lineWidth=1;
-                            for(let i=-12;i<=12;i+=6){ ctx.beginPath(); ctx.moveTo(-8,i); ctx.lineTo(8,i); ctx.lineTo(4,i-3); ctx.stroke(); }
-                        }
-                    }
-                    // Labels
-                    ctx.fillStyle=isD?'#94a3b8':'#475569'; ctx.font='11px monospace'; ctx.textAlign='center';
-                    let lbl=c.type==='battery'?`${c.val}V`:`${c.id.startsWith('Ceq')?'Ceq:':''}${c.val.toExponential(1)}µF`;
-                    ctx.fillText(lbl, 0, 32);
+                    userData = snap.data();
                 }
+
+                // Iniciar App
+                document.getElementById('gatekeeper').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden-app');
+                document.getElementById('user-name').innerText = userData.displayName || userData.email;
+                document.getElementById('user-role').innerText = userData.role;
+                
+                initSimulator();
+                initChatSync();
+                feather.replace();
+            } else {
+                document.getElementById('auth-controls').classList.remove('hidden');
+                document.getElementById('auth-loading').classList.add('hidden');
+            }
+        });
+
+        // --- MOTOR DE SIMULACIÓN (CANVAS) ---
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        let elements = [];
+        let wires = [];
+        let selectedId = null;
+        let isWiring = false;
+        let wireStartNode = null;
+        let scale = 1;
+        let offset = { x: 0, y: 0 };
+
+        function initSimulator() {
+            resize();
+            window.addEventListener('resize', resize);
+            requestAnimationFrame(renderLoop);
+            
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            
+            // Long press for context menu replacement
+            let pressTimer;
+            canvas.addEventListener('touchstart', (e) => {
+                pressTimer = setTimeout(() => handleLongPress(e), 600);
+            }, {passive: false});
+            canvas.addEventListener('touchend', () => clearTimeout(pressTimer));
+        }
+
+        function resize() {
+            const container = document.getElementById('viewport');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        window.spawn = (type) => {
+            const el = {
+                id: Date.now().toString(),
+                type: type,
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                value: type.includes('cap') ? 10 : 12, // uF o V
+                rotation: 0,
+                nodes: [
+                    { id: 'n1', ox: -30, oy: 0 },
+                    { id: 'n2', ox: 30, oy: 0 }
+                ]
+            };
+            elements.push(el);
+            saveCircuitState();
+        };
+
+        function renderLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            
+            // Dibujar Cables (Ortogonales)
+            wires.forEach(w => {
+                ctx.beginPath();
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 2;
+                const s = findNodePos(w.start);
+                const e = findNodePos(w.end);
+                
+                // Ruta ortogonal simple (L-Shape)
+                ctx.moveTo(s.x, s.y);
+                ctx.lineTo(e.x, s.y);
+                ctx.lineTo(e.x, e.y);
+                ctx.stroke();
+            });
+
+            // Dibujar Componentes
+            elements.forEach(el => {
+                ctx.save();
+                ctx.translate(el.x, el.y);
+                ctx.rotate(el.rotation);
+                
+                // Estilo Glass para componente
+                ctx.fillStyle = selectedId === el.id ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255, 255, 255, 0.05)';
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                
+                if(el.type === 'cap_np') drawCapacitor(false);
+                else if(el.type === 'cap_p') drawCapacitor(true);
+                else drawSource();
+                
+                // Dibujar nodos
+                el.nodes.forEach(n => {
+                    ctx.beginPath();
+                    ctx.arc(n.ox, n.oy, 4, 0, Math.PI*2);
+                    ctx.fillStyle = '#3b82f6';
+                    ctx.fill();
+                });
+                
                 ctx.restore();
+                
+                // Etiquetas
+                ctx.fillStyle = "#fff";
+                ctx.font = "10px Inter";
+                ctx.fillText(`${el.value}${el.type.includes('cap') ? 'μF' : 'V'}`, el.x - 15, el.y + 40);
             });
-        }
 
-        // 6. PROPERTIES MODAL & INSPECTOR
-        let eTar = null;
-        function updatePropsPanel(c) {
-            if(!c) { D.props.innerHTML='<div class="flex flex-col items-center justify-center h-full opacity-40"><i data-feather="mouse-pointer" class="w-8 h-8 mb-2"></i><p class="text-xs text-center">Selecciona componente.</p></div>'; feather.replace(); return; }
-            let h = `<div class="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner">
-                <span class="text-[10px] font-mono bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-1 py-0.5 rounded">ID: ${c.id.substring(0,5)}</span>
-                <p class="mt-1"><strong class="text-blue-500">Tipo:</strong> ${c.type.toUpperCase()}</p>`;
-            if(c.type==='battery') h+=`<p><strong>Voltaje:</strong> ${c.val} V</p>`;
-            else {
-                h+=`<div class="grid grid-cols-2 gap-1 mt-2 border-t border-gray-300 dark:border-gray-600 pt-2 text-xs">
-                    <p><strong>C:</strong> ${c.val.toExponential(2)} µF</p><p><strong>Área:</strong> ${c.area} m²</p>
-                    <p><strong>Dist:</strong> ${c.dist} m</p><p><strong>k:</strong> ${c.k}</p></div>
-                    <div class="mt-2 border-t border-gray-300 dark:border-gray-600 pt-2 text-xs">
-                    <p class="text-green-600 dark:text-green-400"><strong>Q:</strong> ${(c.q||0).toExponential(2)} µC</p>
-                    <p class="text-purple-600 dark:text-purple-400"><strong>U:</strong> ${((0.5*c.val*1e-6*Math.pow(c.v||0,2))*1e6).toExponential(2)} µJ</p>
-                    <p class="text-red-500"><strong>V_Max:</strong> ${c.vMax} V</p></div>`;
-            } h+=`</div>`; D.props.innerHTML=h;
-        }
-
-        function openContext(c) {
-            eTar=c; D.mTitle.innerText = c.type==='battery'?'Configurar Fuente':'Configurar Capacitor';
-            let b='';
-            if(c.type==='battery') b=`<label class="block mb-1">Voltaje DC (V):</label><input type="number" id="mVal" value="${c.val}" class="input-glass">`;
-            else {
-                b=`<label class="block mb-1" id="lblKm">Constante Dieléctrica (k = ${c.k}):</label><input type="range" id="mK" min="1" max="10" step="0.1" value="${c.k}" class="w-full mb-3" oninput="document.getElementById('lblKm').innerText='Constante Dieléctrica (k = '+this.value+')'">
-                   <div class="grid grid-cols-2 gap-2"><div class="mb-2"><label class="block mb-1 text-xs">Área (m²):</label><input type="number" id="mArea" value="${c.area}" step="0.01" class="input-glass py-1"></div>
-                   <div class="mb-2"><label class="block mb-1 text-xs">Distancia (m):</label><input type="number" id="mDist" value="${c.dist}" step="0.001" class="input-glass py-1"></div></div>
-                   <label class="block mt-2 text-red-500">Voltaje Ruptura (V):</label><input type="number" id="mBreak" value="${c.vMax}" class="input-glass border-red-400 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300">`;
-            }
-            b+=`<label class="block mt-3 mb-1">Rotación (°):</label><input type="range" id="mRot" min="0" max="360" value="${c.rot*(180/Math.PI)}" class="w-full">`;
-            D.mBody.innerHTML=b; D.modal.classList.remove('hidden');
-        }
-
-        document.getElementById('btnSaveModal').addEventListener('click', () => {
-            if(eTar) {
-                eTar.rot = parseFloat(document.getElementById('mRot').value) * (Math.PI/180);
-                if(eTar.type==='battery') eTar.val = parseFloat(document.getElementById('mVal').value)||0;
-                else { eTar.k=parseFloat(document.getElementById('mK').value); eTar.area=parseFloat(document.getElementById('mArea').value); eTar.dist=parseFloat(document.getElementById('mDist').value); eTar.vMax=parseFloat(document.getElementById('mBreak').value); eTar.updateC(); }
-                eTar.updateNodes(); syncDB(); drawCanvas(); updatePropsPanel(eTar);
-            }
-            D.modal.classList.add('hidden');
-        });
-
-        // 7. MATHEMATICAL REDUCTION ENGINE (Topological Graph Analysis)
-        document.getElementById('btnClear').addEventListener('click', () => { CTX().comps=[]; CTX().wires=[]; syncDB(); drawCanvas(); D.math.innerHTML=''; document.getElementById('meterV').innerText='0.0'; document.getElementById('meterC').innerText='0.0'; updatePropsPanel(); });
-
-        document.getElementById('btnSolve').addEventListener('click', () => {
-            let ctx = CTX(), caps = ctx.comps.filter(c=>c.type.startsWith('cap_')||c.type.startsWith('Ceq')), src = ctx.comps.find(c=>c.type==='battery');
-            if(caps.length < 1 || !src) return alert("Se requiere una fuente DC y al menos un capacitor.");
-            history = []; let wC = JSON.parse(JSON.stringify(ctx.wires)), cC = JSON.parse(JSON.stringify(ctx.comps));
-            history.push({ comps:JSON.parse(JSON.stringify(cC)), wires:JSON.parse(JSON.stringify(wC)), text:"Analizando nodos topológicos mediante Leyes de Kirchhoff..." });
-
-            let pass = 1, finalCeq = caps[0].val;
-            // Pedagogical Visual Heuristic Reducer
-            while(caps.length > 1 && pass < 15) {
-                let c1 = caps[0], c2 = caps[1], isPar = pass%2!==0, eqVal = isPar ? (c1.val+c2.val) : (1/(1/c1.val+1/c2.val));
-                let eqComp = new Component('Ceq', (c1.x+c2.x)/2, (c1.y+c2.y)/2); eqComp.id = `Ceq_${pass}`; eqComp.val = eqVal; eqComp.type='cap_parallel';
-                
-                cC = cC.filter(c=>c.id!==c1.id && c.id!==c2.id); cC.push(eqComp);
-                caps = caps.filter(c=>c.id!==c1.id && c.id!==c2.id); caps.unshift(eqComp);
-                
-                let eqStr = isPar ? `Nodos paralelos. $$C_{eq${pass}} = ${c1.val.toExponential(2)} + ${c2.val.toExponential(2)} = ${eqVal.toExponential(2)} \\, \\mu F$$` : `Nodos en serie. $$C_{eq${pass}} = \\left(\\frac{1}{${c1.val.toExponential(2)}} + \\frac{1}{${c2.val.toExponential(2)}}\\right)^{-1} = ${eqVal.toExponential(2)} \\, \\mu F$$`;
-                wC = wC.map(w=>{ if(w.n1===c1.n1.id||w.n1===c2.n1.id||w.n1===c1.n2.id||w.n1===c2.n2.id)w.n1=eqComp.n1.id; if(w.n2===c1.n1.id||w.n2===c2.n1.id||w.n2===c1.n2.id||w.n2===c2.n2.id)w.n2=eqComp.n1.id; return w; }).filter(w=>w.n1!==w.n2);
-                history.push({ comps:JSON.parse(JSON.stringify(cC)), wires:JSON.parse(JSON.stringify(wC)), text:eqStr });
-                finalCeq = eqVal; pass++;
+            // Feedback de cableado
+            if(isWiring && wireStartNode) {
+                const s = findNodePos(wireStartNode);
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(s.x, s.y);
+                ctx.lineTo(mousePos.x, mousePos.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
             }
 
-            // Expand
-            let vT=src.val, qT=finalCeq*vT, uT=0.5*finalCeq*1e-6*(vT*vT)*1e6;
-            history.push({ comps:JSON.parse(JSON.stringify(cC)), wires:JSON.parse(JSON.stringify(wC)), text:`<strong>Expansión Final:</strong><br>Capacitancia Total: $$C_T = ${finalCeq.toExponential(2)}\\,\\mu F$$Voltaje:$$V_T = ${vT}V$$Carga Total:$$Q_T = ${qT.toExponential(2)}\\,\\mu C$$Energía:$$U_T = ${uT.toExponential(2)}\\,\\mu J$$` });
+            requestAnimationFrame(renderLoop);
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            ctx.lineWidth = 1;
+            const size = 30;
+            for(let x=0; x<canvas.width; x+=size) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+            for(let y=0; y<canvas.height; y+=size) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); }
+        }
+
+        function drawCapacitor(polarized) {
+            ctx.beginPath(); ctx.moveTo(-30, 0); ctx.lineTo(-10, 0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(10, 0); ctx.stroke();
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(-10, -15); ctx.lineTo(-10, 15); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(10, -15); ctx.lineTo(10, 15); ctx.stroke();
+            if(polarized) {
+                ctx.font = "14px Arial"; ctx.fillText("+", -25, -5);
+            }
+        }
+
+        function drawSource() {
+            ctx.beginPath(); ctx.moveTo(-30, 0); ctx.lineTo(-5, 0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(5, 0); ctx.stroke();
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(-5, -15); ctx.lineTo(-5, 15); ctx.stroke();
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(5, -8); ctx.lineTo(5, 8); ctx.stroke();
+        }
+
+        // --- INTERACCIONES ---
+        let mousePos = { x:0, y:0 };
+        let isDragging = false;
+
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            mousePos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
             
-            document.getElementById('meterV').innerText = vT.toFixed(1); document.getElementById('meterC').innerText = finalCeq.toExponential(2);
-            // Verify Rupture on original array
-            ctx.comps.forEach(c=>{ if(c.type.startsWith('cap_')){ c.v=vT; c.q=c.val*c.v; if(c.v>c.vMax)c.exploded=true; if(c.polar && c.v<0)c.exploded=true; } });
+            // Check nodos para cableado
+            const hitNode = findNodeAt(mousePos);
+            if(hitNode) {
+                if(!isWiring) {
+                    isWiring = true;
+                    wireStartNode = hitNode;
+                } else {
+                    if(wireStartNode.elId !== hitNode.elId) {
+                        wires.push({ start: wireStartNode, end: hitNode });
+                        saveCircuitState();
+                    }
+                    isWiring = false;
+                    wireStartNode = null;
+                }
+                return;
+            }
 
-            isPlaying=true; stepIdx=0; document.getElementById('stepControls').classList.remove('hidden'); renderStep();
-        });
-
-        function renderStep() {
-            let s = history[stepIdx]; CTX().comps = s.comps; CTX().wires = s.wires; drawCanvas();
-            document.getElementById('lblStep').innerText = `Paso ${stepIdx+1}/${history.length}`;
-            D.math.innerHTML = `<div class="p-4 bg-white dark:bg-gray-800 rounded-xl shadow border-l-4 border-blue-500"><div class="math-k text-gray-800 dark:text-gray-200">${s.text}</div></div>`;
-            try { renderMathInElement(D.math, {delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}]}); } catch(e) { /* fallback */ D.math.innerHTML = D.math.innerHTML.replace(/\$\$(.*?)\$\$/g, (m,c)=>katex.renderToString(c,{displayMode:true})).replace(/\$(.*?)\$/g, (m,c)=>katex.renderToString(c,{displayMode:false})); }
-            D.math.scrollTop = D.math.scrollHeight;
+            // Check elementos para arrastrar
+            const hitEl = elements.find(el => Math.hypot(el.x - mousePos.x, el.y - mousePos.y) < 30);
+            if(hitEl) {
+                selectedId = hitEl.id;
+                isDragging = true;
+                showProps(hitEl);
+                updateAnalysis();
+            } else {
+                selectedId = null;
+                hideProps();
+            }
         }
 
-        document.getElementById('btnNextStep').addEventListener('click', ()=>{ if(stepIdx<history.length-1){stepIdx++; renderStep();} });
-        document.getElementById('btnPrevStep').addEventListener('click', ()=>{ if(stepIdx>0){stepIdx--; renderStep();} });
-        document.getElementById('btnResetCircuit').addEventListener('click', ()=>{ isPlaying=false; document.getElementById('stepControls').classList.add('hidden'); joinRoom(currentRoom); D.math.innerHTML=''; document.getElementById('meterV').innerText='0.0'; document.getElementById('meterC').innerText='0.0'; });
+        function handleMouseMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            mousePos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            if(isDragging && selectedId) {
+                const el = elements.find(e => e.id === selectedId);
+                el.x = mousePos.x;
+                el.y = mousePos.y;
+            }
+        }
 
-        // 8. RTDB MULTIPLAYER & STRICT PATHS (/salas/{salaId})
-        let simRef=null, chatRef=null;
-        document.getElementById('btnChangeRoom').addEventListener('click', ()=>{ let n=prompt("ID de Sala (EJ: general, sala1):"); if(n)joinRoom(n.trim().toLowerCase()); });
-        
+        function handleMouseUp() {
+            if(isDragging) {
+                isDragging = false;
+                saveCircuitState();
+            }
+        }
+
+        function findNodeAt(pos) {
+            for(let el of elements) {
+                for(let n of el.nodes) {
+                    const worldX = el.x + n.ox;
+                    const worldY = el.y + n.oy;
+                    if(Math.hypot(worldX - pos.x, worldY - pos.y) < 10) {
+                        return { elId: el.id, nodeId: n.id };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function findNodePos(nodeRef) {
+            const el = elements.find(e => e.id === nodeRef.elId);
+            const n = el.nodes.find(node => node.id === nodeRef.nodeId);
+            return { x: el.x + n.ox, y: el.y + n.oy };
+        }
+
+        function showProps(el) {
+            document.getElementById('component-props').classList.remove('hidden');
+            document.getElementById('prop-value').value = el.value;
+            document.getElementById('prop-value').onchange = (e) => {
+                el.value = parseFloat(e.target.value);
+                saveCircuitState();
+                updateAnalysis();
+            };
+        }
+
+        function hideProps() {
+            document.getElementById('component-props').classList.add('hidden');
+        }
+
+        window.deleteSelected = () => {
+            if(!selectedId) return;
+            elements = elements.filter(e => e.id !== selectedId);
+            wires = wires.filter(w => w.start.elId !== selectedId && w.end.elId !== selectedId);
+            selectedId = null;
+            hideProps();
+            saveCircuitState();
+            updateAnalysis();
+        };
+
+        // --- MATEMÁTICAS Y ANÁLISIS ---
+        function updateAnalysis() {
+            const output = document.getElementById('math-output');
+            if(elements.length === 0) {
+                output.innerHTML = '<p class="opacity-50 italic">Agrega componentes...</p>';
+                return;
+            }
+
+            // Simplificación lógica (Mock de reducción real)
+            let totalC = elements.filter(e => e.type.includes('cap')).reduce((acc, curr) => acc + curr.value, 0);
+            let totalV = elements.find(e => e.type === 'source')?.value || 0;
+            let totalQ = totalC * totalV;
+
+            output.innerHTML = `
+                <div class="p-2 glass bg-blue-500/10 rounded">
+                    <div id="eq-1"></div>
+                    <div id="eq-2" class="mt-2"></div>
+                </div>
+                <table class="w-full text-[10px] mt-4">
+                    <thead><tr class="opacity-50 border-b border-white/10"><th>ID</th><th>V</th><th>Q (μC)</th><th>U (μJ)</th></tr></thead>
+                    <tbody>
+                        ${elements.filter(e => e.type.includes('cap')).map(e => `
+                            <tr class="text-center border-b border-white/5">
+                                <td>${e.id.slice(-3)}</td>
+                                <td>${totalV}</td>
+                                <td>${(e.value * totalV).toFixed(1)}</td>
+                                <td>${(0.5 * e.value * totalV**2).toFixed(1)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            if(window.katex) {
+                katex.render(`C_{eq} = \\sum C_i = ${totalC} \\mu F`, document.getElementById('eq-1'));
+                katex.render(`Q_{tot} = C_{eq} \\cdot V = ${totalQ} \\mu C`, document.getElementById('eq-2'));
+            }
+            
+            // PostMessage a padre
+            window.parent.postMessage({ type: 'LAB_PROGRESS', data: { elements: elements.length, totalC } }, '*');
+        }
+
+        // --- REALTIME & SALAS ---
+        window.createRoom = async () => {
+            const roomName = prompt("Nombre de la sala:");
+            if(!roomName) return;
+            const newRoomRef = push(ref(db, `salas`/* Base coincidente con reglas */));
+            const roomId = newRoomRef.key;
+            await set(ref(db, `salas/${roomId}/state`), {
+                name: roomName,
+                creator: currentUser.uid,
+                elements: [],
+                wires: []
+            });
+            joinRoom(roomId);
+        };
+
         function joinRoom(id) {
-            currentRoom=id; document.getElementById('lblRoom').innerText=id.toUpperCase();
-            if(simRef) onValue(simRef, null); if(chatRef) onValue(chatRef, null);
+            currentRoomId = id;
+            document.getElementById('chat-widget').classList.remove('hidden');
             
-            simRef = ref(db, `salas/${id}/estado`);
-            onValue(simRef, snap=>{
-                if(drag.active||wireState.active||isPlaying)return;
-                let d=snap.val(); if(d && d.comps){
-                    CTX().comps = d.comps.map(c=>{let nc=new Component(c.type,c.x,c.y); Object.assign(nc,c); 
-                        nc.n1=new CNode(c.n1.x,c.n1.y,nc.id); nc.n2=new CNode(c.n2.x,c.n2.y,nc.id); nc.n1.id=c.n1.id; nc.n2.id=c.n2.id; return nc;});
-                    CTX().wires = d.wires||[]; drawCanvas();
+            // Sync Circuito
+            onValue(ref(db, `salas/${id}/state`), (snapshot) => {
+                const data = snapshot.val();
+                if(data && data.creator !== currentUser.uid) {
+                    elements = data.elements || [];
+                    wires = data.wires || [];
+                    updateAnalysis();
                 }
             });
 
-            chatRef = ref(db, `salas/${id}/chat`);
-            onValue(chatRef, snap=>{
-                let box=document.getElementById('chatMessages'); box.innerHTML='';
-                snap.forEach(c=>{ let m=c.val(), isMe=m.uid===currentUser.uid;
-                    box.innerHTML+=`<div class="p-2 rounded-lg text-xs mb-1 ${isMe?'bg-blue-100 dark:bg-blue-900/50 ml-4 border border-blue-200 dark:border-blue-800':'bg-white dark:bg-gray-800 mr-4 border border-gray-200 dark:border-gray-700'}"><strong class="${isMe?'text-blue-600':'text-gray-500'} block">${m.nom}</strong>${m.txt}</div>`;
-                }); box.scrollTop=box.scrollHeight;
+            // Sync Chat
+            onValue(ref(db, `salas/${id}/chat`), (snapshot) => {
+                const container = document.getElementById('chat-messages');
+                container.innerHTML = '';
+                snapshot.forEach(child => {
+                    const m = child.val();
+                    const div = document.createElement('div');
+                    div.className = m.uid === currentUser.uid ? 'text-right' : 'text-left';
+                    div.innerHTML = `<span class="opacity-50 block text-[8px]">${m.name}</span><span class="bg-white/10 p-1 rounded inline-block">${m.text}</span>`;
+                    container.appendChild(div);
+                });
+                container.scrollTop = container.scrollHeight;
             });
         }
 
-        let st=null; function syncDB(){ if(isPlaying||!currentUser)return; clearTimeout(st); st=setTimeout(()=>set(ref(db, `salas/${currentRoom}/estado`), {comps:CTX().comps, wires:CTX().wires}), 150); }
-        document.getElementById('btnSendChat').addEventListener('click', ()=>{ let i=document.getElementById('inChat'); if(i.value.trim()&&currentUser){ push(ref(db, `salas/${currentRoom}/chat`), {uid:currentUser.uid, nom:userProfile.nombre, txt:i.value.trim(), ts:serverTimestamp()}); i.value=''; } });
-        document.getElementById('inChat').addEventListener('keypress', e=>{if(e.key==='Enter')document.getElementById('btnSendChat').click();});
+        function saveCircuitState() {
+            if(!currentRoomId) return;
+            update(ref(db, `salas/${currentRoomId}/state`), {
+                elements: elements,
+                wires: wires
+            });
+        }
 
+        function initChatSync() {
+            document.getElementById('chat-input').addEventListener('keypress', (e) => {
+                if(e.key === 'Enter' && currentRoomId) {
+                    const text = e.target.value;
+                    push(ref(db, `salas/${currentRoomId}/chat`), {
+                        uid: currentUser.uid,
+                        name: currentUser.displayName,
+                        text: text,
+                        ts: serverTimestamp()
+                    });
+                    e.target.value = '';
+                }
+            });
+        }
+
+        // --- UI UTILS ---
+        window.toggleTheme = () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            document.getElementById('theme-icon').setAttribute('data-feather', isDark ? 'moon' : 'sun');
+            feather.replace();
+        };
+
+        window.rate = (stars) => {
+            const starEls = document.querySelectorAll('#star-rating span');
+            starEls.forEach((s, i) => s.classList.toggle('text-yellow-400', i < stars));
+            // Opcional: Guardar en Firestore /public/data/ratings
+        };
+
+        function handleLongPress(e) {
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const pos = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+            const hitEl = elements.find(el => Math.hypot(el.x - pos.x, el.y - pos.y) < 30);
+            if(hitEl) {
+                selectedId = hitEl.id;
+                hitEl.rotation += Math.PI/2;
+                saveCircuitState();
+            }
+        }
     </script>
 </body>
 </html>
