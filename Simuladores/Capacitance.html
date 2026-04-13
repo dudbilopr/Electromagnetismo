@@ -1,423 +1,215 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Laboratorio de Coulomb - Simulador de Capacitores</title>
-    <!-- Tailwind CSS para utilidades rápidas (Glassmorphism lo haremos custom) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- KaTeX CSS (Preparación para Fase 2) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-    <!-- Feather Icons para SVGs profesionales -->
-    <script src="https://unpkg.com/feather-icons"></script>
+    <title>Capacitance10.easy | Simulador Avanzado</title>
     
+    <!-- Tailwind CSS para Estilos Rápidos y Responsivos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        glass: {
+                            light: 'rgba(255, 255, 255, 0.25)',
+                            dark: 'rgba(17, 24, 39, 0.4)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- KaTeX para Renderizado Matemático -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-
-        :root {
-            --glass-bg: rgba(20, 25, 40, 0.4);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-highlight: rgba(255, 255, 255, 0.2);
-            --accent-color: #00f2fe;
-            --danger-color: #ff4b4b;
-            --text-main: #f0f4f8;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-            user-select: none; /* Prevenir selección en interfaces táctiles */
-        }
-
-        body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-            color: var(--text-main);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* Fondo dinámico abstracto */
-        body::before, body::after {
-            content: '';
-            position: absolute;
-            width: 50vw;
-            height: 50vw;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(0,242,254,0.15) 0%, rgba(0,0,0,0) 70%);
-            z-index: -1;
-            animation: float 20s infinite alternate ease-in-out;
-        }
-        body::after {
-            background: radial-gradient(circle, rgba(79,70,229,0.15) 0%, rgba(0,0,0,0) 70%);
-            right: -10vw;
-            bottom: -10vw;
-            animation-delay: -10s;
-        }
-
-        @keyframes float {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(10vw, 10vh); }
-        }
-
-        /* Clases Glassmorphism Core */
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
-        }
-
-        .glass-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--glass-border);
-            color: var(--text-main);
-            backdrop-filter: blur(4px);
-            transition: all 0.3s ease;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-        }
-        .glass-btn:hover {
-            background: var(--glass-highlight);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.2);
-        }
-
-        /* Layout Principal */
-        #app-container {
-            display: none; /* Oculto hasta login */
-            flex: 1;
-            flex-direction: column;
-            height: 100%;
-        }
-
-        header {
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 10;
-        }
-
-        .toolbar {
-            display: flex;
-            gap: 1rem;
-            padding: 0.5rem 1rem;
-            overflow-x: auto;
-        }
-
-        .tool-btn {
-            padding: 0.5rem;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 0.75rem;
-            min-width: 70px;
-        }
-
-        main {
-            flex: 1;
-            display: flex;
-            overflow: hidden;
-            position: relative;
-            padding: 0 1rem;
-            gap: 1rem;
-        }
-
-        #sidebar {
-            width: 300px;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            transition: transform 0.3s ease;
-        }
-
-        #workspace {
-            flex: 1;
-            position: relative;
-            border-radius: 16px;
-            overflow: hidden;
-            cursor: crosshair;
-        }
-
-        canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        #math-panel {
-            position: absolute;
-            right: 1rem;
-            top: 1rem;
-            width: 350px;
-            max-height: calc(100% - 2rem);
-            overflow-y: auto;
-            padding: 1rem;
-            display: none;
-        }
-
-        footer {
-            padding: 0.75rem 1rem;
-            font-size: 0.8rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 10;
-        }
-
-        .footer-links a {
-            color: var(--accent-color);
-            text-decoration: none;
-            margin-left: 1rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-        }
-
-        /* Modales */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(5px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-        
-        .context-menu {
-            position: absolute;
-            min-width: 200px;
-            padding: 0.5rem;
-            z-index: 50;
-            display: none;
-        }
-
-        .input-glass {
-            width: 100%;
-            background: rgba(0,0,0,0.2);
-            border: 1px solid var(--glass-border);
-            color: white;
-            padding: 0.5rem;
-            border-radius: 6px;
-            margin-top: 0.25rem;
-            outline: none;
-        }
-        .input-glass:focus {
-            border-color: var(--accent-color);
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            main { flex-direction: column; }
-            #sidebar { width: 100%; height: 30%; flex-direction: row; }
-            .sidebar-section { flex: 1; }
-            footer { flex-direction: column; gap: 0.5rem; text-align: center; }
-            .toolbar { flex-wrap: nowrap; overflow-x: auto; }
-        }
-
-        /* Utilidades ocultas */
-        .hidden-st { display: none !important; }
+        /* Minified Custom CSS for Glassmorphism & UI Tweaks */
+        :root{--glass-border:rgba(255,255,255,0.18);--glass-shadow:0 8px 32px 0 rgba(31,38,135,0.37)}
+        .glass{background:var(--glass-light);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--glass-border);box-shadow:var(--glass-shadow)}
+        .dark .glass{background:var(--glass-dark);border:1px solid rgba(255,255,255,0.05)}
+        body{overscroll-behavior-y:contain;transition:background-color .3s,color .3s}
+        .canvas-container{position:relative;width:100%;height:100%;overflow:hidden;touch-action:none}
+        #physicsCanvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:10}
+        .tool-icon{cursor:pointer;transition:transform .2s;user-select:none}
+        .tool-icon:hover{transform:scale(1.1)}
+        .modal-overlay{background:rgba(0,0,0,0.5);backdrop-filter:blur(4px)}
+        /* Ocultar scrollbars pero permitir scroll */
+        ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:rgba(156,163,175,0.5);border-radius:3px}
     </style>
 </head>
-<body>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 h-screen flex flex-col font-sans overflow-hidden">
 
-    <!-- Pantalla de Login -->
-    <div id="auth-screen" class="modal-overlay active" style="opacity: 1; pointer-events: all;">
-        <div class="glass-panel p-8 w-full max-w-md text-center">
-            <i data-feather="zap" class="w-16 h-16 mx-auto mb-4 text-[#00f2fe]"></i>
-            <h1 class="text-2xl font-bold mb-2">Laboratorio de Coulomb</h1>
-            <p class="text-sm text-gray-300 mb-8">Simulador Avanzado de Capacitores</p>
-            
-            <button id="btn-login-google" class="glass-btn w-full py-3 rounded-lg font-semibold text-lg">
-                <i data-feather="log-in"></i> Iniciar con Google
-            </button>
-            <p class="text-xs text-gray-400 mt-4">Al ingresar aceptas el tratamiento de datos con fines académicos.</p>
+    <!-- HEADER (Tools & User Profile) -->
+    <header class="glass z-20 flex justify-between items-center p-3 m-2 rounded-xl">
+        <div class="flex items-center space-x-4">
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">
+                Capacitance10.easy
+            </h1>
+            <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
+            <!-- Herramientas (Vistas previas) -->
+            <div class="flex space-x-3" id="toolbar">
+                <button class="tool-icon p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Cursor" data-tool="cursor">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                </button>
+                <button class="tool-icon p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Capacitor Placas Paralelas" data-tool="cap-parallel">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
+                </button>
+                <button class="tool-icon p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Capacitor Cilíndrico/Esférico" data-tool="cap-radial">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke-width="2"></circle><circle cx="12" cy="12" r="3" stroke-width="2"></circle></svg>
+                </button>
+                <button class="tool-icon p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Cable (Spline)" data-tool="wire">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </button>
+            </div>
         </div>
-    </div>
-
-    <!-- Contenedor Principal de la App -->
-    <div id="app-container">
         
-        <!-- HEADER / TOOLBAR -->
-        <header class="glass-panel mx-4 mt-4">
-            <div class="flex items-center gap-3">
-                <i data-feather="hexagon" class="text-[#00f2fe]"></i>
-                <span class="font-bold hidden sm:inline">Lab. Coulomb</span>
-            </div>
-            
-            <div class="toolbar glass-panel border-none shadow-none">
-                <button class="tool-btn glass-btn" onclick="appLogic.selectTool('cursor')">
-                    <i data-feather="mouse-pointer"></i> <span>Mover</span>
-                </button>
-                <button class="tool-btn glass-btn" onclick="appLogic.selectTool('wire')">
-                    <i data-feather="git-commit"></i> <span>Cable</span>
-                </button>
-                <div class="w-px bg-white/20 mx-1"></div>
-                <button class="tool-btn glass-btn" onclick="appLogic.addComponent('cap_ceramic')">
-                    <i data-feather="server"></i> <span>Cerámico</span>
-                </button>
-                <button class="tool-btn glass-btn" onclick="appLogic.addComponent('cap_electro')">
-                    <i data-feather="battery-charging"></i> <span>Electrolítico</span>
-                </button>
-                <button class="tool-btn glass-btn" onclick="appLogic.addComponent('source')">
-                    <i data-feather="battery"></i> <span>Fuente DC</span>
-                </button>
-                <button class="tool-btn glass-btn" onclick="appLogic.addComponent('multimeter')">
-                    <i data-feather="activity"></i> <span>Multímetro</span>
-                </button>
-                <div class="w-px bg-white/20 mx-1"></div>
-                <button class="tool-btn glass-btn text-[#00f2fe]" onclick="appLogic.solveCircuit()">
-                    <i data-feather="play"></i> <span>Resolver</span>
-                </button>
-            </div>
-
-            <div class="flex items-center gap-3 relative">
-                <div id="user-info" class="text-right hidden sm:block">
-                    <div id="user-name" class="font-semibold text-sm">Cargando...</div>
-                    <div id="user-role" class="text-xs text-[#00f2fe]">Estudiante</div>
-                </div>
-                <div class="w-10 h-10 rounded-full bg-gray-600 border-2 border-[#00f2fe] overflow-hidden cursor-pointer" onclick="document.getElementById('modal-profile').classList.add('active')">
-                    <img id="user-avatar" src="" alt="Avatar" class="w-full h-full object-cover hidden">
-                    <i data-feather="user" class="w-full h-full p-2" id="user-avatar-fallback"></i>
-                </div>
-                <!-- Botón Admin oculto por defecto -->
-                <button id="btn-admin-dashboard" class="glass-btn p-2 rounded-full hidden-st" title="Dashboard Admin">
-                    <i data-feather="shield"></i>
-                </button>
-                <button class="glass-btn p-2 rounded-full" onclick="appLogic.logout()" title="Cerrar Sesión">
-                    <i data-feather="log-out"></i>
-                </button>
-            </div>
-        </header>
-
-        <!-- MAIN CONTENT -->
-        <main class="mt-4">
-            <!-- SIDEBAR -->
-            <aside id="sidebar">
-                <!-- Panel de Salas -->
-                <div class="sidebar-section glass-panel p-4 flex-1 flex flex-col">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-semibold flex items-center gap-2"><i data-feather="users" class="w-4 h-4"></i> Salas</h3>
-                        <button class="glass-btn px-2 py-1 text-xs rounded" onclick="appLogic.createRoom()">+ Nueva</button>
-                    </div>
-                    <div id="rooms-list" class="flex-1 overflow-y-auto space-y-2">
-                        <div class="text-xs text-gray-400 text-center py-4">Buscando salas...</div>
-                    </div>
-                </div>
-
-                <!-- Chat Room -->
-                <div class="sidebar-section glass-panel p-4 flex-1 flex flex-col">
-                    <h3 class="font-semibold mb-2 flex items-center gap-2"><i data-feather="message-circle" class="w-4 h-4"></i> Chat de Sala</h3>
-                    <div id="chat-messages" class="flex-1 overflow-y-auto bg-black/20 rounded p-2 mb-2 space-y-2 text-sm">
-                        <div class="text-xs text-gray-400 text-center">Únete a una sala para chatear</div>
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="text" id="chat-input" class="input-glass mt-0 text-sm" placeholder="Mensaje..." disabled>
-                        <button class="glass-btn px-3 rounded" id="btn-send-chat" disabled><i data-feather="send" class="w-4 h-4"></i></button>
-                    </div>
-                </div>
-            </aside>
-
-            <!-- WORKSPACE (Physics Canvas) -->
-            <section id="workspace" class="glass-panel">
-                <canvas id="circuit-canvas"></canvas>
-                
-                <!-- Panel de Resolución Matemática (KaTeX) -->
-                <div id="math-panel" class="glass-panel">
-                    <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
-                        <h3 class="font-bold flex items-center gap-2"><i data-feather="book-open"></i> Resolución Paso a Paso</h3>
-                        <button class="glass-btn p-1 rounded-full" onclick="document.getElementById('math-panel').style.display='none'">
-                            <i data-feather="x" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                    <div id="katex-container" class="space-y-4 text-sm">
-                        <!-- Aquí se inyectará el renderizado de KaTeX -->
-                        <p class="text-gray-400 italic">Construye un circuito y presiona "Resolver" para ver el análisis de mallas/nodos.</p>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <!-- FOOTER -->
-        <footer class="glass-panel mx-4 mb-4">
-            <div>&copy; 2026 Laboratorio de Coulomb. Todos los derechos reservados.</div>
-            <div class="text-xs text-gray-400">Desarrollado con asistencia de IA. Fines pedagógicos.</div>
-            <div class="footer-links">
-                <a href="#" onclick="appLogic.rateApp()"><i data-feather="star" class="w-4 h-4"></i> Calificar</a>
-                <a href="https://wa.me/573000000000" target="_blank"><i data-feather="message-square" class="w-4 h-4"></i> WhatsApp</a>
-                <a href="#" class="text-[#ffeb3b]!"><i data-feather="coffee" class="w-4 h-4"></i> Invítame un café</a>
-            </div>
-        </footer>
-    </div>
-
-    <!-- MODAL PERFIL -->
-    <div id="modal-profile" class="modal-overlay">
-        <div class="glass-panel p-6 w-full max-w-sm relative">
-            <button class="absolute top-4 right-4 text-gray-400 hover:text-white" onclick="document.getElementById('modal-profile').classList.remove('active')">
-                <i data-feather="x"></i>
+        <div class="flex items-center space-x-3">
+            <span id="networkStatus" class="flex h-3 w-3 relative">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+            </span>
+            <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                <svg class="w-5 h-5 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
             </button>
-            <h2 class="text-xl font-bold mb-4">Perfil de Usuario</h2>
-            <form id="profile-form" class="space-y-3">
+            <button id="authBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-blue-500/30">
+                Ingresar
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="flex-1 flex overflow-hidden p-2 gap-2">
+        
+        <!-- Sidebar Izquierdo: Salas y Componentes -->
+        <aside class="glass w-64 rounded-xl flex flex-col z-10">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="font-bold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400">Entorno</h2>
+                <div id="roomContainer" class="mt-2 text-sm hidden">
+                    <p>Sala: <span id="currentRoomCode" class="font-mono font-bold text-blue-500">---</span></p>
+                    <p class="text-xs text-gray-500">Usuarios: <span id="roomUsersCount">1</span></p>
+                </div>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto">
+                <h2 class="font-bold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Propiedades</h2>
+                <div id="propertiesPanel" class="text-sm text-gray-600 dark:text-gray-400">
+                    Selecciona un componente en el lienzo para editar sus parámetros físicos (Dieléctrico, Distancia, Área).
+                </div>
+            </div>
+            <!-- Medidores -->
+            <div class="p-4 bg-gray-100 dark:bg-gray-800 rounded-b-xl border-t border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between text-sm mb-1">
+                    <span class="font-semibold text-red-500">Voltímetro</span>
+                    <span id="meterV" class="font-mono bg-black text-green-400 px-2 py-0.5 rounded">0.00 V</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                    <span class="font-semibold text-blue-500">Capacímetro</span>
+                    <span id="meterC" class="font-mono bg-black text-green-400 px-2 py-0.5 rounded">0.00 µF</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Lienzo de Física Central -->
+        <section class="flex-1 glass rounded-xl relative overflow-hidden" id="workspace">
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="physicsCanvas"></canvas>
+            </div>
+            <!-- Overlay Info (Admin) -->
+            <div id="adminOverlay" class="absolute top-2 left-2 hidden bg-black/70 text-green-400 font-mono text-xs p-2 rounded pointer-events-none">
+                MODO ADMIN | FPS: <span id="fpsCounter">60</span> | Nodos: <span id="nodeCounter">0</span>
+            </div>
+        </section>
+
+        <!-- Sidebar Derecho: Análisis Matemático (KaTeX) -->
+        <aside class="glass w-80 rounded-xl flex flex-col z-10">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="font-bold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400">Análisis y Reducción</h2>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto" id="mathOutput">
+                <p class="text-sm text-gray-500 dark:text-gray-400 italic">La guía paso a paso de reducción del circuito y la tabla comparativa aparecerán aquí cuando construyas un circuito cerrado.</p>
+                <!-- Placeholder para KaTeX -->
+                <div id="katexContainer" class="mt-4 text-sm"></div>
+            </div>
+            <div class="p-2 border-t border-gray-200 dark:border-gray-700 flex justify-center">
+                <button class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-lg text-sm w-full transition-colors">
+                    Generar Reporte Completo
+                </button>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="glass z-20 flex justify-between items-center p-2 m-2 mt-0 rounded-xl text-xs text-gray-500 dark:text-gray-400">
+        <div class="flex items-center space-x-2">
+            <span>&copy; 2026 Capacitance10.easy</span>
+            <span>|</span>
+            <span class="italic">Generado con soporte de IA. Los datos se procesan con fines académicos según las normativas vigentes.</span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <!-- Calificación Estrellas -->
+            <div class="flex space-x-1" id="starRating">
+                <svg class="w-4 h-4 text-yellow-400 cursor-pointer" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                <svg class="w-4 h-4 text-gray-300 dark:text-gray-600 cursor-pointer" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                <!-- ... más estrellas representativas -->
+            </div>
+            <a href="https://wa.me/573000000000" target="_blank" class="hover:text-green-500 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.898-4.45 9.898-9.892 0-2.639-1.01-5.136-2.859-7.017-1.879-1.91-4.398-2.963-7.038-2.963-5.45 0-9.898 4.45-9.898 9.891 0 2.052.569 3.93 1.644 5.613l-1.044 3.816 3.905-1.04z"/></svg>
+                Soporte
+            </a>
+            <button class="bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/40 px-3 py-1 rounded border border-yellow-500/50 transition-colors">
+                ☕ Invítame un café
+            </button>
+        </div>
+    </footer>
+
+    <!-- MODAL: LOGIN / AUTH -->
+    <div id="authModal" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
+        <div class="glass w-96 p-6 rounded-2xl shadow-2xl relative">
+            <button id="closeAuthModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <h2 class="text-2xl font-bold text-center mb-6">Acceso Académico</h2>
+            
+            <button id="btnGoogleLogin" class="w-full flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mb-4 hover:shadow-md transition-shadow">
+                <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                Continuar con Google
+            </button>
+            
+            <div class="flex items-center my-4">
+                <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                <span class="px-3 text-sm text-gray-500">O correo institucional</span>
+                <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+            </div>
+
+            <form id="emailAuthForm" class="space-y-4">
                 <div>
-                    <label class="text-xs text-gray-400">Alias / Nickname</label>
-                    <input type="text" id="prof-alias" class="input-glass">
+                    <input type="email" id="emailInput" placeholder="Correo electrónico" required class="w-full px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-gray-700 focus:ring-0 text-sm">
                 </div>
                 <div>
-                    <label class="text-xs text-gray-400">Edad</label>
-                    <input type="number" id="prof-age" class="input-glass">
+                    <input type="password" id="passwordInput" placeholder="Contraseña" required class="w-full px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-gray-700 focus:ring-0 text-sm">
                 </div>
-                <div>
-                    <label class="text-xs text-gray-400">Carrera / Programa</label>
-                    <input type="text" id="prof-career" class="input-glass">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-400">Institución</label>
-                    <input type="text" id="prof-institution" class="input-glass">
-                </div>
-                <button type="button" class="glass-btn w-full py-2 mt-4 rounded font-bold" onclick="appLogic.saveProfile()">Guardar Perfil</button>
+                <button type="submit" id="btnEmailLogin" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors">
+                    Ingresar / Registrarse
+                </button>
             </form>
+            <p id="authErrorMsg" class="text-red-500 text-xs text-center mt-3 hidden"></p>
         </div>
     </div>
 
-    <!-- MENÚ CONTEXTUAL (Componentes) -->
-    <div id="component-context-menu" class="context-menu glass-panel text-sm">
-        <div class="font-bold border-b border-white/10 pb-2 mb-2" id="ctx-title">Propiedades</div>
-        <div id="ctx-body" class="space-y-2">
-            <!-- Dinámico -->
-        </div>
-        <button class="glass-btn w-full mt-3 py-1 rounded text-[#ff4b4b] border-[#ff4b4b]/30" onclick="appLogic.deleteSelectedComponent()">
-            <i data-feather="trash-2" class="w-4 h-4"></i> Eliminar
-        </button>
-    </div>
-
-    <!-- MODULOS JAVASCRIPT (Firebase & Lógica Core) -->
+    <!-- Scripts de Lógica (Firebase + UI Skeleton) -->
     <script type="module">
-        // 1. IMPORTACIONES FIREBASE
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 2. CONFIGURACIÓN FIREBASE (Tus credenciales)
+        // --- 1. CONFIGURACIÓN INMUTABLE DE FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
             authDomain: "laboratorio-de-coulomb.firebaseapp.com",
@@ -429,310 +221,214 @@
             measurementId: "G-SZECJNG25E"
         };
 
-        // Inicializar
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        // Variables de Estado de Aplicación
+        let currentUser = null;
+        let userRole = 'estudiante'; // estudiante, docente, admin
+        const ADMIN_EMAIL = 'dudbilopr@gmail.com';
+
+        // Elementos UI Auth
+        const authBtn = document.getElementById('authBtn');
+        const authModal = document.getElementById('authModal');
+        const closeAuthModal = document.getElementById('closeAuthModal');
+        const btnGoogleLogin = document.getElementById('btnGoogleLogin');
+        const emailAuthForm = document.getElementById('emailAuthForm');
+        const emailInput = document.getElementById('emailInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const authErrorMsg = document.getElementById('authErrorMsg');
+        const networkStatus = document.getElementById('networkStatus');
+        const adminOverlay = document.getElementById('adminOverlay');
+        const roomContainer = document.getElementById('roomContainer');
+
+        // --- 2. GESTIÓN DE AUTENTICACIÓN Y ROLES ---
         
-        // 3. ESTADO GLOBAL DE LA APLICACIÓN
-        window.appState = {
-            user: null,
-            profile: null,
-            currentRoom: null,
-            canvasCtx: null,
-            selectedTool: 'cursor',
-            components: [], // Para la Fase 2
-            wires: []       // Para la Fase 2
+        const showError = (msg) => {
+            authErrorMsg.textContent = msg;
+            authErrorMsg.classList.remove('hidden');
         };
 
-        // 4. LÓGICA DE INTERFAZ Y FIREBASE (Expuesta globalmente para botones HTML)
-        window.appLogic = {
+        const handleAuthAction = async (user) => {
+            // Guardar o actualizar datos de usuario en Firestore
+            const userRef = doc(db, 'users', user.uid);
+            const userSnap = await getDoc(userRef);
             
-            // --- AUTENTICACIÓN ---
-            loginGoogle: async () => {
-                const provider = new GoogleAuthProvider();
-                try {
-                    await signInWithPopup(auth, provider);
-                } catch (error) {
-                    console.error("Error login:", error);
-                    alert("Error al iniciar sesión.");
-                }
-            },
-
-            logout: async () => {
-                await signOut(auth);
-            },
-
-            handleAuthState: async (user) => {
-                const authScreen = document.getElementById('auth-screen');
-                const appContainer = document.getElementById('app-container');
-                
-                if (user) {
-                    appState.user = user;
-                    authScreen.classList.remove('active');
-                    setTimeout(() => authScreen.style.display = 'none', 300);
-                    appContainer.style.display = 'flex';
-                    
-                    // Cargar perfil
-                    await appLogic.loadUserProfile(user);
-                    
-                    // Cargar salas
-                    appLogic.listenToRooms();
-
-                    // Ajustar UI
-                    document.getElementById('user-name').innerText = appState.profile?.alias || user.displayName;
-                    
-                    if(user.photoURL) {
-                        document.getElementById('user-avatar').src = user.photoURL;
-                        document.getElementById('user-avatar').classList.remove('hidden');
-                        document.getElementById('user-avatar-fallback').classList.add('hidden');
-                    }
-
-                    // Rol Admin
-                    if(user.email === 'dudbilopr@gmail.com') {
-                        document.getElementById('user-role').innerText = 'Administrador';
-                        document.getElementById('user-role').classList.add('text-[#ff4b4b]');
-                        document.getElementById('btn-admin-dashboard').classList.remove('hidden-st');
-                    } else if(appState.profile?.role) {
-                        document.getElementById('user-role').innerText = appState.profile.role;
-                    }
-
-                    // Comunicación Externa (Curso Padre)
-                    if(window.parent !== window) {
-                        window.parent.postMessage({ type: 'SIM_LOGIN', uid: user.uid, email: user.email }, '*');
-                    }
-
-                    // Iniciar renderizado Canvas (Fase 1 básico)
-                    appLogic.initCanvas();
-
-                } else {
-                    appState.user = null;
-                    authScreen.style.display = 'flex';
-                    setTimeout(() => authScreen.classList.add('active'), 10);
-                    appContainer.style.display = 'none';
-                }
-            },
-
-            // --- GESTIÓN DE PERFIL ---
-            loadUserProfile: async (user) => {
-                const docRef = doc(db, 'users', user.uid);
-                const docSnap = await getDoc(docRef);
-                
-                if (docSnap.exists()) {
-                    appState.profile = docSnap.data();
-                } else {
-                    // Perfil por defecto
-                    appState.profile = {
-                        email: user.email,
-                        alias: user.displayName,
-                        role: user.email === 'dudbilopr@gmail.com' ? 'Administrador' : 'Estudiante',
-                        level: 1,
-                        xp: 0
-                    };
-                    await setDoc(docRef, appState.profile);
-                }
-
-                // Llenar formulario modal
-                document.getElementById('prof-alias').value = appState.profile.alias || '';
-                document.getElementById('prof-age').value = appState.profile.age || '';
-                document.getElementById('prof-career').value = appState.profile.career || '';
-                document.getElementById('prof-institution').value = appState.profile.institution || '';
-            },
-
-            saveProfile: async () => {
-                if(!appState.user) return;
-                const profileData = {
-                    alias: document.getElementById('prof-alias').value,
-                    age: document.getElementById('prof-age').value,
-                    career: document.getElementById('prof-career').value,
-                    institution: document.getElementById('prof-institution').value,
-                };
-                
-                await setDoc(doc(db, 'users', appState.user.uid), profileData, { merge: true });
-                appState.profile = { ...appState.profile, ...profileData };
-                document.getElementById('user-name').innerText = profileData.alias;
-                document.getElementById('modal-profile').classList.remove('active');
-            },
-
-            // --- SALAS MULTIUSUARIO ---
-            createRoom: async () => {
-                const name = prompt("Nombre de la nueva sala de estudio:");
-                if(!name) return;
-                
-                await addDoc(collection(db, 'rooms'), {
-                    name: name,
-                    createdBy: appState.user.uid,
+            if (!userSnap.exists()) {
+                // Nuevo usuario: asignar rol
+                userRole = (user.email === ADMIN_EMAIL) ? 'admin' : 'estudiante';
+                await setDoc(userRef, {
+                    email: user.email,
+                    role: userRole,
                     createdAt: serverTimestamp(),
-                    active: true
+                    lastLogin: serverTimestamp()
                 });
-            },
+            } else {
+                userRole = userSnap.data().role;
+                await updateDoc(userRef, { lastLogin: serverTimestamp() });
+            }
 
-            listenToRooms: () => {
-                const q = query(collection(db, 'rooms'), orderBy('createdAt', 'desc'));
-                onSnapshot(q, (snapshot) => {
-                    const list = document.getElementById('rooms-list');
-                    list.innerHTML = '';
-                    if(snapshot.empty) {
-                        list.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">No hay salas activas</div>';
-                        return;
-                    }
-                    snapshot.forEach(doc => {
-                        const room = doc.data();
-                        const div = document.createElement('div');
-                        div.className = 'glass-btn py-2 px-3 justify-between text-sm rounded cursor-pointer';
-                        div.innerHTML = `<span>${room.name}</span> <i data-feather="chevron-right" class="w-4 h-4"></i>`;
-                        div.onclick = () => appLogic.joinRoom(doc.id, room.name);
-                        list.appendChild(div);
-                    });
-                    feather.replace();
-                });
-            },
+            // Actualizar UI según el rol
+            authBtn.textContent = 'Salir';
+            authBtn.classList.replace('bg-blue-600', 'bg-red-600');
+            authBtn.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
+            authBtn.classList.replace('shadow-blue-500/30', 'shadow-red-500/30');
+            authModal.classList.add('hidden');
+            
+            // UI Indicators
+            networkStatus.innerHTML = `<span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>`; // Online
 
-            joinRoom: (roomId, roomName) => {
-                appState.currentRoom = roomId;
-                document.getElementById('chat-messages').innerHTML = `<div class="text-xs text-[#00f2fe] text-center mb-2">Unido a: ${roomName}</div>`;
-                document.getElementById('chat-input').disabled = false;
-                document.getElementById('btn-send-chat').disabled = false;
-                // Aquí en Fase 2 iría la escucha de Firebase Realtime o Firestore para los componentes del canvas
-            },
+            if(userRole === 'admin') {
+                adminOverlay.classList.remove('hidden');
+                console.log("🟢 Modo Administrador Activado");
+            }
+            if(userRole === 'docente' || userRole === 'admin') {
+                roomContainer.classList.remove('hidden');
+                // Lógica futura de salas
+            }
 
-            // --- LÓGICA DE HERRAMIENTAS Y CANVAS (Preparación) ---
-            selectTool: (tool) => {
-                appState.selectedTool = tool;
-                document.querySelectorAll('.tool-btn').forEach(btn => btn.style.borderColor = 'var(--glass-border)');
-                event.currentTarget.style.borderColor = 'var(--accent-color)';
-            },
-
-            addComponent: (type) => {
-                // FASE 2: Aquí instanciamos clases Capacitor, Fuente, etc.
-                console.log("Añadiendo componente:", type);
-                appLogic.selectTool('cursor');
-            },
-
-            solveCircuit: () => {
-                // FASE 2: Algoritmo de Nodos/Mallas y Renderizado KaTeX
-                const mathPanel = document.getElementById('math-panel');
-                mathPanel.style.display = 'block';
-                document.getElementById('katex-container').innerHTML = `<div class="text-center py-4"><i data-feather="loader" class="animate-spin mx-auto text-[#00f2fe]"></i><br>Calculando mallas y nodos... (Fase 2)</div>`;
-                feather.replace();
-            },
-
-            initCanvas: () => {
-                const canvas = document.getElementById('circuit-canvas');
-                appState.canvasCtx = canvas.getContext('2d');
-                
-                const resize = () => {
-                    canvas.width = canvas.parentElement.clientWidth;
-                    canvas.height = canvas.parentElement.clientHeight;
-                    appLogic.drawGrid();
-                };
-                window.addEventListener('resize', resize);
-                resize();
-
-                // Setup interacciones táctiles y long-press
-                appLogic.setupCanvasInteractions(canvas);
-            },
-
-            drawGrid: () => {
-                const ctx = appState.canvasCtx;
-                const canvas = ctx.canvas;
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-                ctx.lineWidth = 1;
-                const gridSize = 20;
-                
-                ctx.beginPath();
-                for(let x = 0; x < canvas.width; x += gridSize) {
-                    ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
-                }
-                for(let y = 0; y < canvas.height; y += gridSize) {
-                    ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
-                }
-                ctx.stroke();
-
-                // Placeholder Fase 1
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                ctx.font = '14px Inter';
-                ctx.textAlign = 'center';
-                ctx.fillText("Espacio de Simulación (Motor Físico pendiente - Fase 2)", canvas.width/2, canvas.height/2);
-            },
-
-            setupCanvasInteractions: (canvas) => {
-                let pressTimer;
-                
-                const startPress = (e) => {
-                    if(e.type === 'touchstart') e.preventDefault();
-                    // Lógica de drag (Fase 2)
-                    
-                    // Long press para Menú Contextual
-                    pressTimer = setTimeout(() => {
-                        const rect = canvas.getBoundingClientRect();
-                        const x = (e.clientX || e.touches[0].clientX) - rect.left;
-                        const y = (e.clientY || e.touches[0].clientY) - rect.top;
-                        appLogic.showContextMenu(x, y);
-                    }, 600); // 600ms = long press
-                };
-
-                const cancelPress = () => clearTimeout(pressTimer);
-
-                canvas.addEventListener('mousedown', startPress);
-                canvas.addEventListener('touchstart', startPress);
-                canvas.addEventListener('mouseup', cancelPress);
-                canvas.addEventListener('mouseleave', cancelPress);
-                canvas.addEventListener('touchend', cancelPress);
-                canvas.addEventListener('touchmove', cancelPress);
-                
-                // Clic derecho nativo
-                canvas.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    cancelPress();
-                    appLogic.showContextMenu(e.clientX, e.clientY);
-                });
-            },
-
-            showContextMenu: (x, y) => {
-                const menu = document.getElementById('component-context-menu');
-                menu.style.display = 'block';
-                menu.style.left = `${x}px`;
-                menu.style.top = `${y}px`;
-                
-                // Placeholder HTML para propiedades
-                document.getElementById('ctx-body').innerHTML = `
-                    <label class="text-xs text-gray-400">Capacitancia (µF)</label>
-                    <input type="number" class="input-glass" value="10">
-                    <label class="text-xs text-gray-400 mt-2">Dieléctrico (K)</label>
-                    <select class="input-glass"><option>Vacío (1.0)</option><option>Papel (3.7)</option></select>
-                `;
-            },
-
-            hideContextMenu: () => {
-                document.getElementById('component-context-menu').style.display = 'none';
-            },
-
-            deleteSelectedComponent: () => {
-                appLogic.hideContextMenu();
-                // Fase 2: Eliminar del array
-            },
-
-            rateApp: () => alert("¡Gracias por querer calificarnos! El sistema de estrellas se activará en la versión final.")
+            // Integración LMS: Notificar login exitoso
+            notifyLMS('USER_AUTHENTICATED', { email: user.email, role: userRole });
         };
 
-        // 5. EVENT LISTENERS Y ARRANQUE
-        document.getElementById('btn-login-google').addEventListener('click', appLogic.loginGoogle);
-        
-        // Listener global para cerrar menú contextual
-        document.addEventListener('click', (e) => {
-            if(!e.target.closest('#component-context-menu') && e.target.tagName !== 'CANVAS') {
-                appLogic.hideContextMenu();
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                handleAuthAction(user);
+            } else {
+                currentUser = null;
+                userRole = 'invitado';
+                authBtn.textContent = 'Ingresar';
+                authBtn.classList.replace('bg-red-600', 'bg-blue-600');
+                authBtn.classList.replace('hover:bg-red-700', 'hover:bg-blue-700');
+                authBtn.classList.replace('shadow-red-500/30', 'shadow-blue-500/30');
+                networkStatus.innerHTML = `<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>`;
+                adminOverlay.classList.add('hidden');
+                roomContainer.classList.add('hidden');
             }
         });
 
-        // Suscripción de estado de autenticación
-        onAuthStateChanged(auth, appLogic.handleAuthState);
+        // Eventos Auth
+        authBtn.addEventListener('click', () => {
+            if(currentUser) signOut(auth);
+            else authModal.classList.remove('hidden');
+        });
 
-        // Inicializar iconos
-        feather.replace();
+        closeAuthModal.addEventListener('click', () => authModal.classList.add('hidden'));
+
+        btnGoogleLogin.addEventListener('click', async () => {
+            try {
+                await signInWithPopup(auth, googleProvider);
+            } catch (error) {
+                showError("Error en Google Auth: " + error.message);
+            }
+        });
+
+        emailAuthForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                    // Intento de registro si no existe
+                    try {
+                        await createUserWithEmailAndPassword(auth, email, password);
+                    } catch (regError) {
+                        showError("Error al registrar: " + regError.message);
+                    }
+                } else {
+                    showError(error.message);
+                }
+            }
+        });
+
+        // --- 3. UI, MODO OSCURO Y COMUNICACIÓN LMS ---
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        
+        themeToggle.addEventListener('click', () => {
+            html.classList.toggle('dark');
+            localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+        });
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            html.classList.add('dark');
+        }
+
+        // postMessage API para LMS (Moodle, Canvas, etc.)
+        function notifyLMS(type, data = {}) {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ app: 'Capacitance10', type, payload: data }, '*');
+            }
+        }
+        
+        // Notificar que la app cargó
+        window.addEventListener('load', () => {
+            notifyLMS('APP_READY');
+            initCanvas(); // Iniciar esqueleto del motor gráfico
+        });
+
+        // --- 4. ESQUELETO DEL MOTOR GRÁFICO (Preparación para Parte 2) ---
+        const canvas = document.getElementById('physicsCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvasContainer');
+
+        function initCanvas() {
+            resizeCanvas();
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvasContainer.clientWidth;
+            canvas.height = canvasContainer.clientHeight;
+            drawGrid(); // Render de prueba
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const isDark = html.classList.contains('dark');
+            ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+            ctx.lineWidth = 1;
+            const step = 20;
+            
+            ctx.beginPath();
+            for (let x = 0; x <= canvas.width; x += step) {
+                ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
+            }
+            for (let y = 0; y <= canvas.height; y += step) {
+                ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
+            }
+            ctx.stroke();
+
+            // Texto provisional central
+            ctx.fillStyle = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
+            ctx.font = '16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("Motor de Física (Análisis Nodal & Mallas) en espera de inyección...", canvas.width/2, canvas.height/2);
+        }
+
+        // Render matemático de prueba con KaTeX
+        const katexContainer = document.getElementById('katexContainer');
+        katex.render("C_{eq} = \\left( \\sum_{i=1}^n \\frac{1}{C_i} \\right)^{-1}", katexContainer, {
+            throwOnError: false, displayMode: true
+        });
+
+        // Lógica de herramientas (Selección visual)
+        document.querySelectorAll('.tool-icon').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.tool-icon').forEach(b => b.classList.remove('bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400'));
+                const target = e.currentTarget;
+                target.classList.add('bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400');
+                // state.currentTool = target.dataset.tool; // Se usará en Parte 2
+            });
+        });
+
+        // Iniciar redimensionamiento
+        setTimeout(resizeCanvas, 100);
 
     </script>
 </body>
