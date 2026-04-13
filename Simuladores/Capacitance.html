@@ -191,13 +191,23 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid var(--glass-border)}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getDatabase, ref, set, get, push, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
 const firebaseConfig = { apiKey:"AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA", authDomain:"laboratorio-de-coulomb.firebaseapp.com", databaseURL:"https://laboratorio-de-coulomb-default-rtdb.firebaseio.com", projectId:"laboratorio-de-coulomb", storageBucket:"laboratorio-de-coulomb.firebasestorage.app", messagingSenderId:"525944850850", appId:"1:525944850850:web:eca9c0b79809358e8d8afb" };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const rtdb = getDatabase(app);
 const auth = getAuth(app);
+
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'capacitance10';
+
+// Inicializar token de autenticación si existe en el entorno
+const initAuth = async () => {
+    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        try { await signInWithCustomToken(auth, __initial_auth_token); } catch(e) {}
+    }
+};
+initAuth();
 
 // ==========================================
 // 2. ESTADO GLOBAL & UTILIDADES MINIFICADAS
@@ -219,13 +229,14 @@ onAuthStateChanged(auth, async u => {
     st.user = u;
     if(u) {
         modal('modal-auth', false);
-        let d = await getDoc(doc(db, `usuarios_capacitores/${u.uid}/perfil`));
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid);
+        let d = await getDoc(userRef);
         if(!d.exists()){
             st.profile = { nombre:u.displayName||u.email, alias:u.email.split('@')[0], rol:u.email==='dudbilopr@gmail.com'?'Admin':'Estudiante', puntos:0, nivel:1, avatar:'ph-user' };
-            await setDoc(doc(db, `usuarios_capacitores/${u.uid}/perfil`), st.profile);
+            await setDoc(userRef, st.profile);
         } else st.profile = d.data();
-        $('btn-admin').style.display = st.profile.rol==='Admin' ? 'block' : 'none';
-        toast(`Bienvenido ${st.profile.alias}`);
+        $('btn-admin').style.display = st.profile?.rol==='Admin' ? 'block' : 'none';
+        toast(`Bienvenido ${st.profile?.alias || 'Usuario'}`);
     } else {
         st.profile = null;
         $('btn-admin').style.display = 'none';
@@ -246,7 +257,10 @@ $('btn-login-email').onclick = async () => {
 
 $('btn-login-google').onclick = async () => {
     try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-    catch(e) { toast("Error COOP/Popup. Use Email/Clave."); console.error(e); }
+    catch(e) { 
+        toast("Google bloqueado por seguridad (COOP). Por favor, usa Correo y Contraseña."); 
+        console.error("Popup bloqueado por política COOP:", e); 
+    }
 };
 $('btn-logout').onclick = () => { signOut(auth); modal('modal-profile', false); if(st.room) leaveRoom(); };
 
@@ -256,7 +270,7 @@ $('btn-logout').onclick = () => { signOut(auth); modal('modal-profile', false); 
 $$('.close-btn').forEach(b => b.onclick = (e) => e.target.closest('.modal-overlay').classList.remove('active'));
 $('btn-theme').onclick = () => { document.body.classList.toggle('dark'); document.body.classList.toggle('light'); st.theme = document.body.classList.contains('dark') ? 'dark' : 'light'; };
 $('btn-profile').onclick = () => {
-    if(!st.user) return toast('Inicia sesión');
+    if(!st.user || !st.profile) return toast('Inicia sesión o espera a que cargue el perfil');
     $('prof-name').innerText = st.profile.nombre;
     $('prof-role').innerText = st.profile.rol;
     $('prof-level').innerText = st.profile.nivel;
@@ -267,7 +281,7 @@ $('btn-profile').onclick = () => {
 $('btn-save-profile').onclick = async () => {
     if(!auth.currentUser) return;
     st.profile.alias = $('prof-alias-input').value;
-    await updateDoc(doc(db, `usuarios_capacitores/${st.user.uid}/perfil`), {alias:st.profile.alias});
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', st.user.uid), {alias:st.profile.alias});
     toast('Perfil guardado'); modal('modal-profile', false);
 };
 
@@ -322,8 +336,6 @@ const syncState = () => {
 // 6. MOTOR DEL SIMULADOR & CANVAS
 // ==========================================
 const cv = $('sim'); const ctx = cv.getContext('2d');
-const resize = () => { cv.width = cv.parentElement.clientWidth; cv.height = cv.parentElement.clientHeight; render(); };
-window.addEventListener('resize', resize); resize();
 
 $$('.tool-btn[data-tool]').forEach(b => b.onclick = (e) => {
     $$('.tool-btn').forEach(btn=>btn.classList.remove('active'));
@@ -576,14 +588,14 @@ $('btn-solve').onclick = () => {
     });
     html += '</table>'; tb.innerHTML = html; render(); syncState();
 
-    if(allOk) {
-        toast('¡Circuito resuelto con éxito! +10 puntos');
-        updateDoc(doc(db, `usuarios_capacitores/${st.user.uid}/perfil`), { puntos: increment(10) });
-        // API PostMessage
-        window.parent.postMessage({ type: 'PROGRESS_UPDATE', lesson: 'capacitores', completed: true, score: 100 }, '*');
-    } else {
-        toast('Fallo crítico en componentes. Revisa las especificaciones.');
-    }
+if(allOk) {
+    toast('¡Circuito resuelto con éxito! +10 puntos');
+    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', st.user.uid), { puntos: increment(10) });
+    // API PostMessage
+    window.parent.postMessage({ type: 'PROGRESS_UPDATE', lesson: 'capacitores', completed: true, score: 100 }, '*');
+} else {
+    toast('Fallo crítico en componentes. Revisa las especificaciones.');
+}
 };
 
 const triggerExplosion = (x,y) => {
@@ -596,7 +608,7 @@ const triggerExplosion = (x,y) => {
 // ==========================================
 $('btn-admin').onclick = async () => {
     if(st.profile?.rol !== 'Admin') return;
-    const q = await getDocs(collection(db, 'usuarios_capacitores'));
+    const q = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
     const tb = $('admin-table').querySelector('tbody'); tb.innerHTML = '';
     q.forEach(d => {
         let u = d.data();
@@ -611,12 +623,14 @@ $$('#star-rating i').forEach(s => s.onclick = (e) => {
     $$('#star-rating i').forEach(i => i.classList[parseInt(i.dataset.val)<=val?'add':'remove']('ph-fill'));
 });
 $('btn-submit-rate').onclick = async () => {
-    if(auth.currentUser) await setDoc(doc(db, 'ratings', st.user.uid), { ts:Date.now() }, {merge:true});
+    if(auth.currentUser) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'ratings', st.user.uid), { ts:Date.now() }, {merge:true});
     toast('¡Gracias por calificar!'); modal('modal-rate', false);
 };
 
 // Init
-render();
+const resize = () => { cv.width = cv.parentElement.clientWidth; cv.height = cv.parentElement.clientHeight; render(); };
+window.addEventListener('resize', resize);
+resize(); 
 </script>
 </body>
 </html>
