@@ -576,7 +576,7 @@ window.dupComp=()=>{$('#ctxMenu').style.display='none';if(!selComp)return;const 
 window.delComp=()=>{$('#ctxMenu').style.display='none';if(!selComp)return;removeComponent(selComp);selComp=null;render()};
 
 // Undo/Redo
-function saveState(){const s=JSON.stringify({components:components.map(c=>({...c,nodes:[]})),wires});history=history.slice(0,histIdx+1);history.push(s);histIdx=history.length-1;if(history.length>50){history.shift();histIdx--}}
+let saveState=()=>{const s=JSON.stringify({components:components.map(c=>({...c,nodes:[]})),wires});history=history.slice(0,histIdx+1);history.push(s);histIdx=history.length-1;if(history.length>50){history.shift();histIdx--}};
 window.undo=()=>{if(histIdx<=0)return;histIdx--;restoreState(history[histIdx])};
 window.redo=()=>{if(histIdx>=history.length-1)return;histIdx++;restoreState(history[histIdx])};
 function restoreState(s){const d=JSON.parse(s);components=d.components;components.forEach(c=>{c.nodes=getNodes(c)});wires=d.wires;render()}
@@ -845,8 +845,8 @@ const s=JSON.stringify({components:components.map(c=>({...c,nodes:[]})),wires});
 set(ref(db,`salas_capacitores/${curRoom}/state`),s);
 }
 // Override saveState to also sync
-const origSave=saveState;
-function saveState(){const s=JSON.stringify({components:components.map(c=>({...c,nodes:[]})),wires});history=history.slice(0,histIdx+1);history.push(s);histIdx=history.length-1;if(history.length>50){history.shift();histIdx--}syncToRoom()}
+const _origSave=saveState;
+saveState=()=>{_origSave();syncToRoom()};
 
 // ============ GUIDE ============
 window.showGuide=()=>{
