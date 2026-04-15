@@ -369,8 +369,7 @@ tr:hover td { background:rgba(255,255,255,0.05); }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getDatabase, ref, set, get, push, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-// ✅ IMPORTANTE: Se han importado signInWithRedirect y getRedirectResult
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
 // Híbrido: Detectar si estamos en un entorno inyectado o usamos las credenciales quemadas
 let firebaseConfig;
@@ -386,14 +385,11 @@ const rtdb = getDatabase(app);
 const auth = getAuth(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'capacitance10';
 
-// ✅ EVALUAR REDIRECCIONES PENDIENTES AL CARGAR LA PÁGINA
+// ✅ EVALUAR REDIRECCIONES AL CARGAR (Captura el login de Google)
 getRedirectResult(auth).then(result => {
-    if (result) {
-        toast("Autenticación con Google completada exitosamente.");
-    }
+    if (result) toast("Autenticación con Google completada exitosamente.");
 }).catch(error => {
     console.error("Error en redirección de Google:", error);
-    toast("Ocurrió un error al volver de Google.");
 });
 
 const initAuth = async () => {
@@ -498,45 +494,57 @@ $('btn-add-tab').onclick = () => {
 
 onAuthStateChanged(auth, async u => {
     st.user = u;
-    // 🔒 REGLA ESTRICTA DE PRODUCCIÓN:
-    // Se bloquea el acceso a sesiones anónimas o tokens automáticos de entornos de prueba.
-    // Solo se oculta el Login y se da acceso a la App si el usuario tiene un correo válido.
+    // 🔒 REGLA ESTRICTA: Solo si hay usuario y tiene correo electrónico
     if(u && u.email) {
         modal('modal-auth', false);
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'directory', u.uid);
         try {
             let d = await getDoc(userRef);
+            let emailSafe = u.email; 
+            let aliasBase = emailSafe.split('@')[0];
+            let isAdmin = (emailSafe === 'dudbilopr@gmail.com');
+            
+            let defaultProfile = { 
+                nombre: u.displayName || aliasBase, 
+                alias: aliasBase, 
+                rol: isAdmin ? 'Admin' : 'Estudiante', 
+                puntos: 0, 
+                nivel: 1, 
+                avatar: 'ph-user-circle', 
+                edad: '', 
+                carrera: '' 
+            };
+
             if(!d.exists()){
-                // Como pasó el filtro estricto, es 100% seguro usar u.email
-                let emailSafe = u.email; 
-                let aliasBase = emailSafe.split('@')[0];
-                
-                // Llave Maestra Absoluta - Solo este correo será Admin
-                let isAdmin = (emailSafe === 'dudbilopr@gmail.com');
-                
-                st.profile = { 
-                    nombre: u.displayName || aliasBase, 
-                    alias: aliasBase, 
-                    rol: isAdmin ? 'Admin' : 'Estudiante', 
-                    puntos: 0, 
-                    nivel: 1, 
-                    avatar: 'ph-user-circle', 
-                    edad: '', 
-                    carrera: '' 
-                };
+                st.profile = defaultProfile;
                 await setDoc(userRef, st.profile);
             } else {
-                st.profile = d.data();
+                let data = d.data();
+                // 🛡️ AUTO-SANADOR DE BASE DE DATOS: Limpia valores 'undefined' corruptos
+                st.profile = {
+                    nombre: (data.nombre && data.nombre !== 'undefined') ? data.nombre : defaultProfile.nombre,
+                    alias: (data.alias && data.alias !== 'undefined') ? data.alias : defaultProfile.alias,
+                    rol: data.rol || defaultProfile.rol,
+                    puntos: data.puntos || 0,
+                    nivel: data.nivel || 1,
+                    avatar: data.avatar || 'ph-user-circle',
+                    edad: data.edad || '',
+                    carrera: data.carrera || ''
+                };
+                // Si estaba corrupto en la DB, lo sobreescribimos y arreglamos permanentemente
+                if(!data.nombre || String(data.nombre) === 'undefined') {
+                    await setDoc(userRef, st.profile, {merge: true});
+                }
             }
+            
             $('btn-admin').style.display = st.profile?.rol==='Admin' ? 'block' : 'none';
-            toast(`Bienvenido Investigador ${st.profile?.alias || 'Usuario'}`); 
+            toast(`Bienvenido Investigador ${st.profile.alias}`); 
             renderTabs();
         } catch (error) {
             console.error("Error crítico de Firestore:", error);
             toast("Error de sincronización con el servidor central.");
         }
     } else { 
-        // Si no está logueado, O está logueado pero SIN correo (anónimo/token de prueba), bloqueamos la UI.
         st.profile = null; 
         $('btn-admin').style.display = 'none'; 
         modal('modal-auth', true); 
@@ -548,21 +556,14 @@ $('btn-login-email').onclick = async () => {
     try { await signInWithEmailAndPassword(auth, e, p); } catch(err) { if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') { try { await createUserWithEmailAndPassword(auth, e, p); } catch(ex) { toast(ex.message); } } else toast(err.message); }
 };
 
-// ✅ LOGIN GOOGLE HÍBRIDO (A PRUEBA DE ERRORES COOP)
-$('btn-login-google').onclick = async () => { 
+// ✅ SOLUCIÓN PERFECTA GOOGLE SSO: Redirección pura con selección forzada de cuenta
+$('btn-login-google').onclick = () => { 
     const provider = new GoogleAuthProvider();
-    try { 
-        await signInWithPopup(auth, provider); 
-    } catch(e) { 
-        console.warn("Fallo en Popup (Probable política COOP). Aplicando contingencia...", e);
-        // Si el navegador o el iframe bloquea el popup, forzamos redirección completa.
-        if(e.message.includes('Cross-Origin') || e.code === 'auth/popup-blocked') {
-            toast("Seguridad del navegador detectada. Redirigiendo a Google...");
-            signInWithRedirect(auth, provider);
-        } else {
-            toast("Google SSO no disponible. Intenta con tu correo institucional."); 
-        }
-    } 
+    // Obliga a Google a mostrar la pantalla de elegir cuenta siempre
+    provider.setCustomParameters({ prompt: 'select_account' });
+    toast("Redirigiendo de forma segura a Google...");
+    // Evita el error COOP de window.closed realizando una redirección nativa
+    signInWithRedirect(auth, provider);
 };
 
 $('btn-logout').onclick = () => { signOut(auth); modal('modal-profile', false); if(st.room) leaveRoom(); };
@@ -576,12 +577,22 @@ $('btn-theme').onclick = () => {
     render(); 
 };
 
-// Profile Update
+// Profile Update (Visualización Segura)
 $('btn-profile').onclick = () => {
     if(!st.user || !st.profile) return toast('Inicia sesión');
-    $('prof-name').innerText = st.profile.nombre; $('prof-role').innerText = st.profile.rol; $('prof-level').innerText = st.profile.nivel; $('prof-points').innerText = st.profile.puntos;
-    $('prof-alias-input').value = st.profile.alias || ''; $('prof-edad-input').value = st.profile.edad || ''; $('prof-carrera-input').value = st.profile.carrera || ''; $('prof-avatar-select').value = st.profile.avatar || 'ph-user-circle';
-    $('prof-avatar-icon').innerHTML = `<i class="ph ${st.profile.avatar || 'ph-user-circle'}"></i>`; modal('modal-profile', true);
+    // 🛡️ Fallbacks visuales para asegurar que NUNCA diga 'undefined' en pantalla
+    $('prof-name').innerText = st.profile.nombre || 'Investigador'; 
+    $('prof-role').innerText = st.profile.rol || 'Estudiante'; 
+    $('prof-level').innerText = st.profile.nivel || 1; 
+    $('prof-points').innerText = st.profile.puntos || 0;
+    
+    $('prof-alias-input').value = st.profile.alias || ''; 
+    $('prof-edad-input').value = st.profile.edad || ''; 
+    $('prof-carrera-input').value = st.profile.carrera || ''; 
+    $('prof-avatar-select').value = st.profile.avatar || 'ph-user-circle';
+    $('prof-avatar-icon').innerHTML = `<i class="ph ${st.profile.avatar || 'ph-user-circle'}"></i>`; 
+    
+    modal('modal-profile', true);
 };
 $('prof-avatar-select').onchange = e => { $('prof-avatar-icon').innerHTML = `<i class="ph ${e.target.value}"></i>`; };
 $('btn-save-profile').onclick = async () => {
