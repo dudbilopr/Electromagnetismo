@@ -369,7 +369,8 @@ tr:hover td { background:rgba(255,255,255,0.05); }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getDatabase, ref, set, get, push, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+// ✅ IMPORTANTE: Se han importado signInWithRedirect y getRedirectResult
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
 // Híbrido: Detectar si estamos en un entorno inyectado o usamos las credenciales quemadas
 let firebaseConfig;
@@ -384,6 +385,16 @@ const db = getFirestore(app);
 const rtdb = getDatabase(app);
 const auth = getAuth(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'capacitance10';
+
+// ✅ EVALUAR REDIRECCIONES PENDIENTES AL CARGAR LA PÁGINA
+getRedirectResult(auth).then(result => {
+    if (result) {
+        toast("Autenticación con Google completada exitosamente.");
+    }
+}).catch(error => {
+    console.error("Error en redirección de Google:", error);
+    toast("Ocurrió un error al volver de Google.");
+});
 
 const initAuth = async () => {
     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -536,7 +547,24 @@ $('btn-login-email').onclick = async () => {
     const e = $('auth-email').value, p = $('auth-pass').value; if(!e||!p) return toast('Llene campos');
     try { await signInWithEmailAndPassword(auth, e, p); } catch(err) { if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') { try { await createUserWithEmailAndPassword(auth, e, p); } catch(ex) { toast(ex.message); } } else toast(err.message); }
 };
-$('btn-login-google').onclick = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch(e) { toast("Google SSO detectó un problema de configuración o red."); } };
+
+// ✅ LOGIN GOOGLE HÍBRIDO (A PRUEBA DE ERRORES COOP)
+$('btn-login-google').onclick = async () => { 
+    const provider = new GoogleAuthProvider();
+    try { 
+        await signInWithPopup(auth, provider); 
+    } catch(e) { 
+        console.warn("Fallo en Popup (Probable política COOP). Aplicando contingencia...", e);
+        // Si el navegador o el iframe bloquea el popup, forzamos redirección completa.
+        if(e.message.includes('Cross-Origin') || e.code === 'auth/popup-blocked') {
+            toast("Seguridad del navegador detectada. Redirigiendo a Google...");
+            signInWithRedirect(auth, provider);
+        } else {
+            toast("Google SSO no disponible. Intenta con tu correo institucional."); 
+        }
+    } 
+};
+
 $('btn-logout').onclick = () => { signOut(auth); modal('modal-profile', false); if(st.room) leaveRoom(); };
 
 $$('.close-btn').forEach(b => b.onclick = (e) => { let m = e.target.closest('.modal-overlay'); if(m) m.classList.remove('active'); });
