@@ -235,7 +235,6 @@ tr:hover td { background:rgba(255,255,255,0.05); }
 <!-- Nuevo Modal de Login Premium SaaS Style -->
 <div class="modal-overlay" id="modal-auth">
     <div class="modal" style="width: 850px; max-width: 95%; flex-direction: row; padding: 0; overflow: hidden;">
-        <button class="close-btn" style="position: absolute; right: 16px; top: 16px; z-index: 10;" onclick="$('modal-auth').classList.remove('active')"><i class="ph ph-x"></i></button>
         
         <div style="flex: 1; background: linear-gradient(135deg, var(--accent), #3b82f6); color: white; padding: 48px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
             <div style="background:rgba(255,255,255,0.2); padding:20px; border-radius:50%; margin-bottom:24px; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
@@ -365,14 +364,21 @@ tr:hover td { background:rgba(255,255,255,0.05); }
 
 <script type="module">
 // ==========================================
-// 1. IMPORTACIONES & CONFIG FIREBASE
+// 1. IMPORTACIONES & CONFIG FIREBASE CORREGIDA
 // ==========================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getDatabase, ref, set, get, push, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-const firebaseConfig = { apiKey:"AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA", authDomain:"laboratorio-de-coulomb.firebaseapp.com", databaseURL:"https://laboratorio-de-coulomb-default-rtdb.firebaseio.com", projectId:"laboratorio-de-coulomb", storageBucket:"laboratorio-de-coulomb.firebasestorage.app", messagingSenderId:"525944850850", appId:"1:525944850850:web:eca9c0b79809358e8d8afb" };
+// Híbrido: Detectar si estamos en un entorno inyectado o usamos las credenciales quemadas
+let firebaseConfig;
+if (typeof __firebase_config !== 'undefined') {
+    firebaseConfig = JSON.parse(__firebase_config);
+} else {
+    firebaseConfig = { apiKey:"AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA", authDomain:"laboratorio-de-coulomb.firebaseapp.com", databaseURL:"https://laboratorio-de-coulomb-default-rtdb.firebaseio.com", projectId:"laboratorio-de-coulomb", storageBucket:"laboratorio-de-coulomb.firebasestorage.app", messagingSenderId:"525944850850", appId:"1:525944850850:web:eca9c0b79809358e8d8afb" };
+}
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const rtdb = getDatabase(app);
@@ -381,7 +387,7 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'capacitance10';
 
 const initAuth = async () => {
     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        try { await signInWithCustomToken(auth, __initial_auth_token); } catch(e) {}
+        try { await signInWithCustomToken(auth, __initial_auth_token); } catch(e) { console.error("Error Auth Token:", e); }
     }
 };
 initAuth();
@@ -457,7 +463,7 @@ makeDraggable($('props-window'), $('props-header'));
 makeDraggable($('math-window'), $('math-header'));
 
 // ==========================================
-// TABS, AUTH & ADVANCED ROOM SYNC
+// TABS & AUTH CORREGIDO PARA ESTADISTICAS
 // ==========================================
 const renderTabs = () => {
     const bar = $('tabs-bar'); const addBtn = $('btn-add-tab'); bar.innerHTML = '';
@@ -473,6 +479,7 @@ const renderTabs = () => {
     });
     bar.appendChild(addBtn);
 };
+
 $('btn-add-tab').onclick = () => {
     let newTab = { id: uid(), name: `Circuito ${st.tabs.length+1}`, comps: [], wires: [], nodes: [], pan:{x:0, y:0}, zoom:1, circuitStates:[], currentViewIdx:-1 };
     st.tabs.push(newTab); st.activeTabId = newTab.id; st.sel = []; renderTabs(); syncState(); render();
@@ -480,24 +487,56 @@ $('btn-add-tab').onclick = () => {
 
 onAuthStateChanged(auth, async u => {
     st.user = u;
-    if(u) {
+    // 🔒 REGLA ESTRICTA DE PRODUCCIÓN:
+    // Se bloquea el acceso a sesiones anónimas o tokens automáticos de entornos de prueba.
+    // Solo se oculta el Login y se da acceso a la App si el usuario tiene un correo válido.
+    if(u && u.email) {
         modal('modal-auth', false);
-        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', u.uid);
-        let d = await getDoc(userRef);
-        if(!d.exists()){
-            st.profile = { nombre:u.displayName||u.email, alias:u.email.split('@')[0], rol:u.email==='dudbilopr@gmail.com'?'Admin':'Estudiante', puntos:0, nivel:1, avatar:'ph-user-circle', edad:'', carrera:'' };
-            await setDoc(userRef, st.profile);
-        } else st.profile = d.data();
-        $('btn-admin').style.display = st.profile?.rol==='Admin' ? 'block' : 'none';
-        toast(`Bienvenido Investigador ${st.profile?.alias || 'Usuario'}`); renderTabs();
-    } else { st.profile = null; $('btn-admin').style.display = 'none'; modal('modal-auth', true); }
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'directory', u.uid);
+        try {
+            let d = await getDoc(userRef);
+            if(!d.exists()){
+                // Como pasó el filtro estricto, es 100% seguro usar u.email
+                let emailSafe = u.email; 
+                let aliasBase = emailSafe.split('@')[0];
+                
+                // Llave Maestra Absoluta - Solo este correo será Admin
+                let isAdmin = (emailSafe === 'dudbilopr@gmail.com');
+                
+                st.profile = { 
+                    nombre: u.displayName || aliasBase, 
+                    alias: aliasBase, 
+                    rol: isAdmin ? 'Admin' : 'Estudiante', 
+                    puntos: 0, 
+                    nivel: 1, 
+                    avatar: 'ph-user-circle', 
+                    edad: '', 
+                    carrera: '' 
+                };
+                await setDoc(userRef, st.profile);
+            } else {
+                st.profile = d.data();
+            }
+            $('btn-admin').style.display = st.profile?.rol==='Admin' ? 'block' : 'none';
+            toast(`Bienvenido Investigador ${st.profile?.alias || 'Usuario'}`); 
+            renderTabs();
+        } catch (error) {
+            console.error("Error crítico de Firestore:", error);
+            toast("Error de sincronización con el servidor central.");
+        }
+    } else { 
+        // Si no está logueado, O está logueado pero SIN correo (anónimo/token de prueba), bloqueamos la UI.
+        st.profile = null; 
+        $('btn-admin').style.display = 'none'; 
+        modal('modal-auth', true); 
+    }
 });
 
 $('btn-login-email').onclick = async () => {
     const e = $('auth-email').value, p = $('auth-pass').value; if(!e||!p) return toast('Llene campos');
     try { await signInWithEmailAndPassword(auth, e, p); } catch(err) { if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') { try { await createUserWithEmailAndPassword(auth, e, p); } catch(ex) { toast(ex.message); } } else toast(err.message); }
 };
-$('btn-login-google').onclick = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch(e) { toast("Google bloqueado (COOP). Usa Correo/Contraseña."); } };
+$('btn-login-google').onclick = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch(e) { toast("Google SSO detectó un problema de configuración o red."); } };
 $('btn-logout').onclick = () => { signOut(auth); modal('modal-profile', false); if(st.room) leaveRoom(); };
 
 $$('.close-btn').forEach(b => b.onclick = (e) => { let m = e.target.closest('.modal-overlay'); if(m) m.classList.remove('active'); });
@@ -520,7 +559,7 @@ $('prof-avatar-select').onchange = e => { $('prof-avatar-icon').innerHTML = `<i 
 $('btn-save-profile').onclick = async () => {
     if(!auth.currentUser) return;
     st.profile.alias = $('prof-alias-input').value; st.profile.edad = $('prof-edad-input').value; st.profile.carrera = $('prof-carrera-input').value; st.profile.avatar = $('prof-avatar-select').value;
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', st.user.uid), { alias: st.profile.alias, edad: st.profile.edad, carrera: st.profile.carrera, avatar: st.profile.avatar });
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'directory', st.user.uid), { alias: st.profile.alias, edad: st.profile.edad, carrera: st.profile.carrera, avatar: st.profile.avatar });
     toast('Perfil guardado con éxito'); modal('modal-profile', false);
 };
 
@@ -1185,7 +1224,7 @@ $('btn-solve').onclick = () => {
 
     if(allOk) {
         toast('¡Circuito simulado con éxito!');
-        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', st.user.uid), { puntos: increment(10) });
+        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'directory', st.user.uid), { puntos: increment(10) });
         window.parent.postMessage({ type: 'PROGRESS_UPDATE', lesson: 'capacitores', completed: true, score: 100 }, '*');
     } else toast('¡SISTEMA DETENIDO! Explosión detectada por Polaridad Inversa o Sobrevoltaje.');
 };
@@ -1193,20 +1232,64 @@ $('btn-solve').onclick = () => {
 const triggerExplosion = (x,y) => { for(let i=0;i<25;i++) st.particles.push({x,y,vx:(Math.random()-0.5)*12,vy:(Math.random()-0.5)*12,r:Math.random()*6+2,c: Math.random()>0.5?'#f59e0b':'#ef4444',a:1}); requestAnimationFrame(render); };
 
 // ==========================================
-// 8. ADMIN DASHBOARD Y SISTEMA DE ESTRELLAS
+// 8. ADMIN DASHBOARD - CORREGIDO
 // ==========================================
 $('btn-admin').onclick = async () => {
-    if(st.profile?.rol !== 'Admin') return;
-    modal('modal-admin', true); toast('Analizando Data...');
-    const qUsr = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
-    let totalUsr = 0, sumPts = 0; const tb = $('admin-table').querySelector('tbody'); tb.innerHTML = '';
-    qUsr.forEach(d => { let u = d.data(); totalUsr++; sumPts += (u.puntos||0); tb.innerHTML += `<tr><td>${u.nombre}</td><td>${u.alias||'-'}</td><td>${u.carrera||'-'}</td><td>${u.edad||'-'}</td><td><span style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:12px; font-size:0.7rem;">${u.rol}</span></td><td><b>${u.puntos||0}</b></td></tr>`; });
-    $('dash-tot-usr').innerText = totalUsr; $('dash-avg-pts').innerText = totalUsr>0 ? Math.round(sumPts/totalUsr) : 0;
+    if(st.profile?.rol !== 'Admin') {
+        toast('Acceso denegado. Se requiere nivel de Administrador.');
+        return;
+    }
+    modal('modal-admin', true); 
+    toast('Analizando Data...');
 
-    const qRtg = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'ratings'));
-    let totalRtg = 0, sumStars = 0;
-    qRtg.forEach(d => { let r = d.data(); totalRtg++; sumStars += ((r.q_ease||5) + (r.q_pedagogy||5) + (r.q_stability||5)) / 3; });
-    $('dash-tot-rtg').innerText = totalRtg; $('dash-avg-star').innerText = totalRtg>0 ? (sumStars/totalRtg).toFixed(1) + ' ★' : 'N/A';
+    try {
+        const tb = $('admin-table').querySelector('tbody'); 
+        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;">Analizando servidores y recopilando métricas...</td></tr>';
+        
+        const qUsr = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'directory'));
+        let totalUsr = 0, sumPts = 0; 
+        tb.innerHTML = ''; // Limpiar el estado de "Cargando"
+
+        if (qUsr.empty) {
+            tb.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No hay investigadores en la base de datos.</td></tr>';
+        } else {
+            qUsr.forEach(d => { 
+                let u = d.data(); 
+                totalUsr++; 
+                sumPts += (u.puntos||0); 
+                tb.innerHTML += `<tr>
+                    <td>${u.nombre || 'Anónimo'}</td>
+                    <td>${u.alias||'-'}</td>
+                    <td>${u.carrera||'-'}</td>
+                    <td>${u.edad||'-'}</td>
+                    <td><span style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:12px; font-size:0.7rem;">${u.rol||'Estudiante'}</span></td>
+                    <td><b>${u.puntos||0}</b></td>
+                </tr>`; 
+            });
+        }
+        $('dash-tot-usr').innerText = totalUsr; 
+        $('dash-avg-pts').innerText = totalUsr > 0 ? Math.round(sumPts/totalUsr) : 0;
+
+        const qRtg = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'reviews'));
+        let totalRtg = 0, sumStars = 0;
+        if (!qRtg.empty) {
+            qRtg.forEach(d => { 
+                let r = d.data(); 
+                totalRtg++; 
+                sumStars += ((r.q_ease||5) + (r.q_pedagogy||5) + (r.q_stability||5)) / 3; 
+            });
+        }
+        $('dash-tot-rtg').innerText = totalRtg; 
+        $('dash-avg-star').innerText = totalRtg > 0 ? (sumStars/totalRtg).toFixed(1) + ' ★' : 'N/A';
+
+    } catch (error) {
+        console.error("Fallo de Permisos en Firestore (Admin):", error);
+        toast('Fallo de permisos. Revisa las reglas de Firestore de tu proyecto.');
+        $('admin-table').querySelector('tbody').innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--danger); padding:20px;">
+            <b>Error de Base de Datos:</b> No tienes permisos para leer la colección.<br>
+            <span style="font-size:0.8rem; opacity:0.8;">Configura las Security Rules de Firestore.</span>
+        </td></tr>`;
+    }
 };
 
 $('btn-rate').onclick = () => modal('modal-rate', true);
@@ -1216,7 +1299,7 @@ $$('.star-group i').forEach(s => s.onclick = (e) => {
 });
 $('btn-submit-rate').onclick = async () => {
     if(!auth.currentUser) return toast('Debe iniciar sesión para evaluar');
-    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'ratings', st.user.uid), { 
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'reviews', st.user.uid), { 
         ts:Date.now(), uid: st.user.uid, alias: st.profile.alias, 
         q_ease: parseInt($('.star-group[data-id="q_ease"]').dataset.rating || 5), q_pedagogy: parseInt($('.star-group[data-id="q_pedagogy"]').dataset.rating || 5), q_stability: parseInt($('.star-group[data-id="q_stability"]').dataset.rating || 5), comment: $('rate-comment').value
     }, {merge:true});
