@@ -372,14 +372,15 @@
                             </div>
                             
                             <!-- NUEVO V4.7: Mapa de Solapamiento Curricular (Venn-Graph Didáctico) -->
-                            <div class="mt-12 glass-panel p-4 rounded-2xl flex flex-col items-center justify-center relative shadow-inner">
+                            <div class="mt-12 glass-panel p-4 rounded-2xl flex flex-col items-center justify-center relative shadow-inner overflow-hidden">
                                 <h4 class="font-bold text-sm mb-2 w-full text-left opacity-80 flex items-center gap-2"><i class="fa-solid fa-diagram-project text-blue-500"></i> Mapa de Solapamiento Curricular</h4>
                                 <p class="text-[10px] opacity-60 w-full text-left mb-6">Visualización didáctica estructurada. Las materias se alinean en 3 columnas mostrando qué comparte cada programa y qué los hace únicos.</p>
                                 
                                 <!-- Tarjetas Didácticas Superiores -->
                                 <div id="didactic-graph-header" class="w-full grid grid-cols-3 gap-4 mb-4 text-center"></div>
                                 
-                                <div id="curriculum-graph" class="w-full h-[550px]"></div>
+                                <!-- Se cambió h-[550px] por un min-h y transiciones para que el JS controle su alto dinámico -->
+                                <div id="curriculum-graph" class="w-full min-h-[550px] transition-all duration-500 ease-in-out"></div>
                             </div>
                         </div>
                     </div>
@@ -1521,18 +1522,33 @@
                 const uniqueA = subA.filter(m => !sharedSubjects.includes(m));
                 const uniqueB = subB.filter(m => !sharedSubjects.includes(m));
 
+                // CÁLCULO DE PORCENTAJES
+                const totalMateriasUnicas = uniqueA.length + sharedSubjects.length + uniqueB.length;
+                const pctA = totalMateriasUnicas ? Math.round((uniqueA.length / totalMateriasUnicas) * 100) : 0;
+                const pctShared = totalMateriasUnicas ? Math.round((sharedSubjects.length / totalMateriasUnicas) * 100) : 0;
+                const pctB = totalMateriasUnicas ? Math.round((uniqueB.length / totalMateriasUnicas) * 100) : 0;
+
                 header.innerHTML = `
                     <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-200 dark:border-blue-800">
                         <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Únicas de ${progA.nombre.substring(0,15)}...</p>
-                        <p class="text-2xl font-extrabold text-blue-600 dark:text-blue-400">${uniqueA.length}</p>
+                        <div class="flex items-end justify-center gap-2 mt-1">
+                            <p class="text-3xl font-extrabold text-blue-600 dark:text-blue-400">${uniqueA.length}</p>
+                            <p class="text-sm font-bold text-blue-500/70 mb-1">(${pctA}%)</p>
+                        </div>
                     </div>
                     <div class="bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-800 shadow-md transform scale-105">
                         <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Núcleo Compartido</p>
-                        <p class="text-3xl font-extrabold text-green-600 dark:text-green-400">${sharedSubjects.length}</p>
+                        <div class="flex items-end justify-center gap-2 mt-1">
+                            <p class="text-4xl font-extrabold text-green-600 dark:text-green-400">${sharedSubjects.length}</p>
+                            <p class="text-lg font-bold text-green-500/70 mb-1">(${pctShared}%)</p>
+                        </div>
                     </div>
                     <div class="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-xl border border-purple-200 dark:border-purple-800">
                         <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Únicas de ${progB.nombre.substring(0,15)}...</p>
-                        <p class="text-2xl font-extrabold text-purple-600 dark:text-purple-400">${uniqueB.length}</p>
+                        <div class="flex items-end justify-center gap-2 mt-1">
+                            <p class="text-3xl font-extrabold text-purple-600 dark:text-purple-400">${uniqueB.length}</p>
+                            <p class="text-sm font-bold text-purple-500/70 mb-1">(${pctB}%)</p>
+                        </div>
                     </div>
                 `;
             }
@@ -1570,10 +1586,22 @@
             processMalla(progA.malla, true);
             processMalla(progB.malla, false);
 
+            // CÁLCULO DE ALTO DINÁMICO PARA EVITAR SUPERPOSICIÓN
+            // Se garantiza al menos 40 pixeles de distancia vertical por cada materia
+            const maxNodes = Math.max(s_nodes.length, ua_nodes.length, ub_nodes.length, 1);
+            const containerHeight = Math.max(550, maxNodes * 40); 
+            container.style.height = `${containerHeight}px`;
+            curriculumGraphInstance.resize();
+
             const addNodeWithY = (list, xPos, color, parentId, isShared) => {
+                // Distribución centralizada equitativa
+                const spacing = 1000 / maxNodes;
+                const totalListHeight = list.length * spacing;
+                const startY = (1000 - totalListHeight) / 2 + (spacing / 2);
+
                 list.forEach((name, idx) => {
                     const matKey = name.toLowerCase().trim();
-                    const yPos = ((idx + 1) * (1000 / (list.length + 1))); 
+                    const yPos = startY + (idx * spacing); 
                     nodes.push({
                         id: `mat_${matKey}`,
                         name: name,
@@ -1581,14 +1609,21 @@
                         y: yPos,
                         symbolSize: isShared ? 25 : 12,
                         itemStyle: { color: color },
-                        label: { show: true, position: isShared ? 'top' : (xPos < 500 ? 'right' : 'left'), fontSize: 9, color: textColor }
+                        label: { 
+                            show: true, 
+                            position: isShared ? 'bottom' : (xPos < 500 ? 'right' : 'left'), 
+                            distance: 8, 
+                            fontSize: 10, 
+                            color: textColor, 
+                            formatter: '{b}' 
+                        }
                     });
                 });
             }
 
             addNodeWithY(s_nodes, 500, '#22c55e', null, true); 
-            addNodeWithY(ua_nodes, 200, '#93c5fd', 'progA', false); 
-            addNodeWithY(ub_nodes, 800, '#d8b4fe', 'progB', false); 
+            addNodeWithY(ua_nodes, 150, '#93c5fd', 'progA', false); // X ajustado para mejor legibilidad
+            addNodeWithY(ub_nodes, 850, '#d8b4fe', 'progB', false); // X ajustado para mejor legibilidad
 
             const createLinks = (malla, sourceId) => {
                 malla.forEach(per => {
@@ -1597,7 +1632,7 @@
                         links.push({
                             source: sourceId,
                             target: `mat_${matKey}`,
-                            lineStyle: { curveness: 0.2, color: sourceId === 'progA' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(168, 85, 247, 0.4)' }
+                            lineStyle: { curveness: 0.2, color: sourceId === 'progA' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(168, 85, 247, 0.4)', width: 2 }
                         });
                     });
                 });
