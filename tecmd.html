@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TECMD DataLab | Panel de Control</title>
+    
+    <!-- Tailwind CSS para estilos utilitarios y responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome para iconografía profesional (Sin emojis) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Fondo base oscuro/azulado elegante */
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #f8fafc;
+        }
+
+        /* Utilidad de Glassmorfismo (Efecto Cristal) */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-button {
+            background: rgba(59, 130, 246, 0.2);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .glass-button:hover {
+            background: rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* Scrollbar estilizado */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+        /* Transiciones de UI */
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="min-h-screen overflow-hidden flex flex-col">
+
+    <!-- PANTALLA DE LOGIN -->
+    <div id="login-view" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl p-8 w-full max-w-md fade-in relative overflow-hidden">
+            <!-- Elemento decorativo cristalino -->
+            <div class="absolute top-[-50px] right-[-50px] w-32 h-32 bg-blue-500 rounded-full mix-blend-multiply filter blur-2xl opacity-20"></div>
+            
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 rounded-full glass-panel flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-atom text-3xl text-blue-400"></i>
+                </div>
+                <h1 class="text-2xl font-bold tracking-wider">TECMD DataLab</h1>
+                <p class="text-gray-400 text-sm mt-2">Plataforma Analítica Educativa</p>
+            </div>
+
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-gray-400 uppercase tracking-wide mb-1">Correo Electrónico</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-envelope absolute left-3 top-3 text-gray-500"></i>
+                        <input type="email" id="email" class="w-full bg-gray-900 bg-opacity-50 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="usuario@institucion.edu" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 uppercase tracking-wide mb-1">Contraseña</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3 top-3 text-gray-500"></i>
+                        <input type="password" id="password" class="w-full bg-gray-900 bg-opacity-50 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <button type="submit" class="w-full glass-button font-semibold rounded-lg py-3 mt-4 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i> Ingresar al Sistema
+                </button>
+            </form>
+
+            <div class="mt-6 flex items-center justify-center gap-4">
+                <div class="h-px bg-gray-700 flex-1"></div>
+                <span class="text-xs text-gray-500 uppercase">O ingresar con</span>
+                <div class="h-px bg-gray-700 flex-1"></div>
+            </div>
+
+            <button id="google-login-btn" class="w-full mt-6 bg-white text-gray-900 font-semibold rounded-lg py-3 flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors">
+                <i class="fa-brands fa-google text-red-500"></i> Google Sign-In
+            </button>
+        </div>
+    </div>
+
+    <!-- PANTALLA PRINCIPAL DE LA APLICACIÓN (Oculta por defecto) -->
+    <div id="app-view" class="hidden flex-1 flex h-screen w-full relative">
+        
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="glass-panel w-64 h-full flex flex-col transition-transform duration-300 absolute md:relative z-40 transform -translate-x-full md:translate-x-0">
+            <div class="p-6 flex items-center gap-3 border-b border-gray-700 border-opacity-50">
+                <i class="fa-solid fa-atom text-2xl text-blue-400"></i>
+                <h2 class="font-bold text-lg tracking-wide">DataLab</h2>
+                <button id="close-sidebar" class="md:hidden ml-auto text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            
+            <nav class="flex-1 p-4 space-y-2 overflow-y-auto" id="nav-menu">
+                <a href="#" data-target="dashboard" class="nav-link block w-full text-left px-4 py-3 rounded-lg bg-blue-600 bg-opacity-20 text-blue-300 border border-blue-500 border-opacity-30 transition-colors">
+                    <i class="fa-solid fa-chart-pie w-6"></i> Métricas Globales
+                </a>
+                <a href="#" data-target="students" class="nav-link block w-full text-left px-4 py-3 rounded-lg text-gray-400 hover:bg-white hover:bg-opacity-5 transition-colors">
+                    <i class="fa-solid fa-users w-6"></i> Estudiantes y Prácticas
+                </a>
+                <a href="#" data-target="upload" class="nav-link block w-full text-left px-4 py-3 rounded-lg text-gray-400 hover:bg-white hover:bg-opacity-5 transition-colors admin-only">
+                    <i class="fa-solid fa-cloud-arrow-up w-6"></i> Carga de Datos
+                </a>
+                <a href="#" data-target="nlp" class="nav-link block w-full text-left px-4 py-3 rounded-lg text-gray-400 hover:bg-white hover:bg-opacity-5 transition-colors">
+                    <i class="fa-solid fa-brain w-6"></i> Análisis NLP & OCR
+                </a>
+            </nav>
+
+            <div class="p-4 border-t border-gray-700 border-opacity-50">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+                        <i class="fa-solid fa-user text-gray-400"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <p id="user-name" class="text-sm font-semibold truncate">Usuario</p>
+                        <p id="user-role" class="text-xs text-blue-400 truncate">Rol</p>
+                    </div>
+                </div>
+                <button id="logout-btn" class="w-full text-left px-4 py-2 rounded-lg text-red-400 hover:bg-red-500 hover:bg-opacity-10 transition-colors text-sm">
+                    <i class="fa-solid fa-sign-out-alt w-5"></i> Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+            
+            <!-- Top Header -->
+            <header class="glass-panel h-16 flex items-center justify-between px-6 z-30">
+                <button id="open-sidebar" class="md:hidden text-gray-300 hover:text-white">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+                <div class="ml-auto flex items-center gap-4">
+                    <span id="superadmin-badge" class="hidden bg-yellow-500 bg-opacity-20 text-yellow-300 border border-yellow-500 text-xs px-3 py-1 rounded-full font-bold">
+                        <i class="fa-solid fa-crown mr-1"></i> Super Admin
+                    </span>
+                    <button class="text-gray-400 hover:text-white transition-colors relative">
+                        <i class="fa-solid fa-bell"></i>
+                        <span class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Vistas Dinámicas -->
+            <div id="content-area" class="flex-1 overflow-y-auto p-6 relative">
+                
+                <!-- View: Dashboard -->
+                <div id="view-dashboard" class="view-section fade-in">
+                    <h2 class="text-2xl font-bold mb-6">Métricas de Progreso</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="glass-panel p-6 rounded-xl border-l-4 border-blue-500">
+                            <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wide">Prácticas Activas</h3>
+                            <p class="text-4xl font-bold mt-2">124</p>
+                            <p class="text-xs text-green-400 mt-2"><i class="fa-solid fa-arrow-trend-up"></i> +12% este mes</p>
+                        </div>
+                        <div class="glass-panel p-6 rounded-xl border-l-4 border-purple-500">
+                            <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wide">Entregables Recibidos</h3>
+                            <p class="text-4xl font-bold mt-2">856</p>
+                            <p class="text-xs text-gray-400 mt-2">Documentos en Drive</p>
+                        </div>
+                        <div class="glass-panel p-6 rounded-xl border-l-4 border-yellow-500">
+                            <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wide">Índice Originalidad Promedio</h3>
+                            <p class="text-4xl font-bold mt-2">92%</p>
+                            <p class="text-xs text-gray-400 mt-2">Análisis NLP completado</p>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-xl">
+                        <h3 class="font-semibold mb-4 text-gray-300">Conexiones Sociodemográficas (Vista Preliminar de Grafos)</h3>
+                        <div class="h-64 border border-gray-700 border-dashed rounded-lg flex items-center justify-center text-gray-500 flex-col">
+                            <i class="fa-solid fa-project-diagram text-4xl mb-3"></i>
+                            <p>Área reservada para renderizado de grafos (D3.js / Vis.js)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View: Students -->
+                <div id="view-students" class="view-section hidden fade-in">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">Seguimiento de Proyectos</h2>
+                        <div class="relative">
+                            <i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-500"></i>
+                            <input type="text" placeholder="Buscar estudiante..." class="bg-gray-900 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:border-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-xl overflow-hidden">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-800 bg-opacity-50 text-gray-400 text-sm uppercase tracking-wider">
+                                    <th class="p-4 border-b border-gray-700">Estudiante</th>
+                                    <th class="p-4 border-b border-gray-700">Tipo</th>
+                                    <th class="p-4 border-b border-gray-700">Empresa/Proyecto</th>
+                                    <th class="p-4 border-b border-gray-700">Progreso</th>
+                                    <th class="p-4 border-b border-gray-700">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm">
+                                <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+                                    <td class="p-4 border-b border-gray-700 border-opacity-50">Ana María López</td>
+                                    <td class="p-4 border-b border-gray-700 border-opacity-50"><span class="bg-blue-900 text-blue-300 px-2 py-1 rounded text-xs">Profesional</span></td>
+                                    <td class="p-4 border-b border-gray-700 border-opacity-50">TechCorp S.A.</td>
+                                    <td class="p-4 border-b border-gray-700 border-opacity-50">
+                                        <div class="w-full bg-gray-700 rounded-full h-2">
+                                            <div class="bg-green-500 h-2 rounded-full" style="width: 80%"></div>
+                                        </div>
+                                    </td>
+                                    <td class="p-4 border-b border-gray-700 border-opacity-50">
+                                        <button class="text-blue-400 hover:text-blue-300"><i class="fa-solid fa-eye"></i> Ver</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white hover:bg-opacity-5 transition-colors">
+                                    <td class="p-4 border-b border-gray-700 border-opacity-50">Carlos Ruiz</td>
+                                    <td class="p-4 border-b border-gray-700 border-opacity-50"><span class="bg-purple-900 text-purple-300 px-2 py-1 rounded text-xs">Emprendimiento</span></td>
+                                    <td class="p-4 border-b border-gray-700 border-opacity-50">EcoStart</td>
+                                    <td class="p-4 border-b border-gray-700 border-opacity-50">
+                                        <div class="w-full bg-gray-700 rounded-full h-2">
+                                            <div class="bg-yellow-500 h-2 rounded-full" style="width: 30%"></div>
+                                        </div>
+                                    </td>
+                                    <td class="p-4 border-b border-gray-700 border-opacity-50">
+                                        <button class="text-blue-400 hover:text-blue-300"><i class="fa-solid fa-eye"></i> Ver</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- View: Upload Data -->
+                <div id="view-upload" class="view-section hidden fade-in">
+                    <h2 class="text-2xl font-bold mb-6">Carga Masiva de Datos</h2>
+                    <p class="text-gray-400 mb-6">Importa registros de estudiantes, docentes y empresas mediante CSV, Excel o JSON.</p>
+                    
+                    <div class="glass-panel p-10 rounded-xl border-2 border-dashed border-gray-600 text-center relative hover:border-blue-500 transition-colors cursor-pointer group">
+                        <input type="file" id="file-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".csv, .xlsx, .json">
+                        <div class="group-hover:scale-110 transition-transform duration-300">
+                            <i class="fa-solid fa-cloud-arrow-up text-5xl text-blue-400 mb-4"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-2">Arrastra tu archivo aquí o haz clic para buscar</h3>
+                        <p class="text-sm text-gray-500">Soporta .CSV, .XLSX, .JSON (Max 10MB)</p>
+                    </div>
+
+                    <div class="mt-8 glass-panel p-6 rounded-xl">
+                        <h3 class="font-semibold mb-2"><i class="fa-solid fa-info-circle text-blue-400"></i> Optimización de Almacenamiento</h3>
+                        <p class="text-sm text-gray-300 text-justify">
+                            Para mantener los costos de Firebase al mínimo, los documentos físicos (PDFs, Word de las entregas) deben subirse a Google Drive. Esta plataforma solo almacena y procesa las <strong>URLs de Drive</strong> junto con los metadatos en Firestore.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- View: NLP & Analysis -->
+                <div id="view-nlp" class="view-section hidden fade-in">
+                    <h2 class="text-2xl font-bold mb-6">Procesamiento de Lenguaje Natural (NLP) & OCR</h2>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass-panel p-6 rounded-xl flex flex-col">
+                            <h3 class="font-semibold mb-4 border-b border-gray-700 pb-2">Analizador de Documentos</h3>
+                            <label class="text-xs text-gray-400 mb-2">Enlace de Google Drive del Documento (Público)</label>
+                            <input type="url" class="bg-gray-900 border border-gray-700 rounded-lg py-2 px-4 text-white focus:border-blue-500 mb-4 w-full" placeholder="https://drive.google.com/file/d/...">
+                            
+                            <label class="text-xs text-gray-400 mb-2">O pega texto extraído para análisis de calidad</label>
+                            <textarea class="bg-gray-900 border border-gray-700 rounded-lg py-2 px-4 text-white focus:border-blue-500 flex-1 resize-none mb-4 min-h-[150px]" placeholder="El proyecto de investigación busca resolver..."></textarea>
+                            
+                            <button id="btn-analyze" class="glass-button py-2 rounded-lg font-semibold flex items-center justify-center gap-2 mt-auto">
+                                <i class="fa-solid fa-microchip"></i> Ejecutar Análisis NLP
+                            </button>
+                        </div>
+
+                        <div class="glass-panel p-6 rounded-xl">
+                            <h3 class="font-semibold mb-4 border-b border-gray-700 pb-2">Resultados del Análisis</h3>
+                            
+                            <div id="analysis-results" class="hidden space-y-4">
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-gray-400">Conteo de Palabras</span>
+                                        <span class="font-bold">4,520 / 5,000</span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-1.5"><div class="bg-blue-500 h-1.5 rounded-full" style="width: 90%"></div></div>
+                                </div>
+                                
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-gray-400">Originalidad (Antiplagio)</span>
+                                        <span class="font-bold text-green-400">94%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-1.5"><div class="bg-green-500 h-1.5 rounded-full" style="width: 94%"></div></div>
+                                </div>
+
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-gray-400">Calidad Semántica (Score NLP)</span>
+                                        <span class="font-bold text-yellow-400">8.5/10</span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-1.5"><div class="bg-yellow-500 h-1.5 rounded-full" style="width: 85%"></div></div>
+                                </div>
+
+                                <div class="mt-4 p-4 bg-gray-900 bg-opacity-50 rounded-lg border border-gray-700">
+                                    <p class="text-sm text-gray-300"><i class="fa-solid fa-check-circle text-green-400 mr-2"></i> Estructura lógica coherente. Se detectó fuerte correlación temática con objetivos de "Ingeniería de Software".</p>
+                                </div>
+                            </div>
+
+                            <div id="analysis-placeholder" class="h-full flex flex-col items-center justify-center text-gray-500 py-10">
+                                <i class="fa-solid fa-robot text-4xl mb-3 opacity-50"></i>
+                                <p class="text-sm text-center">Ingresa un enlace o texto y ejecuta el análisis para ver métricas de OCR y NLP.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Botón de Soporte Flotante -->
+            <button onclick="alert('Módulo de soporte y feedback. Aquí se abrirá un modal para enviar reportes directos al equipo de desarrollo.')" class="absolute bottom-16 right-6 bg-blue-600 hover:bg-blue-500 text-white w-12 h-12 rounded-full shadow-lg shadow-blue-500/30 flex items-center justify-center transition-transform hover:scale-110 z-40">
+                <i class="fa-solid fa-headset text-xl"></i>
+            </button>
+
+            <!-- Footer con Derechos de Autor -->
+            <footer class="bg-gray-900 bg-opacity-80 border-t border-gray-800 text-center py-3 text-xs text-gray-500 z-30 relative backdrop-blur-sm">
+                <p><strong>TECMD DataLab</strong> &copy; Creado por Dudbil Olvasada Pabon Riaño. Todos los derechos reservados.</p>
+            </footer>
+            
+        </main>
+    </div>
+
+    <!-- SCRIPT PRINCIPAL (Firebase + Lógica UI) -->
+    <script type="module">
+        // 1. IMPORTACIONES DE FIREBASE (Versión 11.6 Modular)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 2. CREDENCIALES EXACTAS PROPORCIONADAS
+        const firebaseConfig = {
+            apiKey: "AIzaSyB1zA4rgNYvKLfZg-Htoc7l1jv6UIMcAlU",
+            authDomain: "tecmd-datalab.firebaseapp.com",
+            projectId: "tecmd-datalab",
+            storageBucket: "tecmd-datalab.firebasestorage.app",
+            messagingSenderId: "747545168390",
+            appId: "1:747545168390:web:7410d9acdeb83b3ac45187",
+            measurementId: "G-CKVE1N281E"
+        };
+
+        // 3. INICIALIZACIÓN
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Variables de entorno de UI
+        const SUPER_ADMIN_EMAIL = "dudbilopr@gmail.com";
+        const loginView = document.getElementById('login-view');
+        const appView = document.getElementById('app-view');
+        const userNameEl = document.getElementById('user-name');
+        const userRoleEl = document.getElementById('user-role');
+        const superadminBadge = document.getElementById('superadmin-badge');
+        const adminLinks = document.querySelectorAll('.admin-only');
+
+        // --- LÓGICA DE AUTENTICACIÓN ---
+
+        // Escuchar estado de sesión
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Usuario autenticado
+                loginView.classList.add('hidden');
+                appView.classList.remove('hidden');
+                userNameEl.textContent = user.displayName || user.email.split('@')[0];
+                
+                // Validación estricta de Super Administrador
+                if (user.email === SUPER_ADMIN_EMAIL) {
+                    userRoleEl.textContent = "Super Administrador";
+                    superadminBadge.classList.remove('hidden');
+                    // Mostrar módulos exclusivos
+                    adminLinks.forEach(link => link.classList.remove('hidden'));
+                } else {
+                    userRoleEl.textContent = "Docente / Estudiante";
+                    superadminBadge.classList.add('hidden');
+                    // Ocultar módulos exclusivos (ej: carga masiva para estudiantes)
+                    // (Logica de base de datos determinaría rol exacto, aquí simplificamos)
+                }
+            } else {
+                // Usuario no autenticado
+                loginView.classList.remove('hidden');
+                appView.classList.add('hidden');
+            }
+        });
+
+        // Login Correo/Contraseña
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                alert("Error de autenticación: Verifica tus credenciales.");
+                console.error(error);
+            }
+        });
+
+        // Login Google
+        document.getElementById('google-login-btn').addEventListener('click', async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error("Error con Google Sign-In", error);
+            }
+        });
+
+        // Cerrar sesión
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            signOut(auth);
+        });
+
+        // --- LÓGICA DE INTERFAZ Y NAVEGACIÓN ---
+
+        // Navegación del menú (SPA Routing básico)
+        const navLinks = document.querySelectorAll('.nav-link');
+        const views = document.querySelectorAll('.view-section');
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('data-target');
+                
+                // Actualizar estilos del menú
+                navLinks.forEach(l => {
+                    l.classList.remove('bg-blue-600', 'bg-opacity-20', 'text-blue-300', 'border', 'border-blue-500', 'border-opacity-30');
+                    l.classList.add('text-gray-400');
+                });
+                link.classList.remove('text-gray-400');
+                link.classList.add('bg-blue-600', 'bg-opacity-20', 'text-blue-300', 'border', 'border-blue-500', 'border-opacity-30');
+
+                // Mostrar vista correspondiente
+                views.forEach(view => view.classList.add('hidden'));
+                document.getElementById(`view-${targetId}`).classList.remove('hidden');
+                
+                // Cerrar sidebar en móviles tras hacer clic
+                if(window.innerWidth < 768) {
+                    sidebar.classList.add('-translate-x-full');
+                }
+            });
+        });
+
+        // Control del Sidebar (Responsive)
+        const sidebar = document.getElementById('sidebar');
+        document.getElementById('open-sidebar').addEventListener('click', () => {
+            sidebar.classList.remove('-translate-x-full');
+        });
+        document.getElementById('close-sidebar').addEventListener('click', () => {
+            sidebar.classList.add('-translate-x-full');
+        });
+
+        // --- SIMULACIÓN NLP / OCR ---
+        document.getElementById('btn-analyze').addEventListener('click', () => {
+            const btn = document.getElementById('btn-analyze');
+            const placeholder = document.getElementById('analysis-placeholder');
+            const results = document.getElementById('analysis-results');
+
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando...';
+            btn.disabled = true;
+
+            // Simular tiempo de petición a un backend Python/Node con NLP
+            setTimeout(() => {
+                placeholder.classList.add('hidden');
+                results.classList.remove('hidden');
+                results.classList.add('fade-in');
+                
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Análisis Completado';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fa-solid fa-microchip"></i> Ejecutar Análisis NLP';
+                    btn.disabled = false;
+                }, 3000);
+            }, 1500);
+        });
+
+    </script>
+</body>
+</html>
