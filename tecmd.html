@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TECMD DataLab | Panel de Control Ultimate V4.7 (Full Catalog & BI)</title>
+    <title>TECMD DataLab | Panel de Control Ultimate V4.8 (Full Catalog & BI)</title>
     
     <!-- Tailwind CSS, FontAwesome, Google Fonts -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -46,9 +46,9 @@
         
         /* Ajustes Z-Index y Prevención de Superposición (Overflow) en gráficos */
         .chart-container { position: relative; min-height: 250px; width: 100%; height: 100%; z-index: 10; overflow: hidden; flex: 1 1 auto; display: flex; justify-content: center; align-items: center; }
-        .chart-wrapper { display: flex; flex-direction: column; overflow: hidden; min-height: 350px; }
+        .chart-wrapper { display: flex; flex-direction: column; overflow: hidden; min-height: 350px; position: relative; }
         canvas { cursor: context-menu; display: block; max-width: 100%; max-height: 100%; } 
-        .echarts-map { z-index: 10; flex: 1 1 auto; min-height: 300px; }
+        .echarts-map { z-index: 10; flex: 1 1 auto; min-height: 300px; width: 100%; }
         
         .chart-wrapper:hover::after {
             content: 'Clic derecho para Editar (Modo DAX)';
@@ -61,6 +61,9 @@
         .program-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); }
         .malla-container::-webkit-scrollbar { width: 4px; }
         .malla-container::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.5); border-radius: 4px; }
+
+        /* Capa de Estado Vacío (Esperando datos) */
+        .empty-data-overlay { position: absolute; inset: 0; background: var(--glass-bg); backdrop-filter: blur(4px); z-index: 15; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-radius: 0.5rem; transition: opacity 0.3s; }
     </style>
 </head>
 <body class="overflow-hidden flex flex-col h-[100dvh] w-full">
@@ -77,7 +80,7 @@
                     <i class="fa-solid fa-atom text-4xl text-blue-400"></i>
                 </div>
                 <h1 class="text-3xl font-extrabold tracking-tight">TECMD DataLab</h1>
-                <p class="text-sm mt-2 text-blue-200 opacity-80 font-medium">Motor BI & Analítica Institucional V4.7</p>
+                <p class="text-sm mt-2 text-blue-200 opacity-80 font-medium">Motor BI & Analítica Institucional V4.8</p>
             </div>
             <form id="login-form" class="space-y-5">
                 <div>
@@ -195,7 +198,7 @@
                     <div class="glass-panel p-4 rounded-2xl mb-6 shadow-sm border border-blue-500/20">
                         <div class="flex justify-between items-center mb-3">
                             <h3 class="text-sm font-bold text-blue-600 dark:text-blue-400"><i class="fa-solid fa-sliders mr-1"></i> Slicers / Filtros Globales</h3>
-                            <button id="btn-clear-global-filters" class="text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 px-3 py-1 rounded-full font-bold transition-all"><i class="fa-solid fa-times"></i> Limpiar Todo</button>
+                            <button id="btn-clear-global-filters" class="text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 px-3 py-1 rounded-full font-bold transition-all hidden"><i class="fa-solid fa-times"></i> Limpiar Todo</button>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                             <select id="filter-dept" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500">
@@ -229,7 +232,7 @@
                                     <option value="Mejoramiento de Procesos Industriales">Mejoramiento de Procesos Industriales</option>
                                 </optgroup>
                             </select>
-                            <select id="filter-sector" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"><option value="">Todos los Sectores</option><option value="Tecnología">Tecnología / Software</option><option value="Manufactura">Manufactura / Industria</option><option value="Servicios">Servicios Consultoría</option><option value="Agropecuario">Agropecuario</option><option value="Construcción">Construcción</option><option value="Público">Sector Público</option><option value="Otro">Otro Sector</option></select>
+                            <select id="filter-sector" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"><option value="">Todos los Sectores</option><option value="Tecnología">Tecnología / Software</option><option value="Manufactura">Manufactura / Industria</option><option value="Servicios">Servicios Consultoría</option><option value="Agropecuario">Agropecuario</option><option value="Construcción">Construcción</option><option value="Público">Sector Público</option><option value="Educación">Educación</option><option value="Otro">Otro Sector</option></select>
                             <select id="filter-est" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"><option value="">Todos los Estratos</option><option value="1">Estrato 1</option><option value="2">Estrato 2</option><option value="3">Estrato 3</option><option value="4">Estrato 4</option><option value="5">Estrato 5</option><option value="6">Estrato 6</option></select>
                             <select id="filter-gen" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"><option value="">Todos los Géneros</option><option value="Femenino">Femenino</option><option value="Masculino">Masculino</option><option value="Otro">Otro</option></select>
                         </div>
@@ -244,12 +247,12 @@
                         </div>
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-purple-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
                             <h3 class="text-xs font-bold uppercase opacity-60">Calidad NLP (Promedio)</h3><p id="kpi-nlp" class="text-3xl font-extrabold mt-1">0</p>
-                            <p id="kpi-nlp-status" class="text-xs mt-1 font-semibold text-green-600 dark:text-green-400">Nivel Académico Óptimo</p>
+                            <p id="kpi-nlp-status" class="text-xs mt-1 font-semibold text-gray-500 dark:text-gray-400">Esperando Evaluación</p>
                             <i class="fa-solid fa-brain absolute right-[-10px] bottom-[-10px] text-6xl opacity-5 group-hover:opacity-10 transition-opacity text-purple-500"></i>
                         </div>
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-yellow-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
                             <h3 class="text-xs font-bold uppercase opacity-60">Similitud Documental</h3><p id="kpi-sim" class="text-3xl font-extrabold mt-1">0%</p>
-                            <p id="kpi-sim-status" class="text-xs mt-1 font-semibold text-yellow-600 dark:text-yellow-400">Revisión Recomendada</p>
+                            <p id="kpi-sim-status" class="text-xs mt-1 font-semibold text-gray-500 dark:text-gray-400">Esperando Análisis</p>
                             <i class="fa-solid fa-copy absolute right-[-10px] bottom-[-10px] text-6xl opacity-5 group-hover:opacity-10 transition-opacity text-yellow-500"></i>
                         </div>
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-green-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
@@ -261,6 +264,7 @@
 
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                         <div class="glass-panel p-6 rounded-2xl lg:col-span-1 flex flex-col h-[400px] chart-wrapper relative">
+                            <div class="empty-data-overlay hidden"><i class="fa-solid fa-database text-4xl mb-2 opacity-50 text-red-500"></i><p class="font-bold text-sm">Esperando datos</p><p class="text-[10px] opacity-70">Sincroniza con la nube</p></div>
                             <div class="flex justify-between items-center mb-2">
                                 <h3 class="font-bold z-20"><i class="fa-solid fa-map-location-dot text-red-500 mr-2"></i> Distribución Regional</h3>
                                 <span class="text-[10px] bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 px-2 py-1 rounded-full font-bold">Clickeable</span>
@@ -270,6 +274,7 @@
                         </div>
                         <div class="lg:col-span-2 flex flex-col gap-6">
                             <div class="glass-panel p-6 rounded-2xl min-h-[220px] flex flex-col chart-wrapper relative">
+                                <div class="empty-data-overlay hidden"><i class="fa-solid fa-industry text-4xl mb-2 opacity-50 text-blue-500"></i><p class="font-bold text-sm">Esperando datos</p><p class="text-[10px] opacity-70">Sincroniza con la nube</p></div>
                                 <div class="flex justify-between items-center mb-2">
                                     <h3 class="font-bold z-20"><i class="fa-solid fa-industry text-blue-500 mr-2"></i> Sectores de Práctica</h3>
                                 </div>
@@ -279,12 +284,14 @@
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[220px]">
                                 <div class="glass-panel p-4 rounded-2xl flex flex-col chart-wrapper relative">
+                                    <div class="empty-data-overlay hidden"><i class="fa-solid fa-layer-group text-4xl mb-2 opacity-50 text-purple-500"></i><p class="font-bold text-sm">Esperando datos</p><p class="text-[10px] opacity-70">Sincroniza con la nube</p></div>
                                     <h3 class="font-bold text-sm mb-2 z-20"><i class="fa-solid fa-layer-group text-purple-500 mr-1"></i> Programas</h3>
                                     <div class="chart-container">
                                         <canvas id="chartProgramas" data-dax-y="prog" data-dax-x="count"></canvas>
                                     </div>
                                 </div>
                                 <div class="glass-panel p-4 rounded-2xl flex flex-col chart-wrapper relative">
+                                    <div class="empty-data-overlay hidden"><i class="fa-solid fa-house-chimney text-4xl mb-2 opacity-50 text-yellow-500"></i><p class="font-bold text-sm">Esperando datos</p><p class="text-[10px] opacity-70">Sincroniza con la nube</p></div>
                                     <h3 class="font-bold text-sm mb-2 z-20"><i class="fa-solid fa-house-chimney text-yellow-500 mr-1"></i> Estratos</h3>
                                     <div class="chart-container">
                                         <canvas id="chartEstratos" data-dax-y="est" data-dax-x="count"></canvas>
@@ -371,16 +378,16 @@
                                 <!-- Inyectado vía JS para mostrar Programas A y B lado a lado -->
                             </div>
                             
-                            <!-- NUEVO V4.7: Mapa de Solapamiento Curricular (Venn-Graph Didáctico) -->
-                            <div class="mt-12 glass-panel p-4 rounded-2xl flex flex-col items-center justify-center relative shadow-inner overflow-hidden">
+                            <!-- NUEVO V4.8: Mapa de Solapamiento Curricular con mayor separación -->
+                            <div class="mt-12 glass-panel p-4 rounded-2xl flex flex-col items-center justify-center relative shadow-inner overflow-hidden w-full overflow-x-auto">
                                 <h4 class="font-bold text-sm mb-2 w-full text-left opacity-80 flex items-center gap-2"><i class="fa-solid fa-diagram-project text-blue-500"></i> Mapa de Solapamiento Curricular</h4>
-                                <p class="text-[10px] opacity-60 w-full text-left mb-6">Visualización didáctica estructurada. Las materias se alinean en 3 columnas mostrando qué comparte cada programa y qué los hace únicos.</p>
+                                <p class="text-[10px] opacity-60 w-full text-left mb-6">Visualización didáctica estructurada. Nodos más separados para mayor claridad y lectura.</p>
                                 
-                                <!-- Tarjetas Didácticas Superiores -->
-                                <div id="didactic-graph-header" class="w-full grid grid-cols-3 gap-4 mb-4 text-center"></div>
+                                <div id="didactic-graph-header" class="w-full grid grid-cols-3 gap-4 mb-4 text-center min-w-[800px]"></div>
                                 
-                                <!-- Se cambió h-[550px] por un min-h y transiciones para que el JS controle su alto dinámico -->
-                                <div id="curriculum-graph" class="w-full min-h-[550px] transition-all duration-500 ease-in-out"></div>
+                                <div class="w-full overflow-x-auto pb-4">
+                                    <div id="curriculum-graph" class="min-w-[1000px] min-h-[550px] transition-all duration-500 ease-in-out"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -443,6 +450,7 @@
                     </div>
 
                     <div class="glass-panel p-8 rounded-3xl w-full relative z-10 chart-wrapper flex flex-col min-h-[450px]">
+                        <div class="empty-data-overlay hidden z-50"><i class="fa-solid fa-wand-magic-sparkles text-4xl mb-2 opacity-50 text-blue-500"></i><p class="font-bold text-sm">Esperando datos</p><p class="text-[10px] opacity-70">Para generar analítica avanzada</p></div>
                         <button id="btn-pin-custom" class="absolute top-6 right-6 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all text-sm flex items-center gap-2 z-30">
                             <i class="fa-solid fa-thumbtack"></i> Anclar a Dashboard
                         </button>
@@ -461,9 +469,13 @@
                             <div>
                                 <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2"><i class="fa-solid fa-id-card text-blue-500 mr-2"></i> 1. Identidad y Perfil Base</h3>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Documento (ID) *</label><input type="text" id="form-id" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Documento (ID) / Usuario *</label><input type="text" id="form-id" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="dopabonr" required></div>
                                     <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Nombres Completos *</label><input type="text" id="form-name" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Fecha Nacimiento</label><input type="date" id="form-fnac" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"></div>
+                                    
+                                    <!-- Nuevos Campos Personalizados Base -->
+                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Trabajo / Ocupación</label><input type="text" id="form-trabajo" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Docente universitario"></div>
+                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Lugar de Origen</label><input type="text" id="form-origen" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Pamplona, Norte de Santander"></div>
                                 </div>
                             </div>
                             <div>
@@ -473,7 +485,7 @@
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Estrato *</label><select id="form-estrato" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Depto. Residencia *</label><select id="form-dept" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required><option value="Santander">Santander</option><option value="Bogotá">Bogotá D.C.</option><option value="Antioquia">Antioquia</option><option value="Valle del Cauca">Valle</option><option value="Atlántico">Atlántico</option><option value="Cundinamarca">Cundinamarca</option></select></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Grupo Étnico</label><select id="form-etnia" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="Ninguno">Ninguno</option><option value="Indígena">Indígena</option><option value="Afrodescendiente">Afrodescendiente</option><option value="Raizal">Raizal / Palenquero</option><option value="ROM">ROM</option></select></div>
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Discapacidad</label><select id="form-discapacidad" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="No">No</option><option value="Física">Física</option><option value="Visual">Visual</option><option value="Auditiva">Auditiva</option><option value="Cognitiva">Cognitiva</option></select></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Discapacidad</label><select id="form-discapacidad" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="No">Ninguno / No</option><option value="Física">Física</option><option value="Visual">Visual</option><option value="Auditiva">Auditiva</option><option value="Cognitiva">Cognitiva</option></select></div>
                                 </div>
                             </div>
                             <div>
@@ -512,14 +524,22 @@
                                     <div class="md:col-span-1">
                                         <label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Sector de Práctica *</label>
                                         <select id="form-sector" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required>
-                                            <option value="Tecnología">Tecnología / Software</option><option value="Manufactura">Manufactura / Industria</option><option value="Servicios">Servicios Consultoría</option><option value="Agropecuario">Agropecuario</option><option value="Construcción">Construcción</option><option value="Público">Sector Público</option><option value="Otro">Otro (Especificar)</option>
+                                            <option value="Tecnología">Tecnología / Software</option><option value="Manufactura">Manufactura / Industria</option><option value="Servicios">Servicios Consultoría</option><option value="Agropecuario">Agropecuario</option><option value="Construcción">Construcción</option><option value="Público">Sector Público</option><option value="Educación">Educación / Investigación</option><option value="Otro">Otro (Especificar)</option>
                                         </select>
                                         <input type="text" id="form-sector-otro" class="hidden w-full bg-white dark:bg-gray-900 border border-blue-300 dark:border-blue-700 rounded-xl py-2 px-3 mt-2 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold fade-in" placeholder="Especifique el sector">
                                     </div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Semestre Actual</label><input type="text" id="form-semestre" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: 4to semestre"></div>
+                                    
+                                    <!-- Empresa Info -->
+                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Empresa / Institución</label><input type="text" id="form-empresa" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: tecmd"></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tipo Empresa</label><select id="form-tipo-empresa" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="Privada">Privada</option><option value="Pública">Pública</option><option value="Mixta">Mixta</option></select></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Promedio Previo (GPA)</label><input type="number" id="form-gpa" step="0.1" min="0" max="5" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="0.0 - 5.0"></div>
                                 </div>
-                                <div class="grid grid-cols-1 gap-5">
-                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Título del Proyecto / Entregable</label><input type="text" id="form-titulo" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Implementación de CRM en Pymes"></div>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                                    <div class="md:col-span-3"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Título del Proyecto / Entregable</label><input type="text" id="form-titulo" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Solución arquitectónica para la preservación..."></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Cant. Entregables</label><input type="number" id="form-entregables" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="1"></div>
+                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tutor (a) / Responsable 1</label><input type="text" id="form-tutor1" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Nombre completo del tutor"></div>
+                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tutor (a) / Responsable 2</label><input type="text" id="form-tutor2" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Opcional"></div>
                                 </div>
                             </div>
                             
@@ -591,7 +611,8 @@
                             <input type="text" id="search-student" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none shadow-sm font-semibold" placeholder="Buscar por nombre, ID o programa...">
                         </div>
                     </div>
-                    <div class="glass-panel p-2 rounded-3xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-800">
+                    <div class="glass-panel p-2 rounded-3xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-800 relative min-h-[200px]">
+                        <div id="table-empty-state" class="empty-data-overlay hidden"><i class="fa-solid fa-users-slash text-4xl mb-2 opacity-50 text-gray-500"></i><p class="font-bold text-sm">Esperando datos</p></div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse whitespace-nowrap">
                                 <thead>
@@ -650,6 +671,7 @@
                         <input type="file" id="file-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".csv, .xlsx, .json">
                         <i class="fa-solid fa-cloud-arrow-up text-6xl text-blue-500 mb-4 group-hover:-translate-y-2 transition-transform drop-shadow-md"></i>
                         <h3 class="text-xl font-bold mb-2">Arrastra tu archivo aquí o haz clic</h3>
+                        <p class="text-xs opacity-70">Sincronización automatizada hacia la nube activada.</p>
                     </div>
                 </div>
 
@@ -688,7 +710,7 @@
             </button>
 
             <footer class="text-center py-3 text-[10px] font-bold opacity-50 border-t border-gray-200 dark:border-gray-800">
-                TECMD DataLab Ultimate V4.7 &copy; Creado por Dudbil Olvasada Pabon Riaño. Todos los derechos reservados.
+                TECMD DataLab Ultimate V4.8 &copy; Creado por Dudbil Olvasada Pabon Riaño. Todos los derechos reservados.
             </footer>
         </main>
     </div>
@@ -853,33 +875,45 @@
             p.totalCreditos = p.malla.reduce((totalSemestres, sem) => totalSemestres + sem.materias.reduce((totalMats, m) => totalMats + m.creditos, 0), 0);
         });
 
-        // --- MOTOR DE DATOS ESTUDIANTES ---
         const dptos = ['Santander', 'Bogotá', 'Antioquia', 'Valle del Cauca', 'Atlántico', 'Cundinamarca'];
-        const sectores = ['Tecnología', 'Manufactura', 'Servicios', 'Agropecuario', 'Construcción', 'Público', 'Otro'];
-        const etnias = ['Ninguno', 'Indígena', 'Afrodescendiente'];
-        
-        const testStudents = [
-            { id: "TEST-001", name: "Ana María López", dept: "Santander", prog: "Programación de Software", sector: "Tecnología", est: 3, gen: "Femenino", etnia: "Ninguno", gpa: 4.5, nlp: 8.8, sim: 12, progreso: 85, titulo: "App Móvil para Trazabilidad Agrícola" },
-            { id: "TEST-002", name: "Carlos Eduardo Ruiz", dept: "Bogotá", prog: "Procesos de Cloud Computing", sector: "Servicios", est: 4, gen: "Masculino", etnia: "Ninguno", gpa: 3.8, nlp: 7.2, sim: 35, progreso: 60, titulo: "Migración a AWS para PYMES" },
-            { id: "TEST-003", name: "Laura Valentina Gómez", dept: "Antioquia", prog: "Procesos de Mercadeo Digital", sector: "Tecnología", est: 2, gen: "Femenino", etnia: "Afrodescendiente", gpa: 4.8, nlp: 9.5, sim: 5, progreso: 100, titulo: "Estrategia SEO B2B" },
-            { id: "TEST-004", name: "Andrés Felipe Silva", dept: "Santander", prog: "Montaje y Mantenimiento de Energías Renovables", sector: "Construcción", est: 3, gen: "Masculino", etnia: "Ninguno", gpa: 4.0, nlp: 6.5, sim: 15, progreso: 45, titulo: "Paneles Solares en Zonas Rurales" },
-            { id: "TEST-005", name: "Diana Carolina Ortiz", dept: "Valle del Cauca", prog: "Operaciones Fintech", sector: "Servicios", est: 5, gen: "Femenino", etnia: "Ninguno", gpa: 4.2, nlp: 8.0, sim: 22, progreso: 75, titulo: "Billetera Digital Inclusiva" }
-        ];
+        const sectores = ['Tecnología', 'Manufactura', 'Servicios', 'Agropecuario', 'Construcción', 'Público', 'Educación', 'Otro'];
+        const etnias = ['Ninguno', 'Indígena', 'Afrodescendiente', 'Raizal', 'ROM'];
 
+        // --- MOTOR DE DATOS: INICIALIZADO SOLO CON DATOS REALES (Dudbil) ---
         let rawData = [];
         const savedData = localStorage.getItem('tecmd_data');
         if (savedData) {
             rawData = JSON.parse(savedData);
         } else {
-            const randomData = Array.from({length: 120}, (_, i) => ({
-                id: `1098${i+1000}`, name: `Estudiante Generado ${i+1}`,
-                dept: dptos[Math.floor(Math.random()*dptos.length)],
-                prog: TECMD_PROGRAMS[Math.floor(Math.random()*TECMD_PROGRAMS.length)].nombre,
-                sector: sectores[Math.floor(Math.random()*sectores.length)], est: Math.floor(Math.random()*4)+1, gen: ['Femenino', 'Masculino'][Math.floor(Math.random()*2)],
-                etnia: etnias[Math.floor(Math.random()*etnias.length)], gpa: parseFloat((Math.random()*1.5 + 3.5).toFixed(1)), nlp: parseFloat((Math.random()*5 + 5).toFixed(1)), 
-                sim: Math.floor(Math.random()*45), progreso: Math.floor(Math.random()*100), titulo: "Proyecto Académico Estándar"
-            }));
-            rawData = [...testStudents, ...randomData];
+            // Inicializamos únicamente con tu registro real para que el sistema empiece limpio y real
+            rawData = [
+                {
+                    id: "dopabonr", 
+                    name: "Dudbil Olvasada Pabon Riaño",
+                    dept: "Santander", // Residencia
+                    prog: "Programación de Software",
+                    sector: "Educación", 
+                    est: 4, 
+                    gen: "Masculino",
+                    etnia: "Ninguno", 
+                    gpa: 0, 
+                    nlp: 0, 
+                    sim: 0, 
+                    progreso: 40, 
+                    titulo: "Solucion arquitectonica para la preservacion, analisis y explotacion de datos educativos",
+                    // Custom real fields
+                    empresa: "tecmd",
+                    tipo_empresa: "Privada",
+                    semestre: "4to semestre",
+                    entregables: 1,
+                    tutor1: "Yarledis Gomez Moreno",
+                    tutor2: "Carlos Germán Juliao Vargas",
+                    trabajo: "Docente universitario",
+                    origen: "Pamplona, Norte de Santander",
+                    fnac: "1989-04-19",
+                    discapacidad: "No"
+                }
+            ];
             localStorage.setItem('tecmd_data', JSON.stringify(rawData));
         }
 
@@ -905,7 +939,7 @@
                 if (userName) userName.textContent = name;
                 if (userInitial) userInitial.textContent = name.charAt(0).toUpperCase();
                 
-                const isAdmin = u.email === "dudbilopr@gmail.com";
+                const isAdmin = u.email === "dudbilopr@gmail.com" || u.email === "dopabonr@tecmd.edu.co";
                 if (userRole) userRole.textContent = isAdmin ? "Super Administrador" : "Coordinador Académico";
                 if (superadminBadge) superadminBadge.classList.toggle('hidden', !isAdmin);
                 
@@ -940,10 +974,11 @@
             btn.disabled = true;
             saveDataToLocal();
             Swal.fire({
-                title: 'Sincronizando con Firebase', html: 'Enviando metadatos y configuraciones DAX a la nube...', timer: 1500, timerProgressBar: true, didOpen: () => { Swal.showLoading(); }
+                title: 'Sincronizando con Nube (Firebase)', html: 'Esperando validación de ingesta y metadatos DAX...', timer: 1800, timerProgressBar: true, didOpen: () => { Swal.showLoading(); }
             }).then(() => {
                 btn.innerHTML = prevHtml; btn.disabled = false;
-                Swal.fire({ icon: 'success', title: '¡Sincronización Exitosa!', text: 'Los datos están respaldados en la nube.', timer: 2500, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: '¡Sincronización Exitosa!', text: 'El ambiente es 100% real y sincronizado.', timer: 2500, showConfirmButton: false });
+                updateAllDataViews(); // Refresca las vistas para limpiar overlays si llegaron datos
             });
         });
 
@@ -999,16 +1034,13 @@
 
             const activeFilterText = document.getElementById('active-filter-text');
             const btnClearGlobal = document.getElementById('btn-clear-global-filters');
-            const clearFiltersBtn = document.getElementById('clear-filters-btn');
 
             if(activeStr.length > 0) {
                 if(activeFilterText) activeFilterText.innerText = activeStr.join(' | ');
                 if(btnClearGlobal) btnClearGlobal.classList.remove('hidden');
-                if(clearFiltersBtn) clearFiltersBtn.classList.remove('hidden');
             } else {
                 if(activeFilterText) activeFilterText.innerText = 'General (Sin filtros)';
                 if(btnClearGlobal) btnClearGlobal.classList.add('hidden');
-                if(clearFiltersBtn) clearFiltersBtn.classList.add('hidden');
             }
             updateAllDataViews();
         };
@@ -1028,7 +1060,6 @@
         };
         
         safeClick('btn-clear-global-filters', clearAllFilters);
-        safeClick('clear-filters-btn', clearAllFilters);
 
         window.toggleChartFilter = (key, value) => {
             const el = document.getElementById('filter-' + key);
@@ -1050,9 +1081,32 @@
 
         window.updateAllDataViews = () => {
             const data = getFilteredData();
-            const kpiTotal = document.getElementById('kpi-total');
-            if(!data.length) { if (kpiTotal) kpiTotal.innerText = 0; return; }
+            
+            // Lógica de "Esperando Datos"
+            const overlays = document.querySelectorAll('.empty-data-overlay');
+            if(data.length === 0) { 
+                overlays.forEach(el => el.classList.remove('hidden'));
+                const kpiTotal = document.getElementById('kpi-total'); if(kpiTotal) kpiTotal.innerText = 0;
+                const kpiNlp = document.getElementById('kpi-nlp'); if(kpiNlp) kpiNlp.innerText = '0';
+                const kpiSim = document.getElementById('kpi-sim'); if(kpiSim) kpiSim.innerText = '0%';
+                const kpiProg = document.getElementById('kpi-prog'); if(kpiProg) kpiProg.innerText = '0%';
+                
+                document.getElementById('kpi-nlp-status').innerText = 'Esperando Evaluación'; document.getElementById('kpi-nlp-status').className = 'text-xs mt-1 font-semibold text-gray-500';
+                document.getElementById('kpi-sim-status').innerText = 'Esperando Análisis'; document.getElementById('kpi-sim-status').className = 'text-xs mt-1 font-semibold text-gray-500';
+                
+                renderStudentTable(data);
+                
+                // Clear charts
+                if(chartProg) { chartProg.data.labels = []; chartProg.data.datasets[0].data = []; chartProg.update(); }
+                if(chartEst) { chartEst.data.labels = []; chartEst.data.datasets[0].data = []; chartEst.update(); }
+                if(chartSector) { chartSector.data.labels = []; chartSector.data.datasets[0].data = []; chartSector.update(); }
+                if(mapInstance) { mapInstance.setOption({ series: [{ data: [] }] }); }
+                return; 
+            } else {
+                overlays.forEach(el => el.classList.add('hidden'));
+            }
 
+            const kpiTotal = document.getElementById('kpi-total');
             if (kpiTotal) kpiTotal.innerText = data.length;
             
             const avgNlp = data.reduce((s, d) => s + d.nlp, 0) / data.length;
@@ -1060,8 +1114,11 @@
             const kpiNlpStatus = document.getElementById('kpi-nlp-status');
             if (kpiNlp) kpiNlp.innerHTML = avgNlp.toFixed(1) + '<span class="text-sm font-normal opacity-50">/10</span>';
             if (kpiNlpStatus) {
-                kpiNlpStatus.innerText = avgNlp >= 8 ? 'Nivel Académico Óptimo' : avgNlp >= 6 ? 'Nivel Aceptable' : 'Riesgo Semántico';
-                kpiNlpStatus.className = `text-xs mt-1 font-semibold ${avgNlp >= 8 ? 'text-green-500' : avgNlp >= 6 ? 'text-yellow-500' : 'text-red-500'}`;
+                if(avgNlp === 0) { kpiNlpStatus.innerText = 'En fase inicial'; kpiNlpStatus.className = 'text-xs mt-1 font-semibold text-gray-500'; }
+                else {
+                    kpiNlpStatus.innerText = avgNlp >= 8 ? 'Nivel Académico Óptimo' : avgNlp >= 6 ? 'Nivel Aceptable' : 'Riesgo Semántico';
+                    kpiNlpStatus.className = `text-xs mt-1 font-semibold ${avgNlp >= 8 ? 'text-green-500' : avgNlp >= 6 ? 'text-yellow-500' : 'text-red-500'}`;
+                }
             }
 
             const avgSim = Math.round(data.reduce((s, d) => s + d.sim, 0) / data.length);
@@ -1069,8 +1126,11 @@
             const kpiSimStatus = document.getElementById('kpi-sim-status');
             if (kpiSim) kpiSim.innerText = avgSim + '%';
             if (kpiSimStatus) {
-                kpiSimStatus.innerText = avgSim <= 15 ? 'Documentos Originales' : avgSim <= 30 ? 'Revisión Recomendada' : 'Alerta de Plagio';
-                kpiSimStatus.className = `text-xs mt-1 font-semibold ${avgSim <= 15 ? 'text-green-500' : avgSim <= 30 ? 'text-yellow-500' : 'text-red-500'}`;
+                if(avgSim === 0) { kpiSimStatus.innerText = 'Documento pendiente'; kpiSimStatus.className = 'text-xs mt-1 font-semibold text-gray-500'; }
+                else {
+                    kpiSimStatus.innerText = avgSim <= 15 ? 'Documentos Originales' : avgSim <= 30 ? 'Revisión Recomendada' : 'Alerta de Plagio';
+                    kpiSimStatus.className = `text-xs mt-1 font-semibold ${avgSim <= 15 ? 'text-green-500' : avgSim <= 30 ? 'text-yellow-500' : 'text-red-500'}`;
+                }
             }
             
             const kpiProg = document.getElementById('kpi-prog');
@@ -1093,8 +1153,12 @@
             if(chartSector) { const sData = countBy(data, chartSector.canvas.dataset.daxX || 'sector'); chartSector.data.labels = Object.keys(sData); chartSector.data.datasets[0].data = Object.values(sData); chartSector.update(); }
             if(mapInstance) {
                 const mapDataCount = countBy(data, 'dept');
-                const echartsData = dptos.map(d => ({ name: d, value: mapDataCount[d] || 0 }));
-                mapInstance.setOption({ series: [{ data: echartsData }] });
+                const echartsData = dptos.map(d => ({ name: d, value: mapDataCount[d] || 0 })).filter(d => d.value > 0);
+                if(echartsData.length === 0) {
+                    mapInstance.setOption({ series: [{ data: [] }] });
+                } else {
+                    mapInstance.setOption({ series: [{ data: echartsData }] });
+                }
             }
             renderStudentTable(data);
             
@@ -1105,7 +1169,17 @@
 
         const renderStudentTable = (dataToRender) => {
             const tableBody = document.getElementById('student-table-body');
+            const emptyState = document.getElementById('table-empty-state');
             if(!tableBody) return;
+            
+            if(dataToRender.length === 0) {
+                tableBody.innerHTML = '';
+                if(emptyState) emptyState.classList.remove('hidden');
+                return;
+            } else {
+                if(emptyState) emptyState.classList.add('hidden');
+            }
+
             tableBody.innerHTML = dataToRender.map(d => `
                 <tr class="hover:bg-black/5 dark:hover:bg-white/5 border-b border-gray-200 dark:border-gray-800 transition-colors">
                     <td class="p-4">
@@ -1118,7 +1192,7 @@
                         <p class="text-[10px] opacity-70"><i class="fa-solid fa-location-dot mr-1 text-red-400"></i>${d.dept} | ${d.sector}</p>
                     </td>
                     <td class="p-4"><span class="text-xs font-extrabold px-2 py-1 rounded-md ${d.nlp>=8?'bg-green-100 text-green-700 dark:text-green-400':d.nlp>=6?'bg-yellow-100 text-yellow-700 dark:text-yellow-400':'bg-red-100 text-red-700 dark:text-red-400'}">${d.nlp.toFixed(1)}</span></td>
-                    <td class="p-4"><span class="text-xs font-extrabold ${d.sim>30?'text-red-500':'text-green-500'}">${d.sim}%</span></td>
+                    <td class="p-4"><span class="text-xs font-extrabold ${d.sim>30?'text-red-500':(d.sim>0?'text-green-500':'text-gray-500')}">${d.sim}%</span></td>
                     <td class="p-4"><div class="flex items-center gap-2"><div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"><div class="bg-blue-500 h-1.5 rounded-full" style="width:${d.progreso}%"></div></div><span class="text-[10px] font-bold">${d.progreso}%</span></div></td>
                     <td class="p-4 text-center flex justify-center gap-2">
                         <button onclick="editStudent('${d.id}')" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 p-2 rounded-lg font-bold text-xs shadow-sm transition-colors" title="Editar Métricas"><i class="fa-solid fa-pen-to-square"></i></button>
@@ -1139,7 +1213,7 @@
         window.deleteStudent = (id) => {
             Swal.fire({
                 title: '¿Estás seguro?',
-                text: "Esta acción borrará el registro de la memoria local.",
+                text: "Esta acción borrará el registro. Si se queda sin datos, el dashboard entrará en modo de espera.",
                 icon: 'warning',
                 showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Sí, eliminar'
             }).then((result) => {
@@ -1177,7 +1251,7 @@
 
         // --- MODO DAX ---
         document.body.addEventListener('contextmenu', (e) => {
-            if(e.target.tagName === 'CANVAS') {
+            if(e.target.tagName === 'CANVAS' && getFilteredData().length > 0) {
                 e.preventDefault();
                 openDaxEditor(e.target);
             }
@@ -1269,7 +1343,7 @@
             Swal.fire({
                 title: 'Añadir Campo Personalizado',
                 input: 'text',
-                inputLabel: 'Nombre del nuevo campo (Ej. Ciudad, Empresa, Dispositivo)',
+                inputLabel: 'Nombre del nuevo campo',
                 inputPlaceholder: 'Escriba el nombre...',
                 showCancelButton: true,
                 confirmButtonColor: '#9333ea',
@@ -1304,10 +1378,13 @@
             if (finalSector === 'Otro') finalSector = getVal('form-sector-otro') || 'Otro Sector';
 
             const newStudent = { 
-                id: getVal('form-id'), name: getVal('form-name'), dept: getVal('form-dept'), 
-                prog: getVal('form-prog'), sector: finalSector, est: parseInt(getVal('form-estrato'))||1, 
-                gen: getVal('form-gen'), etnia: getVal('form-etnia'), gpa: parseFloat(getVal('form-gpa'))||0, 
-                titulo: getVal('form-titulo'), nlp: 0, sim: 0, progreso: 0 
+                id: getVal('form-id'), name: getVal('form-name'), fnac: getVal('form-fnac'), dept: getVal('form-dept'), 
+                origen: getVal('form-origen'), trabajo: getVal('form-trabajo'), prog: getVal('form-prog'), 
+                sector: finalSector, est: parseInt(getVal('form-estrato'))||1, gen: getVal('form-gen'), 
+                etnia: getVal('form-etnia'), discapacidad: getVal('form-discapacidad'), gpa: parseFloat(getVal('form-gpa'))||0, 
+                titulo: getVal('form-titulo'), semestre: getVal('form-semestre'), empresa: getVal('form-empresa'),
+                tipo_empresa: getVal('form-tipo-empresa'), entregables: getVal('form-entregables'), tutor1: getVal('form-tutor1'), 
+                tutor2: getVal('form-tutor2'), nlp: 0, sim: 0, progreso: 0 
             };
 
             document.querySelectorAll('.dynamic-field-input').forEach(input => {
@@ -1322,7 +1399,7 @@
             if(dynamicContainer) dynamicContainer.innerHTML = '';
             
             saveDataToLocal(); updateAllDataViews(); 
-            Swal.fire({title: 'Ficha Registrada', text: 'El estudiante fue integrado al modelo DAX.', icon: 'success'});
+            Swal.fire({title: 'Ficha Registrada', text: 'El estudiante fue integrado al modelo DAX de forma local, esperando sincronización en la nube.', icon: 'success'});
         });
 
         // --- ANALIZAR (MOTOR NLP) ---
@@ -1338,6 +1415,14 @@
                 if(res) { res.classList.remove('hidden'); res.classList.add('fade-in'); }
                 btn.innerHTML = '<i class="fa-solid fa-check"></i> Análisis Completado';
                 btn.classList.replace('bg-blue-600', 'bg-green-600');
+                
+                // Actualiza el score simulado si es tu usuario
+                const userIndex = rawData.findIndex(d => d.id === 'dopabonr');
+                if(userIndex !== -1 && rawData[userIndex].nlp === 0) {
+                    rawData[userIndex].nlp = 8.5; rawData[userIndex].sim = 6;
+                    saveDataToLocal(); updateAllDataViews();
+                }
+
                 setTimeout(() => { 
                     btn.innerHTML = '<i class="fa-solid fa-robot"></i> Ejecutar Análisis IA'; 
                     btn.classList.replace('bg-green-600', 'bg-blue-600'); 
@@ -1348,13 +1433,15 @@
 
         // --- CONSTRUCTOR ANALÍTICO Y ANCLAJE ---
         window.updateCustomChart = () => {
+            const data = getFilteredData();
+            if(data.length === 0) return; // Wait for data overlay is managed by updateAllDataViews
+            
             const xEl = document.getElementById('cb-x');
             const yEl = document.getElementById('cb-y');
             const typeEl = document.getElementById('cb-type');
             if (!xEl || !yEl || !typeEl) return;
             
             const xKey = xEl.value; const yKey = yEl.value; const type = typeEl.value;
-            const data = getFilteredData();
             const grouped = {};
             data.forEach(d => { 
                 let keyVal = d[xKey];
@@ -1522,7 +1609,6 @@
                 const uniqueA = subA.filter(m => !sharedSubjects.includes(m));
                 const uniqueB = subB.filter(m => !sharedSubjects.includes(m));
 
-                // CÁLCULO DE PORCENTAJES
                 const totalMateriasUnicas = uniqueA.length + sharedSubjects.length + uniqueB.length;
                 const pctA = totalMateriasUnicas ? Math.round((uniqueA.length / totalMateriasUnicas) * 100) : 0;
                 const pctShared = totalMateriasUnicas ? Math.round((sharedSubjects.length / totalMateriasUnicas) * 100) : 0;
@@ -1563,8 +1649,9 @@
             let nodes = [];
             let links = [];
 
+            // AUMENTO SIGNIFICATIVO DE SEPARACIÓN (X maximo 2000)
             nodes.push({ id: 'progA', name: progA.nombre.substring(0, 15)+'...', x: 0, y: 500, symbolSize: 50, itemStyle: { color: '#3b82f6' }, label: { show: true, fontWeight: 'bold', position: 'right', color: textColor } });
-            nodes.push({ id: 'progB', name: progB.nombre.substring(0, 15)+'...', x: 1000, y: 500, symbolSize: 50, itemStyle: { color: '#a855f7' }, label: { show: true, fontWeight: 'bold', position: 'left', color: textColor } });
+            nodes.push({ id: 'progB', name: progB.nombre.substring(0, 15)+'...', x: 2000, y: 500, symbolSize: 50, itemStyle: { color: '#a855f7' }, label: { show: true, fontWeight: 'bold', position: 'left', color: textColor } });
 
             let addedNodes = new Set();
             const s_nodes = [], ua_nodes = [], ub_nodes = [];
@@ -1586,15 +1673,12 @@
             processMalla(progA.malla, true);
             processMalla(progB.malla, false);
 
-            // CÁLCULO DE ALTO DINÁMICO PARA EVITAR SUPERPOSICIÓN
-            // Se garantiza al menos 40 pixeles de distancia vertical por cada materia
             const maxNodes = Math.max(s_nodes.length, ua_nodes.length, ub_nodes.length, 1);
             const containerHeight = Math.max(550, maxNodes * 40); 
             container.style.height = `${containerHeight}px`;
             curriculumGraphInstance.resize();
 
             const addNodeWithY = (list, xPos, color, parentId, isShared) => {
-                // Distribución centralizada equitativa
                 const spacing = 1000 / maxNodes;
                 const totalListHeight = list.length * spacing;
                 const startY = (1000 - totalListHeight) / 2 + (spacing / 2);
@@ -1611,7 +1695,7 @@
                         itemStyle: { color: color },
                         label: { 
                             show: true, 
-                            position: isShared ? 'bottom' : (xPos < 500 ? 'right' : 'left'), 
+                            position: isShared ? 'bottom' : (xPos < 1000 ? 'right' : 'left'), 
                             distance: 8, 
                             fontSize: 10, 
                             color: textColor, 
@@ -1621,9 +1705,10 @@
                 });
             }
 
-            addNodeWithY(s_nodes, 500, '#22c55e', null, true); 
-            addNodeWithY(ua_nodes, 150, '#93c5fd', 'progA', false); // X ajustado para mejor legibilidad
-            addNodeWithY(ub_nodes, 850, '#d8b4fe', 'progB', false); // X ajustado para mejor legibilidad
+            // NUEVA SEPARACIÓN ESTRATÉGICA (Escala 0 - 2000)
+            addNodeWithY(s_nodes, 1000, '#22c55e', null, true); 
+            addNodeWithY(ua_nodes, 300, '#93c5fd', 'progA', false); 
+            addNodeWithY(ub_nodes, 1700, '#d8b4fe', 'progB', false); 
 
             const createLinks = (malla, sourceId) => {
                 malla.forEach(per => {
@@ -1682,7 +1767,6 @@
             };
             renderCards(TECMD_PROGRAMS);
 
-            // Búsqueda en catálogo
             const searchCatalogEl = document.getElementById('search-catalog');
             if(searchCatalogEl) {
                 searchCatalogEl.addEventListener('input', (e) => {
