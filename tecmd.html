@@ -957,6 +957,60 @@
             if (targetView) targetView.classList.remove('hidden');
         };
 
+        // --- CARGAR DATOS EXISTENTES EN FORMULARIO (EDICIÓN) ---
+        window.populateStudentForm = (email) => {
+            const student = rawData.find(s => s.id === email || (s.email && s.email === email));
+            if (!student) return;
+            
+            const setVal = (id, val) => { if(document.getElementById(id) && val !== undefined) document.getElementById(id).value = val; };
+            
+            setVal('form-id', student.id);
+            setVal('form-name', student.name);
+            if(student.fnac) setVal('form-fnac', student.fnac);
+            setVal('form-gen', student.gen);
+            setVal('form-estrato', student.est);
+            setVal('form-dept', student.dept);
+            setVal('form-etnia', student.etnia);
+            setVal('form-discapacidad', student.discapacidad);
+            setVal('form-prog', student.prog);
+            
+            const sectorSelect = document.getElementById('form-sector');
+            const otroInput = document.getElementById('form-sector-otro');
+            if (sectorSelect) {
+                const optExists = Array.from(sectorSelect.options).some(opt => opt.value === student.sector);
+                if (optExists) {
+                    setVal('form-sector', student.sector);
+                    if(otroInput) otroInput.classList.add('hidden');
+                } else if (student.sector) {
+                    setVal('form-sector', 'Otro');
+                    if(otroInput) {
+                        otroInput.value = student.sector;
+                        otroInput.classList.remove('hidden');
+                    }
+                }
+            }
+            
+            setVal('form-gpa', student.gpa);
+            setVal('form-semestre', student.semestre);
+            setVal('form-empresa', student.empresa);
+            setVal('form-tipo-empresa', student.tipo_empresa);
+            setVal('form-tutor1', student.tutor1);
+            setVal('form-tutor2', student.tutor2);
+            setVal('form-entregables', student.entregables);
+            setVal('form-proyecto-tipo', student.proyecto_tipo);
+            setVal('form-titulo', student.titulo);
+            
+            // Cambiar aspecto visual del botón para indicar actualización
+            const submitBtn = document.querySelector('#student-form button[type="submit"]');
+            if(submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Actualizar Ficha y Datos';
+        };
+
+        // Listener para que el admin pueda autocompletar si escribe un ID existente
+        const formIdInput = document.getElementById('form-id');
+        if(formIdInput) {
+            formIdInput.addEventListener('blur', (e) => populateStudentForm(e.target.value));
+        }
+
         // --- AUTH LOGIC ---
         onAuthStateChanged(auth, u => {
             const loginView = document.getElementById('login-view');
@@ -994,9 +1048,11 @@
                     }
                     showView('manual');
                     
-                    // Pre-llenar el correo si el usuario no es admin
+                    // Pre-llenar el correo si el usuario no es admin y CARGAR DATOS SI YA EXISTEN
                     const formId = document.getElementById('form-id');
                     if(formId && !formId.value) formId.value = u.email;
+                    
+                    populateStudentForm(u.email);
                 } else {
                     document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
                     document.querySelectorAll('.superadmin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
@@ -1457,9 +1513,15 @@
             });
 
             // Verificar si el ID ya existe y actualizar en lugar de añadir repetido
+            let isUpdate = false;
             const existingIndex = rawData.findIndex(s => s.id === newStudent.id);
             if(existingIndex !== -1) {
+                // Conservar nlp, sim y progreso anteriores si es una actualización manual
+                newStudent.nlp = rawData[existingIndex].nlp || 0;
+                newStudent.sim = rawData[existingIndex].sim || 0;
+                newStudent.progreso = rawData[existingIndex].progreso || 0;
                 rawData[existingIndex] = { ...rawData[existingIndex], ...newStudent };
+                isUpdate = true;
             } else {
                 rawData.unshift(newStudent);
             }
@@ -1469,7 +1531,12 @@
             if(dynamicContainer) dynamicContainer.innerHTML = '';
             
             saveDataToLocal(); updateAllDataViews(); 
-            Swal.fire({title: 'Ficha Registrada', text: 'Tus datos han sido integrados al motor DAX y a la nube.', icon: 'success'});
+            
+            if(isUpdate) {
+                Swal.fire({title: 'Ficha Actualizada', text: 'Tus datos han sido actualizados exitosamente.', icon: 'success'});
+            } else {
+                Swal.fire({title: 'Ficha Registrada', text: 'Tus datos han sido integrados al motor DAX y a la nube.', icon: 'success'});
+            }
         });
 
         // --- ANALIZAR (MOTOR NLP) ---
