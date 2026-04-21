@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TECMD DataLab | Panel de Control Ultimate V4.8 (Full Catalog & BI)</title>
+    <title>TECMD DataLab | Panel de Control Ultimate V4.7 (Full Catalog & BI)</title>
     
     <!-- Tailwind CSS, FontAwesome, Google Fonts -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -46,9 +46,9 @@
         
         /* Ajustes Z-Index y Prevención de Superposición (Overflow) en gráficos */
         .chart-container { position: relative; min-height: 250px; width: 100%; height: 100%; z-index: 10; overflow: hidden; flex: 1 1 auto; display: flex; justify-content: center; align-items: center; }
-        .chart-wrapper { display: flex; flex-direction: column; overflow: hidden; min-height: 350px; position: relative; }
+        .chart-wrapper { display: flex; flex-direction: column; overflow: hidden; min-height: 350px; }
         canvas { cursor: context-menu; display: block; max-width: 100%; max-height: 100%; } 
-        .echarts-map { z-index: 10; flex: 1 1 auto; min-height: 300px; width: 100%; }
+        .echarts-map { z-index: 10; flex: 1 1 auto; min-height: 300px; }
         
         .chart-wrapper:hover::after {
             content: 'Clic derecho para Editar (Modo DAX)';
@@ -62,13 +62,18 @@
         .malla-container::-webkit-scrollbar { width: 4px; }
         .malla-container::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.5); border-radius: 4px; }
 
-        /* Capa de Estado Vacío (Esperando datos) */
-        .empty-data-overlay { position: absolute; inset: 0; background: var(--glass-bg); backdrop-filter: blur(4px); z-index: 15; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-radius: 0.5rem; transition: opacity 0.3s; }
+        /* Overlay Estado Vacío "Esperando Datos" */
+        .empty-data-overlay {
+            position: absolute; inset: 0; background: rgba(255,255,255,0.8); z-index: 25; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-radius: 1rem;
+            backdrop-filter: blur(4px);
+        }
+        .dark .empty-data-overlay { background: rgba(15,23,42,0.8); }
     </style>
 </head>
 <body class="overflow-hidden flex flex-col h-[100dvh] w-full">
 
-    <!-- LOGIN -->
+    <!-- LOGIN OBLIGATORIO -->
     <div id="login-view" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="login-bg">
             <div class="login-orb orb-1"></div>
@@ -80,7 +85,7 @@
                     <i class="fa-solid fa-atom text-4xl text-blue-400"></i>
                 </div>
                 <h1 class="text-3xl font-extrabold tracking-tight">TECMD DataLab</h1>
-                <p class="text-sm mt-2 text-blue-200 opacity-80 font-medium">Motor BI & Analítica Institucional V4.8</p>
+                <p class="text-sm mt-2 text-blue-200 opacity-80 font-medium">Motor BI & Analítica Institucional V4.7</p>
             </div>
             <form id="login-form" class="space-y-5">
                 <div>
@@ -166,9 +171,9 @@
                     <h1 class="text-xl font-bold hidden sm:block">Centro de Operaciones TECMD</h1>
                 </div>
                 <div class="ml-auto flex items-center gap-4">
-                    <button id="btn-cloud-sync" class="bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20 border border-green-500/30 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-2">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> Guardar en Nube
-                    </button>
+                    <div id="cloud-status-indicator" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold shadow-sm bg-yellow-500/10 text-yellow-700 border border-yellow-500/30">
+                        <i class="fa-solid fa-cloud-arrow-down fa-beat-fade"></i> Conectando...
+                    </div>
                     <span id="superadmin-badge" class="hidden bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border border-yellow-500/20 text-xs px-3 py-1.5 rounded-full font-bold shadow-sm">
                         <i class="fa-solid fa-crown mr-1"></i> Super Admin
                     </span>
@@ -195,10 +200,10 @@
                     </div>
 
                     <!-- PANEL DE FILTROS GLOBALES -->
-                    <div class="glass-panel p-4 rounded-2xl mb-6 shadow-sm border border-blue-500/20">
+                    <div class="glass-panel p-4 rounded-2xl mb-6 shadow-sm border border-blue-500/20 relative z-20">
                         <div class="flex justify-between items-center mb-3">
                             <h3 class="text-sm font-bold text-blue-600 dark:text-blue-400"><i class="fa-solid fa-sliders mr-1"></i> Slicers / Filtros Globales</h3>
-                            <button id="btn-clear-global-filters" class="text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 px-3 py-1 rounded-full font-bold transition-all hidden"><i class="fa-solid fa-times"></i> Limpiar Todo</button>
+                            <button id="btn-clear-global-filters" class="hidden text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 px-3 py-1 rounded-full font-bold transition-all"><i class="fa-solid fa-times"></i> Limpiar Todo</button>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                             <select id="filter-dept" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500">
@@ -232,14 +237,15 @@
                                     <option value="Mejoramiento de Procesos Industriales">Mejoramiento de Procesos Industriales</option>
                                 </optgroup>
                             </select>
-                            <select id="filter-sector" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"><option value="">Todos los Sectores</option><option value="Tecnología">Tecnología / Software</option><option value="Manufactura">Manufactura / Industria</option><option value="Servicios">Servicios Consultoría</option><option value="Agropecuario">Agropecuario</option><option value="Construcción">Construcción</option><option value="Público">Sector Público</option><option value="Educación">Educación</option><option value="Otro">Otro Sector</option></select>
+                            <select id="filter-sector" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"><option value="">Todos los Sectores</option><option value="Tecnología">Tecnología / Software</option><option value="Educación">Educación</option><option value="Manufactura">Manufactura / Industria</option><option value="Servicios">Servicios Consultoría</option><option value="Agropecuario">Agropecuario</option><option value="Construcción">Construcción</option><option value="Público">Sector Público</option><option value="Otro">Otro Sector</option></select>
                             <select id="filter-est" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"><option value="">Todos los Estratos</option><option value="1">Estrato 1</option><option value="2">Estrato 2</option><option value="3">Estrato 3</option><option value="4">Estrato 4</option><option value="5">Estrato 5</option><option value="6">Estrato 6</option></select>
                             <select id="filter-gen" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"><option value="">Todos los Géneros</option><option value="Femenino">Femenino</option><option value="Masculino">Masculino</option><option value="Otro">Otro</option></select>
                         </div>
                     </div>
                     
                     <!-- KPIs Accionables -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 relative">
+                        <div id="overlay-kpis" class="empty-data-overlay hidden"><div class="animate-pulse"><i class="fa-solid fa-cloud-arrow-down text-3xl text-blue-500 mb-2"></i><p class="font-bold text-sm">Esperando datos de la nube...</p></div></div>
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-blue-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
                             <h3 class="text-xs font-bold uppercase opacity-60">Matrícula Activa</h3><p id="kpi-total" class="text-3xl font-extrabold mt-1">0</p>
                             <p class="text-xs mt-1 font-semibold text-blue-600 dark:text-blue-400">Estudiantes filtrados</p>
@@ -247,12 +253,12 @@
                         </div>
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-purple-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
                             <h3 class="text-xs font-bold uppercase opacity-60">Calidad NLP (Promedio)</h3><p id="kpi-nlp" class="text-3xl font-extrabold mt-1">0</p>
-                            <p id="kpi-nlp-status" class="text-xs mt-1 font-semibold text-gray-500 dark:text-gray-400">Esperando Evaluación</p>
+                            <p id="kpi-nlp-status" class="text-xs mt-1 font-semibold text-gray-500">Sin evaluar</p>
                             <i class="fa-solid fa-brain absolute right-[-10px] bottom-[-10px] text-6xl opacity-5 group-hover:opacity-10 transition-opacity text-purple-500"></i>
                         </div>
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-yellow-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
                             <h3 class="text-xs font-bold uppercase opacity-60">Similitud Documental</h3><p id="kpi-sim" class="text-3xl font-extrabold mt-1">0%</p>
-                            <p id="kpi-sim-status" class="text-xs mt-1 font-semibold text-gray-500 dark:text-gray-400">Esperando Análisis</p>
+                            <p id="kpi-sim-status" class="text-xs mt-1 font-semibold text-gray-500">Sin documentos</p>
                             <i class="fa-solid fa-copy absolute right-[-10px] bottom-[-10px] text-6xl opacity-5 group-hover:opacity-10 transition-opacity text-yellow-500"></i>
                         </div>
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-green-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
@@ -264,7 +270,7 @@
 
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                         <div class="glass-panel p-6 rounded-2xl lg:col-span-1 flex flex-col h-[400px] chart-wrapper relative">
-                            <div class="empty-data-overlay hidden"><i class="fa-solid fa-database text-4xl mb-2 opacity-50 text-red-500"></i><p class="font-bold text-sm">Esperando datos</p><p class="text-[10px] opacity-70">Sincroniza con la nube</p></div>
+                            <div id="overlay-map" class="empty-data-overlay hidden"><div class="animate-pulse"><i class="fa-solid fa-map-location-dot text-3xl text-blue-500 mb-2"></i><p class="font-bold text-sm">Esperando datos...</p></div></div>
                             <div class="flex justify-between items-center mb-2">
                                 <h3 class="font-bold z-20"><i class="fa-solid fa-map-location-dot text-red-500 mr-2"></i> Distribución Regional</h3>
                                 <span class="text-[10px] bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 px-2 py-1 rounded-full font-bold">Clickeable</span>
@@ -274,7 +280,7 @@
                         </div>
                         <div class="lg:col-span-2 flex flex-col gap-6">
                             <div class="glass-panel p-6 rounded-2xl min-h-[220px] flex flex-col chart-wrapper relative">
-                                <div class="empty-data-overlay hidden"><i class="fa-solid fa-industry text-4xl mb-2 opacity-50 text-blue-500"></i><p class="font-bold text-sm">Esperando datos</p><p class="text-[10px] opacity-70">Sincroniza con la nube</p></div>
+                                <div id="overlay-sectores" class="empty-data-overlay hidden"><div class="animate-pulse"><i class="fa-solid fa-industry text-3xl text-blue-500 mb-2"></i><p class="font-bold text-sm">Esperando datos...</p></div></div>
                                 <div class="flex justify-between items-center mb-2">
                                     <h3 class="font-bold z-20"><i class="fa-solid fa-industry text-blue-500 mr-2"></i> Sectores de Práctica</h3>
                                 </div>
@@ -284,14 +290,14 @@
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[220px]">
                                 <div class="glass-panel p-4 rounded-2xl flex flex-col chart-wrapper relative">
-                                    <div class="empty-data-overlay hidden"><i class="fa-solid fa-layer-group text-4xl mb-2 opacity-50 text-purple-500"></i><p class="font-bold text-sm">Esperando datos</p><p class="text-[10px] opacity-70">Sincroniza con la nube</p></div>
+                                    <div id="overlay-programas" class="empty-data-overlay hidden"><div class="animate-pulse"><i class="fa-solid fa-layer-group text-3xl text-blue-500 mb-2"></i><p class="font-bold text-sm">Esperando datos...</p></div></div>
                                     <h3 class="font-bold text-sm mb-2 z-20"><i class="fa-solid fa-layer-group text-purple-500 mr-1"></i> Programas</h3>
                                     <div class="chart-container">
                                         <canvas id="chartProgramas" data-dax-y="prog" data-dax-x="count"></canvas>
                                     </div>
                                 </div>
                                 <div class="glass-panel p-4 rounded-2xl flex flex-col chart-wrapper relative">
-                                    <div class="empty-data-overlay hidden"><i class="fa-solid fa-house-chimney text-4xl mb-2 opacity-50 text-yellow-500"></i><p class="font-bold text-sm">Esperando datos</p><p class="text-[10px] opacity-70">Sincroniza con la nube</p></div>
+                                    <div id="overlay-estratos" class="empty-data-overlay hidden"><div class="animate-pulse"><i class="fa-solid fa-house-chimney text-3xl text-blue-500 mb-2"></i><p class="font-bold text-sm">Esperando datos...</p></div></div>
                                     <h3 class="font-bold text-sm mb-2 z-20"><i class="fa-solid fa-house-chimney text-yellow-500 mr-1"></i> Estratos</h3>
                                     <div class="chart-container">
                                         <canvas id="chartEstratos" data-dax-y="est" data-dax-x="count"></canvas>
@@ -339,7 +345,8 @@
                         </div>
 
                         <!-- Sección Superior: Radar y Métricas KPIs -->
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 relative">
+                            <div id="overlay-radar" class="empty-data-overlay hidden"><div class="animate-pulse"><i class="fa-solid fa-database text-3xl text-blue-500 mb-2"></i><p class="font-bold text-sm">Esperando datos reales...</p></div></div>
                             <div class="lg:col-span-1 space-y-4">
                                 <div class="bg-white/60 dark:bg-black/20 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
                                     <h4 class="text-xs font-bold uppercase opacity-60 mb-2">Total Matriculados</h4>
@@ -378,16 +385,16 @@
                                 <!-- Inyectado vía JS para mostrar Programas A y B lado a lado -->
                             </div>
                             
-                            <!-- NUEVO V4.8: Mapa de Solapamiento Curricular con mayor separación -->
-                            <div class="mt-12 glass-panel p-4 rounded-2xl flex flex-col items-center justify-center relative shadow-inner overflow-hidden w-full overflow-x-auto">
+                            <!-- NUEVO V4.7: Mapa de Solapamiento Curricular (Venn-Graph Didáctico) -->
+                            <div class="mt-12 glass-panel p-4 rounded-2xl flex flex-col items-center justify-center relative shadow-inner overflow-hidden">
                                 <h4 class="font-bold text-sm mb-2 w-full text-left opacity-80 flex items-center gap-2"><i class="fa-solid fa-diagram-project text-blue-500"></i> Mapa de Solapamiento Curricular</h4>
-                                <p class="text-[10px] opacity-60 w-full text-left mb-6">Visualización didáctica estructurada. Nodos más separados para mayor claridad y lectura.</p>
+                                <p class="text-[10px] opacity-60 w-full text-left mb-6">Visualización didáctica estructurada. Las materias se alinean en 3 columnas mostrando qué comparte cada programa y qué los hace únicos.</p>
                                 
-                                <div id="didactic-graph-header" class="w-full grid grid-cols-3 gap-4 mb-4 text-center min-w-[800px]"></div>
+                                <!-- Tarjetas Didácticas Superiores -->
+                                <div id="didactic-graph-header" class="w-full grid grid-cols-3 gap-4 mb-4 text-center"></div>
                                 
-                                <div class="w-full overflow-x-auto pb-4">
-                                    <div id="curriculum-graph" class="min-w-[1000px] min-h-[550px] transition-all duration-500 ease-in-out"></div>
-                                </div>
+                                <!-- Se cambió h-[550px] por un min-h y transiciones para que el JS controle su alto dinámico -->
+                                <div id="curriculum-graph" class="w-full min-h-[550px] transition-all duration-500 ease-in-out"></div>
                             </div>
                         </div>
                     </div>
@@ -450,7 +457,7 @@
                     </div>
 
                     <div class="glass-panel p-8 rounded-3xl w-full relative z-10 chart-wrapper flex flex-col min-h-[450px]">
-                        <div class="empty-data-overlay hidden z-50"><i class="fa-solid fa-wand-magic-sparkles text-4xl mb-2 opacity-50 text-blue-500"></i><p class="font-bold text-sm">Esperando datos</p><p class="text-[10px] opacity-70">Para generar analítica avanzada</p></div>
+                        <div id="overlay-dax" class="empty-data-overlay hidden"><div class="animate-pulse"><i class="fa-solid fa-chart-line text-3xl text-blue-500 mb-2"></i><p class="font-bold text-sm">Esperando datos reales...</p></div></div>
                         <button id="btn-pin-custom" class="absolute top-6 right-6 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all text-sm flex items-center gap-2 z-30">
                             <i class="fa-solid fa-thumbtack"></i> Anclar a Dashboard
                         </button>
@@ -469,13 +476,9 @@
                             <div>
                                 <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2"><i class="fa-solid fa-id-card text-blue-500 mr-2"></i> 1. Identidad y Perfil Base</h3>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Documento (ID) / Usuario *</label><input type="text" id="form-id" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="dopabonr" required></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Documento (ID) / Correo *</label><input type="text" id="form-id" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required></div>
                                     <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Nombres Completos *</label><input type="text" id="form-name" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Fecha Nacimiento</label><input type="date" id="form-fnac" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"></div>
-                                    
-                                    <!-- Nuevos Campos Personalizados Base -->
-                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Trabajo / Ocupación</label><input type="text" id="form-trabajo" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Docente universitario"></div>
-                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Lugar de Origen</label><input type="text" id="form-origen" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Pamplona, Norte de Santander"></div>
                                 </div>
                             </div>
                             <div>
@@ -485,7 +488,7 @@
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Estrato *</label><select id="form-estrato" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Depto. Residencia *</label><select id="form-dept" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required><option value="Santander">Santander</option><option value="Bogotá">Bogotá D.C.</option><option value="Antioquia">Antioquia</option><option value="Valle del Cauca">Valle</option><option value="Atlántico">Atlántico</option><option value="Cundinamarca">Cundinamarca</option></select></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Grupo Étnico</label><select id="form-etnia" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="Ninguno">Ninguno</option><option value="Indígena">Indígena</option><option value="Afrodescendiente">Afrodescendiente</option><option value="Raizal">Raizal / Palenquero</option><option value="ROM">ROM</option></select></div>
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Discapacidad</label><select id="form-discapacidad" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="No">Ninguno / No</option><option value="Física">Física</option><option value="Visual">Visual</option><option value="Auditiva">Auditiva</option><option value="Cognitiva">Cognitiva</option></select></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Discapacidad</label><select id="form-discapacidad" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="Ninguno">Ninguno</option><option value="Física">Física</option><option value="Visual">Visual</option><option value="Auditiva">Auditiva</option><option value="Cognitiva">Cognitiva</option></select></div>
                                 </div>
                             </div>
                             <div>
@@ -524,22 +527,14 @@
                                     <div class="md:col-span-1">
                                         <label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Sector de Práctica *</label>
                                         <select id="form-sector" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required>
-                                            <option value="Tecnología">Tecnología / Software</option><option value="Manufactura">Manufactura / Industria</option><option value="Servicios">Servicios Consultoría</option><option value="Agropecuario">Agropecuario</option><option value="Construcción">Construcción</option><option value="Público">Sector Público</option><option value="Educación">Educación / Investigación</option><option value="Otro">Otro (Especificar)</option>
+                                            <option value="Educación">Educación</option><option value="Tecnología">Tecnología / Software</option><option value="Manufactura">Manufactura / Industria</option><option value="Servicios">Servicios Consultoría</option><option value="Agropecuario">Agropecuario</option><option value="Construcción">Construcción</option><option value="Público">Sector Público</option><option value="Otro">Otro (Especificar)</option>
                                         </select>
                                         <input type="text" id="form-sector-otro" class="hidden w-full bg-white dark:bg-gray-900 border border-blue-300 dark:border-blue-700 rounded-xl py-2 px-3 mt-2 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold fade-in" placeholder="Especifique el sector">
                                     </div>
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Semestre Actual</label><input type="text" id="form-semestre" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: 4to semestre"></div>
-                                    
-                                    <!-- Empresa Info -->
-                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Empresa / Institución</label><input type="text" id="form-empresa" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: tecmd"></div>
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tipo Empresa</label><select id="form-tipo-empresa" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="Privada">Privada</option><option value="Pública">Pública</option><option value="Mixta">Mixta</option></select></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Promedio Previo (GPA)</label><input type="number" id="form-gpa" step="0.1" min="0" max="5" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="0.0 - 5.0"></div>
                                 </div>
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-                                    <div class="md:col-span-3"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Título del Proyecto / Entregable</label><input type="text" id="form-titulo" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Solución arquitectónica para la preservación..."></div>
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Cant. Entregables</label><input type="number" id="form-entregables" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="1"></div>
-                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tutor (a) / Responsable 1</label><input type="text" id="form-tutor1" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Nombre completo del tutor"></div>
-                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tutor (a) / Responsable 2</label><input type="text" id="form-tutor2" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Opcional"></div>
+                                <div class="grid grid-cols-1 gap-5">
+                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Título del Proyecto / Entregable</label><input type="text" id="form-titulo" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Implementación de CRM en Pymes"></div>
                                 </div>
                             </div>
                             
@@ -550,7 +545,7 @@
                                     <i class="fa-solid fa-plus"></i> Añadir Campo Nuevo
                                 </button>
                                 <button type="submit" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-database"></i> Integrar Ficha al Motor BI
+                                    <i class="fa-solid fa-database"></i> Integrar Ficha a la Nube (Firestore)
                                 </button>
                             </div>
                         </form>
@@ -604,15 +599,15 @@
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <div>
                             <h2 class="text-3xl font-extrabold tracking-tight mb-1">Gestión y Seguimiento Académico</h2>
-                            <p class="opacity-70 text-sm">Monitorea y edita manualmente los scores si hay discrepancias del motor NLP. Elimina registros de prueba usando el botón rojo.</p>
+                            <p class="opacity-70 text-sm">Monitorea y edita manualmente los scores en la Nube. Elimina registros permanentemente usando el botón rojo.</p>
                         </div>
                         <div class="relative w-full md:w-80">
                             <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
                             <input type="text" id="search-student" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none shadow-sm font-semibold" placeholder="Buscar por nombre, ID o programa...">
                         </div>
                     </div>
-                    <div class="glass-panel p-2 rounded-3xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-800 relative min-h-[200px]">
-                        <div id="table-empty-state" class="empty-data-overlay hidden"><i class="fa-solid fa-users-slash text-4xl mb-2 opacity-50 text-gray-500"></i><p class="font-bold text-sm">Esperando datos</p></div>
+                    <div class="glass-panel p-2 rounded-3xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-800 relative">
+                        <div id="overlay-table" class="empty-data-overlay hidden"><div class="animate-pulse"><i class="fa-solid fa-table-list text-3xl text-blue-500 mb-2"></i><p class="font-bold text-sm">Esperando datos...</p></div></div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse whitespace-nowrap">
                                 <thead>
@@ -666,12 +661,11 @@
 
                 <!-- VIEW: CARGA MASIVA -->
                 <div id="view-upload" class="view-section hidden fade-in max-w-7xl mx-auto">
-                    <h2 class="text-3xl font-extrabold tracking-tight mb-2">Carga Masiva de Datos y Formatos</h2>
+                    <h2 class="text-3xl font-extrabold tracking-tight mb-2">Carga Masiva de Datos a la Nube</h2>
                     <div class="glass-panel p-10 rounded-3xl border-2 border-dashed border-blue-400 dark:border-gray-600 text-center relative hover:border-blue-500 cursor-pointer group mb-8 bg-blue-50/30 dark:bg-transparent">
                         <input type="file" id="file-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".csv, .xlsx, .json">
                         <i class="fa-solid fa-cloud-arrow-up text-6xl text-blue-500 mb-4 group-hover:-translate-y-2 transition-transform drop-shadow-md"></i>
-                        <h3 class="text-xl font-bold mb-2">Arrastra tu archivo aquí o haz clic</h3>
-                        <p class="text-xs opacity-70">Sincronización automatizada hacia la nube activada.</p>
+                        <h3 class="text-xl font-bold mb-2">Arrastra tu archivo aquí o haz clic para subir a Firestore</h3>
                     </div>
                 </div>
 
@@ -699,6 +693,7 @@
                     <div class="glass-panel rounded-3xl p-8 text-center">
                         <i class="fa-solid fa-users-gear text-5xl opacity-20 mb-4"></i>
                         <h3 class="font-bold text-lg mb-4">Administradores Actuales</h3>
+                        <p class="mb-4 text-sm font-bold text-blue-600">dopabonr@tecmd.edu.co (Super Admin Activo)</p>
                         <button class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-xl font-bold mx-auto flex items-center gap-2 shadow-md"><i class="fa-solid fa-plus"></i> Promover a Administrador</button>
                     </div>
                 </div>
@@ -710,7 +705,7 @@
             </button>
 
             <footer class="text-center py-3 text-[10px] font-bold opacity-50 border-t border-gray-200 dark:border-gray-800">
-                TECMD DataLab Ultimate V4.8 &copy; Creado por Dudbil Olvasada Pabon Riaño. Todos los derechos reservados.
+                TECMD DataLab Ultimate V4.7 &copy; Creado por Dudbil Olvasada Pabon Riaño. Todos los derechos reservados.
             </footer>
         </main>
     </div>
@@ -718,9 +713,12 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
+        // CONFIGURACIÓN FIREBASE (Usa tus credenciales reales, se validarán mediante Firestore Rules en backend)
         const app = initializeApp({ apiKey:"AIzaSyB1zA4rgNYvKLfZg-Htoc7l1jv6UIMcAlU", authDomain:"tecmd-datalab.firebaseapp.com", projectId:"tecmd-datalab", storageBucket:"tecmd-datalab.firebasestorage.app", messagingSenderId:"747545168390", appId:"1:747545168390:web:7410d9acdeb83b3ac45187" });
         const auth = getAuth(app);
+        const db = getFirestore(app);
 
         const safeClick = (id, handler) => { const el = document.getElementById(id); if (el) el.addEventListener('click', handler); };
         const safeSubmit = (id, handler) => { const el = document.getElementById(id); if (el) el.addEventListener('submit', handler); };
@@ -732,124 +730,23 @@
         });
 
         // --- BASE DE DATOS CATÁLOGO DE PROGRAMAS TECMD (MALLAS EXACTAS) ---
-        const malla_MejoramientoProcesos = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Estadística", creditos:3}, {nombre:"Gestión y Eficiencia Energética en Procesos Industriales", creditos:3}, {nombre:"Procesos Industriales", creditos:3}, {nombre:"Diseño de Procesos Productivos", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Control de Calidad en Proceso y Producto", creditos:3}, {nombre:"Programación de Producción y Servicios", creditos:3}, {nombre:"Control de Procesos", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Logística y Control de Inventarios", creditos:3}, {nombre:"Logística Interna de Producción (MRP)", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Estructura de Proyectos", creditos:3}, {nombre:"Metodología Kaizen", creditos:3}, {nombre:"Protocolos y BPM", creditos:3}, {nombre:"Introducción a la Filosofía Lean", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_MontajeEnergias = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Redes de Energía Sostenible", creditos:3}, {nombre:"Gestión y Eficiencia Energética en Procesos Industriales", creditos:3}, {nombre:"Seguridad en Riesgo Eléctrico", creditos:3}, {nombre:"Operación de Sistemas Eléctricos", creditos:3}, {nombre:"Principios de Energía Fotovoltaica", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Conformidad de Sistemas Eléctricos", creditos:3}, {nombre:"Diagnóstico y Mantenimiento de Sistemas Eléctricos", creditos:3}, {nombre:"Montaje de Instalaciones Solares Fotovoltaicas", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Mantenimiento de Instalaciones Solares Fotovoltaicas", creditos:3}, {nombre:"Sistemas de Generación Eólica", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Montaje y Mantenimiento de Instalaciones de Energía Eólica", creditos:3}, {nombre:"Operación de Centrales Eléctricas de tipo PCH", creditos:3}, {nombre:"Montaje y Mantenimiento de Instalaciones Eléctricas de tipo PCH", creditos:3}, {nombre:"Logística e Inventario de Sistemas Eléctricos", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_RelacionamientoCRM = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Comunicación con Clientes y Usuario", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Herramientas del CRM", creditos:3}, {nombre:"Ciclo de Vida de los Clientes", creditos:3}, {nombre:"CRM y Marketing Relacional", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Procesos de Ventas", creditos:3}, {nombre:"Segmentación y Análisis de Mercados", creditos:3}, {nombre:"Seguimiento de Transacciones y Cartera", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Electiva", creditos:2}, {nombre:"Evaluación de Satisfacción de Clientes", creditos:3}, {nombre:"Operación de Bases de Datos", creditos:3}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Modelo Certificación COPC", creditos:3}, {nombre:"Programas de Fidelización y Retención", creditos:3}, {nombre:"Seguimiento y Evaluación del Servicio al Cliente", creditos:3}, {nombre:"Práctica Profesional", creditos:4}, {nombre:"Plataforma CRM", creditos:3}] }
-        ];
-
-        const malla_CreacionContenidos = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Conociendo Herramientas Gráficas y Audiovisuales", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Comunicaciones Digitales", creditos:3}, {nombre:"Conociendo Social Media", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Cultura y Narrativa Digital", creditos:3}, {nombre:"Fotografía y Retoque de Imágenes", creditos:3}, {nombre:"Contando Historias que Emocionen", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"El Consumidor Digital", creditos:3}, {nombre:"El Video como Herramienta de Marketing", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Marketing Táctico y Penetración de Mercados", creditos:3}, {nombre:"Plan de Negocios", creditos:3}, {nombre:"Midiendo el Impacto en Campañas", creditos:3}, {nombre:"Edición y Curación de Contenidos Digitales", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_ProcesosMercadeo = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Contactos y Redes Comerciales", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"E-Commerce", creditos:3}, {nombre:"Comunicaciones Digitales", creditos:3}, {nombre:"Segmentación y Análisis de Mercados", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Marketing Táctico y Penetración de Mercados", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Definición de Caracterización y Captura de Audiencia", creditos:3}, {nombre:"Diseño de Piezas Gráficas y Audiovisuales", creditos:3}, {nombre:"Diseño y Ejecución de Pauta Digital", creditos:3}, {nombre:"Campañas Publicitarias en Redes y Buscadores", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_AsesoriaComercial = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Contactos y Redes Comerciales", creditos:3}, {nombre:"Análisis y Diseño de Sistemas", creditos:3}, {nombre:"Ciclo de Vida de los Clientes", creditos:2}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}, {nombre:"Fundamentos de Mercadeo", creditos:3}, {nombre:"Procesos de Ventas", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Gestión Comercial", creditos:3}, {nombre:"Sistemas de Información", creditos:3}, {nombre:"Técnicas de Venta y Negociación", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Campañas Publicitarias en Redes y Buscadores", creditos:4}, {nombre:"Administración de Negocios Online", creditos:3}, {nombre:"Seguimiento y Evaluación del Servicio al Cliente", creditos:3}, {nombre:"Programas de Fidelización y Retención", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_OperacionesContables = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Pensamiento Contable", creditos:3}, {nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Gestión de Información", creditos:3}, {nombre:"Fundamentos de Contabilidad", creditos:3}, {nombre:"Fundamentos de Finanzas", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Estadística", creditos:3}, {nombre:"Métodos de Matemáticas Financieras", creditos:3}, {nombre:"Normatividad Contable", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Blockchain", creditos:3}, {nombre:"Contabilidad General", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Herramientas BI", creditos:3}, {nombre:"Costos y Presupuestos", creditos:3}, {nombre:"Estructura Tributaria y de Auditoría", creditos:3}, {nombre:"Análisis de Estados Financieros", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_InteligenciaNegocios = [
-            { periodo: "Semestre 1", materias: [{nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Introducción a la Inteligencia de Negocios", creditos:3}, {nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas BI (Business Intelligence)", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Introducción a Small Data", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Marco Normativo para la Gestión de TIC's", creditos:3}, {nombre:"Estadística", creditos:3}, {nombre:"Fundamentos de Administración", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Conociendo Social Media", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Data Wherehouse", creditos:3}, {nombre:"E-Commerce", creditos:3}, {nombre:"Plan de Negocios", creditos:3}, {nombre:"Machine Learning", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_OperacionesFintech = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Gestión de la Información", creditos:3}, {nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Economía Digital", creditos:3}, {nombre:"Fundamentos de Finanzas", creditos:3}, {nombre:"Finanzas y Tecnologías Financieras", creditos:2}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Ética de los Datos y la Información", creditos:3}, {nombre:"Pagos Digitales y Billeteras Electrónicas", creditos:3}, {nombre:"Marcos de Gestión de Proyectos Agile", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Créditos e Inversiones Digitales", creditos:3}, {nombre:"Blockchain", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Herramientas BI", creditos:3}, {nombre:"Experiencia del Consumidor", creditos:3}, {nombre:"Modelos de Negocio del Ecosistema Fintech", creditos:3}, {nombre:"Gestión del Riesgo en Fintech", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_ComercioElectronico = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Definición, Caracterización y Captura de Audiencia", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Herramientas del CRM", creditos:3}, {nombre:"Community Management", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Seguridad Web", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}, {nombre:"Comercio Electrónico", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Modelos de Negocio y Logística en E-Commerce", creditos:3}, {nombre:"Infraestructura E-Commerce", creditos:2}, {nombre:"Diseño y Ejecución de Pauta Digital", creditos:3}, {nombre:"Plan de Negocios", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_ProgramacionSoftware = [
-            { periodo: "Semestre 1", materias: [{nombre:"Componentes de la Computación", creditos:3}, {nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Lógica Computacional", creditos:3}, {nombre:"Introducción a la Programación", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Estructura de Datos", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Paradigmas y Lenguajes de Programación", creditos:3}, {nombre:"Estructuras de Datos Avanzadas", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Procesos de Desarrollo Agiles", creditos:3}, {nombre:"Pruebas Técnicas de Software", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Implementación de Interfaces de Usuario", creditos:3}, {nombre:"Programación de Componentes e Integraciones", creditos:3}, {nombre:"Técnicas de Documentación de Software", creditos:3}, {nombre:"Técnicas de Mantenimiento de Software", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_CloudComputing = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Modelos de Servicio en Cloud Computing", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:2}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Modelos de Servicio en Cloud Computing", creditos:3}, {nombre:"Sistemas de Virtualización", creditos:3}, {nombre:"Seguridad Web", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Computación en la Nube sobre Google Cloud", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Soluciones Open Source para Cloud Computing", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Computación en la Nube sobre Amazon Web Services", creditos:3}, {nombre:"TI sobre ITIL", creditos:3}, {nombre:"Preparatorio AWS Certified Solutions", creditos:3}, {nombre:"Práctica Profesional", creditos:4}, {nombre:"Computación en la Nube sobre Microsoft Azure", creditos:3}] }
-        ];
-
-        const malla_AppWebMoviles = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Lógica Computacional", creditos:3}, {nombre:"Estructura de Datos", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Programación y Desarrollo de Aplicaciones Web Móviles", creditos:3}, {nombre:"Dispositivos Móviles", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Seguridad Web", creditos:3}, {nombre:"Sistemas de Información", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Analítica Móvil", creditos:3}, {nombre:"Soporte de Aplicaciones Web", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_BasesDatos = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Lógica Computacional", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Fundamentos de Programación", creditos:3}, {nombre:"Introducción a la Estructura de Datos", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Requerimientos de Información", creditos:3}, {nombre:"Estructura de Redes de Datos", creditos:3}, {nombre:"Bases de Datos Relacionales", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Bases de Datos No Relacionales", creditos:3}, {nombre:"Ética de los Datos y la Información", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Aseguramiento de Bases de Datos", creditos:3}, {nombre:"Administración de Bases de Datos - DBA", creditos:3}, {nombre:"Modelado de Bases de Datos Relacionales", creditos:3}, {nombre:"Práctica Profesional", creditos:4}, {nombre:"Legislación y Auditoría en Sistemas Informáticos", creditos:3}] }
-        ];
-
-        const malla_SeguridadInformatica = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Análisis y Diseño de Sistemas", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Estructura de Datos", creditos:3}, {nombre:"Diagnóstico de la Seguridad de la Información", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Monitoreo de la Seguridad de la Información", creditos:3}, {nombre:"Implementación de Bases de Datos", creditos:3}, {nombre:"Gestión de Redes de Comunicación de Datos", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Diseño del Modelo de Seguridad", creditos:3}, {nombre:"Implementación del Modelo de Seguridad de la Información", creditos:3}, {nombre:"Aseguramiento del Modelo de la Seguridad de la Información", creditos:3}, {nombre:"Administración de Hardware y Software de Seguridad", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_SitiosWeb = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Implementación de Bases de Datos", creditos:3}, {nombre:"Fundamentos de Programación", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Estructura de Datos", creditos:3}, {nombre:"Desarrollo Front End", creditos:3}, {nombre:"Programación Orientada a Objetos", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Desarrollo Back End", creditos:3}, {nombre:"Web Service", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Seguridad Web", creditos:3}, {nombre:"Estructura de Redes de Datos", creditos:3}, {nombre:"Procesos de Desarrollos Agiles", creditos:3}, {nombre:"Modelos de Servicio en Cloud Computing", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
-
-        const malla_SistemasInformacion = [
-            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Análisis y Diseño de Sistemas", creditos:3}, {nombre:"Sistemas de Información", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Mantenimiento de Equipos de Cómputo", creditos:3}, {nombre:"Programación Orientada a Objetos", creditos:3}, {nombre:"Atención al Usuario", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Estructura de Redes de Datos", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Electiva", creditos:2}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Implementación de Sistemas de Información", creditos:3}, {nombre:"Implementación de Bases de Datos", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Gestión de Redes de Comunicación de Datos", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
-        ];
+        const malla_MejoramientoProcesos = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Estadística", creditos:3}, {nombre:"Gestión y Eficiencia Energética en Procesos Industriales", creditos:3}, {nombre:"Procesos Industriales", creditos:3}, {nombre:"Diseño de Procesos Productivos", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Control de Calidad en Proceso y Producto", creditos:3}, {nombre:"Programación de Producción y Servicios", creditos:3}, {nombre:"Control de Procesos", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Logística y Control de Inventarios", creditos:3}, {nombre:"Logística Interna de Producción (MRP)", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Estructura de Proyectos", creditos:3}, {nombre:"Metodología Kaizen", creditos:3}, {nombre:"Protocolos y BPM", creditos:3}, {nombre:"Introducción a la Filosofía Lean", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_MontajeEnergias = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Redes de Energía Sostenible", creditos:3}, {nombre:"Gestión y Eficiencia Energética en Procesos Industriales", creditos:3}, {nombre:"Seguridad en Riesgo Eléctrico", creditos:3}, {nombre:"Operación de Sistemas Eléctricos", creditos:3}, {nombre:"Principios de Energía Fotovoltaica", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Conformidad de Sistemas Eléctricos", creditos:3}, {nombre:"Diagnóstico y Mantenimiento de Sistemas Eléctricos", creditos:3}, {nombre:"Montaje de Instalaciones Solares Fotovoltaicas", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Mantenimiento de Instalaciones Solares Fotovoltaicas", creditos:3}, {nombre:"Sistemas de Generación Eólica", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Montaje y Mantenimiento de Instalaciones de Energía Eólica", creditos:3}, {nombre:"Operación de Centrales Eléctricas de tipo PCH", creditos:3}, {nombre:"Montaje y Mantenimiento de Instalaciones Eléctricas de tipo PCH", creditos:3}, {nombre:"Logística e Inventario de Sistemas Eléctricos", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_RelacionamientoCRM = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Comunicación con Clientes y Usuario", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Herramientas del CRM", creditos:3}, {nombre:"Ciclo de Vida de los Clientes", creditos:3}, {nombre:"CRM y Marketing Relacional", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Procesos de Ventas", creditos:3}, {nombre:"Segmentación y Análisis de Mercados", creditos:3}, {nombre:"Seguimiento de Transacciones y Cartera", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Electiva", creditos:2}, {nombre:"Evaluación de Satisfacción de Clientes", creditos:3}, {nombre:"Operación de Bases de Datos", creditos:3}] }, { periodo: "Semestre 4", materias: [{nombre:"Modelo Certificación COPC", creditos:3}, {nombre:"Programas de Fidelización y Retención", creditos:3}, {nombre:"Seguimiento y Evaluación del Servicio al Cliente", creditos:3}, {nombre:"Práctica Profesional", creditos:4}, {nombre:"Plataforma CRM", creditos:3}] } ];
+        const malla_CreacionContenidos = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Conociendo Herramientas Gráficas y Audiovisuales", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Comunicaciones Digitales", creditos:3}, {nombre:"Conociendo Social Media", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Cultura y Narrativa Digital", creditos:3}, {nombre:"Fotografía y Retoque de Imágenes", creditos:3}, {nombre:"Contando Historias que Emocionen", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"El Consumidor Digital", creditos:3}, {nombre:"El Video como Herramienta de Marketing", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Marketing Táctico y Penetración de Mercados", creditos:3}, {nombre:"Plan de Negocios", creditos:3}, {nombre:"Midiendo el Impacto en Campañas", creditos:3}, {nombre:"Edición y Curación de Contenidos Digitales", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_ProcesosMercadeo = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Contactos y Redes Comerciales", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"E-Commerce", creditos:3}, {nombre:"Comunicaciones Digitales", creditos:3}, {nombre:"Segmentación y Análisis de Mercados", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Marketing Táctico y Penetración de Mercados", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Definición de Caracterización y Captura de Audiencia", creditos:3}, {nombre:"Diseño de Piezas Gráficas y Audiovisuales", creditos:3}, {nombre:"Diseño y Ejecución de Pauta Digital", creditos:3}, {nombre:"Campañas Publicitarias en Redes y Buscadores", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_AsesoriaComercial = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Contactos y Redes Comerciales", creditos:3}, {nombre:"Análisis y Diseño de Sistemas", creditos:3}, {nombre:"Ciclo de Vida de los Clientes", creditos:2}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}, {nombre:"Fundamentos de Mercadeo", creditos:3}, {nombre:"Procesos de Ventas", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Gestión Comercial", creditos:3}, {nombre:"Sistemas de Información", creditos:3}, {nombre:"Técnicas de Venta y Negociación", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Campañas Publicitarias en Redes y Buscadores", creditos:4}, {nombre:"Administración de Negocios Online", creditos:3}, {nombre:"Seguimiento y Evaluación del Servicio al Cliente", creditos:3}, {nombre:"Programas de Fidelización y Retención", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_OperacionesContables = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Pensamiento Contable", creditos:3}, {nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Gestión de Información", creditos:3}, {nombre:"Fundamentos de Contabilidad", creditos:3}, {nombre:"Fundamentos de Finanzas", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Estadística", creditos:3}, {nombre:"Métodos de Matemáticas Financieras", creditos:3}, {nombre:"Normatividad Contable", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Blockchain", creditos:3}, {nombre:"Contabilidad General", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Herramientas BI", creditos:3}, {nombre:"Costos y Presupuestos", creditos:3}, {nombre:"Estructura Tributaria y de Auditoría", creditos:3}, {nombre:"Análisis de Estados Financieros", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_InteligenciaNegocios = [ { periodo: "Semestre 1", materias: [{nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Introducción a la Inteligencia de Negocios", creditos:3}, {nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas BI (Business Intelligence)", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Introducción a Small Data", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Marco Normativo para la Gestión de TIC's", creditos:3}, {nombre:"Estadística", creditos:3}, {nombre:"Fundamentos de Administración", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Conociendo Social Media", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Data Wherehouse", creditos:3}, {nombre:"E-Commerce", creditos:3}, {nombre:"Plan de Negocios", creditos:3}, {nombre:"Machine Learning", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_OperacionesFintech = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Gestión de la Información", creditos:3}, {nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Economía Digital", creditos:3}, {nombre:"Fundamentos de Finanzas", creditos:3}, {nombre:"Finanzas y Tecnologías Financieras", creditos:2}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Ética de los Datos y la Información", creditos:3}, {nombre:"Pagos Digitales y Billeteras Electrónicas", creditos:3}, {nombre:"Marcos de Gestión de Proyectos Agile", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Créditos e Inversiones Digitales", creditos:3}, {nombre:"Blockchain", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Herramientas BI", creditos:3}, {nombre:"Experiencia del Consumidor", creditos:3}, {nombre:"Modelos de Negocio del Ecosistema Fintech", creditos:3}, {nombre:"Gestión del Riesgo en Fintech", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_ComercioElectronico = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Definición, Caracterización y Captura de Audiencia", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Herramientas del CRM", creditos:3}, {nombre:"Community Management", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Seguridad Web", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}, {nombre:"Comercio Electrónico", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Modelos de Negocio y Logística en E-Commerce", creditos:3}, {nombre:"Infraestructura E-Commerce", creditos:2}, {nombre:"Diseño y Ejecución de Pauta Digital", creditos:3}, {nombre:"Plan de Negocios", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_ProgramacionSoftware = [ { periodo: "Semestre 1", materias: [{nombre:"Componentes de la Computación", creditos:3}, {nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Lógica Computacional", creditos:3}, {nombre:"Introducción a la Programación", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Estructura de Datos", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Paradigmas y Lenguajes de Programación", creditos:3}, {nombre:"Estructuras de Datos Avanzadas", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Procesos de Desarrollo Agiles", creditos:3}, {nombre:"Pruebas Técnicas de Software", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Implementación de Interfaces de Usuario", creditos:3}, {nombre:"Programación de Componentes e Integraciones", creditos:3}, {nombre:"Técnicas de Documentación de Software", creditos:3}, {nombre:"Técnicas de Mantenimiento de Software", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_CloudComputing = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Modelos de Servicio en Cloud Computing", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:2}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Modelos de Servicio en Cloud Computing", creditos:3}, {nombre:"Sistemas de Virtualización", creditos:3}, {nombre:"Seguridad Web", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Computación en la Nube sobre Google Cloud", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Soluciones Open Source para Cloud Computing", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Computación en la Nube sobre Amazon Web Services", creditos:3}, {nombre:"TI sobre ITIL", creditos:3}, {nombre:"Preparatorio AWS Certified Solutions", creditos:3}, {nombre:"Práctica Profesional", creditos:4}, {nombre:"Computación en la Nube sobre Microsoft Azure", creditos:3}] } ];
+        const malla_AppWebMoviles = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Lógica Computacional", creditos:3}, {nombre:"Estructura de Datos", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Programación y Desarrollo de Aplicaciones Web Móviles", creditos:3}, {nombre:"Dispositivos Móviles", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Seguridad Web", creditos:3}, {nombre:"Sistemas de Información", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Analítica Móvil", creditos:3}, {nombre:"Soporte de Aplicaciones Web", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_BasesDatos = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Lógica Computacional", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Fundamentos de Programación", creditos:3}, {nombre:"Introducción a la Estructura de Datos", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Requerimientos de Información", creditos:3}, {nombre:"Estructura de Redes de Datos", creditos:3}, {nombre:"Bases de Datos Relacionales", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Bases de Datos No Relacionales", creditos:3}, {nombre:"Ética de los Datos y la Información", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Aseguramiento de Bases de Datos", creditos:3}, {nombre:"Administración de Bases de Datos - DBA", creditos:3}, {nombre:"Modelado de Bases de Datos Relacionales", creditos:3}, {nombre:"Práctica Profesional", creditos:4}, {nombre:"Legislación y Auditoría en Sistemas Informáticos", creditos:3}] } ];
+        const malla_SeguridadInformatica = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Análisis y Diseño de Sistemas", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Estructura de Datos", creditos:3}, {nombre:"Diagnóstico de la Seguridad de la Información", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Monitoreo de la Seguridad de la Información", creditos:3}, {nombre:"Implementación de Bases de Datos", creditos:3}, {nombre:"Gestión de Redes de Comunicación de Datos", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Diseño del Modelo de Seguridad", creditos:3}, {nombre:"Implementación del Modelo de Seguridad de la Información", creditos:3}, {nombre:"Aseguramiento del Modelo de la Seguridad de la Información", creditos:3}, {nombre:"Administración de Hardware y Software de Seguridad", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_SitiosWeb = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Implementación de Bases de Datos", creditos:3}, {nombre:"Fundamentos de Programación", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Estructura de Datos", creditos:3}, {nombre:"Desarrollo Front End", creditos:3}, {nombre:"Programación Orientada a Objetos", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Desarrollo Back End", creditos:3}, {nombre:"Web Service", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Seguridad Web", creditos:3}, {nombre:"Estructura de Redes de Datos", creditos:3}, {nombre:"Procesos de Desarrollos Agiles", creditos:3}, {nombre:"Modelos de Servicio en Cloud Computing", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
+        const malla_SistemasInformacion = [ { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Análisis y Diseño de Sistemas", creditos:3}, {nombre:"Sistemas de Información", creditos:3}] }, { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Mantenimiento de Equipos de Cómputo", creditos:3}, {nombre:"Programación Orientada a Objetos", creditos:3}, {nombre:"Atención al Usuario", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] }, { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Estructura de Redes de Datos", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Electiva", creditos:2}] }, { periodo: "Semestre 4", materias: [{nombre:"Implementación de Sistemas de Información", creditos:3}, {nombre:"Implementación de Bases de Datos", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Gestión de Redes de Comunicación de Datos", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] } ];
 
         const TECMD_PROGRAMS = [
             { nombre: "Mejoramiento de Procesos Industriales", escuela: "Escuela de Energías Renovables", snies: "116697", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-mejoramiento-de-procesos-industriales/", desc: "Optimiza procesos industriales, reduce costos y mejora la calidad con herramientas tecnológicas y metodologías eficientes.", malla: malla_MejoramientoProcesos },
@@ -871,58 +768,35 @@
             { nombre: "Operación de Sistemas de Información", escuela: "Escuela de Tecnología Digital", snies: "116690", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-operacion-de-sistemas-de-informacion/", desc: "Gestión, mantenimiento y soporte de infraestructuras y bases de datos empresariales.", malla: malla_SistemasInformacion }
         ];
 
-        TECMD_PROGRAMS.forEach(p => {
-            p.totalCreditos = p.malla.reduce((totalSemestres, sem) => totalSemestres + sem.materias.reduce((totalMats, m) => totalMats + m.creditos, 0), 0);
-        });
+        TECMD_PROGRAMS.forEach(p => { p.totalCreditos = p.malla.reduce((tot, sem) => tot + sem.materias.reduce((t, m) => t + m.creditos, 0), 0); });
 
         const dptos = ['Santander', 'Bogotá', 'Antioquia', 'Valle del Cauca', 'Atlántico', 'Cundinamarca'];
-        const sectores = ['Tecnología', 'Manufactura', 'Servicios', 'Agropecuario', 'Construcción', 'Público', 'Educación', 'Otro'];
-        const etnias = ['Ninguno', 'Indígena', 'Afrodescendiente', 'Raizal', 'ROM'];
-
-        // --- MOTOR DE DATOS: INICIALIZADO SOLO CON DATOS REALES (Dudbil) ---
         let rawData = [];
-        const savedData = localStorage.getItem('tecmd_data');
-        if (savedData) {
-            rawData = JSON.parse(savedData);
-        } else {
-            // Inicializamos únicamente con tu registro real para que el sistema empiece limpio y real
-            rawData = [
-                {
-                    id: "dopabonr", 
-                    name: "Dudbil Olvasada Pabon Riaño",
-                    dept: "Santander", // Residencia
-                    prog: "Programación de Software",
-                    sector: "Educación", 
-                    est: 4, 
-                    gen: "Masculino",
-                    etnia: "Ninguno", 
-                    gpa: 0, 
-                    nlp: 0, 
-                    sim: 0, 
-                    progreso: 40, 
-                    titulo: "Solucion arquitectonica para la preservacion, analisis y explotacion de datos educativos",
-                    // Custom real fields
-                    empresa: "tecmd",
-                    tipo_empresa: "Privada",
-                    semestre: "4to semestre",
-                    entregables: 1,
-                    tutor1: "Yarledis Gomez Moreno",
-                    tutor2: "Carlos Germán Juliao Vargas",
-                    trabajo: "Docente universitario",
-                    origen: "Pamplona, Norte de Santander",
-                    fnac: "1989-04-19",
-                    discapacidad: "No"
-                }
-            ];
-            localStorage.setItem('tecmd_data', JSON.stringify(rawData));
-        }
-
-        const saveDataToLocal = () => { localStorage.setItem('tecmd_data', JSON.stringify(rawData)); };
-        
+        let unsubscribeData = null;
         let globalFilters = { dept: null, prog: null, sector: null, est: null, gen: null };
         let chartProg, chartEst, chartSector, chartCustom, mapInstance, chartCompareRadar, curriculumGraphInstance;
 
-        // --- AUTH LOGIC ---
+        // TU DATO REAL INICIAL COMO ADMINISTRADOR/ESTUDIANTE
+        const initialUserData = {
+            id: "dopabonr@tecmd.edu.co",
+            name: "Dudbil Olvasada Pabon Riaño",
+            prog: "Programación de Software",
+            fnac: "1989-04-19", edad: 37,
+            gen: "Masculino", etnia: "Ninguno",
+            titulo: "Solucion arquitectonica para la presenvacion, analisis y explotacion de datos educativos",
+            ciudad_origen: "Pamplona, Norte de Santander",
+            dept: "Santander", ciudad_residencia: "Bucaramanga",
+            profesion: "Profesional, Docente",
+            est: 4,
+            tipo_proyecto: "Semilleros de investigacion en creacion de software academico",
+            progreso: 40, entregables: 1,
+            tutor_1: "Yarledis Gomez Moreno", tutor_2: "Carlos Germán Juliao Vargas",
+            sector: "Educación", empresa: "tecmd", tipo_empresa: "Privada",
+            semestre: "4to semestre", discapacidad: "Ninguno",
+            gpa: 0, nlp: 0, sim: 0
+        };
+
+        // --- AUTH & REALTIME CLOUD LOGIC ---
         onAuthStateChanged(auth, u => {
             const loginView = document.getElementById('login-view');
             const appView = document.getElementById('app-view');
@@ -939,7 +813,9 @@
                 if (userName) userName.textContent = name;
                 if (userInitial) userInitial.textContent = name.charAt(0).toUpperCase();
                 
-                const isAdmin = u.email === "dudbilopr@gmail.com" || u.email === "dopabonr@tecmd.edu.co";
+                // ASIGNAR TU CORREO COMO SUPER ADMINISTRADOR
+                const adminEmails = ["dudbilopr@gmail.com", "dopabonr@tecmd.edu.co"];
+                const isAdmin = adminEmails.includes(u.email);
                 if (userRole) userRole.textContent = isAdmin ? "Super Administrador" : "Coordinador Académico";
                 if (superadminBadge) superadminBadge.classList.toggle('hidden', !isAdmin);
                 
@@ -947,11 +823,36 @@
                 document.querySelectorAll('.superadmin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
                 
                 if(!window.chartsInited) {
-                    setTimeout(() => {
-                        initDashboardCharts();
-                        initProgramCatalog();
-                    }, 200);
+                    setTimeout(() => { initDashboardCharts(); initProgramCatalog(); }, 200);
                 }
+
+                // INICIALIZAR LECTURA DESDE FIRESTORE EN TIEMPO REAL
+                const colRef = collection(db, "estudiantes");
+                const indicator = document.getElementById('cloud-status-indicator');
+                
+                unsubscribeData = onSnapshot(colRef, (snapshot) => {
+                    rawData = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+                    
+                    if(indicator) {
+                        indicator.className = "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold shadow-sm bg-green-500/10 text-green-700 border border-green-500/30 transition-all";
+                        indicator.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Sincronizado';
+                    }
+
+                    // SI ESTÁ TOTALMENTE VACÍO, INYECTAR EL DATO DEL USUARIO DOCOCENTE/ESTUDIANTE
+                    if(rawData.length === 0) {
+                        setDoc(doc(db, "estudiantes", initialUserData.id), initialUserData);
+                    } else {
+                        updateAllDataViews();
+                    }
+                }, (error) => {
+                    console.error("Error cargando de Firebase:", error);
+                    if(indicator) {
+                        indicator.className = "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold shadow-sm bg-red-500/10 text-red-700 border border-red-500/30";
+                        indicator.innerHTML = '<i class="fa-solid fa-cloud-xmark"></i> Sin Conexión';
+                    }
+                });
+            } else {
+                if(unsubscribeData) unsubscribeData();
             }
         });
 
@@ -965,34 +866,14 @@
         
         safeClick('google-login-btn', () => signInWithPopup(auth, new GoogleAuthProvider()));
         safeClick('logout-btn', () => signOut(auth));
-        safeClick('support-btn', () => Swal.fire({title: 'Centro de Soporte', text: 'Enviando reporte directo a: dudbilopr@gmail.com', icon: 'info'}));
-
-        safeClick('btn-cloud-sync', () => {
-            const btn = document.getElementById('btn-cloud-sync');
-            const prevHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando...';
-            btn.disabled = true;
-            saveDataToLocal();
-            Swal.fire({
-                title: 'Sincronizando con Nube (Firebase)', html: 'Esperando validación de ingesta y metadatos DAX...', timer: 1800, timerProgressBar: true, didOpen: () => { Swal.showLoading(); }
-            }).then(() => {
-                btn.innerHTML = prevHtml; btn.disabled = false;
-                Swal.fire({ icon: 'success', title: '¡Sincronización Exitosa!', text: 'El ambiente es 100% real y sincronizado.', timer: 2500, showConfirmButton: false });
-                updateAllDataViews(); // Refresca las vistas para limpiar overlays si llegaron datos
-            });
-        });
+        safeClick('support-btn', () => Swal.fire({title: 'Centro de Soporte', text: 'Enviando reporte directo a: dopabonr@tecmd.edu.co', icon: 'info'}));
 
         // --- NAVEGACIÓN ---
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', e => {
                 e.preventDefault();
-                document.querySelectorAll('.nav-link').forEach(l => { 
-                    l.classList.remove('bg-blue-500/10', 'text-blue-700', 'dark:text-blue-300', 'font-bold'); 
-                    l.classList.add('opacity-70', 'font-semibold'); 
-                });
-                link.classList.remove('opacity-70', 'font-semibold'); 
-                link.classList.add('bg-blue-500/10', 'text-blue-700', 'dark:text-blue-300', 'font-bold');
-                
+                document.querySelectorAll('.nav-link').forEach(l => { l.classList.remove('bg-blue-500/10', 'text-blue-700', 'dark:text-blue-300', 'font-bold'); l.classList.add('opacity-70', 'font-semibold'); });
+                link.classList.remove('opacity-70', 'font-semibold'); link.classList.add('bg-blue-500/10', 'text-blue-700', 'dark:text-blue-300', 'font-bold');
                 document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
                 const targetView = document.getElementById(`view-${link.dataset.target}`);
                 if (targetView) targetView.classList.remove('hidden');
@@ -1019,11 +900,7 @@
 
         const applyFilter = () => {
             const getVal = id => document.getElementById(id) ? document.getElementById(id).value : null;
-            globalFilters.dept = getVal('filter-dept');
-            globalFilters.prog = getVal('filter-prog');
-            globalFilters.sector = getVal('filter-sector');
-            globalFilters.est = getVal('filter-est');
-            globalFilters.gen = getVal('filter-gen');
+            globalFilters.dept = getVal('filter-dept'); globalFilters.prog = getVal('filter-prog'); globalFilters.sector = getVal('filter-sector'); globalFilters.est = getVal('filter-est'); globalFilters.gen = getVal('filter-gen');
 
             let activeStr = [];
             if(globalFilters.dept) activeStr.push(`Dpto:${globalFilters.dept}`);
@@ -1045,27 +922,19 @@
             updateAllDataViews();
         };
 
-        ['dept','prog','sector','est','gen'].forEach(id => {
-            const el = document.getElementById('filter-' + id);
-            if (el) el.addEventListener('change', applyFilter);
-        });
+        ['dept','prog','sector','est','gen'].forEach(id => { const el = document.getElementById('filter-' + id); if (el) el.addEventListener('change', applyFilter); });
         
         const clearAllFilters = () => {
             globalFilters = { dept: null, prog: null, sector: null, est: null, gen: null };
-            ['dept','prog','sector','est','gen'].forEach(id => {
-                const el = document.getElementById('filter-' + id);
-                if (el) el.value = '';
-            });
+            ['dept','prog','sector','est','gen'].forEach(id => { const el = document.getElementById('filter-' + id); if (el) el.value = ''; });
             applyFilter();
         };
-        
         safeClick('btn-clear-global-filters', clearAllFilters);
 
         window.toggleChartFilter = (key, value) => {
             const el = document.getElementById('filter-' + key);
             if (!el) return;
-            if(el.value === value.toString()) { el.value = ''; } 
-            else { el.value = value; }
+            if(el.value === value.toString()) { el.value = ''; } else { el.value = value; }
             applyFilter();
         };
 
@@ -1079,66 +948,54 @@
             });
         };
 
+        // OVERLAYS PARA ESTADO VACÍO ("Esperando datos")
+        const toggleOverlays = (show) => {
+            const overlays = ['overlay-kpis', 'overlay-map', 'overlay-sectores', 'overlay-programas', 'overlay-estratos', 'overlay-dax', 'overlay-radar', 'overlay-table'];
+            overlays.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) { if(show) el.classList.remove('hidden'); else el.classList.add('hidden'); }
+            });
+        };
+
         window.updateAllDataViews = () => {
             const data = getFilteredData();
+            const kpiTotal = document.getElementById('kpi-total');
             
-            // Lógica de "Esperando Datos"
-            const overlays = document.querySelectorAll('.empty-data-overlay');
-            if(data.length === 0) { 
-                overlays.forEach(el => el.classList.remove('hidden'));
-                const kpiTotal = document.getElementById('kpi-total'); if(kpiTotal) kpiTotal.innerText = 0;
-                const kpiNlp = document.getElementById('kpi-nlp'); if(kpiNlp) kpiNlp.innerText = '0';
-                const kpiSim = document.getElementById('kpi-sim'); if(kpiSim) kpiSim.innerText = '0%';
-                const kpiProg = document.getElementById('kpi-prog'); if(kpiProg) kpiProg.innerText = '0%';
-                
-                document.getElementById('kpi-nlp-status').innerText = 'Esperando Evaluación'; document.getElementById('kpi-nlp-status').className = 'text-xs mt-1 font-semibold text-gray-500';
-                document.getElementById('kpi-sim-status').innerText = 'Esperando Análisis'; document.getElementById('kpi-sim-status').className = 'text-xs mt-1 font-semibold text-gray-500';
-                
-                renderStudentTable(data);
-                
-                // Clear charts
-                if(chartProg) { chartProg.data.labels = []; chartProg.data.datasets[0].data = []; chartProg.update(); }
-                if(chartEst) { chartEst.data.labels = []; chartEst.data.datasets[0].data = []; chartEst.update(); }
-                if(chartSector) { chartSector.data.labels = []; chartSector.data.datasets[0].data = []; chartSector.update(); }
-                if(mapInstance) { mapInstance.setOption({ series: [{ data: [] }] }); }
+            if(!data.length) { 
+                if (kpiTotal) kpiTotal.innerText = 0; 
+                toggleOverlays(true); // Mostrar estado "Esperando Datos"
                 return; 
             } else {
-                overlays.forEach(el => el.classList.add('hidden'));
+                toggleOverlays(false); // Ocultar superposición si hay datos
             }
 
-            const kpiTotal = document.getElementById('kpi-total');
             if (kpiTotal) kpiTotal.innerText = data.length;
             
-            const avgNlp = data.reduce((s, d) => s + d.nlp, 0) / data.length;
+            const avgNlp = data.reduce((s, d) => s + (d.nlp||0), 0) / data.length;
             const kpiNlp = document.getElementById('kpi-nlp');
             const kpiNlpStatus = document.getElementById('kpi-nlp-status');
             if (kpiNlp) kpiNlp.innerHTML = avgNlp.toFixed(1) + '<span class="text-sm font-normal opacity-50">/10</span>';
             if (kpiNlpStatus) {
-                if(avgNlp === 0) { kpiNlpStatus.innerText = 'En fase inicial'; kpiNlpStatus.className = 'text-xs mt-1 font-semibold text-gray-500'; }
-                else {
-                    kpiNlpStatus.innerText = avgNlp >= 8 ? 'Nivel Académico Óptimo' : avgNlp >= 6 ? 'Nivel Aceptable' : 'Riesgo Semántico';
-                    kpiNlpStatus.className = `text-xs mt-1 font-semibold ${avgNlp >= 8 ? 'text-green-500' : avgNlp >= 6 ? 'text-yellow-500' : 'text-red-500'}`;
-                }
+                kpiNlpStatus.innerText = avgNlp >= 8 ? 'Nivel Académico Óptimo' : avgNlp >= 6 ? 'Nivel Aceptable' : 'Riesgo Semántico';
+                kpiNlpStatus.className = `text-xs mt-1 font-semibold ${avgNlp >= 8 ? 'text-green-500' : avgNlp >= 6 ? 'text-yellow-500' : 'text-red-500'}`;
             }
 
-            const avgSim = Math.round(data.reduce((s, d) => s + d.sim, 0) / data.length);
+            const avgSim = Math.round(data.reduce((s, d) => s + (d.sim||0), 0) / data.length);
             const kpiSim = document.getElementById('kpi-sim');
             const kpiSimStatus = document.getElementById('kpi-sim-status');
             if (kpiSim) kpiSim.innerText = avgSim + '%';
             if (kpiSimStatus) {
-                if(avgSim === 0) { kpiSimStatus.innerText = 'Documento pendiente'; kpiSimStatus.className = 'text-xs mt-1 font-semibold text-gray-500'; }
-                else {
-                    kpiSimStatus.innerText = avgSim <= 15 ? 'Documentos Originales' : avgSim <= 30 ? 'Revisión Recomendada' : 'Alerta de Plagio';
-                    kpiSimStatus.className = `text-xs mt-1 font-semibold ${avgSim <= 15 ? 'text-green-500' : avgSim <= 30 ? 'text-yellow-500' : 'text-red-500'}`;
-                }
+                kpiSimStatus.innerText = avgSim <= 15 ? 'Documentos Originales' : avgSim <= 30 ? 'Revisión Recomendada' : 'Alerta de Plagio';
+                kpiSimStatus.className = `text-xs mt-1 font-semibold ${avgSim <= 15 ? 'text-green-500' : avgSim <= 30 ? 'text-yellow-500' : 'text-red-500'}`;
             }
             
             const kpiProg = document.getElementById('kpi-prog');
-            if (kpiProg) kpiProg.innerText = Math.round(data.reduce((s, d) => s + d.progreso, 0) / data.length) + '%';
+            if (kpiProg) kpiProg.innerText = Math.round(data.reduce((s, d) => s + (d.progreso||0), 0) / data.length) + '%';
 
             const countBy = (arr, key, isProg) => arr.reduce((acc, obj) => { 
-                const k = isProg && obj[key] && obj[key].length > 25 ? obj[key].substring(0,25) + '...' : obj[key]; 
-                acc[obj[key]] = (acc[obj[key]] || 0) + 1; 
+                const val = obj[key] || 'Indefinido';
+                const k = isProg && val.length > 25 ? val.substring(0,25) + '...' : val; 
+                acc[val] = (acc[val] || 0) + 1; 
                 return acc; 
             }, {});
 
@@ -1153,50 +1010,37 @@
             if(chartSector) { const sData = countBy(data, chartSector.canvas.dataset.daxX || 'sector'); chartSector.data.labels = Object.keys(sData); chartSector.data.datasets[0].data = Object.values(sData); chartSector.update(); }
             if(mapInstance) {
                 const mapDataCount = countBy(data, 'dept');
-                const echartsData = dptos.map(d => ({ name: d, value: mapDataCount[d] || 0 })).filter(d => d.value > 0);
-                if(echartsData.length === 0) {
-                    mapInstance.setOption({ series: [{ data: [] }] });
-                } else {
-                    mapInstance.setOption({ series: [{ data: echartsData }] });
-                }
+                const echartsData = dptos.map(d => ({ name: d, value: mapDataCount[d] || 0 }));
+                mapInstance.setOption({ series: [{ data: echartsData }] });
             }
             renderStudentTable(data);
             
             if(document.getElementById('view-programs') && !document.getElementById('view-programs').classList.contains('hidden')){
                 updateCompareChart();
             }
+            if(chartCustom) window.updateCustomChart();
         };
 
         const renderStudentTable = (dataToRender) => {
             const tableBody = document.getElementById('student-table-body');
-            const emptyState = document.getElementById('table-empty-state');
             if(!tableBody) return;
-            
-            if(dataToRender.length === 0) {
-                tableBody.innerHTML = '';
-                if(emptyState) emptyState.classList.remove('hidden');
-                return;
-            } else {
-                if(emptyState) emptyState.classList.add('hidden');
-            }
-
             tableBody.innerHTML = dataToRender.map(d => `
                 <tr class="hover:bg-black/5 dark:hover:bg-white/5 border-b border-gray-200 dark:border-gray-800 transition-colors">
                     <td class="p-4">
-                        <p class="font-extrabold text-blue-700 dark:text-blue-400">${d.name}</p>
+                        <p class="font-extrabold text-blue-700 dark:text-blue-400">${d.name || 'Sin Nombre'}</p>
                         <p class="text-[10px] opacity-80 font-mono"><i class="fa-solid fa-id-badge text-gray-400 mr-1"></i>${d.id}</p>
                         ${d.titulo ? `<p class="text-xs mt-1 italic opacity-80" title="${d.titulo}"><i class="fa-solid fa-file-lines mr-1"></i>${d.titulo.substring(0,35)}${d.titulo.length>35?'...':''}</p>` : ''}
                     </td>
                     <td class="p-4">
-                        <p class="text-xs font-bold w-48 truncate" title="${d.prog}">${d.prog}</p>
-                        <p class="text-[10px] opacity-70"><i class="fa-solid fa-location-dot mr-1 text-red-400"></i>${d.dept} | ${d.sector}</p>
+                        <p class="text-xs font-bold w-48 truncate" title="${d.prog || 'Sin Programa'}">${d.prog || 'Sin Programa'}</p>
+                        <p class="text-[10px] opacity-70"><i class="fa-solid fa-location-dot mr-1 text-red-400"></i>${d.dept || '-'} | ${d.sector || '-'}</p>
                     </td>
-                    <td class="p-4"><span class="text-xs font-extrabold px-2 py-1 rounded-md ${d.nlp>=8?'bg-green-100 text-green-700 dark:text-green-400':d.nlp>=6?'bg-yellow-100 text-yellow-700 dark:text-yellow-400':'bg-red-100 text-red-700 dark:text-red-400'}">${d.nlp.toFixed(1)}</span></td>
-                    <td class="p-4"><span class="text-xs font-extrabold ${d.sim>30?'text-red-500':(d.sim>0?'text-green-500':'text-gray-500')}">${d.sim}%</span></td>
-                    <td class="p-4"><div class="flex items-center gap-2"><div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"><div class="bg-blue-500 h-1.5 rounded-full" style="width:${d.progreso}%"></div></div><span class="text-[10px] font-bold">${d.progreso}%</span></div></td>
+                    <td class="p-4"><span class="text-xs font-extrabold px-2 py-1 rounded-md ${(d.nlp||0)>=8?'bg-green-100 text-green-700 dark:text-green-400':(d.nlp||0)>=6?'bg-yellow-100 text-yellow-700 dark:text-yellow-400':'bg-red-100 text-red-700 dark:text-red-400'}">${(d.nlp||0).toFixed(1)}</span></td>
+                    <td class="p-4"><span class="text-xs font-extrabold ${(d.sim||0)>30?'text-red-500':'text-green-500'}">${(d.sim||0)}%</span></td>
+                    <td class="p-4"><div class="flex items-center gap-2"><div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"><div class="bg-blue-500 h-1.5 rounded-full" style="width:${d.progreso||0}%"></div></div><span class="text-[10px] font-bold">${d.progreso||0}%</span></div></td>
                     <td class="p-4 text-center flex justify-center gap-2">
-                        <button onclick="editStudent('${d.id}')" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 p-2 rounded-lg font-bold text-xs shadow-sm transition-colors" title="Editar Métricas"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button onclick="deleteStudent('${d.id}')" class="bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/40 dark:text-red-300 p-2 rounded-lg font-bold text-xs shadow-sm transition-colors" title="Eliminar Registro"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="editStudent('${d.firebaseId}')" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 p-2 rounded-lg font-bold text-xs shadow-sm transition-colors" title="Editar Métricas"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteStudent('${d.firebaseId}')" class="bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/40 dark:text-red-300 p-2 rounded-lg font-bold text-xs shadow-sm transition-colors" title="Eliminar Registro"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
@@ -1206,56 +1050,46 @@
         if(searchStudentEl) {
             searchStudentEl.addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase();
-                renderStudentTable(getFilteredData().filter(d => d.name.toLowerCase().includes(term) || d.id.toLowerCase().includes(term) || d.prog.toLowerCase().includes(term)));
+                renderStudentTable(getFilteredData().filter(d => (d.name||'').toLowerCase().includes(term) || (d.id||'').toLowerCase().includes(term) || (d.prog||'').toLowerCase().includes(term)));
             });
         }
 
-        window.deleteStudent = (id) => {
+        // FUNCIONES FIREBASE DE EDICIÓN/ELIMINACIÓN
+        window.deleteStudent = (firebaseId) => {
             Swal.fire({
-                title: '¿Estás seguro?',
-                text: "Esta acción borrará el registro. Si se queda sin datos, el dashboard entrará en modo de espera.",
-                icon: 'warning',
+                title: '¿Estás seguro?', text: "Esta acción borrará el registro permanentemente de la Nube.", icon: 'warning',
                 showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Sí, eliminar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    rawData = rawData.filter(s => s.id !== id);
-                    saveDataToLocal();
-                    updateAllDataViews();
-                    Swal.fire('Eliminado!', 'El estudiante ha sido borrado.', 'success');
+                    deleteDoc(doc(db, "estudiantes", firebaseId))
+                        .then(() => Swal.fire('Eliminado!', 'El registro ha sido borrado de la base de datos.', 'success'))
+                        .catch(err => Swal.fire('Error', err.message, 'error'));
                 }
             });
         };
 
-        window.editStudent = (id) => {
-            const i = rawData.findIndex(s => s.id === id);
-            if(i === -1) return;
+        window.editStudent = (firebaseId) => {
+            const student = rawData.find(s => s.firebaseId === firebaseId);
+            if(!student) return;
             Swal.fire({
-                title: `Editar: ${rawData[i].name}`,
-                html: `<div class="text-left space-y-4 mt-4"><div><label class="text-xs font-bold block mb-1">Score NLP</label><input id="swal-nlp" type="number" step="0.1" class="w-full border rounded-lg p-2" value="${rawData[i].nlp}"></div><div><label class="text-xs font-bold block mb-1">Similitud (%)</label><input id="swal-sim" type="number" class="w-full border rounded-lg p-2" value="${rawData[i].sim}"></div><div><label class="text-xs font-bold block mb-1">Progreso (%)</label><input id="swal-progreso" type="number" class="w-full border rounded-lg p-2" value="${rawData[i].progreso}"></div></div>`,
-                showCancelButton: true, confirmButtonText: 'Guardar', confirmButtonColor: '#3b82f6',
+                title: `Editar: ${student.name}`,
+                html: `<div class="text-left space-y-4 mt-4"><div><label class="text-xs font-bold block mb-1">Score NLP</label><input id="swal-nlp" type="number" step="0.1" class="w-full border rounded-lg p-2" value="${student.nlp||0}"></div><div><label class="text-xs font-bold block mb-1">Similitud (%)</label><input id="swal-sim" type="number" class="w-full border rounded-lg p-2" value="${student.sim||0}"></div><div><label class="text-xs font-bold block mb-1">Progreso (%)</label><input id="swal-progreso" type="number" class="w-full border rounded-lg p-2" value="${student.progreso||0}"></div></div>`,
+                showCancelButton: true, confirmButtonText: 'Guardar en la Nube', confirmButtonColor: '#3b82f6',
                 preConfirm: () => {
-                    const nlpEl = document.getElementById('swal-nlp');
-                    const simEl = document.getElementById('swal-sim');
-                    const progEl = document.getElementById('swal-progreso');
+                    const nlpEl = document.getElementById('swal-nlp'); const simEl = document.getElementById('swal-sim'); const progEl = document.getElementById('swal-progreso');
                     return { nlp: parseFloat(nlpEl?nlpEl.value:0)||0, sim: parseInt(simEl?simEl.value:0)||0, progreso: parseInt(progEl?progEl.value:0)||0 }
                 }
             }).then((res) => {
                 if (res.isConfirmed) { 
-                    rawData[i].nlp=res.value.nlp; rawData[i].sim=res.value.sim; rawData[i].progreso=res.value.progreso; 
-                    saveDataToLocal();
-                    updateAllDataViews(); 
-                    Swal.fire({icon:'success', timer:1500, showConfirmButton:false}); 
+                    updateDoc(doc(db, "estudiantes", firebaseId), res.value)
+                        .then(() => Swal.fire({icon:'success', title:'Guardado exitoso', timer:1500, showConfirmButton:false}))
+                        .catch(err => Swal.fire('Error', err.message, 'error'));
                 }
             });
         };
 
         // --- MODO DAX ---
-        document.body.addEventListener('contextmenu', (e) => {
-            if(e.target.tagName === 'CANVAS' && getFilteredData().length > 0) {
-                e.preventDefault();
-                openDaxEditor(e.target);
-            }
-        });
+        document.body.addEventListener('contextmenu', (e) => { if(e.target.tagName === 'CANVAS') { e.preventDefault(); openDaxEditor(e.target); } });
 
         const openDaxEditor = (canvasEl) => {
             let targetChart = null;
@@ -1268,56 +1102,26 @@
 
             Swal.fire({
                 title: '<i class="fa-solid fa-wand-magic-sparkles text-blue-500"></i> Editor DAX',
-                html: `
-                    <div class="text-left space-y-4 mt-4 text-sm font-semibold">
-                        <div><label class="block opacity-70 mb-1">Tipo de Gráfico</label><select id="dax-edit-type" class="w-full border rounded-lg p-2 bg-gray-50 text-gray-800"><option value="bar" ${currentType==='bar'?'selected':''}>Barra</option><option value="pie" ${currentType==='pie'?'selected':''}>Torta</option><option value="doughnut" ${currentType==='doughnut'?'selected':''}>Dona</option><option value="line" ${currentType==='line'?'selected':''}>Línea</option><option value="radar" ${currentType==='radar'?'selected':''}>Radar</option></select></div>
-                        <div><label class="block opacity-70 mb-1">Eje X (Agrupación)</label><select id="dax-edit-x" class="w-full border rounded-lg p-2 bg-gray-50 text-gray-800"><option value="prog" ${currentX==='prog'?'selected':''}>Programa</option><option value="est" ${currentX==='est'?'selected':''}>Estrato</option><option value="sector" ${currentX==='sector'?'selected':''}>Sector</option><option value="dept" ${currentX==='dept'?'selected':''}>Depto</option><option value="etnia" ${currentX==='etnia'?'selected':''}>Etnia</option></select></div>
-                        <div><label class="block opacity-70 mb-1">Eje Y (Métrica)</label><select id="dax-edit-y" class="w-full border rounded-lg p-2 bg-gray-50 text-gray-800"><option value="count" ${currentY==='count'?'selected':''}>Conteo (Absoluto)</option><option value="nlp" ${currentY==='nlp'?'selected':''}>Promedio Score NLP</option><option value="progreso" ${currentY==='progreso'?'selected':''}>Promedio Progreso</option><option value="gpa" ${currentY==='gpa'?'selected':''}>Promedio GPA</option></select></div>
-                    </div>
-                `,
+                html: `<div class="text-left space-y-4 mt-4 text-sm font-semibold"><div><label class="block opacity-70 mb-1">Tipo de Gráfico</label><select id="dax-edit-type" class="w-full border rounded-lg p-2 bg-gray-50 text-gray-800"><option value="bar" ${currentType==='bar'?'selected':''}>Barra</option><option value="pie" ${currentType==='pie'?'selected':''}>Torta</option><option value="doughnut" ${currentType==='doughnut'?'selected':''}>Dona</option><option value="line" ${currentType==='line'?'selected':''}>Línea</option><option value="radar" ${currentType==='radar'?'selected':''}>Radar</option></select></div><div><label class="block opacity-70 mb-1">Eje X (Agrupación)</label><select id="dax-edit-x" class="w-full border rounded-lg p-2 bg-gray-50 text-gray-800"><option value="prog" ${currentX==='prog'?'selected':''}>Programa</option><option value="est" ${currentX==='est'?'selected':''}>Estrato</option><option value="sector" ${currentX==='sector'?'selected':''}>Sector</option><option value="dept" ${currentX==='dept'?'selected':''}>Depto</option><option value="etnia" ${currentX==='etnia'?'selected':''}>Etnia</option></select></div><div><label class="block opacity-70 mb-1">Eje Y (Métrica)</label><select id="dax-edit-y" class="w-full border rounded-lg p-2 bg-gray-50 text-gray-800"><option value="count" ${currentY==='count'?'selected':''}>Conteo (Absoluto)</option><option value="nlp" ${currentY==='nlp'?'selected':''}>Promedio Score NLP</option><option value="progreso" ${currentY==='progreso'?'selected':''}>Promedio Progreso</option><option value="gpa" ${currentY==='gpa'?'selected':''}>Promedio GPA</option></select></div></div>`,
                 showCancelButton: true, confirmButtonText: 'Aplicar', confirmButtonColor: '#3b82f6',
-                preConfirm: () => {
-                    const t = document.getElementById('dax-edit-type');
-                    const x = document.getElementById('dax-edit-x');
-                    const y = document.getElementById('dax-edit-y');
-                    return { type: t?t.value:'bar', x: x?x.value:'prog', y: y?y.value:'count' };
-                }
+                preConfirm: () => { const t = document.getElementById('dax-edit-type'); const x = document.getElementById('dax-edit-x'); const y = document.getElementById('dax-edit-y'); return { type: t?t.value:'bar', x: x?x.value:'prog', y: y?y.value:'count' }; }
             }).then((res) => {
                 if(res.isConfirmed) {
-                    canvasEl.dataset.daxX = res.value.x;
-                    canvasEl.dataset.daxY = res.value.y;
-                    
-                    const data = getFilteredData();
-                    const grouped = {};
+                    canvasEl.dataset.daxX = res.value.x; canvasEl.dataset.daxY = res.value.y;
+                    const data = getFilteredData(); const grouped = {};
                     data.forEach(d => { 
-                        let keyVal = d[res.value.x];
-                        if (res.value.x === 'prog' && keyVal && keyVal.length > 20) keyVal = keyVal.substring(0, 20) + '...';
+                        let keyVal = d[res.value.x] || 'Indefinido';
+                        if (res.value.x === 'prog' && keyVal.length > 20) keyVal = keyVal.substring(0, 20) + '...';
                         if(!grouped[keyVal]) grouped[keyVal] = {sum: 0, count: 0, realName: d[res.value.x]}; 
                         if(res.value.y === 'count') { grouped[keyVal].sum += 1; grouped[keyVal].count += 1; }
-                        else { grouped[keyVal].sum += d[res.value.y]; grouped[keyVal].count += 1; }
+                        else { grouped[keyVal].sum += (d[res.value.y]||0); grouped[keyVal].count += 1; }
                     });
                     const labels = Object.keys(grouped); 
                     const yData = labels.map(l => (res.value.y === 'count' ? grouped[l].sum : (grouped[l].sum / grouped[l].count).toFixed(2)));
 
-                    targetChart.config.type = res.value.type;
-                    targetChart.data.labels = labels;
-                    targetChart.data.datasets[0].data = yData;
+                    targetChart.config.type = res.value.type; targetChart.data.labels = labels; targetChart.data.datasets[0].data = yData;
                     
-                    if(['pie','doughnut'].includes(res.value.type)) {
-                        targetChart.data.datasets[0].backgroundColor = getColors();
-                        targetChart.options.plugins.legend = { display: true, position: 'right', labels:{boxWidth: 10} };
-                        targetChart.options.scales = { x:{display:false}, y:{display:false} };
-                    } else if(res.value.type === 'radar') {
-                        targetChart.data.datasets[0].backgroundColor = 'rgba(59,130,246,0.3)';
-                        targetChart.options.scales = { r: { angleLines:{display:true} } };
-                    } else { 
-                        targetChart.data.datasets[0].backgroundColor = 'rgba(59, 130, 246, 0.6)';
-                        targetChart.options.plugins.legend = { display: false };
-                        if(canvasEl.id === 'chartSectores' && res.value.type === 'bar') {
-                            targetChart.options.indexAxis = 'y'; 
-                        } else { targetChart.options.indexAxis = 'x'; }
-                        targetChart.options.scales = { x:{display:true}, y:{display:true} };
-                    }
+                    if(['pie','doughnut'].includes(res.value.type)) { targetChart.data.datasets[0].backgroundColor = getColors(); targetChart.options.plugins.legend = { display: true, position: 'right', labels:{boxWidth: 10} }; targetChart.options.scales = { x:{display:false}, y:{display:false} }; } else if(res.value.type === 'radar') { targetChart.data.datasets[0].backgroundColor = 'rgba(59,130,246,0.3)'; targetChart.options.scales = { r: { angleLines:{display:true} } }; } else { targetChart.data.datasets[0].backgroundColor = 'rgba(59, 130, 246, 0.6)'; targetChart.options.plugins.legend = { display: false }; if(canvasEl.id === 'chartSectores' && res.value.type === 'bar') { targetChart.options.indexAxis = 'y'; } else { targetChart.options.indexAxis = 'x'; } targetChart.options.scales = { x:{display:true}, y:{display:true} }; }
                     targetChart.update();
                 }
             });
@@ -1326,129 +1130,73 @@
         // --- MANEJO DEL CAMPO SECTOR 'OTRO' ---
         const sectorSelect = document.getElementById('form-sector');
         const sectorOtroInput = document.getElementById('form-sector-otro');
-        if (sectorSelect && sectorOtroInput) {
-            sectorSelect.addEventListener('change', (e) => {
-                if (e.target.value === 'Otro') {
-                    sectorOtroInput.classList.remove('hidden');
-                    sectorOtroInput.setAttribute('required', 'true');
-                } else {
-                    sectorOtroInput.classList.add('hidden');
-                    sectorOtroInput.removeAttribute('required');
-                }
-            });
-        }
+        if (sectorSelect && sectorOtroInput) { sectorSelect.addEventListener('change', (e) => { if (e.target.value === 'Otro') { sectorOtroInput.classList.remove('hidden'); sectorOtroInput.setAttribute('required', 'true'); } else { sectorOtroInput.classList.add('hidden'); sectorOtroInput.removeAttribute('required'); } }); }
 
         // --- MANEJO DE CAMPOS DINÁMICOS ---
         safeClick('btn-add-dynamic-field', () => {
             Swal.fire({
-                title: 'Añadir Campo Personalizado',
-                input: 'text',
-                inputLabel: 'Nombre del nuevo campo',
-                inputPlaceholder: 'Escriba el nombre...',
-                showCancelButton: true,
-                confirmButtonColor: '#9333ea',
-                cancelButtonText: 'Cancelar',
-                confirmButtonText: 'Añadir'
+                title: 'Añadir Campo Personalizado', input: 'text', inputLabel: 'Nombre del nuevo campo', inputPlaceholder: 'Ej. Ciudad, Empresa...', showCancelButton: true, confirmButtonColor: '#9333ea', cancelButtonText: 'Cancelar', confirmButtonText: 'Añadir'
             }).then((res) => {
                 if(res.isConfirmed && res.value) {
-                    const fieldName = res.value.trim();
-                    const fieldKey = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                    const container = document.getElementById('dynamic-fields-container');
-                    
-                    const div = document.createElement('div');
-                    div.className = 'md:col-span-1 fade-in relative';
-                    div.innerHTML = `
-                        <label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block text-purple-600 dark:text-purple-400">${fieldName}</label>
-                        <div class="flex items-center gap-2">
-                            <input type="text" class="dynamic-field-input w-full bg-white dark:bg-gray-900 border border-purple-300 dark:border-purple-700/50 rounded-xl py-2 px-3 focus:ring-2 focus:ring-purple-500/50 outline-none font-semibold" data-key="${fieldKey}" placeholder="Valor para ${fieldName}..." required>
-                            <button type="button" onclick="this.parentElement.parentElement.remove()" class="text-red-500 hover:text-red-700 transition-colors" title="Eliminar campo"><i class="fa-solid fa-times-circle"></i></button>
-                        </div>
-                    `;
+                    const fieldName = res.value.trim(); const fieldKey = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_'); const container = document.getElementById('dynamic-fields-container');
+                    const div = document.createElement('div'); div.className = 'md:col-span-1 fade-in relative';
+                    div.innerHTML = `<label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block text-purple-600 dark:text-purple-400">${fieldName}</label><div class="flex items-center gap-2"><input type="text" class="dynamic-field-input w-full bg-white dark:bg-gray-900 border border-purple-300 dark:border-purple-700/50 rounded-xl py-2 px-3 focus:ring-2 focus:ring-purple-500/50 outline-none font-semibold" data-key="${fieldKey}" placeholder="Valor..." required><button type="button" onclick="this.parentElement.parentElement.remove()" class="text-red-500 hover:text-red-700 transition-colors" title="Eliminar campo"><i class="fa-solid fa-times-circle"></i></button></div>`;
                     container.appendChild(div);
                 }
             });
         });
 
-        // --- REGISTRO MANUAL DE FICHA TECMD ---
+        // --- REGISTRO MANUAL DE FICHA TECMD A FIRESTORE ---
         safeSubmit('student-form', (e) => {
             e.preventDefault();
             const getVal = id => document.getElementById(id) ? document.getElementById(id).value : '';
-            
-            let finalSector = getVal('form-sector');
-            if (finalSector === 'Otro') finalSector = getVal('form-sector-otro') || 'Otro Sector';
+            let finalSector = getVal('form-sector'); if (finalSector === 'Otro') finalSector = getVal('form-sector-otro') || 'Otro Sector';
+            const docId = getVal('form-id');
 
             const newStudent = { 
-                id: getVal('form-id'), name: getVal('form-name'), fnac: getVal('form-fnac'), dept: getVal('form-dept'), 
-                origen: getVal('form-origen'), trabajo: getVal('form-trabajo'), prog: getVal('form-prog'), 
-                sector: finalSector, est: parseInt(getVal('form-estrato'))||1, gen: getVal('form-gen'), 
-                etnia: getVal('form-etnia'), discapacidad: getVal('form-discapacidad'), gpa: parseFloat(getVal('form-gpa'))||0, 
-                titulo: getVal('form-titulo'), semestre: getVal('form-semestre'), empresa: getVal('form-empresa'),
-                tipo_empresa: getVal('form-tipo-empresa'), entregables: getVal('form-entregables'), tutor1: getVal('form-tutor1'), 
-                tutor2: getVal('form-tutor2'), nlp: 0, sim: 0, progreso: 0 
+                id: docId, name: getVal('form-name'), dept: getVal('form-dept'), 
+                prog: getVal('form-prog'), sector: finalSector, est: parseInt(getVal('form-estrato'))||1, 
+                gen: getVal('form-gen'), etnia: getVal('form-etnia'), gpa: parseFloat(getVal('form-gpa'))||0, 
+                titulo: getVal('form-titulo'), nlp: 0, sim: 0, progreso: 0 
             };
 
-            document.querySelectorAll('.dynamic-field-input').forEach(input => {
-                if(input.dataset.key) newStudent[input.dataset.key] = input.value;
-            });
+            document.querySelectorAll('.dynamic-field-input').forEach(input => { if(input.dataset.key) newStudent[input.dataset.key] = input.value; });
 
-            rawData.unshift(newStudent);
-            
-            document.getElementById('student-form').reset(); 
-            if(sectorOtroInput) sectorOtroInput.classList.add('hidden');
-            const dynamicContainer = document.getElementById('dynamic-fields-container');
-            if(dynamicContainer) dynamicContainer.innerHTML = '';
-            
-            saveDataToLocal(); updateAllDataViews(); 
-            Swal.fire({title: 'Ficha Registrada', text: 'El estudiante fue integrado al modelo DAX de forma local, esperando sincronización en la nube.', icon: 'success'});
+            setDoc(doc(db, "estudiantes", docId), newStudent)
+                .then(() => {
+                    document.getElementById('student-form').reset(); 
+                    if(sectorOtroInput) sectorOtroInput.classList.add('hidden');
+                    const dynamicContainer = document.getElementById('dynamic-fields-container');
+                    if(dynamicContainer) dynamicContainer.innerHTML = '';
+                    Swal.fire({title: 'Guardado en la Nube', text: 'El estudiante fue integrado al motor BI en Firestore.', icon: 'success'});
+                })
+                .catch(err => Swal.fire('Error', err.message, 'error'));
         });
 
         // --- ANALIZAR (MOTOR NLP) ---
         safeClick('btn-analyze', () => {
-            const btn = document.getElementById('btn-analyze');
-            if(!btn) return;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando...'; 
-            btn.disabled = true;
+            const btn = document.getElementById('btn-analyze'); if(!btn) return;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando...'; btn.disabled = true;
             setTimeout(() => {
-                const plc = document.getElementById('analysis-placeholder');
-                const res = document.getElementById('analysis-results');
-                if(plc) plc.classList.add('hidden');
-                if(res) { res.classList.remove('hidden'); res.classList.add('fade-in'); }
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> Análisis Completado';
-                btn.classList.replace('bg-blue-600', 'bg-green-600');
-                
-                // Actualiza el score simulado si es tu usuario
-                const userIndex = rawData.findIndex(d => d.id === 'dopabonr');
-                if(userIndex !== -1 && rawData[userIndex].nlp === 0) {
-                    rawData[userIndex].nlp = 8.5; rawData[userIndex].sim = 6;
-                    saveDataToLocal(); updateAllDataViews();
-                }
-
-                setTimeout(() => { 
-                    btn.innerHTML = '<i class="fa-solid fa-robot"></i> Ejecutar Análisis IA'; 
-                    btn.classList.replace('bg-green-600', 'bg-blue-600'); 
-                    btn.disabled = false; 
-                }, 3000);
+                const plc = document.getElementById('analysis-placeholder'); const res = document.getElementById('analysis-results');
+                if(plc) plc.classList.add('hidden'); if(res) { res.classList.remove('hidden'); res.classList.add('fade-in'); }
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Análisis Completado'; btn.classList.replace('bg-blue-600', 'bg-green-600');
+                setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-robot"></i> Ejecutar Análisis IA'; btn.classList.replace('bg-green-600', 'bg-blue-600'); btn.disabled = false; }, 3000);
             }, 1500);
         });
 
         // --- CONSTRUCTOR ANALÍTICO Y ANCLAJE ---
         window.updateCustomChart = () => {
-            const data = getFilteredData();
-            if(data.length === 0) return; // Wait for data overlay is managed by updateAllDataViews
-            
-            const xEl = document.getElementById('cb-x');
-            const yEl = document.getElementById('cb-y');
-            const typeEl = document.getElementById('cb-type');
+            const xEl = document.getElementById('cb-x'); const yEl = document.getElementById('cb-y'); const typeEl = document.getElementById('cb-type');
             if (!xEl || !yEl || !typeEl) return;
-            
             const xKey = xEl.value; const yKey = yEl.value; const type = typeEl.value;
-            const grouped = {};
+            const data = getFilteredData(); const grouped = {};
             data.forEach(d => { 
-                let keyVal = d[xKey];
-                if (xKey === 'prog' && keyVal && keyVal.length > 25) keyVal = keyVal.substring(0, 25) + '...';
+                let keyVal = d[xKey] || 'Indefinido';
+                if (xKey === 'prog' && keyVal.length > 25) keyVal = keyVal.substring(0, 25) + '...';
                 if(!grouped[keyVal]) grouped[keyVal] = {sum: 0, count: 0, fullName: d[xKey]}; 
                 if(yKey === 'count') { grouped[keyVal].sum += 1; grouped[keyVal].count += 1; }
-                else { grouped[keyVal].sum += d[yKey]; grouped[keyVal].count += 1; }
+                else { grouped[keyVal].sum += (d[yKey]||0); grouped[keyVal].count += 1; }
             });
             const labels = Object.keys(grouped); 
             const yData = labels.map(l => (yKey === 'count' ? grouped[l].sum : (grouped[l].sum / grouped[l].count).toFixed(2)));
@@ -1459,11 +1207,7 @@
                 chartCustom = new Chart(chartCanvas, { 
                     type: type==='radar'?'radar':type, 
                     data: { labels: labels, datasets: [{ label: `${yKey.toUpperCase()}`, data: yData, backgroundColor: type==='pie'||type==='doughnut'?getColors():'rgba(59,130,246,0.5)', borderColor: '#3b82f6', borderWidth: 2, fill: true, borderRadius: type==='bar'?8:0 }] }, 
-                    options: { 
-                        responsive: true, 
-                        maintainAspectRatio: false,
-                        plugins: { tooltip: { callbacks: { title: (ctx) => grouped[ctx[0].label] ? grouped[ctx[0].label].fullName : ctx[0].label } } }
-                    } 
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { title: (ctx) => grouped[ctx[0].label] ? grouped[ctx[0].label].fullName : ctx[0].label } } } } 
                 });
                 chartCanvas.dataset.daxX = xKey; chartCanvas.dataset.daxY = yKey;
             }
@@ -1472,18 +1216,12 @@
 
         window.pinCustomChart = () => {
             if(!chartCustom) return;
-            const emptyMsg = document.getElementById('empty-pinned-msg');
-            const container = document.getElementById('pinned-charts-container');
-            const xEl = document.getElementById('cb-x');
-            const yEl = document.getElementById('cb-y');
-            
-            if(emptyMsg) emptyMsg.classList.add('hidden');
-            if(!container || !xEl || !yEl) return;
-
+            const emptyMsg = document.getElementById('empty-pinned-msg'); const container = document.getElementById('pinned-charts-container');
+            const xEl = document.getElementById('cb-x'); const yEl = document.getElementById('cb-y');
+            if(emptyMsg) emptyMsg.classList.add('hidden'); if(!container || !xEl || !yEl) return;
             const wrapper = document.createElement('div'); 
             wrapper.className = 'glass-panel p-6 rounded-2xl relative shadow-lg fade-in border-t-4 border-t-yellow-500 chart-wrapper flex flex-col min-h-[320px] z-10';
-            const canvasId = 'pinned-' + Date.now();
-            const title = `${yEl.options[yEl.selectedIndex].text} vs ${xEl.options[xEl.selectedIndex].text}`;
+            const canvasId = 'pinned-' + Date.now(); const title = `${yEl.options[yEl.selectedIndex].text} vs ${xEl.options[xEl.selectedIndex].text}`;
             wrapper.innerHTML = `<h3 class="font-bold mb-4 text-sm z-20"><i class="fa-solid fa-chart-simple text-blue-500 mr-2"></i>${title}</h3><button onclick="this.parentElement.remove(); if(document.getElementById('pinned-charts-container').children.length===1) { const m = document.getElementById('empty-pinned-msg'); if(m) m.classList.remove('hidden'); }" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors z-30"><i class="fa-solid fa-trash"></i></button><div class="flex-1 w-full chart-container"><canvas id="${canvasId}" data-dax-x="${xEl.value}" data-dax-y="${yEl.value}"></canvas></div>`;
             container.appendChild(wrapper);
             new Chart(document.getElementById(canvasId), { type: chartCustom.config.type, data: JSON.parse(JSON.stringify(chartCustom.data)), options: { responsive: true, maintainAspectRatio: false, plugins: chartCustom.config.options.plugins } });
@@ -1495,29 +1233,14 @@
         const searchCatalogEl = document.getElementById('search-catalog');
         if(searchCatalogEl) {
             searchCatalogEl.addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                const container = document.getElementById('program-cards-container');
-                if(!container) return;
-                
+                const term = e.target.value.toLowerCase(); const container = document.getElementById('program-cards-container'); if(!container) return;
                 const filteredPrograms = TECMD_PROGRAMS.filter(p => p.nombre.toLowerCase().includes(term) || p.snies.includes(term));
-                
-                if(filteredPrograms.length === 0) {
-                    container.innerHTML = `<div class="col-span-full p-8 text-center opacity-50 font-bold">No se encontraron programas que coincidan con la búsqueda.</div>`;
-                    return;
-                }
-
+                if(filteredPrograms.length === 0) { container.innerHTML = `<div class="col-span-full p-8 text-center opacity-50 font-bold">No se encontraron programas.</div>`; return; }
                 container.innerHTML = filteredPrograms.map(p => `
                     <div class="glass-panel p-5 rounded-2xl flex flex-col h-full program-card">
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded-full font-bold uppercase tracking-wider">${p.escuela.replace('Escuela de ', '')}</span>
-                            <span class="text-xs font-mono font-bold opacity-50 bg-black/5 dark:bg-white/5 px-2 py-1 rounded">SNIES: ${p.snies}</span>
-                        </div>
-                        <h4 class="font-extrabold text-sm mb-2 text-blue-600 dark:text-blue-400">${p.nombre}</h4>
-                        <p class="text-xs opacity-80 leading-relaxed mb-4 flex-1">${p.desc}</p>
-                        <div class="mt-auto border-t border-gray-200 dark:border-gray-800 pt-3 grid grid-cols-2 gap-2">
-                            <a href="${p.url}" target="_blank" class="text-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold py-2 rounded-lg transition-colors opacity-80"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Sitio Oficial</a>
-                            <button class="w-full bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-bold py-2 rounded-lg transition-colors text-blue-600 dark:text-blue-400" onclick="showCurriculum('${p.snies}')"><i class="fa-solid fa-book-open-reader mr-1"></i> Malla Curricular</button>
-                        </div>
+                        <div class="flex justify-between items-start mb-3"><span class="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded-full font-bold uppercase tracking-wider">${p.escuela.replace('Escuela de ', '')}</span><span class="text-xs font-mono font-bold opacity-50 bg-black/5 dark:bg-white/5 px-2 py-1 rounded">SNIES: ${p.snies}</span></div>
+                        <h4 class="font-extrabold text-sm mb-2 text-blue-600 dark:text-blue-400">${p.nombre}</h4><p class="text-xs opacity-80 leading-relaxed mb-4 flex-1">${p.desc}</p>
+                        <div class="mt-auto border-t border-gray-200 dark:border-gray-800 pt-3 grid grid-cols-2 gap-2"><a href="${p.url}" target="_blank" class="text-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold py-2 rounded-lg transition-colors opacity-80"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Oficial</a><button class="w-full bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-bold py-2 rounded-lg transition-colors text-blue-600 dark:text-blue-400" onclick="showCurriculum('${p.snies}')"><i class="fa-solid fa-book-open-reader mr-1"></i> Malla</button></div>
                     </div>
                 `).join('');
             });
@@ -1525,386 +1248,120 @@
 
         // --- CÓDIGO DIDÁCTICO: MÓDULO CATÁLOGO Y VENN-GRAPH ---
         window.showCurriculum = (snies) => {
-            const prog = TECMD_PROGRAMS.find(p => p.snies === snies);
-            if(!prog) return;
-
-            let htmlMalla = `<div class="text-left space-y-4 malla-container max-h-[60vh] overflow-y-auto pr-2">`;
-            htmlMalla += `<p class="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 p-2 rounded-lg font-semibold"><i class="fa-solid fa-circle-info mr-1"></i> Este programa cuenta con un total proyectado de <strong>${prog.totalCreditos} Créditos Académicos</strong>.</p>`;
-            
-            prog.malla.forEach(per => {
-                htmlMalla += `<div class="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-                    <div class="bg-gray-100 dark:bg-gray-800 px-4 py-2 font-bold text-sm border-b border-gray-200 dark:border-gray-700">${per.periodo}</div>
-                    <ul class="divide-y divide-gray-100 dark:divide-gray-800">`;
-                per.materias.forEach(mat => {
-                    htmlMalla += `<li class="px-4 py-2 flex justify-between items-center text-xs"><span class="opacity-90 font-semibold">${mat.nombre}</span> <span class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded font-bold">${mat.creditos} Cr.</span></li>`;
-                });
-                htmlMalla += `</ul></div>`;
-            });
-            htmlMalla += `</div>`;
-
-            Swal.fire({
-                title: `<span class="text-lg font-bold text-blue-600 dark:text-blue-400">Malla Curricular</span><br><span class="text-sm opacity-70">${prog.nombre}</span>`,
-                html: htmlMalla,
-                width: 600,
-                confirmButtonColor: '#3b82f6',
-                confirmButtonText: 'Cerrar'
-            });
+            const prog = TECMD_PROGRAMS.find(p => p.snies === snies); if(!prog) return;
+            let htmlMalla = `<div class="text-left space-y-4 malla-container max-h-[60vh] overflow-y-auto pr-2"><p class="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 p-2 rounded-lg font-semibold"><i class="fa-solid fa-circle-info mr-1"></i> Este programa cuenta con un total proyectado de <strong>${prog.totalCreditos} Créditos Académicos</strong>.</p>`;
+            prog.malla.forEach(per => { htmlMalla += `<div class="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"><div class="bg-gray-100 dark:bg-gray-800 px-4 py-2 font-bold text-sm border-b border-gray-200 dark:border-gray-700">${per.periodo}</div><ul class="divide-y divide-gray-100 dark:divide-gray-800">`; per.materias.forEach(mat => { htmlMalla += `<li class="px-4 py-2 flex justify-between items-center text-xs"><span class="opacity-90 font-semibold">${mat.nombre}</span> <span class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded font-bold">${mat.creditos} Cr.</span></li>`; }); htmlMalla += `</ul></div>`; }); htmlMalla += `</div>`;
+            Swal.fire({ title: `<span class="text-lg font-bold text-blue-600 dark:text-blue-400">Malla Curricular</span><br><span class="text-sm opacity-70">${prog.nombre}</span>`, html: htmlMalla, width: 600, confirmButtonColor: '#3b82f6', confirmButtonText: 'Cerrar' });
         };
 
         const renderCompareCurriculum = (progA, progB) => {
-            const container = document.getElementById('comp-curriculum-container');
-            if(!container) return;
-
-            const getSubjects = (p) => {
-                if(!p) return [];
-                let subs = [];
-                p.malla.forEach(per => per.materias.forEach(m => subs.push(m.nombre.toLowerCase().trim())));
-                return subs;
-            };
-
-            const subA = getSubjects(progA);
-            const subB = getSubjects(progB);
-            const shared = subA.filter(value => subB.includes(value));
+            const container = document.getElementById('comp-curriculum-container'); if(!container) return;
+            const getSubjects = (p) => { if(!p) return []; let subs = []; p.malla.forEach(per => per.materias.forEach(m => subs.push(m.nombre.toLowerCase().trim()))); return subs; };
+            const subA = getSubjects(progA); const subB = getSubjects(progB); const shared = subA.filter(value => subB.includes(value));
 
             const renderMalla = (p, isProgA) => {
                 if(!p) return `<div class="p-4 text-center opacity-50 font-bold glass-panel rounded-2xl">Programa no seleccionado</div>`;
-                let html = `<div class="glass-panel p-5 rounded-2xl flex flex-col h-full border-t-4 ${isProgA ? 'border-blue-500' : 'border-purple-500'}">`;
-                html += `<h5 class="font-extrabold ${isProgA ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'} mb-2 truncate" title="${p.nombre}">${p.nombre}</h5>`;
-                html += `<div class="flex justify-between items-center text-xs mb-4 pb-2 border-b border-gray-200 dark:border-gray-700"><span class="font-bold opacity-60">SNIES: ${p.snies}</span><span class="bg-black/5 dark:bg-white/5 px-2 py-1 rounded font-bold">${p.totalCreditos} Créditos</span></div>`;
-                html += `<div class="space-y-4 flex-1 overflow-y-auto max-h-[400px] malla-container pr-2">`;
-                
-                p.malla.forEach(per => {
-                    html += `<div><h6 class="text-[10px] font-bold uppercase opacity-60 mb-2 pl-1 flex items-center gap-1"><i class="fa-solid fa-calendar-days"></i> ${per.periodo}</h6><div class="space-y-2">`;
-                    per.materias.forEach(mat => {
-                        const isShared = shared.includes(mat.nombre.toLowerCase().trim());
-                        const bgClass = isShared ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700' : 'bg-white/50 dark:bg-black/20 border-gray-200 dark:border-gray-700';
-                        const textClass = isShared ? 'text-green-800 dark:text-green-300' : 'opacity-90';
-                        const icon = isShared ? '<i class="fa-solid fa-check-double text-green-500 mr-2"></i>' : '<i class="fa-solid fa-circle-minus text-gray-400 opacity-50 mr-2"></i>';
-                        
-                        html += `<div class="border ${bgClass} px-3 py-2 rounded-xl flex justify-between items-center text-xs shadow-sm transition-transform hover:scale-105">
-                            <div class="flex items-center flex-1 truncate pr-2" title="${mat.nombre}">${icon} <span class="truncate font-semibold ${textClass}">${mat.nombre}</span></div>
-                            <span class="font-bold opacity-60 bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded">${mat.creditos}c</span>
-                        </div>`;
-                    });
-                    html += `</div></div>`;
-                });
-                html += `</div></div>`;
-                return html;
+                let html = `<div class="glass-panel p-5 rounded-2xl flex flex-col h-full border-t-4 ${isProgA ? 'border-blue-500' : 'border-purple-500'}"><h5 class="font-extrabold ${isProgA ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'} mb-2 truncate" title="${p.nombre}">${p.nombre}</h5><div class="flex justify-between items-center text-xs mb-4 pb-2 border-b border-gray-200 dark:border-gray-700"><span class="font-bold opacity-60">SNIES: ${p.snies}</span><span class="bg-black/5 dark:bg-white/5 px-2 py-1 rounded font-bold">${p.totalCreditos} Créditos</span></div><div class="space-y-4 flex-1 overflow-y-auto max-h-[400px] malla-container pr-2">`;
+                p.malla.forEach(per => { html += `<div><h6 class="text-[10px] font-bold uppercase opacity-60 mb-2 pl-1 flex items-center gap-1"><i class="fa-solid fa-calendar-days"></i> ${per.periodo}</h6><div class="space-y-2">`; per.materias.forEach(mat => { const isShared = shared.includes(mat.nombre.toLowerCase().trim()); const bgClass = isShared ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700' : 'bg-white/50 dark:bg-black/20 border-gray-200 dark:border-gray-700'; const textClass = isShared ? 'text-green-800 dark:text-green-300' : 'opacity-90'; const icon = isShared ? '<i class="fa-solid fa-check-double text-green-500 mr-2"></i>' : '<i class="fa-solid fa-circle-minus text-gray-400 opacity-50 mr-2"></i>'; html += `<div class="border ${bgClass} px-3 py-2 rounded-xl flex justify-between items-center text-xs shadow-sm transition-transform hover:scale-105"><div class="flex items-center flex-1 truncate pr-2" title="${mat.nombre}">${icon} <span class="truncate font-semibold ${textClass}">${mat.nombre}</span></div><span class="font-bold opacity-60 bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded">${mat.creditos}c</span></div>`; }); html += `</div></div>`; }); html += `</div></div>`; return html;
             };
-
-            container.innerHTML = renderMalla(progA, true) + renderMalla(progB, false);
-
-            renderCurriculumGraph(progA, progB, shared);
+            container.innerHTML = renderMalla(progA, true) + renderMalla(progB, false); renderCurriculumGraph(progA, progB, shared);
         };
 
         const renderCurriculumGraph = (progA, progB, sharedSubjects) => {
-            const container = document.getElementById('curriculum-graph');
-            if(!container || !progA || !progB) return;
-
+            const container = document.getElementById('curriculum-graph'); if(!container || !progA || !progB) return;
             const header = document.getElementById('didactic-graph-header');
             if(header) {
                 const subA = []; progA.malla.forEach(per => per.materias.forEach(m => subA.push(m.nombre.toLowerCase().trim())));
                 const subB = []; progB.malla.forEach(per => per.materias.forEach(m => subB.push(m.nombre.toLowerCase().trim())));
-                
-                const uniqueA = subA.filter(m => !sharedSubjects.includes(m));
-                const uniqueB = subB.filter(m => !sharedSubjects.includes(m));
-
+                const uniqueA = subA.filter(m => !sharedSubjects.includes(m)); const uniqueB = subB.filter(m => !sharedSubjects.includes(m));
                 const totalMateriasUnicas = uniqueA.length + sharedSubjects.length + uniqueB.length;
-                const pctA = totalMateriasUnicas ? Math.round((uniqueA.length / totalMateriasUnicas) * 100) : 0;
-                const pctShared = totalMateriasUnicas ? Math.round((sharedSubjects.length / totalMateriasUnicas) * 100) : 0;
-                const pctB = totalMateriasUnicas ? Math.round((uniqueB.length / totalMateriasUnicas) * 100) : 0;
-
-                header.innerHTML = `
-                    <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-200 dark:border-blue-800">
-                        <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Únicas de ${progA.nombre.substring(0,15)}...</p>
-                        <div class="flex items-end justify-center gap-2 mt-1">
-                            <p class="text-3xl font-extrabold text-blue-600 dark:text-blue-400">${uniqueA.length}</p>
-                            <p class="text-sm font-bold text-blue-500/70 mb-1">(${pctA}%)</p>
-                        </div>
-                    </div>
-                    <div class="bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-800 shadow-md transform scale-105">
-                        <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Núcleo Compartido</p>
-                        <div class="flex items-end justify-center gap-2 mt-1">
-                            <p class="text-4xl font-extrabold text-green-600 dark:text-green-400">${sharedSubjects.length}</p>
-                            <p class="text-lg font-bold text-green-500/70 mb-1">(${pctShared}%)</p>
-                        </div>
-                    </div>
-                    <div class="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-xl border border-purple-200 dark:border-purple-800">
-                        <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Únicas de ${progB.nombre.substring(0,15)}...</p>
-                        <div class="flex items-end justify-center gap-2 mt-1">
-                            <p class="text-3xl font-extrabold text-purple-600 dark:text-purple-400">${uniqueB.length}</p>
-                            <p class="text-sm font-bold text-purple-500/70 mb-1">(${pctB}%)</p>
-                        </div>
-                    </div>
-                `;
+                const pctA = totalMateriasUnicas ? Math.round((uniqueA.length / totalMateriasUnicas) * 100) : 0; const pctShared = totalMateriasUnicas ? Math.round((sharedSubjects.length / totalMateriasUnicas) * 100) : 0; const pctB = totalMateriasUnicas ? Math.round((uniqueB.length / totalMateriasUnicas) * 100) : 0;
+                header.innerHTML = `<div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-200 dark:border-blue-800"><p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Únicas de ${progA.nombre.substring(0,15)}...</p><div class="flex items-end justify-center gap-2 mt-1"><p class="text-3xl font-extrabold text-blue-600 dark:text-blue-400">${uniqueA.length}</p><p class="text-sm font-bold text-blue-500/70 mb-1">(${pctA}%)</p></div></div><div class="bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-800 shadow-md transform scale-105"><p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Núcleo Compartido</p><div class="flex items-end justify-center gap-2 mt-1"><p class="text-4xl font-extrabold text-green-600 dark:text-green-400">${sharedSubjects.length}</p><p class="text-lg font-bold text-green-500/70 mb-1">(${pctShared}%)</p></div></div><div class="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-xl border border-purple-200 dark:border-purple-800"><p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Únicas de ${progB.nombre.substring(0,15)}...</p><div class="flex items-end justify-center gap-2 mt-1"><p class="text-3xl font-extrabold text-purple-600 dark:text-purple-400">${uniqueB.length}</p><p class="text-sm font-bold text-purple-500/70 mb-1">(${pctB}%)</p></div></div>`;
             }
 
-            if(!curriculumGraphInstance) {
-                curriculumGraphInstance = echarts.init(container);
-            }
-
-            const isDark = document.documentElement.classList.contains('dark');
-            const textColor = isDark ? '#f8fafc' : '#0f172a';
-
-            let nodes = [];
-            let links = [];
-
-            // AUMENTO SIGNIFICATIVO DE SEPARACIÓN (X maximo 2000)
+            if(!curriculumGraphInstance) { curriculumGraphInstance = echarts.init(container); }
+            const isDark = document.documentElement.classList.contains('dark'); const textColor = isDark ? '#f8fafc' : '#0f172a';
+            let nodes = []; let links = [];
             nodes.push({ id: 'progA', name: progA.nombre.substring(0, 15)+'...', x: 0, y: 500, symbolSize: 50, itemStyle: { color: '#3b82f6' }, label: { show: true, fontWeight: 'bold', position: 'right', color: textColor } });
-            nodes.push({ id: 'progB', name: progB.nombre.substring(0, 15)+'...', x: 2000, y: 500, symbolSize: 50, itemStyle: { color: '#a855f7' }, label: { show: true, fontWeight: 'bold', position: 'left', color: textColor } });
+            nodes.push({ id: 'progB', name: progB.nombre.substring(0, 15)+'...', x: 1000, y: 500, symbolSize: 50, itemStyle: { color: '#a855f7' }, label: { show: true, fontWeight: 'bold', position: 'left', color: textColor } });
 
-            let addedNodes = new Set();
-            const s_nodes = [], ua_nodes = [], ub_nodes = [];
-
-            const processMalla = (malla, isA) => {
-                malla.forEach(per => {
-                    per.materias.forEach(mat => {
-                        const matKey = mat.nombre.toLowerCase().trim();
-                        if(!addedNodes.has(matKey)) {
-                            addedNodes.add(matKey);
-                            const isShared = sharedSubjects.includes(matKey);
-                            if(isShared) s_nodes.push(mat.nombre);
-                            else if(isA) ua_nodes.push(mat.nombre);
-                            else ub_nodes.push(mat.nombre);
-                        }
-                    });
-                });
-            };
-            processMalla(progA.malla, true);
-            processMalla(progB.malla, false);
+            let addedNodes = new Set(); const s_nodes = [], ua_nodes = [], ub_nodes = [];
+            const processMalla = (malla, isA) => { malla.forEach(per => { per.materias.forEach(mat => { const matKey = mat.nombre.toLowerCase().trim(); if(!addedNodes.has(matKey)) { addedNodes.add(matKey); const isShared = sharedSubjects.includes(matKey); if(isShared) s_nodes.push(mat.nombre); else if(isA) ua_nodes.push(mat.nombre); else ub_nodes.push(mat.nombre); } }); }); };
+            processMalla(progA.malla, true); processMalla(progB.malla, false);
 
             const maxNodes = Math.max(s_nodes.length, ua_nodes.length, ub_nodes.length, 1);
-            const containerHeight = Math.max(550, maxNodes * 40); 
-            container.style.height = `${containerHeight}px`;
-            curriculumGraphInstance.resize();
+            const containerHeight = Math.max(550, maxNodes * 40); container.style.height = `${containerHeight}px`; curriculumGraphInstance.resize();
 
             const addNodeWithY = (list, xPos, color, parentId, isShared) => {
-                const spacing = 1000 / maxNodes;
-                const totalListHeight = list.length * spacing;
-                const startY = (1000 - totalListHeight) / 2 + (spacing / 2);
-
-                list.forEach((name, idx) => {
-                    const matKey = name.toLowerCase().trim();
-                    const yPos = startY + (idx * spacing); 
-                    nodes.push({
-                        id: `mat_${matKey}`,
-                        name: name,
-                        x: xPos,
-                        y: yPos,
-                        symbolSize: isShared ? 25 : 12,
-                        itemStyle: { color: color },
-                        label: { 
-                            show: true, 
-                            position: isShared ? 'bottom' : (xPos < 1000 ? 'right' : 'left'), 
-                            distance: 8, 
-                            fontSize: 10, 
-                            color: textColor, 
-                            formatter: '{b}' 
-                        }
-                    });
+                const spacing = 1000 / maxNodes; const totalListHeight = list.length * spacing; const startY = (1000 - totalListHeight) / 2 + (spacing / 2);
+                list.forEach((name, idx) => { const matKey = name.toLowerCase().trim(); const yPos = startY + (idx * spacing); 
+                    nodes.push({ id: `mat_${matKey}`, name: name, x: xPos, y: yPos, symbolSize: isShared ? 25 : 12, itemStyle: { color: color }, label: { show: true, position: isShared ? 'bottom' : (xPos < 500 ? 'right' : 'left'), distance: 8, fontSize: 10, color: textColor, formatter: '{b}' } });
                 });
             }
+            // SEPARACIÓN MEJORADA (Eje X ajustado para evitar solapamiento)
+            addNodeWithY(s_nodes, 500, '#22c55e', null, true); 
+            addNodeWithY(ua_nodes, 50, '#93c5fd', 'progA', false); // X movido de 150 a 50
+            addNodeWithY(ub_nodes, 950, '#d8b4fe', 'progB', false); // X movido de 850 a 950
 
-            // NUEVA SEPARACIÓN ESTRATÉGICA (Escala 0 - 2000)
-            addNodeWithY(s_nodes, 1000, '#22c55e', null, true); 
-            addNodeWithY(ua_nodes, 300, '#93c5fd', 'progA', false); 
-            addNodeWithY(ub_nodes, 1700, '#d8b4fe', 'progB', false); 
-
-            const createLinks = (malla, sourceId) => {
-                malla.forEach(per => {
-                    per.materias.forEach(mat => {
-                        const matKey = mat.nombre.toLowerCase().trim();
-                        links.push({
-                            source: sourceId,
-                            target: `mat_${matKey}`,
-                            lineStyle: { curveness: 0.2, color: sourceId === 'progA' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(168, 85, 247, 0.4)', width: 2 }
-                        });
-                    });
-                });
-            };
-            createLinks(progA.malla, 'progA');
-            createLinks(progB.malla, 'progB');
-
-            const option = {
-                tooltip: { trigger: 'item', formatter: '{b}' },
-                animationDurationUpdate: 1500,
-                series: [{
-                    type: 'graph',
-                    layout: 'none', 
-                    data: nodes,
-                    links: links,
-                    roam: true,
-                    label: { show: true },
-                    lineStyle: { width: 1.5, opacity: 0.6 }
-                }]
-            };
-
+            const createLinks = (malla, sourceId) => { malla.forEach(per => { per.materias.forEach(mat => { const matKey = mat.nombre.toLowerCase().trim(); links.push({ source: sourceId, target: `mat_${matKey}`, lineStyle: { curveness: 0.2, color: sourceId === 'progA' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(168, 85, 247, 0.4)', width: 2 } }); }); }); };
+            createLinks(progA.malla, 'progA'); createLinks(progB.malla, 'progB');
+            const option = { tooltip: { trigger: 'item', formatter: '{b}' }, animationDurationUpdate: 1500, series: [{ type: 'graph', layout: 'none', data: nodes, links: links, roam: true, label: { show: true }, lineStyle: { width: 1.5, opacity: 0.6 } }] };
             curriculumGraphInstance.setOption(option, true);
         };
 
         const initProgramCatalog = () => {
-            const container = document.getElementById('program-cards-container');
-            const selectA = document.getElementById('compare-prog-a');
-            const selectB = document.getElementById('compare-prog-b');
-            
+            const container = document.getElementById('program-cards-container'); const selectA = document.getElementById('compare-prog-a'); const selectB = document.getElementById('compare-prog-b');
             if(!container || !selectA || !selectB) return;
-
-            const renderCards = (programsToRender) => {
-                container.innerHTML = programsToRender.map(p => `
-                    <div class="glass-panel p-5 rounded-2xl flex flex-col h-full program-card">
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded-full font-bold uppercase tracking-wider">${p.escuela.replace('Escuela de ', '')}</span>
-                            <span class="text-xs font-mono font-bold opacity-50 bg-black/5 dark:bg-white/5 px-2 py-1 rounded">SNIES: ${p.snies}</span>
-                        </div>
-                        <h4 class="font-extrabold text-sm mb-2 text-blue-600 dark:text-blue-400">${p.nombre}</h4>
-                        <p class="text-xs opacity-80 leading-relaxed mb-4 flex-1">${p.desc}</p>
-                        <div class="mt-auto border-t border-gray-200 dark:border-gray-800 pt-3 grid grid-cols-2 gap-2">
-                            <a href="${p.url}" target="_blank" class="text-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold py-2 rounded-lg transition-colors opacity-80"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Sitio Oficial</a>
-                            <button class="w-full bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-bold py-2 rounded-lg transition-colors text-blue-600 dark:text-blue-400" onclick="showCurriculum('${p.snies}')"><i class="fa-solid fa-book-open-reader mr-1"></i> Malla Curricular</button>
-                        </div>
-                    </div>
-                `).join('');
-            };
+            const renderCards = (programsToRender) => { container.innerHTML = programsToRender.map(p => ` <div class="glass-panel p-5 rounded-2xl flex flex-col h-full program-card"><div class="flex justify-between items-start mb-3"><span class="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded-full font-bold uppercase tracking-wider">${p.escuela.replace('Escuela de ', '')}</span><span class="text-xs font-mono font-bold opacity-50 bg-black/5 dark:bg-white/5 px-2 py-1 rounded">SNIES: ${p.snies}</span></div><h4 class="font-extrabold text-sm mb-2 text-blue-600 dark:text-blue-400">${p.nombre}</h4><p class="text-xs opacity-80 leading-relaxed mb-4 flex-1">${p.desc}</p><div class="mt-auto border-t border-gray-200 dark:border-gray-800 pt-3 grid grid-cols-2 gap-2"><a href="${p.url}" target="_blank" class="text-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold py-2 rounded-lg transition-colors opacity-80"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Oficial</a><button class="w-full bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-bold py-2 rounded-lg transition-colors text-blue-600 dark:text-blue-400" onclick="showCurriculum('${p.snies}')"><i class="fa-solid fa-book-open-reader mr-1"></i> Malla</button></div></div> `).join(''); };
             renderCards(TECMD_PROGRAMS);
-
-            const searchCatalogEl = document.getElementById('search-catalog');
-            if(searchCatalogEl) {
-                searchCatalogEl.addEventListener('input', (e) => {
-                    const term = e.target.value.toLowerCase();
-                    const filtered = TECMD_PROGRAMS.filter(p => p.nombre.toLowerCase().includes(term) || p.snies.includes(term));
-                    if(filtered.length === 0) {
-                        container.innerHTML = `<div class="col-span-full p-8 text-center opacity-50 font-bold">No se encontraron programas.</div>`;
-                    } else {
-                        renderCards(filtered);
-                    }
-                });
-            }
-
             const options = TECMD_PROGRAMS.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
-            selectA.innerHTML = options;
-            selectB.innerHTML = options;
-            
-            if(TECMD_PROGRAMS.length > 1) {
-                selectA.selectedIndex = 0;
-                selectB.selectedIndex = TECMD_PROGRAMS.length - 1;
-            }
-
-            selectA.addEventListener('change', updateCompareChart);
-            selectB.addEventListener('change', updateCompareChart);
-
+            selectA.innerHTML = options; selectB.innerHTML = options;
+            if(TECMD_PROGRAMS.length > 1) { selectA.selectedIndex = 0; selectB.selectedIndex = TECMD_PROGRAMS.length - 1; }
+            selectA.addEventListener('change', updateCompareChart); selectB.addEventListener('change', updateCompareChart);
             const ctxRadar = document.getElementById('chartCompareRadar');
-            if(ctxRadar) {
-                chartCompareRadar = new Chart(ctxRadar, {
-                    type: 'radar',
-                    data: { labels: ['Calidad NLP (x10)', 'Originalidad (100-Sim)', 'Tasa Progreso (%)', 'GPA (x20)'], datasets: [] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: {display: false} } }, plugins: { legend: { position: 'bottom' } } }
-                });
-                updateCompareChart();
-            }
+            if(ctxRadar) { chartCompareRadar = new Chart(ctxRadar, { type: 'radar', data: { labels: ['Calidad NLP (x10)', 'Originalidad (100-Sim)', 'Tasa Progreso (%)', 'GPA (x20)'], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: {display: false} } }, plugins: { legend: { position: 'bottom' } } } }); updateCompareChart(); }
         };
 
         window.updateCompareChart = () => {
             if(!chartCompareRadar) return;
-            const progAName = document.getElementById('compare-prog-a').value;
-            const progBName = document.getElementById('compare-prog-b').value;
+            const progAName = document.getElementById('compare-prog-a').value; const progBName = document.getElementById('compare-prog-b').value;
+            const pAObj = TECMD_PROGRAMS.find(p => p.nombre === progAName); const pBObj = TECMD_PROGRAMS.find(p => p.nombre === progBName);
+            const dataA = rawData.filter(d => d.prog === progAName); const dataB = rawData.filter(d => d.prog === progBName);
+            const countA = dataA.length; const nlpA = countA ? dataA.reduce((s,d)=>s+(d.nlp||0),0)/countA : 0; const simA = countA ? dataA.reduce((s,d)=>s+(d.sim||0),0)/countA : 0; const progA_val = countA ? dataA.reduce((s,d)=>s+(d.progreso||0),0)/countA : 0; const gpaA = countA ? dataA.reduce((s,d)=>s+(d.gpa||0),0)/countA : 0;
+            const countB = dataB.length; const nlpB = countB ? dataB.reduce((s,d)=>s+(d.nlp||0),0)/countB : 0; const simB = countB ? dataB.reduce((s,d)=>s+(d.sim||0),0)/countB : 0; const progB_val = countB ? dataB.reduce((s,d)=>s+(d.progreso||0),0)/countB : 0; const gpaB = countB ? dataB.reduce((s,d)=>s+(d.gpa||0),0)/countB : 0;
+
+            document.getElementById('comp-count-a').innerText = countA; document.getElementById('comp-count-b').innerText = countB;
+            document.getElementById('comp-nlp-a').innerText = nlpA.toFixed(1); document.getElementById('comp-nlp-b').innerText = nlpB.toFixed(1);
+            document.getElementById('comp-prog-a').innerText = progA_val.toFixed(0) + '%'; document.getElementById('comp-prog-b').innerText = progB_val.toFixed(0) + '%';
             
-            const pAObj = TECMD_PROGRAMS.find(p => p.nombre === progAName);
-            const pBObj = TECMD_PROGRAMS.find(p => p.nombre === progBName);
+            const credAEl = document.getElementById('comp-cred-a'); const credBEl = document.getElementById('comp-cred-b');
+            if(credAEl && pAObj) credAEl.innerText = pAObj.totalCreditos; if(credBEl && pBObj) credBEl.innerText = pBObj.totalCreditos;
 
-            const dataA = rawData.filter(d => d.prog === progAName);
-            const dataB = rawData.filter(d => d.prog === progBName);
-
-            const countA = dataA.length;
-            const nlpA = countA ? dataA.reduce((s,d)=>s+d.nlp,0)/countA : 0;
-            const simA = countA ? dataA.reduce((s,d)=>s+d.sim,0)/countA : 0;
-            const progA_val = countA ? dataA.reduce((s,d)=>s+d.progreso,0)/countA : 0;
-            const gpaA = countA ? dataA.reduce((s,d)=>s+d.gpa,0)/countA : 0;
-
-            const countB = dataB.length;
-            const nlpB = countB ? dataB.reduce((s,d)=>s+d.nlp,0)/countB : 0;
-            const simB = countB ? dataB.reduce((s,d)=>s+d.sim,0)/countB : 0;
-            const progB_val = countB ? dataB.reduce((s,d)=>s+d.progreso,0)/countB : 0;
-            const gpaB = countB ? dataB.reduce((s,d)=>s+d.gpa,0)/countB : 0;
-
-            document.getElementById('comp-count-a').innerText = countA;
-            document.getElementById('comp-count-b').innerText = countB;
-            document.getElementById('comp-nlp-a').innerText = nlpA.toFixed(1);
-            document.getElementById('comp-nlp-b').innerText = nlpB.toFixed(1);
-            document.getElementById('comp-prog-a').innerText = progA_val.toFixed(0) + '%';
-            document.getElementById('comp-prog-b').innerText = progB_val.toFixed(0) + '%';
-            
-            const credAEl = document.getElementById('comp-cred-a');
-            const credBEl = document.getElementById('comp-cred-b');
-            if(credAEl && pAObj) credAEl.innerText = pAObj.totalCreditos;
-            if(credBEl && pBObj) credBEl.innerText = pBObj.totalCreditos;
-
-            chartCompareRadar.data.datasets = [
-                {
-                    label: progAName.substring(0,25)+'...',
-                    data: [nlpA * 10, 100 - simA, progA_val, gpaA * 20],
-                    backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: 'rgba(59, 130, 246, 1)', pointBackgroundColor: 'rgba(59, 130, 246, 1)', borderWidth: 2
-                },
-                {
-                    label: progBName.substring(0,25)+'...',
-                    data: [nlpB * 10, 100 - simB, progB_val, gpaB * 20],
-                    backgroundColor: 'rgba(168, 85, 247, 0.2)', borderColor: 'rgba(168, 85, 247, 1)', pointBackgroundColor: 'rgba(168, 85, 247, 1)', borderWidth: 2
-                }
-            ];
-            chartCompareRadar.update();
-
-            renderCompareCurriculum(pAObj, pBObj);
+            chartCompareRadar.data.datasets = [ { label: progAName.substring(0,25)+'...', data: [nlpA * 10, 100 - simA, progA_val, gpaA * 20], backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: 'rgba(59, 130, 246, 1)', pointBackgroundColor: 'rgba(59, 130, 246, 1)', borderWidth: 2 }, { label: progBName.substring(0,25)+'...', data: [nlpB * 10, 100 - simB, progB_val, gpaB * 20], backgroundColor: 'rgba(168, 85, 247, 0.2)', borderColor: 'rgba(168, 85, 247, 1)', pointBackgroundColor: 'rgba(168, 85, 247, 1)', borderWidth: 2 } ];
+            chartCompareRadar.update(); renderCompareCurriculum(pAObj, pBObj);
         };
 
-        // --- INICIALIZACIÓN GRÁFICOS Y MAPA ---
         const initDashboardCharts = () => {
             window.chartsInited = true;
-            const cProg = document.getElementById('chartProgramas');
-            const cEst = document.getElementById('chartEstratos');
-            const cSect = document.getElementById('chartSectores');
-            const mapC = document.getElementById('colombia-map');
-
+            const cProg = document.getElementById('chartProgramas'); const cEst = document.getElementById('chartEstratos'); const cSect = document.getElementById('chartSectores'); const mapC = document.getElementById('colombia-map');
             if(cProg) chartProg = new Chart(cProg, { type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: getColors(), borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, onClick: (e, els, c) => { if(els.length) toggleChartFilter('prog', c.data.labels[els[0].index]); } } });
             if(cEst) chartEst = new Chart(cEst, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: getColors(), borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right', labels:{boxWidth: 10} } }, onClick: (e, els, c) => { if(els.length) toggleChartFilter('est', c.data.labels[els[0].index].replace('Estrato ','')); } } });
             if(cSect) chartSector = new Chart(cSect, { type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: 'rgba(59, 130, 246, 0.6)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1, borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false } }, onClick: (e, els, c) => { if(els.length) toggleChartFilter('sector', c.data.labels[els[0].index]); } } });
-            
-            if(mapC && typeof echarts !== 'undefined') {
-                mapInstance = echarts.init(mapC);
-                updateMapTheme();
-                mapInstance.on('click', function (params) { if(params.name) toggleChartFilter('dept', params.name); });
-            }
-            updateAllDataViews(); 
+            if(mapC && typeof echarts !== 'undefined') { mapInstance = echarts.init(mapC); updateMapTheme(); mapInstance.on('click', function (params) { if(params.name) toggleChartFilter('dept', params.name); }); }
+            // updateAllDataViews is called inside the Firebase onSnapshot to ensure it loads real data.
         };
 
         const updateMapTheme = () => {
-            if(!mapInstance) return;
-            const isDark = document.documentElement.classList.contains('dark');
-            const nodeColor = isDark ? '#ef4444' : '#dc2626';
-            mapInstance.setOption({
-                tooltip: { trigger: 'item', formatter: '{b}: {c} Estudiantes' },
-                series: [{ type: 'treemap', width: '100%', height: '100%', roam: false, nodeClick: false, breadcrumb: {show: false}, itemStyle: { borderColor: isDark ? '#1e1b4b' : '#f8fafc', borderWidth: 2, gapWidth: 2 }, label: { show: true, position: 'inside', formatter: '{b}\n{c}', color: '#fff', fontWeight: 'bold' }, levels: [ { itemStyle: { normal: { color: nodeColor, borderColor: '#fff' } } } ], data: [] }]
-            });
+            if(!mapInstance) return; const isDark = document.documentElement.classList.contains('dark'); const nodeColor = isDark ? '#ef4444' : '#dc2626';
+            mapInstance.setOption({ tooltip: { trigger: 'item', formatter: '{b}: {c} Estudiantes' }, series: [{ type: 'treemap', width: '100%', height: '100%', roam: false, nodeClick: false, breadcrumb: {show: false}, itemStyle: { borderColor: isDark ? '#1e1b4b' : '#f8fafc', borderWidth: 2, gapWidth: 2 }, label: { show: true, position: 'inside', formatter: '{b}\n{c}', color: '#fff', fontWeight: 'bold' }, levels: [ { itemStyle: { normal: { color: nodeColor, borderColor: '#fff' } } } ], data: [] }] });
         };
 
         const updateChartColors = () => { 
             Chart.defaults.color = document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569'; 
-            if(chartProg) chartProg.update(); if(chartEst) chartEst.update(); if(chartSector) chartSector.update(); 
-            if(chartCompareRadar) chartCompareRadar.update();
-            if(curriculumGraphInstance) {
-                const isDark = document.documentElement.classList.contains('dark');
-                const option = curriculumGraphInstance.getOption();
-                if(option && option.series && option.series.length) {
-                    option.series[0].data.forEach(node => {
-                        if(node.label) node.label.color = isDark ? '#f8fafc' : '#0f172a';
-                    });
-                    curriculumGraphInstance.setOption(option);
-                }
-            }
+            if(chartProg) chartProg.update(); if(chartEst) chartEst.update(); if(chartSector) chartSector.update(); if(chartCompareRadar) chartCompareRadar.update();
+            if(curriculumGraphInstance) { const isDark = document.documentElement.classList.contains('dark'); const option = curriculumGraphInstance.getOption(); if(option && option.series && option.series.length) { option.series[0].data.forEach(node => { if(node.label) node.label.color = isDark ? '#f8fafc' : '#0f172a'; }); curriculumGraphInstance.setOption(option); } }
         };
-        window.addEventListener('resize', () => { 
-            if(mapInstance) mapInstance.resize(); 
-            if(chartCompareRadar) chartCompareRadar.resize();
-            if(curriculumGraphInstance) curriculumGraphInstance.resize();
-        });
+        window.addEventListener('resize', () => { if(mapInstance) mapInstance.resize(); if(chartCompareRadar) chartCompareRadar.resize(); if(curriculumGraphInstance) curriculumGraphInstance.resize(); });
     </script>
 </body>
 </html>
