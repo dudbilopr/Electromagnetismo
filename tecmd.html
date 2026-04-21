@@ -48,7 +48,7 @@
         .chart-container { position: relative; min-height: 250px; width: 100%; height: 100%; z-index: 10; overflow: hidden; flex: 1 1 auto; display: flex; justify-content: center; align-items: center; }
         .chart-wrapper { display: flex; flex-direction: column; overflow: hidden; min-height: 350px; }
         canvas { cursor: context-menu; display: block; max-width: 100%; max-height: 100%; } 
-        .echarts-map { z-index: 10; flex: 1 1 auto; min-height: 300px; }
+        .echarts-map { z-index: 10; flex: 1 1 auto; min-height: 300px; width: 100%; }
         
         .chart-wrapper:hover::after {
             content: 'Clic derecho para Editar (Modo DAX)';
@@ -61,9 +61,10 @@
         .program-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); }
         .malla-container::-webkit-scrollbar { width: 4px; }
         .malla-container::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.5); border-radius: 4px; }
-
-        /* Estilos para el estado de "Esperando datos" */
-        .empty-data-overlay { position: absolute; inset: 0; background: var(--glass-bg); backdrop-filter: blur(10px); z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 1rem; }
+        
+        /* Overlay cuando no hay datos */
+        .no-data-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.7); backdrop-filter: blur(4px); z-index: 30; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-radius: inherit; }
+        .dark .no-data-overlay { background: rgba(15,23,42,0.8); }
     </style>
 </head>
 <body class="overflow-hidden flex flex-col h-[100dvh] w-full">
@@ -80,7 +81,7 @@
                     <i class="fa-solid fa-atom text-4xl text-blue-400"></i>
                 </div>
                 <h1 class="text-3xl font-extrabold tracking-tight">TECMD DataLab</h1>
-                <p class="text-sm mt-2 text-blue-200 opacity-80 font-medium">Acceso Seguro (Ley 1581)</p>
+                <p class="text-sm mt-2 text-blue-200 opacity-80 font-medium">Acceso Seguro Plataforma V4.7</p>
             </div>
             <form id="login-form" class="space-y-5">
                 <div>
@@ -120,7 +121,7 @@
         <aside id="sidebar" class="glass-panel w-72 h-full flex flex-col transition-transform duration-300 absolute md:relative z-40 transform -translate-x-full md:translate-x-0 border-r border-y-0 border-l-0">
             <div class="p-6 flex items-center gap-3 border-b border-gray-200 dark:border-gray-800">
                 <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
-                    <i class="fa-solid fa-shield-halved text-sm"></i>
+                    <i class="fa-solid fa-chart-network text-sm"></i>
                 </div>
                 <h2 class="font-extrabold text-lg tracking-tight">DataLab <span class="text-blue-500">TECMD</span></h2>
                 <button id="close-sidebar" class="md:hidden ml-auto text-gray-500 hover:text-blue-500">
@@ -128,25 +129,24 @@
                 </button>
             </div>
             <nav class="flex-1 p-4 space-y-1 overflow-y-auto" id="nav-menu">
-                
-                <!-- ESTA SECCIÓN SE OCULTARÁ PARA ESTUDIANTES -->
-                <div id="admin-nav-section" class="hidden">
+                <div id="admin-menu-sections">
                     <p class="text-[10px] font-extrabold uppercase tracking-widest opacity-40 mb-3 mt-2 px-4">Monitoreo & Inteligencia</p>
                     <a href="#" data-target="dashboard" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold transition-all"><i class="fa-solid fa-chart-pie w-6 opacity-70"></i> Dashboard Interactivo</a>
                     <a href="#" data-target="programs" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all"><i class="fa-solid fa-layer-group w-6 opacity-70"></i> Catálogo y Cruce Prog.</a>
                     <a href="#" data-target="analytics" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all"><i class="fa-solid fa-wand-magic-sparkles w-6 opacity-70"></i> Constructor de Gráficos</a>
                     <a href="#" data-target="students" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all"><i class="fa-solid fa-users-viewfinder w-6 opacity-70"></i> Rendimiento y Edición</a>
                     <a href="#" data-target="nlp" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all"><i class="fa-solid fa-brain w-6 opacity-70"></i> Motor NLP & Similitud</a>
-
-                    <p class="text-[10px] font-extrabold uppercase tracking-widest opacity-40 mb-3 mt-6 px-4">Ingesta & Datos</p>
-                    <a href="#" data-target="upload" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all"><i class="fa-solid fa-cloud-arrow-up w-6 opacity-70"></i> Carga Masiva (Formatos)</a>
-                    <a href="#" data-target="users" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all"><i class="fa-solid fa-users-gear w-6 opacity-70"></i> Gestión de Usuarios</a>
-                    <a href="#" data-target="admins" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all text-yellow-600 dark:text-yellow-400"><i class="fa-solid fa-crown w-6 opacity-70"></i> Admins del Sistema</a>
                 </div>
 
-                <p class="text-[10px] font-extrabold uppercase tracking-widest opacity-40 mb-3 mt-6 px-4">Mi Perfil Estudiantil</p>
-                <!-- Ficha sociodemográfica es visible para todos -->
-                <a href="#" data-target="manual" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all"><i class="fa-solid fa-keyboard w-6 opacity-70"></i> Mi Ficha Académica</a>
+                <p class="text-[10px] font-extrabold uppercase tracking-widest opacity-40 mb-3 mt-6 px-4">Gestión de Perfil</p>
+                <a href="#" data-target="manual" id="nav-manual" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all"><i class="fa-solid fa-keyboard w-6 opacity-70"></i> Ficha Sociodemográfica</a>
+                
+                <div id="admin-ingesta-section">
+                    <p class="text-[10px] font-extrabold uppercase tracking-widest opacity-40 mb-3 mt-6 px-4 admin-only">Ingesta & Datos</p>
+                    <a href="#" data-target="upload" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all admin-only"><i class="fa-solid fa-cloud-arrow-up w-6 opacity-70"></i> Carga Masiva (Formatos)</a>
+                    <a href="#" data-target="users" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all admin-only"><i class="fa-solid fa-users-gear w-6 opacity-70"></i> Gestión de Usuarios</a>
+                    <a href="#" data-target="admins" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all superadmin-only text-yellow-600 dark:text-yellow-400"><i class="fa-solid fa-crown w-6 opacity-70"></i> Admins del Sistema</a>
+                </div>
                 
                 <p class="text-[10px] font-extrabold uppercase tracking-widest opacity-40 mb-3 mt-6 px-4">Documentación</p>
                 <a href="#" data-target="help" class="nav-link block w-full text-left px-4 py-2.5 rounded-xl opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 font-semibold transition-all"><i class="fa-solid fa-book-open w-6 opacity-70"></i> Guía, Métricas y Ley</a>
@@ -156,7 +156,7 @@
                     <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-500/20" id="user-initial">U</div>
                     <div class="overflow-hidden">
                         <p id="user-name" class="text-sm font-bold truncate">Usuario</p>
-                        <p id="user-role" class="text-xs text-blue-600 dark:text-blue-400 font-semibold truncate">Cargando rol...</p>
+                        <p id="user-role" class="text-xs text-blue-600 dark:text-blue-400 font-semibold truncate">Rol</p>
                     </div>
                 </div>
                 <button id="logout-btn" class="w-full text-left px-4 py-2.5 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-500/10 font-bold transition-colors text-sm flex items-center gap-2">
@@ -173,11 +173,11 @@
                     <h1 class="text-xl font-bold hidden sm:block">Centro de Operaciones TECMD</h1>
                 </div>
                 <div class="ml-auto flex items-center gap-4">
-                    <button id="btn-cloud-sync" class="hidden bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20 border border-green-500/30 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-2">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> Forzar Sync Nube
+                    <button id="btn-cloud-sync" class="bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20 border border-green-500/30 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Guardar en Nube
                     </button>
                     <span id="superadmin-badge" class="hidden bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border border-yellow-500/20 text-xs px-3 py-1.5 rounded-full font-bold shadow-sm">
-                        <i class="fa-solid fa-crown mr-1"></i> Admin Autorizado
+                        <i class="fa-solid fa-crown mr-1"></i> Admin
                     </span>
                     <button id="theme-toggle" class="w-10 h-10 rounded-full glass-panel flex items-center justify-center hover:scale-110 transition-transform shadow-sm bg-white dark:bg-gray-800">
                         <i class="fa-solid fa-moon text-gray-600 dark:text-yellow-400"></i>
@@ -187,18 +187,19 @@
 
             <div id="content-area" class="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 relative pb-32 min-h-0 scroll-smooth w-full">
                 
-                <!-- VIEW: DASHBOARD INTERACTIVO Y MAPA (SOLO ADMINS) -->
-                <div id="view-dashboard" class="view-section fade-in max-w-7xl mx-auto admin-restricted">
-                    <div id="dashboard-empty-state" class="empty-data-overlay hidden">
-                        <i class="fa-solid fa-cloud-arrow-down text-6xl text-blue-500 mb-4 animate-bounce"></i>
-                        <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Esperando Datos en la Nube</h3>
-                        <p class="text-gray-500 dark:text-gray-400 font-medium">Aún no hay registros de estudiantes en Firestore.</p>
+                <!-- VIEW: DASHBOARD INTERACTIVO Y MAPA -->
+                <div id="view-dashboard" class="view-section fade-in max-w-7xl mx-auto relative">
+                    <!-- OVERLAY DE CARGA (Si no hay datos reales en BD) -->
+                    <div id="no-data-dashboard" class="no-data-overlay hidden rounded-3xl">
+                        <i class="fa-solid fa-database text-6xl text-blue-500 mb-4 animate-pulse"></i>
+                        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Esperando Carga de Datos...</h2>
+                        <p class="text-sm opacity-70 mt-2 max-w-md">El motor analítico no tiene suficientes registros para mostrar gráficas significativas. Carga archivos o diligencia fichas sociodemográficas primero.</p>
                     </div>
 
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 gap-4">
                         <div>
                             <h2 class="text-3xl font-extrabold tracking-tight">Impacto Académico TECMD <span class="text-blue-500">Live</span></h2>
-                            <p class="opacity-70 text-sm mt-1"><strong>Interactividad Plena:</strong> Filtra datos interactuando con el mapa y barras. Datos 100% reales conectados a Firestore.</p>
+                            <p class="opacity-70 text-sm mt-1"><strong>Interactividad Plena:</strong> Filtra datos interactuando con el mapa y barras. Haz <strong>clic derecho en gráficas</strong> para Modo DAX.</p>
                         </div>
                         <div class="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-4 py-2 rounded-xl shadow-sm">
                             <i class="fa-solid fa-filter text-blue-500"></i>
@@ -219,8 +220,31 @@
                             </select>
                             <select id="filter-prog" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500">
                                 <option value="">Todos los Programas TECMD</option>
-                                <option value="Técnico Profesional en Programación de Software">Técnico Profesional en Programación de Software</option>
-                                <!-- Otros se llenan por JS -->
+                                <optgroup label="Escuela de Tecnología Digital">
+                                    <option value="Operación de Sistemas de Información">Operación de Sistemas de Información</option>
+                                    <option value="Construcción y Operación de Sitios Web">Construcción y Operación de Sitios Web</option>
+                                    <option value="Servicios de Seguridad Informática">Servicios de Seguridad Informática</option>
+                                    <option value="Desarrollo de Aplicaciones Web Móviles">Desarrollo de Aplicaciones Web Móviles</option>
+                                    <option value="Procesos de Cloud Computing">Procesos de Cloud Computing</option>
+                                    <option value="Programación de Software">Programación de Software</option>
+                                    <option value="Aseguramiento y Procesamiento de Bases de Datos">Aseguramiento y Procesamiento de Bases de Datos</option>
+                                </optgroup>
+                                <optgroup label="Escuela de C. Empresariales y Economía">
+                                    <option value="Operaciones de Comercio Electrónico">Operaciones de Comercio Electrónico</option>
+                                    <option value="Operaciones Fintech">Operaciones Fintech</option>
+                                    <option value="Procesos de Inteligencia de Negocios">Procesos de Inteligencia de Negocios</option>
+                                    <option value="Operaciones Contables y Financieras Digitales">Operaciones Contables y Financieras Digitales</option>
+                                    <option value="Asesoría Comercial para Soluciones Digitales">Asesoría Comercial para Soluciones Digitales</option>
+                                </optgroup>
+                                <optgroup label="Escuela de C. de la Comunicación">
+                                    <option value="Procesos de Mercadeo Digital">Procesos de Mercadeo Digital</option>
+                                    <option value="Creación de Contenidos Digitales">Creación de Contenidos Digitales</option>
+                                    <option value="Relacionamiento Digital con Clientes Enfoque CRM">Relacionamiento Digital con Clientes Enfoque CRM</option>
+                                </optgroup>
+                                <optgroup label="Escuela de Energías Renovables">
+                                    <option value="Montaje y Mantenimiento de Energías Renovables">Montaje y Mantenimiento de Energías Renovables</option>
+                                    <option value="Mejoramiento de Procesos Industriales">Mejoramiento de Procesos Industriales</option>
+                                </optgroup>
                             </select>
                             <select id="filter-sector" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"><option value="">Todos los Sectores</option><option value="Tecnología">Tecnología / Software</option><option value="Manufactura">Manufactura / Industria</option><option value="Servicios">Servicios Consultoría</option><option value="Agropecuario">Agropecuario</option><option value="Construcción">Construcción</option><option value="Público">Sector Público</option><option value="Otro">Otro Sector</option></select>
                             <select id="filter-est" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"><option value="">Todos los Estratos</option><option value="1">Estrato 1</option><option value="2">Estrato 2</option><option value="3">Estrato 3</option><option value="4">Estrato 4</option><option value="5">Estrato 5</option><option value="6">Estrato 6</option></select>
@@ -232,17 +256,17 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-blue-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
                             <h3 class="text-xs font-bold uppercase opacity-60">Matrícula Activa</h3><p id="kpi-total" class="text-3xl font-extrabold mt-1">0</p>
-                            <p class="text-xs mt-1 font-semibold text-blue-600 dark:text-blue-400">Estudiantes registrados</p>
+                            <p class="text-xs mt-1 font-semibold text-blue-600 dark:text-blue-400">Estudiantes filtrados</p>
                             <i class="fa-solid fa-users absolute right-[-10px] bottom-[-10px] text-6xl opacity-5 group-hover:opacity-10 transition-opacity text-blue-500"></i>
                         </div>
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-purple-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
                             <h3 class="text-xs font-bold uppercase opacity-60">Calidad NLP (Promedio)</h3><p id="kpi-nlp" class="text-3xl font-extrabold mt-1">0</p>
-                            <p id="kpi-nlp-status" class="text-xs mt-1 font-semibold text-gray-500">Esperando datos</p>
+                            <p id="kpi-nlp-status" class="text-xs mt-1 font-semibold text-gray-500">Esperando Data...</p>
                             <i class="fa-solid fa-brain absolute right-[-10px] bottom-[-10px] text-6xl opacity-5 group-hover:opacity-10 transition-opacity text-purple-500"></i>
                         </div>
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-yellow-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
                             <h3 class="text-xs font-bold uppercase opacity-60">Similitud Documental</h3><p id="kpi-sim" class="text-3xl font-extrabold mt-1">0%</p>
-                            <p id="kpi-sim-status" class="text-xs mt-1 font-semibold text-gray-500">Esperando datos</p>
+                            <p id="kpi-sim-status" class="text-xs mt-1 font-semibold text-gray-500">Esperando Data...</p>
                             <i class="fa-solid fa-copy absolute right-[-10px] bottom-[-10px] text-6xl opacity-5 group-hover:opacity-10 transition-opacity text-yellow-500"></i>
                         </div>
                         <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-green-500 relative overflow-hidden group hover:-translate-y-1 transition-transform">
@@ -259,7 +283,7 @@
                                 <span class="text-[10px] bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 px-2 py-1 rounded-full font-bold">Clickeable</span>
                             </div>
                             <p class="text-[10px] opacity-60 mb-2 font-semibold z-20">Densidad de practicantes por departamento.</p>
-                            <div id="colombia-map" class="echarts-map"></div>
+                            <div id="colombia-map" class="echarts-map w-full h-full"></div>
                         </div>
                         <div class="lg:col-span-2 flex flex-col gap-6">
                             <div class="glass-panel p-6 rounded-2xl min-h-[220px] flex flex-col chart-wrapper relative">
@@ -286,10 +310,20 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Contenedor Dinámico para Gráficos Anclados -->
+                    <h3 class="text-xl font-bold mb-4 mt-8 flex items-center gap-2"><i class="fa-solid fa-thumbtack text-red-500"></i> Gráficos Personalizados Anclados</h3>
+                    <div id="pinned-charts-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
+                        <div id="empty-pinned-msg" class="col-span-1 lg:col-span-2 glass-panel p-8 rounded-2xl border-dashed border-2 opacity-60 text-center flex-1">
+                            <i class="fa-solid fa-chart-area text-4xl mb-3"></i>
+                            <p class="font-bold">No hay gráficos anclados.</p>
+                            <p class="text-sm">Ve a "Constructor de Gráficos" y ancla tu primer análisis DAX aquí.</p>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- NUEVO VIEW: CATÁLOGO DE PROGRAMAS Y CRUCE (SOLO ADMINS) -->
-                <div id="view-programs" class="view-section hidden fade-in max-w-7xl mx-auto admin-restricted">
+                <!-- NUEVO VIEW: CATÁLOGO DE PROGRAMAS Y CRUCE -->
+                <div id="view-programs" class="view-section hidden fade-in max-w-7xl mx-auto">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
                         <div>
                             <h2 class="text-3xl font-extrabold tracking-tight">Catálogo de Programas y Mallas Curriculares</h2>
@@ -314,38 +348,139 @@
                             </div>
                         </div>
 
+                        <!-- Sección Superior: Radar y Métricas KPIs -->
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                            <div class="lg:col-span-1 space-y-4">
+                                <div class="bg-white/60 dark:bg-black/20 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                    <h4 class="text-xs font-bold uppercase opacity-60 mb-2">Total Matriculados</h4>
+                                    <div class="flex justify-between items-center"><span class="text-blue-600 dark:text-blue-400 font-bold" id="comp-count-a">-</span> <span class="text-purple-600 dark:text-purple-400 font-bold" id="comp-count-b">-</span></div>
+                                </div>
+                                <div class="bg-white/60 dark:bg-black/20 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                    <h4 class="text-xs font-bold uppercase opacity-60 mb-2">Calidad Semántica (NLP)</h4>
+                                    <div class="flex justify-between items-center"><span class="text-blue-600 dark:text-blue-400 font-bold" id="comp-nlp-a">-</span> <span class="text-purple-600 dark:text-purple-400 font-bold" id="comp-nlp-b">-</span></div>
+                                </div>
+                                <div class="bg-white/60 dark:bg-black/20 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                    <h4 class="text-xs font-bold uppercase opacity-60 mb-2">Progreso General</h4>
+                                    <div class="flex justify-between items-center"><span class="text-blue-600 dark:text-blue-400 font-bold" id="comp-prog-a">-</span> <span class="text-purple-600 dark:text-purple-400 font-bold" id="comp-prog-b">-</span></div>
+                                </div>
+                                <div class="bg-white/60 dark:bg-black/20 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                    <h4 class="text-xs font-bold uppercase opacity-60 mb-2">Créditos Totales Malla</h4>
+                                    <div class="flex justify-between items-center"><span class="text-blue-600 dark:text-blue-400 font-bold" id="comp-cred-a">-</span> <span class="text-purple-600 dark:text-purple-400 font-bold" id="comp-cred-b">-</span></div>
+                                </div>
+                            </div>
+                            <div class="lg:col-span-2 min-h-[350px] relative flex flex-col chart-wrapper">
+                                <div class="flex-1 w-full chart-container">
+                                    <canvas id="chartCompareRadar"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Sección Inferior: Comparativa de Mallas Curriculares (Resaltado Inteligente) -->
                         <div class="mt-8 border-t border-blue-500/20 pt-6 fade-in">
                             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                                 <h4 class="font-bold text-blue-600 dark:text-blue-400"><i class="fa-solid fa-book-open-reader"></i> Comparativa Curricular y Análisis de Brechas</h4>
+                                <div class="flex flex-wrap gap-3 text-[10px] font-bold uppercase tracking-widest bg-white/50 dark:bg-black/20 p-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                    <span class="text-green-600 dark:text-green-400 flex items-center"><i class="fa-solid fa-check-double mr-1 text-lg"></i> Núcleo Compartido</span>
+                                    <span class="text-gray-500 dark:text-gray-400 flex items-center"><i class="fa-solid fa-circle-minus mr-1 text-lg"></i> Materia Única</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="comp-curriculum-container">
+                                <!-- Inyectado vía JS para mostrar Programas A y B lado a lado -->
                             </div>
                             
-                            <!-- NUEVO V4.7: Mapa de Solapamiento Curricular (Venn-Graph Didáctico MEJORADO ESPACIOS) -->
+                            <!-- NUEVO V4.7: Mapa de Solapamiento Curricular (Venn-Graph Didáctico) -->
                             <div class="mt-12 glass-panel p-4 rounded-2xl flex flex-col items-center justify-center relative shadow-inner overflow-hidden">
                                 <h4 class="font-bold text-sm mb-2 w-full text-left opacity-80 flex items-center gap-2"><i class="fa-solid fa-diagram-project text-blue-500"></i> Mapa de Solapamiento Curricular</h4>
-                                <p class="text-[10px] opacity-60 w-full text-left mb-6">Nodos separados intencionalmente para evitar superposición. (Eje X ajustado).</p>
+                                <p class="text-[10px] opacity-60 w-full text-left mb-6">Visualización didáctica estructurada. Las materias se alinean en 3 columnas mostrando qué comparte cada programa y qué los hace únicos.</p>
                                 
                                 <!-- Tarjetas Didácticas Superiores -->
                                 <div id="didactic-graph-header" class="w-full grid grid-cols-3 gap-4 mb-4 text-center"></div>
                                 
-                                <div id="curriculum-graph" class="w-full min-h-[600px] transition-all duration-500 ease-in-out"></div>
+                                <div id="curriculum-graph" class="w-full min-h-[550px] transition-all duration-500 ease-in-out"></div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Fichas Técnicas Grid y Buscador -->
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                        <h3 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-address-book text-green-500"></i> Fichas Técnicas y Enlaces Oficiales</h3>
+                        <div class="relative w-full md:w-80">
+                            <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
+                            <input type="text" id="search-catalog" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none shadow-sm font-semibold" placeholder="Buscar programa o SNIES...">
+                        </div>
+                    </div>
+                    <div id="program-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Inyectado por JS -->
+                    </div>
+                </div>
+
+                <!-- VIEW: CONSTRUCTOR ANALÍTICO -->
+                <div id="view-analytics" class="view-section hidden fade-in max-w-7xl mx-auto">
+                    <h2 class="text-3xl font-extrabold tracking-tight mb-2">Constructor Analítico DAX</h2>
+                    <p class="opacity-70 mb-6 text-sm">Cruza variables de todo el dataset. Guarda descubrimientos anclándolos al Dashboard. (Clic derecho sobre el gráfico generado para re-configurarlo en vivo).</p>
+
+                    <div class="glass-panel p-6 rounded-3xl mb-6 border-blue-500/30 bg-gradient-to-r from-blue-500/5 to-purple-500/5 relative z-20">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <div>
+                                <label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Eje X (Agrupación / Dimensión)</label>
+                                <select id="cb-x" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm font-semibold">
+                                    <option value="prog">Programa Técnico</option>
+                                    <option value="est">Estrato Socioeconómico</option>
+                                    <option value="dept">Departamento (Geografía)</option>
+                                    <option value="sector">Sector Económico</option>
+                                    <option value="gen">Género</option>
+                                    <option value="etnia">Grupo Étnico</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Eje Y (Métrica a calcular)</label>
+                                <select id="cb-y" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm font-semibold">
+                                    <option value="count">Conteo de Estudiantes</option>
+                                    <option value="nlp">Promedio Score NLP (Calidad)</option>
+                                    <option value="sim">Promedio Similitud (%)</option>
+                                    <option value="progreso">Promedio Progreso (%)</option>
+                                    <option value="gpa">Promedio GPA / Notas</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tipo de Visual</label>
+                                <select id="cb-type" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm font-semibold">
+                                    <option value="bar">Barras Verticales</option>
+                                    <option value="pie">Gráfico de Torta</option>
+                                    <option value="doughnut">Dona / Anillo</option>
+                                    <option value="line">Línea de Tendencia</option>
+                                    <option value="radar">Radar Competitivo</option>
+                                </select>
+                            </div>
+                            <button id="btn-generate-dax" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] transition-all w-full flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-play"></i> Generar DAX
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-8 rounded-3xl w-full relative z-10 chart-wrapper flex flex-col min-h-[450px]">
+                        <button id="btn-pin-custom" class="absolute top-6 right-6 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all text-sm flex items-center gap-2 z-30">
+                            <i class="fa-solid fa-thumbtack"></i> Anclar a Dashboard
+                        </button>
+                        <div class="flex-1 w-full max-w-4xl mx-auto chart-container">
+                            <canvas id="customChart" data-dax-x="prog" data-dax-y="nlp"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- VIEW: FICHA SOCIODEMOGRÁFICA Y ACADÉMICA (VISIBLE PARA TODOS) -->
+                <!-- VIEW: FICHA SOCIODEMOGRÁFICA Y ACADÉMICA -->
                 <div id="view-manual" class="view-section hidden fade-in max-w-6xl mx-auto">
-                    <h2 class="text-3xl font-extrabold tracking-tight mb-2">Mi Ficha Académica TECMD</h2>
-                    <p class="opacity-70 mb-6 text-sm">Registro integral del estudiante. Permite perfilar datos para el motor de BI y NLP. Tus datos están protegidos.</p>
-                    <div class="glass-panel p-8 rounded-3xl border-t-4 border-t-blue-500 shadow-xl">
-                        <form id="student-form" class="space-y-8">
+                    <h2 class="text-3xl font-extrabold tracking-tight mb-2">Ficha Sociodemográfica y Entregable</h2>
+                    <p class="opacity-70 mb-6 text-sm">Registro integral del estudiante TECMD. Permite perfilar datos complejos para el motor de BI y capturar títulos para el motor NLP.</p>
+                    <div class="glass-panel p-8 rounded-3xl border-t-4 border-t-blue-500 shadow-xl relative overflow-hidden">
+                        <i class="fa-solid fa-id-card-clip absolute -right-10 -top-10 text-9xl opacity-5 text-blue-500"></i>
+                        <form id="student-form" class="space-y-8 relative z-10">
                             <div>
                                 <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2"><i class="fa-solid fa-id-card text-blue-500 mr-2"></i> 1. Identidad y Perfil Base</h3>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Usuario / Correo (ID) *</label><input type="text" id="form-id" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required></div>
                                     <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Nombres Completos *</label><input type="text" id="form-name" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Fecha Nacimiento</label><input type="date" id="form-fnac" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"></div>
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Edad</label><input type="number" id="form-edad" class="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 outline-none font-semibold cursor-not-allowed" readonly></div>
                                 </div>
                             </div>
                             <div>
@@ -353,64 +488,240 @@
                                 <div class="grid grid-cols-1 md:grid-cols-5 gap-5">
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Género *</label><select id="form-gen" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required><option value="Femenino">Femenino</option><option value="Masculino">Masculino</option><option value="Otro">Otro</option></select></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Estrato *</label><select id="form-estrato" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></div>
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Depto. Residencia *</label><input type="text" id="form-dept" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Santander" required></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Depto. Residencia *</label><select id="form-dept" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required><option value="Santander">Santander</option><option value="Bogotá">Bogotá D.C.</option><option value="Antioquia">Antioquia</option><option value="Valle del Cauca">Valle</option><option value="Atlántico">Atlántico</option><option value="Cundinamarca">Cundinamarca</option></select></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Grupo Étnico</label><select id="form-etnia" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="Ninguno">Ninguno</option><option value="Indígena">Indígena</option><option value="Afrodescendiente">Afrodescendiente</option><option value="Raizal">Raizal / Palenquero</option><option value="ROM">ROM</option></select></div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Discapacidad</label><select id="form-discapacidad" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="Ninguno">Ninguno</option><option value="Física">Física</option><option value="Visual">Visual</option><option value="Auditiva">Auditiva</option><option value="Cognitiva">Cognitiva</option></select></div>
                                 </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
-                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Lugar de Origen</label><input type="text" id="form-origen" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Pamplona, Norte de Santander"></div>
-                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Ciudad/Dirección de Residencia</label><input type="text" id="form-residencia" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Bucaramanga, Santander, Colombia"></div>
-                                </div>
                             </div>
                             <div>
-                                <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2"><i class="fa-solid fa-graduation-cap text-yellow-500 mr-2"></i> 3. Proyecto Práctico y Académico</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-4">
+                                <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2"><i class="fa-solid fa-graduation-cap text-yellow-500 mr-2"></i> 3. Programa TECMD y Proyecto Práctico</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-5 gap-5 mb-4">
                                     <div class="md:col-span-2">
                                         <label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Programa Académico TECMD *</label>
-                                        <input type="text" id="form-prog" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Técnico Profesional en Programación de Software" required>
+                                        <select id="form-prog" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required>
+                                            <optgroup label="Escuela de Tecnología Digital">
+                                                <option value="Operación de Sistemas de Información">Operación de Sistemas de Información</option>
+                                                <option value="Construcción y Operación de Sitios Web">Construcción y Operación de Sitios Web</option>
+                                                <option value="Servicios de Seguridad Informática">Servicios de Seguridad Informática</option>
+                                                <option value="Desarrollo de Aplicaciones Web Móviles">Desarrollo de Aplicaciones Web Móviles</option>
+                                                <option value="Procesos de Cloud Computing">Procesos de Cloud Computing</option>
+                                                <option value="Programación de Software">Programación de Software</option>
+                                                <option value="Aseguramiento y Procesamiento de Bases de Datos">Aseguramiento y Procesamiento de Bases de Datos</option>
+                                            </optgroup>
+                                            <optgroup label="Escuela de C. Empresariales y Economía">
+                                                <option value="Operaciones de Comercio Electrónico">Operaciones de Comercio Electrónico</option>
+                                                <option value="Operaciones Fintech">Operaciones Fintech</option>
+                                                <option value="Procesos de Inteligencia de Negocios">Procesos de Inteligencia de Negocios</option>
+                                                <option value="Operaciones Contables y Financieras Digitales">Operaciones Contables y Financieras Digitales</option>
+                                                <option value="Asesoría Comercial para Soluciones Digitales">Asesoría Comercial para Soluciones Digitales</option>
+                                            </optgroup>
+                                            <optgroup label="Escuela de C. de la Comunicación">
+                                                <option value="Procesos de Mercadeo Digital">Procesos de Mercadeo Digital</option>
+                                                <option value="Creación de Contenidos Digitales">Creación de Contenidos Digitales</option>
+                                                <option value="Relacionamiento Digital con Clientes Enfoque CRM">Relacionamiento Digital con Clientes Enfoque CRM</option>
+                                            </optgroup>
+                                            <optgroup label="Escuela de Energías Renovables">
+                                                <option value="Montaje y Mantenimiento de Energías Renovables">Montaje y Mantenimiento de Energías Renovables</option>
+                                                <option value="Mejoramiento de Procesos Industriales">Mejoramiento de Procesos Industriales</option>
+                                            </optgroup>
+                                        </select>
                                     </div>
                                     <div class="md:col-span-1">
-                                        <label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Semestre Actual</label>
-                                        <input type="number" id="form-semestre" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: 4">
+                                        <label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Sector de Práctica *</label>
+                                        <select id="form-sector" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required>
+                                            <option value="Tecnología">Tecnología / Software</option><option value="Manufactura">Manufactura / Industria</option><option value="Servicios">Servicios Consultoría</option><option value="Agropecuario">Agropecuario</option><option value="Construcción">Construcción</option><option value="Público">Sector Público</option><option value="Otro">Otro (Especificar)</option>
+                                        </select>
+                                        <input type="text" id="form-sector-otro" class="hidden w-full bg-white dark:bg-gray-900 border border-blue-300 dark:border-blue-700 rounded-xl py-2 px-3 mt-2 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold fade-in" placeholder="Especifique el sector">
                                     </div>
                                     <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Promedio Previo (GPA)</label><input type="number" id="form-gpa" step="0.1" min="0" max="5" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="0.0 - 5.0"></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Semestre</label><input type="text" id="form-semestre" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: 4to semestre"></div>
                                 </div>
-                                <div class="grid grid-cols-1 gap-5 mb-4">
-                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Título del Proyecto / Entregable</label><input type="text" id="form-titulo" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Solucion arquitectonica para la preservacion..."></div>
-                                </div>
+                                
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
-                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Grupo / Semillero de Investigación</label><input type="text" id="form-semillero" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Semilleros de investigacion en creacion de software"></div>
-                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Estado del Proyecto (%)</label><input type="number" id="form-progreso" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: 40"></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Empresa / Organización</label><input type="text" id="form-empresa" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Nombre empresa"></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tipo Empresa</label><select id="form-tipo-empresa" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="Privada">Privada</option><option value="Pública">Pública</option><option value="Mixta">Mixta</option></select></div>
                                 </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
-                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tutor(a) / Responsable 1</label><input type="text" id="form-tutor1" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Yarledis Gomez Moreno"></div>
-                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tutor(a) / Responsable 2</label><input type="text" id="form-tutor2" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Carlos Germán Juliao Vargas"></div>
-                                </div>
-                            </div>
 
-                            <div>
-                                <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2"><i class="fa-solid fa-building text-green-500 mr-2"></i> 4. Información Laboral / Práctica</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-4">
-                                    <div class="md:col-span-2"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Empresa Actual / Práctica</label><input type="text" id="form-empresa" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Universidad Privada / TECMD"></div>
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tipo Empresa</label><select id="form-tipoempresa" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold"><option value="Privada">Privada</option><option value="Pública">Pública</option><option value="Mixta">Mixta</option></select></div>
-                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Sector de Práctica *</label><select id="form-sector" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" required><option value="Educación">Educación</option><option value="Tecnología">Tecnología / Software</option><option value="Servicios">Servicios</option><option value="Otro">Otro</option></select></div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-4">
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tutor(a) / Responsable 1</label><input type="text" id="form-tutor1" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Nombre Tutor 1"></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tutor(a) / Responsable 2</label><input type="text" id="form-tutor2" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Nombre Tutor 2 (Opcional)"></div>
+                                    <div class="md:col-span-1"><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Entregables (Cantidad)</label><input type="number" id="form-entregables" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" value="1"></div>
+                                </div>
+
+                                <div class="grid grid-cols-1 gap-5">
+                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Tipo de Proyecto</label><input type="text" id="form-proyecto-tipo" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Semilleros de investigacion en creacion de software"></div>
+                                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block">Título del Proyecto / Entregable</label><input type="text" id="form-titulo" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2 px-3 focus:ring-2 focus:ring-blue-500/50 outline-none font-semibold" placeholder="Ej: Implementación de CRM en Pymes"></div>
                                 </div>
                             </div>
                             
-                            <div class="pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-end items-center gap-4">
+                            <div id="dynamic-fields-container" class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-4 border-t border-gray-200 dark:border-gray-700 pt-4 w-full col-span-full empty:hidden"></div>
+                            
+                            <div class="pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
+                                <button type="button" id="btn-add-dynamic-field" class="w-full md:w-auto bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 py-3 px-6 rounded-xl font-bold transition-all flex items-center justify-center gap-2 border border-purple-200 dark:border-purple-800 border-dashed">
+                                    <i class="fa-solid fa-plus"></i> Añadir Campo Nuevo
+                                </button>
                                 <button type="submit" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-cloud-arrow-up"></i> Guardar Ficha en la Nube
+                                    <i class="fa-solid fa-database"></i> Integrar Ficha al Motor BI
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
 
-                <!-- EL RESTO DE LAS VISTAS (Analytics, NLP, Upload, etc) SE OCULTARÁN PARA ESTUDIANTES USANDO JS -->
-                <!-- ... (Las vistas view-analytics, view-students, view-nlp, view-upload, view-users se asumen aquí pero con la clase 'admin-restricted' añadida mediante JS para mayor seguridad) ... -->
+                <!-- VIEW: DOCUMENTACIÓN LEGAL -->
+                <div id="view-help" class="view-section hidden fade-in max-w-5xl mx-auto">
+                    <h2 class="text-3xl font-extrabold tracking-tight mb-2 text-blue-600 dark:text-blue-400">Guía Arquitectónica y Marco Legal (Ley 1581)</h2>
+                    <p class="opacity-70 mb-8 font-semibold">Documentación técnica, jurídica y analítica del sistema para fines de auditoría y transparencia institucional TECMD.</p>
+                    
+                    <div class="space-y-6">
+                        <div class="glass-panel p-8 rounded-3xl border-l-8 border-l-red-500 bg-red-500/5 relative overflow-hidden">
+                            <i class="fa-solid fa-scale-balanced absolute right-[-20px] bottom-[-20px] text-8xl opacity-10 text-red-500"></i>
+                            <h3 class="text-2xl font-bold mb-4 flex items-center gap-2 text-red-600 dark:text-red-400"><i class="fa-solid fa-file-shield"></i> Protección de Datos Personales (Ley 1581 de 2012)</h3>
+                            <p class="text-sm opacity-90 mb-4 text-justify leading-relaxed">
+                                De conformidad con la <strong>Constitución Política de Colombia (Art. 15)</strong> y el marco regulatorio del <strong>Decreto Reglamentario 1377 de 2013</strong>, TECMD DataLab procesa la información asumiendo el rol de <em>Encargado del Tratamiento</em>, bajo las directrices estrictas de la Institución Educativa TECMD.
+                            </p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-4">
+                                <div class="bg-white/50 dark:bg-black/20 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                                    <h4 class="font-bold text-red-600 dark:text-red-400 mb-2">Art. 8 - Derechos del Titular (Estudiante)</h4>
+                                    <ul class="list-disc list-inside opacity-80 space-y-1">
+                                        <li>Conocer, actualizar y rectificar sus datos.</li>
+                                        <li>Solicitar prueba de la autorización de uso.</li>
+                                        <li>Ser informado sobre el uso de sus datos.</li>
+                                        <li>Revocar la autorización o pedir supresión.</li>
+                                    </ul>
+                                </div>
+                                <div class="bg-white/50 dark:bg-black/20 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                                    <h4 class="font-bold text-red-600 dark:text-red-400 mb-2">Criptografía y Base de Datos (Firebase)</h4>
+                                    <ul class="list-disc list-inside opacity-80 space-y-1">
+                                        <li>Los datos en tránsito están cifrados bajo protocolo <strong>TLS (HTTPS)</strong>.</li>
+                                        <li>Los datos en reposo en <strong>Firestore</strong> están cifrados utilizando claves AES-256 administradas por Google Cloud.</li>
+                                        <li>Cualquier procesamiento de NLP se realiza de manera efímera en la memoria RAM, almacenando solo el <em>Score</em> resultante.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel p-8 rounded-3xl border-l-8 border-l-blue-500 bg-blue-500/5">
+                            <h3 class="text-xl font-bold mb-3 flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles text-blue-500"></i> Uso del Modo Analítico (DAX Frontend)</h3>
+                            <p class="text-sm opacity-80 mb-4 text-justify">
+                                Inspirado en Data Analysis Expressions (DAX), el frontend integra un motor de cruce dinámico. En cualquier parte de la plataforma donde vea un gráfico, puede hacer <strong>Clic Derecho</strong> para abrir el Editor DAX en Vivo. Esto le permitirá, por ejemplo, cambiar un gráfico de barras de "Programas vs Conteo" a un gráfico de Radar de "Estratos vs Score NLP Promedio" sin tener que salir del tablero.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: GESTIÓN ESTUDIANTIL Y EDICIÓN -->
+                <div id="view-students" class="view-section hidden fade-in max-w-7xl mx-auto">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <div>
+                            <h2 class="text-3xl font-extrabold tracking-tight mb-1">Gestión y Seguimiento Académico</h2>
+                            <p class="opacity-70 text-sm">Monitorea y edita manualmente los scores si hay discrepancias del motor NLP. Elimina registros de prueba usando el botón rojo.</p>
+                        </div>
+                        <div class="relative w-full md:w-80">
+                            <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
+                            <input type="text" id="search-student" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none shadow-sm font-semibold" placeholder="Buscar por nombre, ID o programa...">
+                        </div>
+                    </div>
+                    <div class="glass-panel p-2 rounded-3xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-800">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse whitespace-nowrap">
+                                <thead>
+                                    <tr class="bg-gray-100 dark:bg-gray-900 text-[10px] uppercase tracking-widest font-extrabold opacity-70">
+                                        <th class="p-4 border-b border-gray-200 dark:border-gray-800">Estudiante y Proyecto</th>
+                                        <th class="p-4 border-b border-gray-200 dark:border-gray-800">Programa TECMD</th>
+                                        <th class="p-4 border-b border-gray-200 dark:border-gray-800">Score NLP</th>
+                                        <th class="p-4 border-b border-gray-200 dark:border-gray-800">Similitud</th>
+                                        <th class="p-4 border-b border-gray-200 dark:border-gray-800">Avance</th>
+                                        <th class="p-4 border-b border-gray-200 dark:border-gray-800 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="student-table-body" class="text-sm font-medium"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: MOTOR NLP -->
+                <div id="view-nlp" class="view-section hidden fade-in max-w-7xl mx-auto">
+                    <h2 class="text-3xl font-extrabold tracking-tight mb-6">Motor NLP y Análisis de Similitud</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass-panel p-6 rounded-3xl flex flex-col">
+                            <h3 class="font-bold mb-4 border-b border-gray-300 dark:border-gray-700 pb-2"><i class="fa-solid fa-microchip text-blue-500 mr-2"></i> Analizador de Documentos</h3>
+                            <label class="text-[10px] uppercase font-bold opacity-70 mb-2 tracking-widest">Enlace de Drive (PDF/Word)</label>
+                            <div class="relative mb-4">
+                                <i class="fa-brands fa-google-drive absolute left-4 top-3.5 text-blue-500"></i>
+                                <input type="url" class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-3 pl-12 pr-4 focus:border-blue-500 outline-none shadow-sm font-semibold" placeholder="https://drive.google.com/file/d/...">
+                            </div>
+                            <label class="text-[10px] uppercase font-bold opacity-70 mb-2 tracking-widest">O pega texto para procesar</label>
+                            <textarea class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl py-3 px-4 focus:border-blue-500 outline-none shadow-sm flex-1 resize-none mb-4 min-h-[150px] font-mono text-sm" placeholder="El proyecto de investigación busca resolver..."></textarea>
+                            <button id="btn-analyze" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] transition-all flex items-center justify-center gap-2 mt-auto">
+                                <i class="fa-solid fa-robot"></i> Ejecutar Análisis IA
+                            </button>
+                        </div>
+                        <div class="glass-panel p-6 rounded-3xl bg-white/40 dark:bg-black/20">
+                            <h3 class="font-bold mb-4 border-b border-gray-300 dark:border-gray-700 pb-2"><i class="fa-solid fa-square-poll-vertical text-green-500 mr-2"></i> Resultados del Motor</h3>
+                            <div id="analysis-results" class="hidden space-y-6">
+                                <div><div class="flex justify-between text-sm mb-1 font-bold"><span class="opacity-70">Conteo Palabras</span><span>4,520 / 5,000</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"><div class="bg-blue-500 h-2 rounded-full" style="width: 90%"></div></div></div>
+                                <div><div class="flex justify-between text-sm mb-1 font-bold"><span class="opacity-70">Posible Plagio (Similitud)</span><span class="text-green-600 dark:text-green-400">6% (Óptimo)</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width: 6%"></div></div></div>
+                                <div><div class="flex justify-between text-sm mb-1 font-bold"><span class="opacity-70">Calidad Semántica (NLP)</span><span class="text-purple-600 dark:text-purple-400">8.5 / 10</span></div><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"><div class="bg-purple-500 h-2 rounded-full" style="width: 85%"></div></div></div>
+                                <div class="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl"><p class="text-sm font-semibold text-green-700 dark:text-green-400"><i class="fa-solid fa-check-circle mr-2"></i> <strong>Conclusión IA:</strong> Estructura coherente. Título coincide temáticamente. Aprobado.</p></div>
+                            </div>
+                            <div id="analysis-placeholder" class="h-full flex flex-col items-center justify-center text-center opacity-50 py-10">
+                                <i class="fa-solid fa-file-shield text-6xl mb-4 text-blue-500"></i>
+                                <p class="text-sm font-bold">Esperando documento.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: CARGA MASIVA -->
+                <div id="view-upload" class="view-section hidden fade-in max-w-7xl mx-auto">
+                    <h2 class="text-3xl font-extrabold tracking-tight mb-2">Carga Masiva de Datos y Formatos</h2>
+                    <div class="glass-panel p-10 rounded-3xl border-2 border-dashed border-blue-400 dark:border-gray-600 text-center relative hover:border-blue-500 cursor-pointer group mb-8 bg-blue-50/30 dark:bg-transparent">
+                        <input type="file" id="file-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".csv, .xlsx, .json">
+                        <i class="fa-solid fa-cloud-arrow-up text-6xl text-blue-500 mb-4 group-hover:-translate-y-2 transition-transform drop-shadow-md"></i>
+                        <h3 class="text-xl font-bold mb-2">Arrastra tu archivo aquí o haz clic</h3>
+                    </div>
+                </div>
+
+                <!-- VIEW: USUARIOS & ADMINS -->
+                <div id="view-users" class="view-section hidden fade-in max-w-7xl mx-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <div><h2 class="text-3xl font-extrabold tracking-tight">Gestión de Usuarios</h2></div>
+                        <button class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-xl font-bold shadow-md flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> Nuevo Usuario</button>
+                    </div>
+                    <div class="glass-panel rounded-3xl overflow-hidden p-2">
+                        <table class="w-full text-left border-collapse">
+                            <thead><tr class="bg-black/5 dark:bg-white/5 text-[10px] uppercase tracking-widest font-bold opacity-70"><th class="p-4 border-b">Usuario</th><th class="p-4 border-b">Rol Sistema</th><th class="p-4 border-b">Estado</th><th class="p-4 border-b text-center">Acciones</th></tr></thead>
+                            <tbody class="text-sm font-medium">
+                                <tr class="hover:bg-black/5"><td class="p-4 border-b border-gray-200 dark:border-gray-800"><p class="font-bold">Juan Carlos Diaz</p><p class="text-xs opacity-60">jcdiaz@tecmd.edu.co</p></td><td class="p-4 border-b"><span class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold">Estudiante</span></td><td class="p-4 border-b"><span class="text-green-500 font-bold"><i class="fa-solid fa-circle text-[8px] mr-1"></i>Activo</span></td><td class="p-4 border-b text-center space-x-2"><button class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button><button class="text-red-500"><i class="fa-solid fa-ban"></i></button></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="view-admins" class="view-section hidden fade-in max-w-7xl mx-auto">
+                    <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-3xl p-6 mb-6 flex items-start gap-4">
+                        <i class="fa-solid fa-shield-halved text-4xl text-yellow-600 dark:text-yellow-500"></i>
+                        <div><h2 class="text-2xl font-bold text-yellow-700 dark:text-yellow-400">Control de Administradores</h2></div>
+                    </div>
+                    <div class="glass-panel rounded-3xl p-8 text-center">
+                        <i class="fa-solid fa-users-gear text-5xl opacity-20 mb-4"></i>
+                        <h3 class="font-bold text-lg mb-4">Administradores Actuales</h3>
+                        <div class="mb-4 text-left inline-block">
+                            <span class="bg-blue-100 text-blue-800 text-sm font-medium mr-2 px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">dudbilopr@gmail.com</span>
+                        </div>
+                        <br>
+                        <button class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-xl font-bold mx-auto flex items-center gap-2 shadow-md"><i class="fa-solid fa-plus"></i> Promover a Administrador</button>
+                    </div>
+                </div>
 
             </div>
             
+            <button id="support-btn" class="absolute bottom-6 right-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-110 text-white w-14 h-14 rounded-full shadow-[0_0_20px_rgba(59,130,246,0.6)] flex items-center justify-center transition-transform z-40">
+                <i class="fa-solid fa-headset text-2xl"></i>
+            </button>
+
             <footer class="text-center py-3 text-[10px] font-bold opacity-50 border-t border-gray-200 dark:border-gray-800">
                 TECMD DataLab Ultimate V4.7 &copy; Creado por Dudbil Olvasada Pabon Riaño. Todos los derechos reservados.
             </footer>
@@ -420,26 +731,16 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, getDocs, setDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- CONFIGURACIÓN FIREBASE ---
-        const firebaseConfig = { 
-            apiKey:"AIzaSyB1zA4rgNYvKLfZg-Htoc7l1jv6UIMcAlU", 
-            authDomain:"tecmd-datalab.firebaseapp.com", 
-            projectId:"tecmd-datalab", 
-            storageBucket:"tecmd-datalab.firebasestorage.app", 
-            messagingSenderId:"747545168390", 
-            appId:"1:747545168390:web:7410d9acdeb83b3ac45187" 
-        };
-        const app = initializeApp(firebaseConfig);
+        const app = initializeApp({ apiKey:"AIzaSyB1zA4rgNYvKLfZg-Htoc7l1jv6UIMcAlU", authDomain:"tecmd-datalab.firebaseapp.com", projectId:"tecmd-datalab", storageBucket:"tecmd-datalab.firebasestorage.app", messagingSenderId:"747545168390", appId:"1:747545168390:web:7410d9acdeb83b3ac45187" });
         const auth = getAuth(app);
-        const db = getFirestore(app);
 
-        // --- SISTEMA DE ROLES ---
-        // Aquí agregas los correos de los administradores. El resto serán tratados como estudiantes.
-        const ADMIN_EMAILS = ['dudbilopr@gmail.com', 'admin2@tecmd.edu.co'];
-        let currentUser = null;
-        let isSuperAdmin = false;
+        // Control de Roles de Administrador (RBAC Front)
+        // Solo las personas en esta lista ven el dashboard y analytics. Los demás solo ven Ficha Manual.
+        const ADMIN_EMAILS = [
+            "dudbilopr@gmail.com"
+            // Puedes agregar más administradores aquí, ejemplo: "rector@tecmd.edu.co"
+        ];
 
         const safeClick = (id, handler) => { const el = document.getElementById(id); if (el) el.addEventListener('click', handler); };
         const safeSubmit = (id, handler) => { const el = document.getElementById(id); if (el) el.addEventListener('submit', handler); };
@@ -450,88 +751,255 @@
             if (mapInstance) updateMapTheme();
         });
 
-        // --- DATOS REALES GLOBALES ---
-        let rawData = [];
-        let chartProg, chartEst, chartSector, chartCustom, mapInstance, chartCompareRadar, curriculumGraphInstance;
+        // --- BASE DE DATOS CATÁLOGO DE PROGRAMAS TECMD (MALLAS EXACTAS) ---
+        const malla_MejoramientoProcesos = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Estadística", creditos:3}, {nombre:"Gestión y Eficiencia Energética en Procesos Industriales", creditos:3}, {nombre:"Procesos Industriales", creditos:3}, {nombre:"Diseño de Procesos Productivos", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Control de Calidad en Proceso y Producto", creditos:3}, {nombre:"Programación de Producción y Servicios", creditos:3}, {nombre:"Control de Procesos", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Logística y Control de Inventarios", creditos:3}, {nombre:"Logística Interna de Producción (MRP)", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Estructura de Proyectos", creditos:3}, {nombre:"Metodología Kaizen", creditos:3}, {nombre:"Protocolos y BPM", creditos:3}, {nombre:"Introducción a la Filosofía Lean", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
 
-        // Base de datos de mallas curriculares (Reducida para el ejemplo, debes mantener tus arreglos originales aquí)
+        const malla_MontajeEnergias = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Redes de Energía Sostenible", creditos:3}, {nombre:"Gestión y Eficiencia Energética en Procesos Industriales", creditos:3}, {nombre:"Seguridad en Riesgo Eléctrico", creditos:3}, {nombre:"Operación de Sistemas Eléctricos", creditos:3}, {nombre:"Principios de Energía Fotovoltaica", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Conformidad de Sistemas Eléctricos", creditos:3}, {nombre:"Diagnóstico y Mantenimiento de Sistemas Eléctricos", creditos:3}, {nombre:"Montaje de Instalaciones Solares Fotovoltaicas", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Mantenimiento de Instalaciones Solares Fotovoltaicas", creditos:3}, {nombre:"Sistemas de Generación Eólica", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Montaje y Mantenimiento de Instalaciones de Energía Eólica", creditos:3}, {nombre:"Operación de Centrales Eléctricas de tipo PCH", creditos:3}, {nombre:"Montaje y Mantenimiento de Instalaciones Eléctricas de tipo PCH", creditos:3}, {nombre:"Logística e Inventario de Sistemas Eléctricos", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_RelacionamientoCRM = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Comunicación con Clientes y Usuario", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Herramientas del CRM", creditos:3}, {nombre:"Ciclo de Vida de los Clientes", creditos:3}, {nombre:"CRM y Marketing Relacional", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Procesos de Ventas", creditos:3}, {nombre:"Segmentación y Análisis de Mercados", creditos:3}, {nombre:"Seguimiento de Transacciones y Cartera", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Electiva", creditos:2}, {nombre:"Evaluación de Satisfacción de Clientes", creditos:3}, {nombre:"Operación de Bases de Datos", creditos:3}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Modelo Certificación COPC", creditos:3}, {nombre:"Programas de Fidelización y Retención", creditos:3}, {nombre:"Seguimiento y Evaluación del Servicio al Cliente", creditos:3}, {nombre:"Práctica Profesional", creditos:4}, {nombre:"Plataforma CRM", creditos:3}] }
+        ];
+
+        const malla_CreacionContenidos = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Conociendo Herramientas Gráficas y Audiovisuales", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Comunicaciones Digitales", creditos:3}, {nombre:"Conociendo Social Media", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Cultura y Narrativa Digital", creditos:3}, {nombre:"Fotografía y Retoque de Imágenes", creditos:3}, {nombre:"Contando Historias que Emocionen", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"El Consumidor Digital", creditos:3}, {nombre:"El Video como Herramienta de Marketing", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Marketing Táctico y Penetración de Mercados", creditos:3}, {nombre:"Plan de Negocios", creditos:3}, {nombre:"Midiendo el Impacto en Campañas", creditos:3}, {nombre:"Edición y Curación de Contenidos Digitales", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_ProcesosMercadeo = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Contactos y Redes Comerciales", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"E-Commerce", creditos:3}, {nombre:"Comunicaciones Digitales", creditos:3}, {nombre:"Segmentación y Análisis de Mercados", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Marketing Táctico y Penetración de Mercados", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Definición de Caracterización y Captura de Audiencia", creditos:3}, {nombre:"Diseño de Piezas Gráficas y Audiovisuales", creditos:3}, {nombre:"Diseño y Ejecución de Pauta Digital", creditos:3}, {nombre:"Campañas Publicitarias en Redes y Buscadores", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_AsesoriaComercial = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Fundamentos de Estrategia Digital", creditos:3}, {nombre:"Contactos y Redes Comerciales", creditos:3}, {nombre:"Análisis y Diseño de Sistemas", creditos:3}, {nombre:"Ciclo de Vida de los Clientes", creditos:2}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}, {nombre:"Fundamentos de Mercadeo", creditos:3}, {nombre:"Procesos de Ventas", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Gestión Comercial", creditos:3}, {nombre:"Sistemas de Información", creditos:3}, {nombre:"Técnicas de Venta y Negociación", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Campañas Publicitarias en Redes y Buscadores", creditos:4}, {nombre:"Administración de Negocios Online", creditos:3}, {nombre:"Seguimiento y Evaluación del Servicio al Cliente", creditos:3}, {nombre:"Programas de Fidelización y Retención", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_OperacionesContables = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Pensamiento Contable", creditos:3}, {nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Gestión de Información", creditos:3}, {nombre:"Fundamentos de Contabilidad", creditos:3}, {nombre:"Fundamentos de Finanzas", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Estadística", creditos:3}, {nombre:"Métodos de Matemáticas Financieras", creditos:3}, {nombre:"Normatividad Contable", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Blockchain", creditos:3}, {nombre:"Contabilidad General", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Herramientas BI", creditos:3}, {nombre:"Costos y Presupuestos", creditos:3}, {nombre:"Estructura Tributaria y de Auditoría", creditos:3}, {nombre:"Análisis de Estados Financieros", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_InteligenciaNegocios = [
+            { periodo: "Semestre 1", materias: [{nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Introducción a la Inteligencia de Negocios", creditos:3}, {nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas BI (Business Intelligence)", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Introducción a Small Data", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Marco Normativo para la Gestión de TIC's", creditos:3}, {nombre:"Estadística", creditos:3}, {nombre:"Fundamentos de Administración", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Conociendo Social Media", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Data Wherehouse", creditos:3}, {nombre:"E-Commerce", creditos:3}, {nombre:"Plan de Negocios", creditos:3}, {nombre:"Machine Learning", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_OperacionesFintech = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Gestión de la Información", creditos:3}, {nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Economía Digital", creditos:3}, {nombre:"Fundamentos de Finanzas", creditos:3}, {nombre:"Finanzas y Tecnologías Financieras", creditos:2}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Ética de los Datos y la Información", creditos:3}, {nombre:"Pagos Digitales y Billeteras Electrónicas", creditos:3}, {nombre:"Marcos de Gestión de Proyectos Agile", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Créditos e Inversiones Digitales", creditos:3}, {nombre:"Blockchain", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Herramientas BI", creditos:3}, {nombre:"Experiencia del Consumidor", creditos:3}, {nombre:"Modelos de Negocio del Ecosistema Fintech", creditos:3}, {nombre:"Gestión del Riesgo en Fintech", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_ComercioElectronico = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Introducción a los Ecosistemas Empresariales Digitales", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Definición, Caracterización y Captura de Audiencia", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Herramientas del CRM", creditos:3}, {nombre:"Community Management", creditos:3}, {nombre:"Marketing Digital", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Seguridad Web", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}, {nombre:"Comercio Electrónico", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Modelos de Negocio y Logística en E-Commerce", creditos:3}, {nombre:"Infraestructura E-Commerce", creditos:2}, {nombre:"Diseño y Ejecución de Pauta Digital", creditos:3}, {nombre:"Plan de Negocios", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
         const malla_ProgramacionSoftware = [
-            { periodo: "Semestre 1", materias: [{nombre:"Componentes de la Computación", creditos:3}, {nombre:"Razonamiento Cuantitativo", creditos:3}, {nombre:"Lógica Computacional", creditos:3}, {nombre:"Introducción a la Programación", creditos:3}] },
-            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Paradigmas de Programación", creditos:3}, {nombre:"Estructuras de Datos", creditos:3}] },
-            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Procesos de Desarrollo Agiles", creditos:3}, {nombre:"Pruebas de Software", creditos:3}] },
-            { periodo: "Semestre 4", materias: [{nombre:"Implementación de Interfaces", creditos:3}, {nombre:"Mantenimiento de Software", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+            { periodo: "Semestre 1", materias: [{nombre:"Componentes de la Computación", creditos:3}, {nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Lógica Computacional", creditos:3}, {nombre:"Introducción a la Programación", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Estructura de Datos", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Paradigmas y Lenguajes de Programación", creditos:3}, {nombre:"Estructuras de Datos Avanzadas", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Procesos de Desarrollo Agiles", creditos:3}, {nombre:"Pruebas Técnicas de Software", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Implementación de Interfaces de Usuario", creditos:3}, {nombre:"Programación de Componentes e Integraciones", creditos:3}, {nombre:"Técnicas de Documentación de Software", creditos:3}, {nombre:"Técnicas de Mantenimiento de Software", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_CloudComputing = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Modelos de Servicio en Cloud Computing", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:2}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Modelos de Servicio en Cloud Computing", creditos:3}, {nombre:"Sistemas de Virtualización", creditos:3}, {nombre:"Seguridad Web", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Computación en la Nube sobre Google Cloud", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Soluciones Open Source para Cloud Computing", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Computación en la Nube sobre Amazon Web Services", creditos:3}, {nombre:"TI sobre ITIL", creditos:3}, {nombre:"Preparatorio AWS Certified Solutions", creditos:3}, {nombre:"Práctica Profesional", creditos:4}, {nombre:"Computación en la Nube sobre Microsoft Azure", creditos:3}] }
+        ];
+
+        const malla_AppWebMoviles = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Comunicación con Clientes y Usuarios", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Lógica Computacional", creditos:3}, {nombre:"Estructura de Datos", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Programación y Desarrollo de Aplicaciones Web Móviles", creditos:3}, {nombre:"Dispositivos Móviles", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Seguridad Web", creditos:3}, {nombre:"Sistemas de Información", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Analítica Móvil", creditos:3}, {nombre:"Soporte de Aplicaciones Web", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_BasesDatos = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Lógica Computacional", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Fundamentos de Programación", creditos:3}, {nombre:"Introducción a la Estructura de Datos", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Requerimientos de Información", creditos:3}, {nombre:"Estructura de Redes de Datos", creditos:3}, {nombre:"Bases de Datos Relacionales", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Bases de Datos No Relacionales", creditos:3}, {nombre:"Ética de los Datos y la Información", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Aseguramiento de Bases de Datos", creditos:3}, {nombre:"Administración de Bases de Datos - DBA", creditos:3}, {nombre:"Modelado de Bases de Datos Relacionales", creditos:3}, {nombre:"Práctica Profesional", creditos:4}, {nombre:"Legislación y Auditoría en Sistemas Informáticos", creditos:3}] }
+        ];
+
+        const malla_SeguridadInformatica = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Manejo de Información y Datos", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Análisis y Diseño de Sistemas", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Estructura de Datos", creditos:3}, {nombre:"Diagnóstico de la Seguridad de la Información", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Monitoreo de la Seguridad de la Información", creditos:3}, {nombre:"Implementación de Bases de Datos", creditos:3}, {nombre:"Gestión de Redes de Comunicación de Datos", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Diseño del Modelo de Seguridad", creditos:3}, {nombre:"Implementación del Modelo de Seguridad de la Información", creditos:3}, {nombre:"Aseguramiento del Modelo de la Seguridad de la Información", creditos:3}, {nombre:"Administración de Hardware y Software de Seguridad", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_SitiosWeb = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Implementación de Bases de Datos", creditos:3}, {nombre:"Fundamentos de Programación", creditos:3}, {nombre:"Diseño y Programación Web", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Estructura de Datos", creditos:3}, {nombre:"Desarrollo Front End", creditos:3}, {nombre:"Programación Orientada a Objetos", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Desarrollo Back End", creditos:3}, {nombre:"Web Service", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Seguridad Web", creditos:3}, {nombre:"Estructura de Redes de Datos", creditos:3}, {nombre:"Procesos de Desarrollos Agiles", creditos:3}, {nombre:"Modelos de Servicio en Cloud Computing", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
+        ];
+
+        const malla_SistemasInformacion = [
+            { periodo: "Semestre 1", materias: [{nombre:"Razonamiento Cuantitativo y Competencias Digitales", creditos:3}, {nombre:"Herramientas de Software de Propósito General", creditos:3}, {nombre:"Componentes de la Computación", creditos:3}, {nombre:"Administración de Sistemas Operativos", creditos:3}, {nombre:"Análisis y Diseño de Sistemas", creditos:3}, {nombre:"Sistemas de Información", creditos:3}] },
+            { periodo: "Semestre 2", materias: [{nombre:"Basic English", creditos:3}, {nombre:"Producción de Textos e Hipertextos", creditos:3}, {nombre:"Mantenimiento de Equipos de Cómputo", creditos:3}, {nombre:"Programación Orientada a Objetos", creditos:3}, {nombre:"Atención al Usuario", creditos:3}, {nombre:"Cátedra Tecminuto", creditos:2}] },
+            { periodo: "Semestre 3", materias: [{nombre:"Intermediate English", creditos:3}, {nombre:"Estructura de Redes de Datos", creditos:3}, {nombre:"Soporte de Software", creditos:3}, {nombre:"Emprendimiento", creditos:3}, {nombre:"Electiva", creditos:2}] },
+            { periodo: "Semestre 4", materias: [{nombre:"Implementación de Sistemas de Información", creditos:3}, {nombre:"Implementación de Bases de Datos", creditos:3}, {nombre:"Programación y Desarrollo de Software", creditos:3}, {nombre:"Gestión de Redes de Comunicación de Datos", creditos:3}, {nombre:"Práctica Profesional", creditos:4}] }
         ];
 
         const TECMD_PROGRAMS = [
-            { nombre: "Técnico Profesional en Programación de Software", escuela: "Escuela de Tecnología Digital", snies: "116695", desc: "Lógica de programación, desarrollo de algoritmos y creación de software a medida.", malla: malla_ProgramacionSoftware, totalCreditos: 60 },
-            { nombre: "Procesos de Mercadeo Digital", escuela: "Escuela de C. de la Comunicación", snies: "116702", desc: "Estrategias de marketing, SEO, SEM y analítica.", malla: [], totalCreditos: 60 }
+            { nombre: "Mejoramiento de Procesos Industriales", escuela: "Escuela de Energías Renovables", snies: "116697", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-mejoramiento-de-procesos-industriales/", desc: "Optimiza procesos industriales, reduce costos y mejora la calidad con herramientas tecnológicas y metodologías eficientes.", malla: malla_MejoramientoProcesos },
+            { nombre: "Montaje y Mantenimiento de Energías Renovables", escuela: "Escuela de Energías Renovables", snies: "116705", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-montaje-y-mantenimiento-de-energias-renovables/", desc: "Instalación de sistemas solares/eólicos y promoción del desarrollo sostenible.", malla: malla_MontajeEnergias },
+            { nombre: "Relacionamiento Digital con Clientes Enfoque CRM", escuela: "Escuela de C. de la Comunicación", snies: "116704", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-relacionamiento-digital-con-clientes-enfoque-crm/", desc: "Gestión de la experiencia del cliente (CX) e implementación de sistemas CRM.", malla: malla_RelacionamientoCRM },
+            { nombre: "Creación de Contenidos Digitales", escuela: "Escuela de C. de la Comunicación", snies: "116703", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-creacion-de-contenidos-digitales/", desc: "Producción audiovisual, copywriting y estrategias de inbound marketing.", malla: malla_CreacionContenidos },
+            { nombre: "Procesos de Mercadeo Digital", escuela: "Escuela de C. de la Comunicación", snies: "116702", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-procesos-de-mercadeo-digital/", desc: "Estrategias de marketing, SEO, SEM y analítica web orientada a conversión.", malla: malla_ProcesosMercadeo },
+            { nombre: "Asesoría Comercial para Soluciones Digitales", escuela: "Escuela de C. Empresariales y Economía", snies: "116701", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-asesoria-comercial-para-solucionesdigitales/", desc: "Ventas B2B en entornos tecnológicos y estrategias de negociación digital.", malla: malla_AsesoriaComercial },
+            { nombre: "Operaciones Contables y Financieras Digitales", escuela: "Escuela de C. Empresariales y Economía", snies: "116700", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-operaciones-contables-y-financieras-digitales/", desc: "Gestión financiera digital, auditoría y control de presupuestos empresariales.", malla: malla_OperacionesContables },
+            { nombre: "Procesos de Inteligencia de Negocios", escuela: "Escuela de C. Empresariales y Economía", snies: "116699", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-procesos-de-inteligencia-de-negocios/", desc: "Análisis de datos, creación de dashboards y toma de decisiones basadas en datos.", malla: malla_InteligenciaNegocios },
+            { nombre: "Operaciones Fintech", escuela: "Escuela de C. Empresariales y Economía", snies: "116698", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-operaciones-fintech/", desc: "Integración de finanzas y tecnología, blockchain y nuevos modelos de negocio.", malla: malla_OperacionesFintech },
+            { nombre: "Operaciones de Comercio Electrónico", escuela: "Escuela de C. Empresariales y Economía", snies: "116696", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-operaciones-de-comercio-electronico/", desc: "Gestión de tiendas virtuales, logística e-commerce y pasarelas de pago.", malla: malla_ComercioElectronico },
+            { nombre: "Programación de Software", escuela: "Escuela de Tecnología Digital", snies: "116695", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-programacion-de-software/", desc: "Lógica de programación, desarrollo de algoritmos y creación de software a medida.", malla: malla_ProgramacionSoftware },
+            { nombre: "Procesos de Cloud Computing", escuela: "Escuela de Tecnología Digital", snies: "116694", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-procesos-de-cloud-computing/", desc: "Arquitectura en la nube, migración de servicios y gestión en AWS, Azure y GCP.", malla: malla_CloudComputing },
+            { nombre: "Desarrollo de Aplicaciones Web Móviles", escuela: "Escuela de Tecnología Digital", snies: "116693", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-desarrollo-de-aplicaciones-web-moviles/", desc: "Creación de apps nativas y multiplataforma centradas en la experiencia de usuario móvil.", malla: malla_AppWebMoviles },
+            { nombre: "Aseguramiento y Procesamiento de Bases de Datos", escuela: "Escuela de Tecnología Digital", snies: "116XXX", url: "https://tecmd.edu.co/", desc: "Administración, modelado y aseguramiento de sistemas de bases de datos relacionales y no relacionales.", malla: malla_BasesDatos },
+            { nombre: "Servicios de Seguridad Informática", escuela: "Escuela de Tecnología Digital", snies: "116692", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-servicios-de-seguridad-informatica/", desc: "Protección de redes, análisis de vulnerabilidades y prevención de ciberataques.", malla: malla_SeguridadInformatica },
+            { nombre: "Construcción y Operación de Sitios Web", escuela: "Escuela de Tecnología Digital", snies: "116691", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-construccion-y-operacion-de-sitios-web/", desc: "Desarrollo front-end y back-end, diseño UX/UI y mantenimiento de plataformas web.", malla: malla_SitiosWeb },
+            { nombre: "Operación de Sistemas de Información", escuela: "Escuela de Tecnología Digital", snies: "116690", url: "https://tecmd.edu.co/programas_titulados/tecnico-profesional-en-operacion-de-sistemas-de-informacion/", desc: "Gestión, mantenimiento y soporte de infraestructuras y bases de datos empresariales.", malla: malla_SistemasInformacion }
         ];
 
-        // --- AUTH LOGIC & ROL ENFORCEMENT ---
-        onAuthStateChanged(auth, async (u) => {
+        TECMD_PROGRAMS.forEach(p => {
+            p.totalCreditos = p.malla.reduce((totalSemestres, sem) => totalSemestres + sem.materias.reduce((totalMats, m) => totalMats + m.creditos, 0), 0);
+        });
+
+        // --- MOTOR DE DATOS ESTUDIANTES (Inicializado solo con tu información real) ---
+        const dptos = ['Santander', 'Bogotá', 'Antioquia', 'Valle del Cauca', 'Atlántico', 'Cundinamarca'];
+        const sectores = ['Tecnología', 'Manufactura', 'Servicios', 'Agropecuario', 'Construcción', 'Público', 'Otro'];
+        
+        const misDatosIniciales = [
+            { 
+                id: "dopabonr", 
+                name: "Dudbil Olvasada Pabon Riaño", 
+                dept: "Santander", 
+                prog: "Programación de Software", 
+                sector: "Tecnología", 
+                est: 4, 
+                gen: "Masculino", 
+                etnia: "Ninguno", 
+                gpa: 0, 
+                nlp: 0, 
+                sim: 0, 
+                progreso: 40, 
+                titulo: "Solucion arquitectonica para la preservacion, analisis y explotacion de datos educativos",
+                empresa: "tecmd",
+                tipo_empresa: "Privada",
+                semestre: "4to semestre",
+                discapacidad: "Ninguno",
+                entregables: 1,
+                tutor1: "Yarledis Gomez Moreno",
+                tutor2: "Carlos Germán Juliao Vargas",
+                proyecto_tipo: "Semilleros de investigacion en creacion de software academico"
+            }
+        ];
+
+        let rawData = [];
+        const savedData = localStorage.getItem('tecmd_data');
+        if (savedData) {
+            rawData = JSON.parse(savedData);
+        } else {
+            // Ya no generamos aleatorios. Se carga solo tu perfil como punto de partida.
+            rawData = [...misDatosIniciales];
+            localStorage.setItem('tecmd_data', JSON.stringify(rawData));
+        }
+
+        const saveDataToLocal = () => { localStorage.setItem('tecmd_data', JSON.stringify(rawData)); };
+        
+        let globalFilters = { dept: null, prog: null, sector: null, est: null, gen: null };
+        let chartProg, chartEst, chartSector, chartCustom, mapInstance, chartCompareRadar, curriculumGraphInstance;
+
+        // Función para forzar vista
+        const showView = (target) => {
+            document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
+            const targetView = document.getElementById(`view-${target}`);
+            if (targetView) targetView.classList.remove('hidden');
+        };
+
+        // --- AUTH LOGIC ---
+        onAuthStateChanged(auth, u => {
             const loginView = document.getElementById('login-view');
             const appView = document.getElementById('app-view');
-            
             if(loginView) loginView.classList.toggle('hidden', !!u); 
             if(appView) appView.classList.toggle('hidden', !u);
             
             if(u) {
-                currentUser = u;
-                isSuperAdmin = ADMIN_EMAILS.includes(u.email);
-                
                 const name = u.displayName || u.email.split('@')[0];
                 const userName = document.getElementById('user-name');
                 const userInitial = document.getElementById('user-initial');
                 const userRole = document.getElementById('user-role');
                 const superadminBadge = document.getElementById('superadmin-badge');
-                const adminNavSection = document.getElementById('admin-nav-section');
 
                 if (userName) userName.textContent = name;
                 if (userInitial) userInitial.textContent = name.charAt(0).toUpperCase();
                 
-                if (isSuperAdmin) {
-                    if (userRole) userRole.textContent = "Super Administrador";
-                    if (superadminBadge) superadminBadge.classList.remove('hidden');
-                    if (adminNavSection) adminNavSection.classList.remove('hidden');
+                const isAdmin = ADMIN_EMAILS.includes(u.email);
+                if (userRole) userRole.textContent = isAdmin ? "Administrador del Sistema" : "Estudiante / Usuario Base";
+                if (superadminBadge) superadminBadge.classList.toggle('hidden', !isAdmin);
+                
+                if(!isAdmin) {
+                    // Ocultar menús y forzar vista Manual
+                    document.getElementById('admin-menu-sections').classList.add('hidden');
+                    document.getElementById('admin-ingesta-section').classList.add('hidden');
                     
-                    // Asegurar que las vistas admin existan y se puedan mostrar
-                    document.querySelectorAll('.admin-restricted').forEach(el => {
-                        el.style.display = ''; // Restaurar display
+                    document.querySelectorAll('.nav-link').forEach(l => {
+                        l.classList.remove('bg-blue-500/10', 'text-blue-700', 'dark:text-blue-300', 'font-bold');
+                        l.classList.add('opacity-70', 'font-semibold');
                     });
+                    const navManual = document.getElementById('nav-manual');
+                    if(navManual) {
+                        navManual.classList.remove('opacity-70', 'font-semibold'); 
+                        navManual.classList.add('bg-blue-500/10', 'text-blue-700', 'dark:text-blue-300', 'font-bold');
+                    }
+                    showView('manual');
                     
-                    // Cargar datos de la nube
-                    await fetchRealDataFromFirestore();
-                    
+                    // Pre-llenar el correo si el usuario no es admin
+                    const formId = document.getElementById('form-id');
+                    if(formId && !formId.value) formId.value = u.email;
+                } else {
+                    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+                    document.querySelectorAll('.superadmin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
+                    document.getElementById('admin-menu-sections').classList.remove('hidden');
+                    document.getElementById('admin-ingesta-section').classList.remove('hidden');
+                    showView('dashboard');
+                }
+                
+                if(!window.chartsInited && isAdmin) {
                     setTimeout(() => {
                         initDashboardCharts();
                         initProgramCatalog();
                     }, 200);
-
-                    // Ir al dashboard
-                    const dashLink = document.querySelector('[data-target="dashboard"]');
-                    if(dashLink) dashLink.click();
-
-                } else {
-                    if (userRole) userRole.textContent = "Estudiante / Docente";
-                    if (superadminBadge) superadminBadge.classList.add('hidden');
-                    if (adminNavSection) adminNavSection.classList.add('hidden');
-                    
-                    // DESTRUIR VISTAS ADMIN DEL DOM por seguridad frontend (No solo ocultar)
-                    document.querySelectorAll('.admin-restricted').forEach(el => {
-                        el.innerHTML = '<div class="p-10 text-center"><h2 class="text-2xl font-bold text-red-500">Acceso Restringido</h2><p>No tienes permisos de administrador.</p></div>';
-                    });
-
-                    // Ir a la ficha manual obligatoriamente
-                    const manualLink = document.querySelector('[data-target="manual"]');
-                    if(manualLink) manualLink.click();
-                    
-                    // Precargar datos si el correo coincide con el perfil especificado
-                    if(u.email === 'dopabonr@tecmd.edu.co') {
-                        precargarFichaDudbil();
-                    } else {
-                        // Intentar cargar sus propios datos de firestore si existen
-                        await fetchOwnDataFromFirestore(u.email);
-                    }
                 }
             }
         });
@@ -541,160 +1009,25 @@
             const habeas = document.getElementById('habeas-data');
             if(habeas && !habeas.checked) { Swal.fire('Ley 1581', 'Debe aceptar la política de datos.', 'warning'); return; }
             signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value)
-                .catch(() => Swal.fire('Error', 'Credenciales incorrectas.', 'error'));
+                .catch(() => Swal.fire('Error', 'Credenciales incorrectas o usuario inexistente.', 'error'));
         });
         
         safeClick('google-login-btn', () => signInWithPopup(auth, new GoogleAuthProvider()));
         safeClick('logout-btn', () => signOut(auth));
+        safeClick('support-btn', () => Swal.fire({title: 'Centro de Soporte', text: 'Enviando reporte directo a: dudbilopr@gmail.com', icon: 'info'}));
 
-        // --- LÓGICA DE FIRESTORE (DATOS REALES) ---
-        
-        // 1. Fetch para Administradores (Trae todo)
-        const fetchRealDataFromFirestore = async () => {
-            try {
-                const querySnapshot = await getDocs(collection(db, "estudiantes"));
-                rawData = [];
-                querySnapshot.forEach((doc) => {
-                    rawData.push({ id: doc.id, ...doc.data() });
-                });
-
-                const emptyState = document.getElementById('dashboard-empty-state');
-                if (rawData.length === 0) {
-                    if(emptyState) emptyState.classList.remove('hidden');
-                    // Inyectamos el perfil base de Dudbil para que el admin vea al menos 1 registro si la base está vacía.
-                    rawData.push(getDudbilProfile());
-                    saveDataToFirestore(getDudbilProfile(), getDudbilProfile().email); // Guardarlo en DB real
-                } else {
-                    if(emptyState) emptyState.classList.add('hidden');
-                }
-                updateAllDataViews();
-            } catch (error) {
-                console.error("Error fetching data: ", error);
-                Swal.fire('Error de Conexión', 'No se pudieron cargar los datos de la nube. Revisa las reglas de Firestore.', 'error');
-            }
-        };
-
-        // 2. Fetch para Estudiantes (Solo trae su propio documento basado en el email)
-        const fetchOwnDataFromFirestore = async (email) => {
-            try {
-                const docRef = doc(db, "estudiantes", email);
-                // Aquí deberías usar getDoc, pero por simplicidad con los imports actuales usamos la lógica de guardado directo
-                // Si existe, se llena el formulario.
-            } catch (e) {
-                console.error(e);
-            }
-        };
-
-        // 3. Guardar Datos en Firestore
-        const saveDataToFirestore = async (dataObj, docId) => {
-            try {
-                await setDoc(doc(db, "estudiantes", docId), dataObj);
-                Swal.fire({title: 'Guardado Exitoso', text: 'Tus datos se han sincronizado con la nube.', icon: 'success'});
-                if(isSuperAdmin) fetchRealDataFromFirestore();
-            } catch (e) {
-                console.error("Error adding document: ", e);
-                Swal.fire('Error', 'Hubo un problema guardando en la nube. Revisa los permisos.', 'error');
-            }
-        };
-
-        // --- PERFIL DE DUDBIL PABON (SE INYECTA SI ES SU CORREO O SI LA DB ESTÁ VACÍA) ---
-        const getDudbilProfile = () => {
-            return {
-                email: "dopabonr@tecmd.edu.co",
-                name: "Dudbil Olvasada Pabon Riaño",
-                fnac: "1989-04-19",
-                edad: 37,
-                gen: "Masculino",
-                estrato: 4,
-                dept: "Santander",
-                etnia: "Ninguno",
-                discapacidad: "Ninguno",
-                origen: "Pamplona, Norte de Santander",
-                residencia: "Bucaramanga, Santander, Colombia",
-                prog: "Técnico Profesional en Programación de Software",
-                semestre: 4,
-                gpa: 0,
-                titulo: "Solucion arquitectonica para la presenvacion, analisis y explotacion de datos educativos",
-                semillero: "Semilleros de investigacion en creacion de software academico",
-                progreso: 40,
-                tutor1: "Yarledis Gomez Moreno",
-                tutor2: "Carlos Germán Juliao Vargas",
-                empresa: "TECMD",
-                tipoempresa: "Privada",
-                sector: "Educación",
-                nlp: 0, sim: 0 // Valores iniciales para el motor AI
-            };
-        };
-
-        const precargarFichaDudbil = () => {
-            const p = getDudbilProfile();
-            document.getElementById('form-name').value = p.name;
-            document.getElementById('form-fnac').value = p.fnac;
-            document.getElementById('form-edad').value = p.edad;
-            document.getElementById('form-gen').value = p.gen;
-            document.getElementById('form-estrato').value = p.estrato;
-            document.getElementById('form-dept').value = p.dept;
-            document.getElementById('form-etnia').value = p.etnia;
-            document.getElementById('form-discapacidad').value = p.discapacidad;
-            document.getElementById('form-origen').value = p.origen;
-            document.getElementById('form-residencia').value = p.residencia;
-            document.getElementById('form-prog').value = p.prog;
-            document.getElementById('form-semestre').value = p.semestre;
-            document.getElementById('form-titulo').value = p.titulo;
-            document.getElementById('form-semillero').value = p.semillero;
-            document.getElementById('form-progreso').value = p.progreso;
-            document.getElementById('form-tutor1').value = p.tutor1;
-            document.getElementById('form-tutor2').value = p.tutor2;
-            document.getElementById('form-empresa').value = p.empresa;
-            document.getElementById('form-tipoempresa').value = p.tipoempresa;
-            document.getElementById('form-sector').value = p.sector;
-        };
-
-        // Calcular Edad Automáticamente
-        const fnacInput = document.getElementById('form-fnac');
-        if(fnacInput) {
-            fnacInput.addEventListener('change', (e) => {
-                const date = new Date(e.target.value);
-                const diff_ms = Date.now() - date.getTime();
-                const age_dt = new Date(diff_ms); 
-                const edad = Math.abs(age_dt.getUTCFullYear() - 1970);
-                document.getElementById('form-edad').value = edad;
+        safeClick('btn-cloud-sync', () => {
+            const btn = document.getElementById('btn-cloud-sync');
+            const prevHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando...';
+            btn.disabled = true;
+            saveDataToLocal();
+            Swal.fire({
+                title: 'Sincronizando con Firebase', html: 'Enviando metadatos y configuraciones a la nube (Firestore)...', timer: 1500, timerProgressBar: true, didOpen: () => { Swal.showLoading(); }
+            }).then(() => {
+                btn.innerHTML = prevHtml; btn.disabled = false;
+                Swal.fire({ icon: 'success', title: '¡Sincronización Exitosa!', text: 'Los datos están respaldados en la nube.', timer: 2500, showConfirmButton: false });
             });
-        }
-
-        // --- SUBMIT DEL FORMULARIO DE FICHA ---
-        safeSubmit('student-form', (e) => {
-            e.preventDefault();
-            const getVal = id => document.getElementById(id) ? document.getElementById(id).value : '';
-            
-            const studentData = { 
-                email: currentUser.email,
-                name: getVal('form-name'),
-                fnac: getVal('form-fnac'),
-                edad: parseInt(getVal('form-edad')) || 0,
-                gen: getVal('form-gen'),
-                estrato: parseInt(getVal('form-estrato')) || 1,
-                dept: getVal('form-dept'),
-                etnia: getVal('form-etnia'),
-                discapacidad: getVal('form-discapacidad'),
-                origen: getVal('form-origen'),
-                residencia: getVal('form-residencia'),
-                prog: getVal('form-prog'),
-                semestre: parseInt(getVal('form-semestre')) || 1,
-                gpa: parseFloat(getVal('form-gpa')) || 0,
-                titulo: getVal('form-titulo'),
-                semillero: getVal('form-semillero'),
-                progreso: parseInt(getVal('form-progreso')) || 0,
-                tutor1: getVal('form-tutor1'),
-                tutor2: getVal('form-tutor2'),
-                empresa: getVal('form-empresa'),
-                tipoempresa: getVal('form-tipoempresa'),
-                sector: getVal('form-sector'),
-                nlp: 0, sim: 0 // Valores por defecto para nuevos
-            };
-
-            // Usamos el email como ID del documento en Firestore
-            saveDataToFirestore(studentData, currentUser.email);
         });
 
         // --- NAVEGACIÓN ---
@@ -708,66 +1041,619 @@
                 link.classList.remove('opacity-70', 'font-semibold'); 
                 link.classList.add('bg-blue-500/10', 'text-blue-700', 'dark:text-blue-300', 'font-bold');
                 
-                document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
-                const targetView = document.getElementById(`view-${link.dataset.target}`);
-                if (targetView) targetView.classList.remove('hidden');
+                showView(link.dataset.target);
                 
                 const sidebar = document.getElementById('sidebar');
                 if(window.innerWidth < 768 && sidebar) sidebar.classList.add('-translate-x-full');
                 
                 if(link.dataset.target === 'dashboard' && mapInstance) setTimeout(() => mapInstance.resize(), 100);
+                if(link.dataset.target === 'analytics' && !chartCustom && typeof updateCustomChart === 'function') setTimeout(updateCustomChart, 100);
                 if(link.dataset.target === 'programs') {
+                    if(chartCompareRadar) setTimeout(() => chartCompareRadar.resize(), 100);
                     if(curriculumGraphInstance) setTimeout(() => curriculumGraphInstance.resize(), 100);
                 }
             });
         });
+        
         safeClick('open-sidebar', () => { const sb = document.getElementById('sidebar'); if(sb) sb.classList.remove('-translate-x-full'); });
         safeClick('close-sidebar', () => { const sb = document.getElementById('sidebar'); if(sb) sb.classList.add('-translate-x-full'); });
 
-        // --- CROSS-FILTERING Y CHARTS (SOLO SE EJECUTA SI ES ADMIN) ---
-        const countBy = (arr, key) => arr.reduce((acc, obj) => { 
-            let val = obj[key] || 'Desconocido';
-            if(key === 'prog' && val.length > 25) val = val.substring(0,25) + '...';
-            acc[val] = (acc[val] || 0) + 1; 
-            return acc; 
-        }, {});
+        // --- CROSS-FILTERING ---
+        Chart.defaults.color = document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569';
+        Chart.defaults.font.family = 'Inter';
+        const getColors = () => ['rgba(59,130,246,0.8)', 'rgba(168,85,247,0.8)', 'rgba(234,179,8,0.8)', 'rgba(34,197,94,0.8)', 'rgba(236,72,153,0.8)', 'rgba(14,165,233,0.8)'];
+
+        const applyFilter = () => {
+            const getVal = id => document.getElementById(id) ? document.getElementById(id).value : null;
+            globalFilters.dept = getVal('filter-dept');
+            globalFilters.prog = getVal('filter-prog');
+            globalFilters.sector = getVal('filter-sector');
+            globalFilters.est = getVal('filter-est');
+            globalFilters.gen = getVal('filter-gen');
+
+            let activeStr = [];
+            if(globalFilters.dept) activeStr.push(`Dpto:${globalFilters.dept}`);
+            if(globalFilters.prog) activeStr.push(`Prog:${globalFilters.prog.substring(0,10)}...`);
+            if(globalFilters.sector) activeStr.push(`Sect:${globalFilters.sector}`);
+            if(globalFilters.est) activeStr.push(`Est:${globalFilters.est}`);
+            if(globalFilters.gen) activeStr.push(`Gen:${globalFilters.gen}`);
+
+            const activeFilterText = document.getElementById('active-filter-text');
+            const btnClearGlobal = document.getElementById('btn-clear-global-filters');
+
+            if(activeStr.length > 0) {
+                if(activeFilterText) activeFilterText.innerText = activeStr.join(' | ');
+                if(btnClearGlobal) btnClearGlobal.classList.remove('hidden');
+            } else {
+                if(activeFilterText) activeFilterText.innerText = 'General (Sin filtros)';
+                if(btnClearGlobal) btnClearGlobal.classList.add('hidden');
+            }
+            updateAllDataViews();
+        };
+
+        ['dept','prog','sector','est','gen'].forEach(id => {
+            const el = document.getElementById('filter-' + id);
+            if (el) el.addEventListener('change', applyFilter);
+        });
+        
+        const clearAllFilters = () => {
+            globalFilters = { dept: null, prog: null, sector: null, est: null, gen: null };
+            ['dept','prog','sector','est','gen'].forEach(id => {
+                const el = document.getElementById('filter-' + id);
+                if (el) el.value = '';
+            });
+            applyFilter();
+        };
+        
+        safeClick('btn-clear-global-filters', clearAllFilters);
+
+        window.toggleChartFilter = (key, value) => {
+            const el = document.getElementById('filter-' + key);
+            if (!el) return;
+            if(el.value === value.toString()) { el.value = ''; } 
+            else { el.value = value; }
+            applyFilter();
+        };
+
+        const getFilteredData = () => {
+            return rawData.filter(d => {
+                return (!globalFilters.dept || d.dept === globalFilters.dept) &&
+                       (!globalFilters.prog || d.prog === globalFilters.prog) &&
+                       (!globalFilters.sector || d.sector === globalFilters.sector) &&
+                       (!globalFilters.est || d.est.toString() === globalFilters.est) &&
+                       (!globalFilters.gen || d.gen === globalFilters.gen);
+            });
+        };
 
         window.updateAllDataViews = () => {
-            if(!isSuperAdmin) return; // Abortar si no es admin
+            const data = getFilteredData();
+            const noDataOverlay = document.getElementById('no-data-dashboard');
+            
+            // Lógica de "Esperando Datos"
+            if(!data.length || data.length < 2) { 
+                if(noDataOverlay) noDataOverlay.classList.remove('hidden');
+            } else {
+                if(noDataOverlay) noDataOverlay.classList.add('hidden');
+            }
 
             const kpiTotal = document.getElementById('kpi-total');
-            if(!rawData || !rawData.length) { 
-                if (kpiTotal) kpiTotal.innerText = 0; 
-                return; 
+            if (kpiTotal) kpiTotal.innerText = data.length;
+            
+            if(data.length === 0) return; // Salir si no hay nada
+
+            const avgNlp = data.reduce((s, d) => s + (d.nlp||0), 0) / data.length;
+            const kpiNlp = document.getElementById('kpi-nlp');
+            const kpiNlpStatus = document.getElementById('kpi-nlp-status');
+            if (kpiNlp) kpiNlp.innerHTML = avgNlp.toFixed(1) + '<span class="text-sm font-normal opacity-50">/10</span>';
+            if (kpiNlpStatus) {
+                if(avgNlp === 0) {
+                    kpiNlpStatus.innerText = 'Sin procesar'; kpiNlpStatus.className = 'text-xs mt-1 font-semibold text-gray-500';
+                } else {
+                    kpiNlpStatus.innerText = avgNlp >= 8 ? 'Nivel Académico Óptimo' : avgNlp >= 6 ? 'Nivel Aceptable' : 'Riesgo Semántico';
+                    kpiNlpStatus.className = `text-xs mt-1 font-semibold ${avgNlp >= 8 ? 'text-green-500' : avgNlp >= 6 ? 'text-yellow-500' : 'text-red-500'}`;
+                }
             }
 
-            if (kpiTotal) kpiTotal.innerText = rawData.length;
+            const avgSim = Math.round(data.reduce((s, d) => s + (d.sim||0), 0) / data.length);
+            const kpiSim = document.getElementById('kpi-sim');
+            const kpiSimStatus = document.getElementById('kpi-sim-status');
+            if (kpiSim) kpiSim.innerText = avgSim + '%';
+            if (kpiSimStatus) {
+                if(avgSim === 0) {
+                    kpiSimStatus.innerText = 'Sin procesar'; kpiSimStatus.className = 'text-xs mt-1 font-semibold text-gray-500';
+                } else {
+                    kpiSimStatus.innerText = avgSim <= 15 ? 'Documentos Originales' : avgSim <= 30 ? 'Revisión Recomendada' : 'Alerta de Plagio';
+                    kpiSimStatus.className = `text-xs mt-1 font-semibold ${avgSim <= 15 ? 'text-green-500' : avgSim <= 30 ? 'text-yellow-500' : 'text-red-500'}`;
+                }
+            }
             
-            // Llenar gráficos dinámicamente, incluso si hay 1 solo dato
+            const kpiProg = document.getElementById('kpi-prog');
+            if (kpiProg) kpiProg.innerText = Math.round(data.reduce((s, d) => s + (d.progreso||0), 0) / data.length) + '%';
+
+            const countBy = (arr, key, isProg) => arr.reduce((acc, obj) => { 
+                const k = isProg && obj[key] && obj[key].length > 25 ? obj[key].substring(0,25) + '...' : obj[key]; 
+                acc[obj[key]] = (acc[obj[key]] || 0) + 1; 
+                return acc; 
+            }, {});
+
             if(chartProg) { 
-                const pData = countBy(rawData, 'prog'); 
-                chartProg.data.labels = Object.keys(pData); 
+                const pData = countBy(data, chartProg.canvas.dataset.daxX || 'prog', true); 
+                chartProg.data.labels = Object.keys(pData).map(k => k.length > 25 ? k.substring(0,25)+'...' : k); 
                 chartProg.data.datasets[0].data = Object.values(pData); 
+                chartProg.options.plugins.tooltip = { callbacks: { title: (ctx) => Object.keys(pData)[ctx[0].dataIndex] } };
                 chartProg.update(); 
             }
-            if(chartEst) { 
-                const eData = countBy(rawData, 'estrato'); 
-                chartEst.data.labels = Object.keys(eData).map(k => `Estrato ${k}`); 
-                chartEst.data.datasets[0].data = Object.values(eData); 
-                chartEst.update(); 
+            if(chartEst) { const eData = countBy(data, chartEst.canvas.dataset.daxX || 'est'); chartEst.data.labels = Object.keys(eData); chartEst.data.datasets[0].data = Object.values(eData); chartEst.update(); }
+            if(chartSector) { const sData = countBy(data, chartSector.canvas.dataset.daxX || 'sector'); chartSector.data.labels = Object.keys(sData); chartSector.data.datasets[0].data = Object.values(sData); chartSector.update(); }
+            if(mapInstance) {
+                const mapDataCount = countBy(data, 'dept');
+                const echartsData = dptos.map(d => ({ name: d, value: mapDataCount[d] || 0 }));
+                mapInstance.setOption({ series: [{ data: echartsData }] });
             }
-            if(chartSector) { 
-                const sData = countBy(rawData, 'sector'); 
-                chartSector.data.labels = Object.keys(sData); 
-                chartSector.data.datasets[0].data = Object.values(sData); 
-                chartSector.update(); 
+            renderStudentTable(data);
+            
+            if(document.getElementById('view-programs') && !document.getElementById('view-programs').classList.contains('hidden')){
+                updateCompareChart();
             }
         };
 
-        // --- CÓDIGO DIDÁCTICO: MÓDULO CATÁLOGO Y VENN-GRAPH (SOLUCIONADO EL SOLAPAMIENTO) ---
+        const renderStudentTable = (dataToRender) => {
+            const tableBody = document.getElementById('student-table-body');
+            if(!tableBody) return;
+            tableBody.innerHTML = dataToRender.map(d => `
+                <tr class="hover:bg-black/5 dark:hover:bg-white/5 border-b border-gray-200 dark:border-gray-800 transition-colors">
+                    <td class="p-4">
+                        <p class="font-extrabold text-blue-700 dark:text-blue-400">${d.name}</p>
+                        <p class="text-[10px] opacity-80 font-mono"><i class="fa-solid fa-id-badge text-gray-400 mr-1"></i>${d.id}</p>
+                        ${d.titulo ? `<p class="text-xs mt-1 italic opacity-80" title="${d.titulo}"><i class="fa-solid fa-file-lines mr-1"></i>${d.titulo.substring(0,35)}${d.titulo.length>35?'...':''}</p>` : ''}
+                    </td>
+                    <td class="p-4">
+                        <p class="text-xs font-bold w-48 truncate" title="${d.prog}">${d.prog}</p>
+                        <p class="text-[10px] opacity-70"><i class="fa-solid fa-location-dot mr-1 text-red-400"></i>${d.dept} | ${d.sector}</p>
+                    </td>
+                    <td class="p-4"><span class="text-xs font-extrabold px-2 py-1 rounded-md ${d.nlp>=8?'bg-green-100 text-green-700 dark:text-green-400':d.nlp>=6?'bg-yellow-100 text-yellow-700 dark:text-yellow-400':'bg-red-100 text-red-700 dark:text-red-400'}">${(d.nlp||0).toFixed(1)}</span></td>
+                    <td class="p-4"><span class="text-xs font-extrabold ${d.sim>30?'text-red-500':'text-green-500'}">${d.sim||0}%</span></td>
+                    <td class="p-4"><div class="flex items-center gap-2"><div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"><div class="bg-blue-500 h-1.5 rounded-full" style="width:${d.progreso||0}%"></div></div><span class="text-[10px] font-bold">${d.progreso||0}%</span></div></td>
+                    <td class="p-4 text-center flex justify-center gap-2">
+                        <button onclick="editStudent('${d.id}')" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 p-2 rounded-lg font-bold text-xs shadow-sm transition-colors" title="Editar Métricas"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteStudent('${d.id}')" class="bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/40 dark:text-red-300 p-2 rounded-lg font-bold text-xs shadow-sm transition-colors" title="Eliminar Registro"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        };
+
+        const searchStudentEl = document.getElementById('search-student');
+        if(searchStudentEl) {
+            searchStudentEl.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                renderStudentTable(getFilteredData().filter(d => d.name.toLowerCase().includes(term) || d.id.toLowerCase().includes(term) || d.prog.toLowerCase().includes(term)));
+            });
+        }
+
+        window.deleteStudent = (id) => {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "Esta acción borrará el registro de la memoria local.",
+                icon: 'warning',
+                showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Sí, eliminar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    rawData = rawData.filter(s => s.id !== id);
+                    saveDataToLocal();
+                    updateAllDataViews();
+                    Swal.fire('Eliminado!', 'El estudiante ha sido borrado.', 'success');
+                }
+            });
+        };
+
+        window.editStudent = (id) => {
+            const i = rawData.findIndex(s => s.id === id);
+            if(i === -1) return;
+            Swal.fire({
+                title: `Editar: ${rawData[i].name}`,
+                html: `<div class="text-left space-y-4 mt-4"><div><label class="text-xs font-bold block mb-1">Score NLP</label><input id="swal-nlp" type="number" step="0.1" class="w-full border rounded-lg p-2" value="${rawData[i].nlp}"></div><div><label class="text-xs font-bold block mb-1">Similitud (%)</label><input id="swal-sim" type="number" class="w-full border rounded-lg p-2" value="${rawData[i].sim}"></div><div><label class="text-xs font-bold block mb-1">Progreso (%)</label><input id="swal-progreso" type="number" class="w-full border rounded-lg p-2" value="${rawData[i].progreso}"></div></div>`,
+                showCancelButton: true, confirmButtonText: 'Guardar', confirmButtonColor: '#3b82f6',
+                preConfirm: () => {
+                    const nlpEl = document.getElementById('swal-nlp');
+                    const simEl = document.getElementById('swal-sim');
+                    const progEl = document.getElementById('swal-progreso');
+                    return { nlp: parseFloat(nlpEl?nlpEl.value:0)||0, sim: parseInt(simEl?simEl.value:0)||0, progreso: parseInt(progEl?progEl.value:0)||0 }
+                }
+            }).then((res) => {
+                if (res.isConfirmed) { 
+                    rawData[i].nlp=res.value.nlp; rawData[i].sim=res.value.sim; rawData[i].progreso=res.value.progreso; 
+                    saveDataToLocal();
+                    updateAllDataViews(); 
+                    Swal.fire({icon:'success', timer:1500, showConfirmButton:false}); 
+                }
+            });
+        };
+
+        // --- MODO DAX ---
+        document.body.addEventListener('contextmenu', (e) => {
+            if(e.target.tagName === 'CANVAS') {
+                e.preventDefault();
+                openDaxEditor(e.target);
+            }
+        });
+
+        const openDaxEditor = (canvasEl) => {
+            let targetChart = null;
+            Object.values(Chart.instances).forEach(instance => { if(instance.canvas.id === canvasEl.id) targetChart = instance; });
+            if(!targetChart) return;
+
+            const currentType = targetChart.config.type;
+            const currentX = canvasEl.dataset.daxX || 'prog';
+            const currentY = canvasEl.dataset.daxY || 'count';
+
+            Swal.fire({
+                title: '<i class="fa-solid fa-wand-magic-sparkles text-blue-500"></i> Editor DAX',
+                html: `
+                    <div class="text-left space-y-4 mt-4 text-sm font-semibold">
+                        <div><label class="block opacity-70 mb-1">Tipo de Gráfico</label><select id="dax-edit-type" class="w-full border rounded-lg p-2 bg-gray-50 text-gray-800"><option value="bar" ${currentType==='bar'?'selected':''}>Barra</option><option value="pie" ${currentType==='pie'?'selected':''}>Torta</option><option value="doughnut" ${currentType==='doughnut'?'selected':''}>Dona</option><option value="line" ${currentType==='line'?'selected':''}>Línea</option><option value="radar" ${currentType==='radar'?'selected':''}>Radar</option></select></div>
+                        <div><label class="block opacity-70 mb-1">Eje X (Agrupación)</label><select id="dax-edit-x" class="w-full border rounded-lg p-2 bg-gray-50 text-gray-800"><option value="prog" ${currentX==='prog'?'selected':''}>Programa</option><option value="est" ${currentX==='est'?'selected':''}>Estrato</option><option value="sector" ${currentX==='sector'?'selected':''}>Sector</option><option value="dept" ${currentX==='dept'?'selected':''}>Depto</option><option value="etnia" ${currentX==='etnia'?'selected':''}>Etnia</option></select></div>
+                        <div><label class="block opacity-70 mb-1">Eje Y (Métrica)</label><select id="dax-edit-y" class="w-full border rounded-lg p-2 bg-gray-50 text-gray-800"><option value="count" ${currentY==='count'?'selected':''}>Conteo (Absoluto)</option><option value="nlp" ${currentY==='nlp'?'selected':''}>Promedio Score NLP</option><option value="progreso" ${currentY==='progreso'?'selected':''}>Promedio Progreso</option><option value="gpa" ${currentY==='gpa'?'selected':''}>Promedio GPA</option></select></div>
+                    </div>
+                `,
+                showCancelButton: true, confirmButtonText: 'Aplicar', confirmButtonColor: '#3b82f6',
+                preConfirm: () => {
+                    const t = document.getElementById('dax-edit-type');
+                    const x = document.getElementById('dax-edit-x');
+                    const y = document.getElementById('dax-edit-y');
+                    return { type: t?t.value:'bar', x: x?x.value:'prog', y: y?y.value:'count' };
+                }
+            }).then((res) => {
+                if(res.isConfirmed) {
+                    canvasEl.dataset.daxX = res.value.x;
+                    canvasEl.dataset.daxY = res.value.y;
+                    
+                    const data = getFilteredData();
+                    const grouped = {};
+                    data.forEach(d => { 
+                        let keyVal = d[res.value.x];
+                        if (res.value.x === 'prog' && keyVal && keyVal.length > 20) keyVal = keyVal.substring(0, 20) + '...';
+                        if(!grouped[keyVal]) grouped[keyVal] = {sum: 0, count: 0, realName: d[res.value.x]}; 
+                        if(res.value.y === 'count') { grouped[keyVal].sum += 1; grouped[keyVal].count += 1; }
+                        else { grouped[keyVal].sum += d[res.value.y]; grouped[keyVal].count += 1; }
+                    });
+                    const labels = Object.keys(grouped); 
+                    const yData = labels.map(l => (res.value.y === 'count' ? grouped[l].sum : (grouped[l].sum / grouped[l].count).toFixed(2)));
+
+                    targetChart.config.type = res.value.type;
+                    targetChart.data.labels = labels;
+                    targetChart.data.datasets[0].data = yData;
+                    
+                    if(['pie','doughnut'].includes(res.value.type)) {
+                        targetChart.data.datasets[0].backgroundColor = getColors();
+                        targetChart.options.plugins.legend = { display: true, position: 'right', labels:{boxWidth: 10} };
+                        targetChart.options.scales = { x:{display:false}, y:{display:false} };
+                    } else if(res.value.type === 'radar') {
+                        targetChart.data.datasets[0].backgroundColor = 'rgba(59,130,246,0.3)';
+                        targetChart.options.scales = { r: { angleLines:{display:true} } };
+                    } else { 
+                        targetChart.data.datasets[0].backgroundColor = 'rgba(59, 130, 246, 0.6)';
+                        targetChart.options.plugins.legend = { display: false };
+                        if(canvasEl.id === 'chartSectores' && res.value.type === 'bar') {
+                            targetChart.options.indexAxis = 'y'; 
+                        } else { targetChart.options.indexAxis = 'x'; }
+                        targetChart.options.scales = { x:{display:true}, y:{display:true} };
+                    }
+                    targetChart.update();
+                }
+            });
+        };
+
+        // --- MANEJO DEL CAMPO SECTOR 'OTRO' ---
+        const sectorSelect = document.getElementById('form-sector');
+        const sectorOtroInput = document.getElementById('form-sector-otro');
+        if (sectorSelect && sectorOtroInput) {
+            sectorSelect.addEventListener('change', (e) => {
+                if (e.target.value === 'Otro') {
+                    sectorOtroInput.classList.remove('hidden');
+                    sectorOtroInput.setAttribute('required', 'true');
+                } else {
+                    sectorOtroInput.classList.add('hidden');
+                    sectorOtroInput.removeAttribute('required');
+                }
+            });
+        }
+
+        // --- MANEJO DE CAMPOS DINÁMICOS ---
+        safeClick('btn-add-dynamic-field', () => {
+            Swal.fire({
+                title: 'Añadir Campo Personalizado',
+                input: 'text',
+                inputLabel: 'Nombre del nuevo campo (Ej. Ciudad, Empresa, Dispositivo)',
+                inputPlaceholder: 'Escriba el nombre...',
+                showCancelButton: true,
+                confirmButtonColor: '#9333ea',
+                cancelButtonText: 'Cancelar',
+                confirmButtonText: 'Añadir'
+            }).then((res) => {
+                if(res.isConfirmed && res.value) {
+                    const fieldName = res.value.trim();
+                    const fieldKey = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                    const container = document.getElementById('dynamic-fields-container');
+                    
+                    const div = document.createElement('div');
+                    div.className = 'md:col-span-1 fade-in relative';
+                    div.innerHTML = `
+                        <label class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1 block text-purple-600 dark:text-purple-400">${fieldName}</label>
+                        <div class="flex items-center gap-2">
+                            <input type="text" class="dynamic-field-input w-full bg-white dark:bg-gray-900 border border-purple-300 dark:border-purple-700/50 rounded-xl py-2 px-3 focus:ring-2 focus:ring-purple-500/50 outline-none font-semibold" data-key="${fieldKey}" placeholder="Valor para ${fieldName}..." required>
+                            <button type="button" onclick="this.parentElement.parentElement.remove()" class="text-red-500 hover:text-red-700 transition-colors" title="Eliminar campo"><i class="fa-solid fa-times-circle"></i></button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                }
+            });
+        });
+
+        // --- REGISTRO MANUAL DE FICHA TECMD ---
+        safeSubmit('student-form', (e) => {
+            e.preventDefault();
+            const getVal = id => document.getElementById(id) ? document.getElementById(id).value : '';
+            
+            let finalSector = getVal('form-sector');
+            if (finalSector === 'Otro') finalSector = getVal('form-sector-otro') || 'Otro Sector';
+
+            const newStudent = { 
+                id: getVal('form-id'), name: getVal('form-name'), dept: getVal('form-dept'), 
+                prog: getVal('form-prog'), sector: finalSector, est: parseInt(getVal('form-estrato'))||1, 
+                gen: getVal('form-gen'), etnia: getVal('form-etnia'), gpa: parseFloat(getVal('form-gpa'))||0, 
+                titulo: getVal('form-titulo'), nlp: 0, sim: 0, progreso: 0,
+                empresa: getVal('form-empresa'), tipo_empresa: getVal('form-tipo-empresa'),
+                semestre: getVal('form-semestre'), discapacidad: getVal('form-discapacidad'),
+                entregables: parseInt(getVal('form-entregables'))||0, tutor1: getVal('form-tutor1'), 
+                tutor2: getVal('form-tutor2'), proyecto_tipo: getVal('form-proyecto-tipo')
+            };
+
+            document.querySelectorAll('.dynamic-field-input').forEach(input => {
+                if(input.dataset.key) newStudent[input.dataset.key] = input.value;
+            });
+
+            // Verificar si el ID ya existe y actualizar en lugar de añadir repetido
+            const existingIndex = rawData.findIndex(s => s.id === newStudent.id);
+            if(existingIndex !== -1) {
+                rawData[existingIndex] = { ...rawData[existingIndex], ...newStudent };
+            } else {
+                rawData.unshift(newStudent);
+            }
+            
+            if(sectorOtroInput) sectorOtroInput.classList.add('hidden');
+            const dynamicContainer = document.getElementById('dynamic-fields-container');
+            if(dynamicContainer) dynamicContainer.innerHTML = '';
+            
+            saveDataToLocal(); updateAllDataViews(); 
+            Swal.fire({title: 'Ficha Registrada', text: 'Tus datos han sido integrados al motor DAX y a la nube.', icon: 'success'});
+        });
+
+        // --- ANALIZAR (MOTOR NLP) ---
+        safeClick('btn-analyze', () => {
+            const btn = document.getElementById('btn-analyze');
+            if(!btn) return;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando...'; 
+            btn.disabled = true;
+            setTimeout(() => {
+                const plc = document.getElementById('analysis-placeholder');
+                const res = document.getElementById('analysis-results');
+                if(plc) plc.classList.add('hidden');
+                if(res) { res.classList.remove('hidden'); res.classList.add('fade-in'); }
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Análisis Completado';
+                btn.classList.replace('bg-blue-600', 'bg-green-600');
+                setTimeout(() => { 
+                    btn.innerHTML = '<i class="fa-solid fa-robot"></i> Ejecutar Análisis IA'; 
+                    btn.classList.replace('bg-green-600', 'bg-blue-600'); 
+                    btn.disabled = false; 
+                }, 3000);
+            }, 1500);
+        });
+
+        // --- CONSTRUCTOR ANALÍTICO Y ANCLAJE ---
+        window.updateCustomChart = () => {
+            const xEl = document.getElementById('cb-x');
+            const yEl = document.getElementById('cb-y');
+            const typeEl = document.getElementById('cb-type');
+            if (!xEl || !yEl || !typeEl) return;
+            
+            const xKey = xEl.value; const yKey = yEl.value; const type = typeEl.value;
+            const data = getFilteredData();
+            const grouped = {};
+            data.forEach(d => { 
+                let keyVal = d[xKey];
+                if (xKey === 'prog' && keyVal && keyVal.length > 25) keyVal = keyVal.substring(0, 25) + '...';
+                if(!grouped[keyVal]) grouped[keyVal] = {sum: 0, count: 0, fullName: d[xKey]}; 
+                if(yKey === 'count') { grouped[keyVal].sum += 1; grouped[keyVal].count += 1; }
+                else { grouped[keyVal].sum += (d[yKey]||0); grouped[keyVal].count += 1; }
+            });
+            const labels = Object.keys(grouped); 
+            const yData = labels.map(l => (yKey === 'count' ? grouped[l].sum : (grouped[l].sum / grouped[l].count).toFixed(2)));
+
+            if(chartCustom) chartCustom.destroy();
+            const chartCanvas = document.getElementById('customChart');
+            if(chartCanvas) {
+                chartCustom = new Chart(chartCanvas, { 
+                    type: type==='radar'?'radar':type, 
+                    data: { labels: labels, datasets: [{ label: `${yKey.toUpperCase()}`, data: yData, backgroundColor: type==='pie'||type==='doughnut'?getColors():'rgba(59,130,246,0.5)', borderColor: '#3b82f6', borderWidth: 2, fill: true, borderRadius: type==='bar'?8:0 }] }, 
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: { tooltip: { callbacks: { title: (ctx) => grouped[ctx[0].label] ? grouped[ctx[0].label].fullName : ctx[0].label } } }
+                    } 
+                });
+                chartCanvas.dataset.daxX = xKey; chartCanvas.dataset.daxY = yKey;
+            }
+        };
+        safeClick('btn-generate-dax', window.updateCustomChart);
+
+        window.pinCustomChart = () => {
+            if(!chartCustom) return;
+            const emptyMsg = document.getElementById('empty-pinned-msg');
+            const container = document.getElementById('pinned-charts-container');
+            const xEl = document.getElementById('cb-x');
+            const yEl = document.getElementById('cb-y');
+            
+            if(emptyMsg) emptyMsg.classList.add('hidden');
+            if(!container || !xEl || !yEl) return;
+
+            const wrapper = document.createElement('div'); 
+            wrapper.className = 'glass-panel p-6 rounded-2xl relative shadow-lg fade-in border-t-4 border-t-yellow-500 chart-wrapper flex flex-col min-h-[320px] z-10';
+            const canvasId = 'pinned-' + Date.now();
+            const title = `${yEl.options[yEl.selectedIndex].text} vs ${xEl.options[xEl.selectedIndex].text}`;
+            wrapper.innerHTML = `<h3 class="font-bold mb-4 text-sm z-20"><i class="fa-solid fa-chart-simple text-blue-500 mr-2"></i>${title}</h3><button onclick="this.parentElement.remove(); if(document.getElementById('pinned-charts-container').children.length===1) { const m = document.getElementById('empty-pinned-msg'); if(m) m.classList.remove('hidden'); }" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors z-30"><i class="fa-solid fa-trash"></i></button><div class="flex-1 w-full chart-container"><canvas id="${canvasId}" data-dax-x="${xEl.value}" data-dax-y="${yEl.value}"></canvas></div>`;
+            container.appendChild(wrapper);
+            new Chart(document.getElementById(canvasId), { type: chartCustom.config.type, data: JSON.parse(JSON.stringify(chartCustom.data)), options: { responsive: true, maintainAspectRatio: false, plugins: chartCustom.config.options.plugins } });
+            Swal.fire({ title: '¡Gráfico Anclado!', text: 'Clic derecho en el panel principal para editarlo.', icon: 'success', timer: 2000, showConfirmButton: false });
+        };
+        safeClick('btn-pin-custom', window.pinCustomChart);
+
+        // --- BÚSQUEDA EN CATÁLOGO ---
+        const searchCatalogEl = document.getElementById('search-catalog');
+        if(searchCatalogEl) {
+            searchCatalogEl.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const container = document.getElementById('program-cards-container');
+                if(!container) return;
+                
+                const filteredPrograms = TECMD_PROGRAMS.filter(p => p.nombre.toLowerCase().includes(term) || p.snies.includes(term));
+                
+                if(filteredPrograms.length === 0) {
+                    container.innerHTML = `<div class="col-span-full p-8 text-center opacity-50 font-bold">No se encontraron programas que coincidan con la búsqueda.</div>`;
+                    return;
+                }
+
+                container.innerHTML = filteredPrograms.map(p => `
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col h-full program-card">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded-full font-bold uppercase tracking-wider">${p.escuela.replace('Escuela de ', '')}</span>
+                            <span class="text-xs font-mono font-bold opacity-50 bg-black/5 dark:bg-white/5 px-2 py-1 rounded">SNIES: ${p.snies}</span>
+                        </div>
+                        <h4 class="font-extrabold text-sm mb-2 text-blue-600 dark:text-blue-400">${p.nombre}</h4>
+                        <p class="text-xs opacity-80 leading-relaxed mb-4 flex-1">${p.desc}</p>
+                        <div class="mt-auto border-t border-gray-200 dark:border-gray-800 pt-3 grid grid-cols-2 gap-2">
+                            <a href="${p.url}" target="_blank" class="text-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold py-2 rounded-lg transition-colors opacity-80"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Sitio Oficial</a>
+                            <button class="w-full bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-bold py-2 rounded-lg transition-colors text-blue-600 dark:text-blue-400" onclick="showCurriculum('${p.snies}')"><i class="fa-solid fa-book-open-reader mr-1"></i> Malla Curricular</button>
+                        </div>
+                    </div>
+                `).join('');
+            });
+        }
+
+        // --- CÓDIGO DIDÁCTICO: MÓDULO CATÁLOGO Y VENN-GRAPH ---
+        window.showCurriculum = (snies) => {
+            const prog = TECMD_PROGRAMS.find(p => p.snies === snies);
+            if(!prog) return;
+
+            let htmlMalla = `<div class="text-left space-y-4 malla-container max-h-[60vh] overflow-y-auto pr-2">`;
+            htmlMalla += `<p class="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 p-2 rounded-lg font-semibold"><i class="fa-solid fa-circle-info mr-1"></i> Este programa cuenta con un total proyectado de <strong>${prog.totalCreditos} Créditos Académicos</strong>.</p>`;
+            
+            prog.malla.forEach(per => {
+                htmlMalla += `<div class="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                    <div class="bg-gray-100 dark:bg-gray-800 px-4 py-2 font-bold text-sm border-b border-gray-200 dark:border-gray-700">${per.periodo}</div>
+                    <ul class="divide-y divide-gray-100 dark:divide-gray-800">`;
+                per.materias.forEach(mat => {
+                    htmlMalla += `<li class="px-4 py-2 flex justify-between items-center text-xs"><span class="opacity-90 font-semibold">${mat.nombre}</span> <span class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded font-bold">${mat.creditos} Cr.</span></li>`;
+                });
+                htmlMalla += `</ul></div>`;
+            });
+            htmlMalla += `</div>`;
+
+            Swal.fire({
+                title: `<span class="text-lg font-bold text-blue-600 dark:text-blue-400">Malla Curricular</span><br><span class="text-sm opacity-70">${prog.nombre}</span>`,
+                html: htmlMalla,
+                width: 600,
+                confirmButtonColor: '#3b82f6',
+                confirmButtonText: 'Cerrar'
+            });
+        };
+
+        const renderCompareCurriculum = (progA, progB) => {
+            const container = document.getElementById('comp-curriculum-container');
+            if(!container) return;
+
+            const getSubjects = (p) => {
+                if(!p) return [];
+                let subs = [];
+                p.malla.forEach(per => per.materias.forEach(m => subs.push(m.nombre.toLowerCase().trim())));
+                return subs;
+            };
+
+            const subA = getSubjects(progA);
+            const subB = getSubjects(progB);
+            const shared = subA.filter(value => subB.includes(value));
+
+            const renderMalla = (p, isProgA) => {
+                if(!p) return `<div class="p-4 text-center opacity-50 font-bold glass-panel rounded-2xl">Programa no seleccionado</div>`;
+                let html = `<div class="glass-panel p-5 rounded-2xl flex flex-col h-full border-t-4 ${isProgA ? 'border-blue-500' : 'border-purple-500'}">`;
+                html += `<h5 class="font-extrabold ${isProgA ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'} mb-2 truncate" title="${p.nombre}">${p.nombre}</h5>`;
+                html += `<div class="flex justify-between items-center text-xs mb-4 pb-2 border-b border-gray-200 dark:border-gray-700"><span class="font-bold opacity-60">SNIES: ${p.snies}</span><span class="bg-black/5 dark:bg-white/5 px-2 py-1 rounded font-bold">${p.totalCreditos} Créditos</span></div>`;
+                html += `<div class="space-y-4 flex-1 overflow-y-auto max-h-[400px] malla-container pr-2">`;
+                
+                p.malla.forEach(per => {
+                    html += `<div><h6 class="text-[10px] font-bold uppercase opacity-60 mb-2 pl-1 flex items-center gap-1"><i class="fa-solid fa-calendar-days"></i> ${per.periodo}</h6><div class="space-y-2">`;
+                    per.materias.forEach(mat => {
+                        const isShared = shared.includes(mat.nombre.toLowerCase().trim());
+                        const bgClass = isShared ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700' : 'bg-white/50 dark:bg-black/20 border-gray-200 dark:border-gray-700';
+                        const textClass = isShared ? 'text-green-800 dark:text-green-300' : 'opacity-90';
+                        const icon = isShared ? '<i class="fa-solid fa-check-double text-green-500 mr-2"></i>' : '<i class="fa-solid fa-circle-minus text-gray-400 opacity-50 mr-2"></i>';
+                        
+                        html += `<div class="border ${bgClass} px-3 py-2 rounded-xl flex justify-between items-center text-xs shadow-sm transition-transform hover:scale-105">
+                            <div class="flex items-center flex-1 truncate pr-2" title="${mat.nombre}">${icon} <span class="truncate font-semibold ${textClass}">${mat.nombre}</span></div>
+                            <span class="font-bold opacity-60 bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded">${mat.creditos}c</span>
+                        </div>`;
+                    });
+                    html += `</div></div>`;
+                });
+                html += `</div></div>`;
+                return html;
+            };
+
+            container.innerHTML = renderMalla(progA, true) + renderMalla(progB, false);
+
+            renderCurriculumGraph(progA, progB, shared);
+        };
+
         const renderCurriculumGraph = (progA, progB, sharedSubjects) => {
             const container = document.getElementById('curriculum-graph');
             if(!container || !progA || !progB) return;
+
+            const header = document.getElementById('didactic-graph-header');
+            if(header) {
+                const subA = []; progA.malla.forEach(per => per.materias.forEach(m => subA.push(m.nombre.toLowerCase().trim())));
+                const subB = []; progB.malla.forEach(per => per.materias.forEach(m => subB.push(m.nombre.toLowerCase().trim())));
+                
+                const uniqueA = subA.filter(m => !sharedSubjects.includes(m));
+                const uniqueB = subB.filter(m => !sharedSubjects.includes(m));
+
+                const totalMateriasUnicas = uniqueA.length + sharedSubjects.length + uniqueB.length;
+                const pctA = totalMateriasUnicas ? Math.round((uniqueA.length / totalMateriasUnicas) * 100) : 0;
+                const pctShared = totalMateriasUnicas ? Math.round((sharedSubjects.length / totalMateriasUnicas) * 100) : 0;
+                const pctB = totalMateriasUnicas ? Math.round((uniqueB.length / totalMateriasUnicas) * 100) : 0;
+
+                header.innerHTML = `
+                    <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-200 dark:border-blue-800">
+                        <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Únicas de ${progA.nombre.substring(0,15)}...</p>
+                        <div class="flex items-end justify-center gap-2 mt-1">
+                            <p class="text-3xl font-extrabold text-blue-600 dark:text-blue-400">${uniqueA.length}</p>
+                            <p class="text-sm font-bold text-blue-500/70 mb-1">(${pctA}%)</p>
+                        </div>
+                    </div>
+                    <div class="bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-800 shadow-md transform scale-105">
+                        <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Núcleo Compartido</p>
+                        <div class="flex items-end justify-center gap-2 mt-1">
+                            <p class="text-4xl font-extrabold text-green-600 dark:text-green-400">${sharedSubjects.length}</p>
+                            <p class="text-lg font-bold text-green-500/70 mb-1">(${pctShared}%)</p>
+                        </div>
+                    </div>
+                    <div class="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-xl border border-purple-200 dark:border-purple-800">
+                        <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Únicas de ${progB.nombre.substring(0,15)}...</p>
+                        <div class="flex items-end justify-center gap-2 mt-1">
+                            <p class="text-3xl font-extrabold text-purple-600 dark:text-purple-400">${uniqueB.length}</p>
+                            <p class="text-sm font-bold text-purple-500/70 mb-1">(${pctB}%)</p>
+                        </div>
+                    </div>
+                `;
+            }
 
             if(!curriculumGraphInstance) {
                 curriculumGraphInstance = echarts.init(container);
@@ -779,9 +1665,9 @@
             let nodes = [];
             let links = [];
 
-            // 1. Alejar los nodos padres (Programa A y Programa B) hacia los extremos
-            nodes.push({ id: 'progA', name: progA.nombre.substring(0, 15)+'...', x: -100, y: 500, symbolSize: 50, itemStyle: { color: '#3b82f6' }, label: { show: true, fontWeight: 'bold', position: 'right', color: textColor } });
-            nodes.push({ id: 'progB', name: progB.nombre.substring(0, 15)+'...', x: 1100, y: 500, symbolSize: 50, itemStyle: { color: '#a855f7' }, label: { show: true, fontWeight: 'bold', position: 'left', color: textColor } });
+            // MEJORA: Separación extrema de los nodos padre para mayor claridad en el centro.
+            nodes.push({ id: 'progA', name: progA.nombre.substring(0, 15)+'...', x: 0, y: 500, symbolSize: 50, itemStyle: { color: '#3b82f6' }, label: { show: true, fontWeight: 'bold', position: 'right', color: textColor } });
+            nodes.push({ id: 'progB', name: progB.nombre.substring(0, 15)+'...', x: 1200, y: 500, symbolSize: 50, itemStyle: { color: '#a855f7' }, label: { show: true, fontWeight: 'bold', position: 'left', color: textColor } });
 
             let addedNodes = new Set();
             const s_nodes = [], ua_nodes = [], ub_nodes = [];
@@ -804,7 +1690,7 @@
             processMalla(progB.malla, false);
 
             const maxNodes = Math.max(s_nodes.length, ua_nodes.length, ub_nodes.length, 1);
-            const containerHeight = Math.max(600, maxNodes * 45); // Aumentado el alto mínimo a 600 y espaciado a 45
+            const containerHeight = Math.max(550, maxNodes * 45); 
             container.style.height = `${containerHeight}px`;
             curriculumGraphInstance.resize();
 
@@ -825,10 +1711,9 @@
                         itemStyle: { color: color },
                         label: { 
                             show: true, 
-                            // Alternar posición arriba/abajo si están muy juntos para evitar solape de texto
-                            position: isShared ? (idx % 2 === 0 ? 'top' : 'bottom') : (xPos < 500 ? 'right' : 'left'), 
-                            distance: 10, 
-                            fontSize: 11, 
+                            position: isShared ? 'bottom' : (xPos < 600 ? 'right' : 'left'), 
+                            distance: 8, 
+                            fontSize: 10, 
                             color: textColor, 
                             formatter: '{b}' 
                         }
@@ -836,11 +1721,10 @@
                 });
             }
 
-            // 2. Separar drásticamente los nodos en el eje X
-            // Izquierda: 50, Centro: 500, Derecha: 950 (Antes estaban en 150 y 850)
-            addNodeWithY(s_nodes, 500, '#22c55e', null, true); 
-            addNodeWithY(ua_nodes, 50, '#93c5fd', 'progA', false); 
-            addNodeWithY(ub_nodes, 950, '#d8b4fe', 'progB', false);
+            // MEJORA: Eje X mucho más espaciado para evitar solapamientos
+            addNodeWithY(s_nodes, 600, '#22c55e', null, true); 
+            addNodeWithY(ua_nodes, 250, '#93c5fd', 'progA', false); 
+            addNodeWithY(ub_nodes, 950, '#d8b4fe', 'progB', false); 
 
             const createLinks = (malla, sourceId) => {
                 malla.forEach(per => {
@@ -849,7 +1733,7 @@
                         links.push({
                             source: sourceId,
                             target: `mat_${matKey}`,
-                            lineStyle: { curveness: 0.25, color: sourceId === 'progA' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(168, 85, 247, 0.4)', width: 2 }
+                            lineStyle: { curveness: 0.2, color: sourceId === 'progA' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(168, 85, 247, 0.4)', width: 2 }
                         });
                     });
                 });
@@ -865,7 +1749,7 @@
                     layout: 'none', 
                     data: nodes,
                     links: links,
-                    roam: true, // Permite hacer zoom y mover el gráfico con el mouse
+                    roam: true,
                     label: { show: true },
                     lineStyle: { width: 1.5, opacity: 0.6 }
                 }]
@@ -874,47 +1758,167 @@
             curriculumGraphInstance.setOption(option, true);
         };
 
-        const initDashboardCharts = () => {
-            Chart.defaults.color = document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569';
-            Chart.defaults.font.family = 'Inter';
-            const getColors = () => ['rgba(59,130,246,0.8)', 'rgba(168,85,247,0.8)', 'rgba(234,179,8,0.8)', 'rgba(34,197,94,0.8)', 'rgba(236,72,153,0.8)'];
+        const initProgramCatalog = () => {
+            const container = document.getElementById('program-cards-container');
+            const selectA = document.getElementById('compare-prog-a');
+            const selectB = document.getElementById('compare-prog-b');
+            
+            if(!container || !selectA || !selectB) return;
 
+            const renderCards = (programsToRender) => {
+                container.innerHTML = programsToRender.map(p => `
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col h-full program-card">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded-full font-bold uppercase tracking-wider">${p.escuela.replace('Escuela de ', '')}</span>
+                            <span class="text-xs font-mono font-bold opacity-50 bg-black/5 dark:bg-white/5 px-2 py-1 rounded">SNIES: ${p.snies}</span>
+                        </div>
+                        <h4 class="font-extrabold text-sm mb-2 text-blue-600 dark:text-blue-400">${p.nombre}</h4>
+                        <p class="text-xs opacity-80 leading-relaxed mb-4 flex-1">${p.desc}</p>
+                        <div class="mt-auto border-t border-gray-200 dark:border-gray-800 pt-3 grid grid-cols-2 gap-2">
+                            <a href="${p.url}" target="_blank" class="text-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold py-2 rounded-lg transition-colors opacity-80"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Sitio Oficial</a>
+                            <button class="w-full bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-bold py-2 rounded-lg transition-colors text-blue-600 dark:text-blue-400" onclick="showCurriculum('${p.snies}')"><i class="fa-solid fa-book-open-reader mr-1"></i> Malla Curricular</button>
+                        </div>
+                    </div>
+                `).join('');
+            };
+            renderCards(TECMD_PROGRAMS);
+
+            const searchCatalogEl = document.getElementById('search-catalog');
+            if(searchCatalogEl) {
+                searchCatalogEl.addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    const filtered = TECMD_PROGRAMS.filter(p => p.nombre.toLowerCase().includes(term) || p.snies.includes(term));
+                    if(filtered.length === 0) {
+                        container.innerHTML = `<div class="col-span-full p-8 text-center opacity-50 font-bold">No se encontraron programas.</div>`;
+                    } else {
+                        renderCards(filtered);
+                    }
+                });
+            }
+
+            const options = TECMD_PROGRAMS.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
+            selectA.innerHTML = options;
+            selectB.innerHTML = options;
+            
+            if(TECMD_PROGRAMS.length > 1) {
+                selectA.selectedIndex = 0;
+                selectB.selectedIndex = TECMD_PROGRAMS.length - 1;
+            }
+
+            selectA.addEventListener('change', updateCompareChart);
+            selectB.addEventListener('change', updateCompareChart);
+
+            const ctxRadar = document.getElementById('chartCompareRadar');
+            if(ctxRadar) {
+                chartCompareRadar = new Chart(ctxRadar, {
+                    type: 'radar',
+                    data: { labels: ['Calidad NLP (x10)', 'Originalidad (100-Sim)', 'Tasa Progreso (%)', 'GPA (x20)'], datasets: [] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: {display: false} } }, plugins: { legend: { position: 'bottom' } } }
+                });
+                updateCompareChart();
+            }
+        };
+
+        window.updateCompareChart = () => {
+            if(!chartCompareRadar) return;
+            const progAName = document.getElementById('compare-prog-a').value;
+            const progBName = document.getElementById('compare-prog-b').value;
+            
+            const pAObj = TECMD_PROGRAMS.find(p => p.nombre === progAName);
+            const pBObj = TECMD_PROGRAMS.find(p => p.nombre === progBName);
+
+            const dataA = rawData.filter(d => d.prog === progAName);
+            const dataB = rawData.filter(d => d.prog === progBName);
+
+            const countA = dataA.length;
+            const nlpA = countA ? dataA.reduce((s,d)=>s+(d.nlp||0),0)/countA : 0;
+            const simA = countA ? dataA.reduce((s,d)=>s+(d.sim||0),0)/countA : 0;
+            const progA_val = countA ? dataA.reduce((s,d)=>s+(d.progreso||0),0)/countA : 0;
+            const gpaA = countA ? dataA.reduce((s,d)=>s+(d.gpa||0),0)/countA : 0;
+
+            const countB = dataB.length;
+            const nlpB = countB ? dataB.reduce((s,d)=>s+(d.nlp||0),0)/countB : 0;
+            const simB = countB ? dataB.reduce((s,d)=>s+(d.sim||0),0)/countB : 0;
+            const progB_val = countB ? dataB.reduce((s,d)=>s+(d.progreso||0),0)/countB : 0;
+            const gpaB = countB ? dataB.reduce((s,d)=>s+(d.gpa||0),0)/countB : 0;
+
+            document.getElementById('comp-count-a').innerText = countA;
+            document.getElementById('comp-count-b').innerText = countB;
+            document.getElementById('comp-nlp-a').innerText = nlpA.toFixed(1);
+            document.getElementById('comp-nlp-b').innerText = nlpB.toFixed(1);
+            document.getElementById('comp-prog-a').innerText = progA_val.toFixed(0) + '%';
+            document.getElementById('comp-prog-b').innerText = progB_val.toFixed(0) + '%';
+            
+            const credAEl = document.getElementById('comp-cred-a');
+            const credBEl = document.getElementById('comp-cred-b');
+            if(credAEl && pAObj) credAEl.innerText = pAObj.totalCreditos;
+            if(credBEl && pBObj) credBEl.innerText = pBObj.totalCreditos;
+
+            chartCompareRadar.data.datasets = [
+                {
+                    label: progAName.substring(0,25)+'...',
+                    data: [nlpA * 10, 100 - simA, progA_val, gpaA * 20],
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: 'rgba(59, 130, 246, 1)', pointBackgroundColor: 'rgba(59, 130, 246, 1)', borderWidth: 2
+                },
+                {
+                    label: progBName.substring(0,25)+'...',
+                    data: [nlpB * 10, 100 - simB, progB_val, gpaB * 20],
+                    backgroundColor: 'rgba(168, 85, 247, 0.2)', borderColor: 'rgba(168, 85, 247, 1)', pointBackgroundColor: 'rgba(168, 85, 247, 1)', borderWidth: 2
+                }
+            ];
+            chartCompareRadar.update();
+
+            renderCompareCurriculum(pAObj, pBObj);
+        };
+
+        // --- INICIALIZACIÓN GRÁFICOS Y MAPA ---
+        const initDashboardCharts = () => {
+            window.chartsInited = true;
             const cProg = document.getElementById('chartProgramas');
             const cEst = document.getElementById('chartEstratos');
             const cSect = document.getElementById('chartSectores');
+            const mapC = document.getElementById('colombia-map');
 
-            if(cProg) chartProg = new Chart(cProg, { type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: getColors(), borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-            if(cEst) chartEst = new Chart(cEst, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: getColors(), borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right' } } } });
-            if(cSect) chartSector = new Chart(cSect, { type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: 'rgba(59, 130, 246, 0.6)' }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            if(cProg) chartProg = new Chart(cProg, { type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: getColors(), borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, onClick: (e, els, c) => { if(els.length) toggleChartFilter('prog', c.data.labels[els[0].index]); } } });
+            if(cEst) chartEst = new Chart(cEst, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: getColors(), borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right', labels:{boxWidth: 10} } }, onClick: (e, els, c) => { if(els.length) toggleChartFilter('est', c.data.labels[els[0].index].replace('Estrato ','')); } } });
+            if(cSect) chartSector = new Chart(cSect, { type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: 'rgba(59, 130, 246, 0.6)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1, borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false } }, onClick: (e, els, c) => { if(els.length) toggleChartFilter('sector', c.data.labels[els[0].index]); } } });
+            
+            if(mapC && typeof echarts !== 'undefined') {
+                mapInstance = echarts.init(mapC);
+                updateMapTheme();
+                mapInstance.on('click', function (params) { if(params.name) toggleChartFilter('dept', params.name); });
+            }
+            updateAllDataViews(); 
         };
 
-        const initProgramCatalog = () => {
-            const selectA = document.getElementById('compare-prog-a');
-            const selectB = document.getElementById('compare-prog-b');
-            if(!selectA || !selectB) return;
-
-            const options = TECMD_PROGRAMS.map(p => `<option value="${p.snies}">${p.nombre}</option>`).join('');
-            selectA.innerHTML = options; selectB.innerHTML = options;
-            if(TECMD_PROGRAMS.length > 1) { selectA.selectedIndex = 0; selectB.selectedIndex = 1; }
-
-            const updateMap = () => {
-                const pA = TECMD_PROGRAMS.find(p => p.snies === selectA.value);
-                const pB = TECMD_PROGRAMS.find(p => p.snies === selectB.value);
-                
-                // Extraer compartidas
-                const subA = []; pA.malla.forEach(per => per.materias.forEach(m => subA.push(m.nombre.toLowerCase().trim())));
-                const subB = []; pB.malla.forEach(per => per.materias.forEach(m => subB.push(m.nombre.toLowerCase().trim())));
-                const shared = subA.filter(value => subB.includes(value));
-
-                renderCurriculumGraph(pA, pB, shared);
-            };
-
-            selectA.addEventListener('change', updateMap);
-            selectB.addEventListener('change', updateMap);
-            updateMap(); // Primer render
+        const updateMapTheme = () => {
+            if(!mapInstance) return;
+            const isDark = document.documentElement.classList.contains('dark');
+            const nodeColor = isDark ? '#ef4444' : '#dc2626';
+            mapInstance.setOption({
+                tooltip: { trigger: 'item', formatter: '{b}: {c} Estudiantes' },
+                series: [{ type: 'treemap', width: '100%', height: '100%', roam: false, nodeClick: false, breadcrumb: {show: false}, itemStyle: { borderColor: isDark ? '#1e1b4b' : '#f8fafc', borderWidth: 2, gapWidth: 2 }, label: { show: true, position: 'inside', formatter: '{b}\n{c}', color: '#fff', fontWeight: 'bold' }, levels: [ { itemStyle: { normal: { color: nodeColor, borderColor: '#fff' } } } ], data: [] }]
+            });
         };
-        
+
+        const updateChartColors = () => { 
+            Chart.defaults.color = document.documentElement.classList.contains('dark') ? '#94a3b8' : '#475569'; 
+            if(chartProg) chartProg.update(); if(chartEst) chartEst.update(); if(chartSector) chartSector.update(); 
+            if(chartCompareRadar) chartCompareRadar.update();
+            if(curriculumGraphInstance) {
+                const isDark = document.documentElement.classList.contains('dark');
+                const option = curriculumGraphInstance.getOption();
+                if(option && option.series && option.series.length) {
+                    option.series[0].data.forEach(node => {
+                        if(node.label) node.label.color = isDark ? '#f8fafc' : '#0f172a';
+                    });
+                    curriculumGraphInstance.setOption(option);
+                }
+            }
+        };
         window.addEventListener('resize', () => { 
+            if(mapInstance) mapInstance.resize(); 
+            if(chartCompareRadar) chartCompareRadar.resize();
             if(curriculumGraphInstance) curriculumGraphInstance.resize();
         });
     </script>
