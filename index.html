@@ -291,8 +291,8 @@
         .eval-btn:hover { background: var(--bg-surface-hover); border-color: var(--accent); color: var(--accent); transform: translateY(-2px);}
         .eval-btn.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); box-shadow: var(--shadow-glow);}
 
-        /* Playlist Derecha */
-        .right-sidebar { width: 320px; display: none; flex-direction: column; gap: 20px; flex-shrink: 0;}
+        /* Playlist Derecha con Scroll Independiente */
+        .right-sidebar { width: 320px; display: none; flex-direction: column; gap: 20px; flex-shrink: 0; overflow-y: auto; max-height: 80vh; padding-right: 5px;}
         .right-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 16px; padding: 20px; box-shadow: var(--shadow-md); }
         .playlist-content { display: flex; flex-direction: column; gap: 8px; }
         .thumbnail-card { display: flex; gap: 12px; cursor: pointer; padding: 8px; border-radius: 10px; border: 1px solid transparent; transition: all 0.2s; background: var(--bg-main); align-items: center;}
@@ -301,6 +301,9 @@
         .thumb-img { width: 80px; height: 50px; border-radius: 6px; flex-shrink: 0; object-fit: cover; background-color: #000; }
         .thumb-info { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
         .thumb-title { font-size: 0.8rem; font-weight: 600; color: var(--text-high); margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Estilo para Timeline / Guía de Aprendizaje */
+        .timeline-container { display: flex; flex-direction: column; gap: 20px; position: relative; padding-left: 10px;}
 
         /* ================= MODAL ================= */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 17, 32, 0.8); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); z-index: 2000; justify-content: center; align-items: center; }
@@ -316,7 +319,7 @@
             .bento-grid { grid-template-columns: repeat(1, 1fr); }
             .col-4, .col-6, .col-8 { grid-column: span 1; }
             .viewer-container { flex-direction: column; padding: 1.5rem;}
-            .right-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; }
+            .right-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; max-height: none;}
             .right-card { flex: 1; min-width: 300px; }
         }
 
@@ -379,7 +382,7 @@
                 <span>Dashboard</span>
             </a>
             <a onclick="window.mostrarCalendario()" class="nav-item" id="nav-calendario">
-                <span class="material-symbols-outlined">calendar_month</span>
+                <span class="material-symbols-outlined">timeline</span>
                 <span>Guía de Aprendizaje</span>
             </a>
             <a onclick="window.mostrarPerfil()" class="nav-item" id="nav-perfil">
@@ -394,7 +397,6 @@
             <div class="nav-section-title">CONTENIDO DEL CURSO</div>
             <div id="menu-content-area"></div>
             
-            <!-- Derechos Reservados Profesionales -->
             <div class="sidebar-footer">
                 &copy; 2026 Electro10.easy<br>
                 Desarrollado con excelencia académica.<br>
@@ -416,13 +418,12 @@
                     <h2 id="display-title">Cargando...</h2>
                 </div>
                 <div class="action-buttons" style="display: flex; gap: 10px;">
-                    <!-- Botón NotebookLLM (Se inyecta dinámicamente) -->
                     <a id="btn-notebook" class="btn-primary" style="display: none; background: #6366f1;" href="#" target="_blank"><span class="material-symbols-outlined text-[18px]">auto_awesome</span> Asistente IA</a>
                     <a id="btn-new-tab" class="btn-primary" style="background: var(--bg-surface); color: var(--text-high); border: 1px solid var(--border-color);" href="#" target="_blank"><span class="material-symbols-outlined text-[18px]">open_in_new</span> Expandir</a>
                 </div>
             </div>
 
-            <!-- ================= DASHBOARD ESTUDIANTE (MEJORADO CON DATOS REALES) ================= -->
+            <!-- ================= DASHBOARD ESTUDIANTE ================= -->
             <div id="student-dashboard" class="bento-container" style="display: block;">
                 <div class="bento-grid">
                     
@@ -479,14 +480,17 @@
                 </div>
             </div>
 
-            <!-- ================= DASHBOARD CALENDARIO (GUÍA DE APRENDIZAJE) ================= -->
+            <!-- ================= DASHBOARD CALENDARIO (TIMELINE DE APRENDIZAJE) ================= -->
             <div id="calendar-dashboard" class="bento-container" style="display: none;">
                 <div class="bento-header" style="margin-bottom: 30px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
                     <h2 style="font-size: 1.8rem; font-weight: 800; display:flex; align-items:center; gap:10px; margin:0;"><span class="material-symbols-outlined" style="font-size: 32px; color: var(--accent);">route</span> Guía de Aprendizaje Adaptable</h2>
                     <span class="badge badge-active" style="font-size:0.8rem; padding:6px 15px;" id="calendar-current-week-badge">Semana Actual: 1</span>
                 </div>
-                <div class="bento-grid" id="calendar-grid">
-                    <!-- Se inyecta dinámicamente mediante JS -->
+                
+                <div style="background: var(--bg-surface); padding: 30px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-md);">
+                    <div id="calendar-grid">
+                        <!-- El Timeline se inyecta dinámicamente mediante JS -->
+                    </div>
                 </div>
             </div>
 
@@ -600,14 +604,14 @@
                         <p style="color: var(--text-medium); margin:0;">Insights pedagógicos, retención de estudiantes y ajustes estructurales del curso.</p>
                     </div>
 
-                    <!-- AJUSTE DE CALENDARIO PARA ADMIN MEJORADO -->
+                    <!-- AJUSTE DE CALENDARIO PARA ADMIN -->
                     <div class="bento-card col-12" style="border-left: 4px solid var(--accent);">
                         <div class="bento-header" style="margin-bottom:10px;">
                             <h3><span class="material-symbols-outlined" style="color: var(--accent);">calendar_clock</span> Ingeniería Curricular (Guía de Aprendizaje)</h3>
                         </div>
                         <p style="color:var(--text-medium); font-size:0.85rem; margin-bottom:15px;">Define fechas, semanas excluidas (vacaciones) y <strong>asigna semanas específicas a cada módulo</strong> para adaptar el ritmo de aprendizaje.</p>
                         
-                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px;">
                             <div class="input-group" style="margin-bottom:0;">
                                 <label>Semana activa en curso:</label>
                                 <input type="number" id="admin-set-week" value="1" min="1" max="52" class="form-input">
@@ -615,11 +619,15 @@
                             <div class="input-group" style="margin-bottom:0;">
                                 <label>Asignación de Módulos:</label>
                                 <input type="text" id="admin-module-weeks" placeholder="Ej. 1-2; 3; 4-5" class="form-input">
-                                <small style="color:var(--text-low); font-size:0.7rem;">Separe con punto y coma (;) el rango de semanas para el Módulo 1, Módulo 2, etc.</small>
+                                <small style="color:var(--text-low); font-size:0.7rem;">Separe con punto y coma (;) las semanas correspondientes al Módulo 1, 2, etc.</small>
                             </div>
                             <div class="input-group" style="margin-bottom:0;">
                                 <label>Fecha de Inicio:</label>
                                 <input type="date" id="admin-start-date" class="form-input">
+                            </div>
+                            <div class="input-group" style="margin-bottom:0;">
+                                <label>Fecha de Fin:</label>
+                                <input type="date" id="admin-end-date" class="form-input">
                             </div>
                             <div class="input-group" style="margin-bottom:0;">
                                 <label>Semanas Excluidas (Receso):</label>
@@ -729,9 +737,10 @@
                     </div>
                 </div>
 
-                <aside class="right-sidebar">
+                <!-- Playlist Lateral Derecha -->
+                <aside class="right-sidebar" id="right-sidebar">
                     <div class="right-card" id="playlist-sidebar" style="display: none;">
-                        <h4 style="margin: 0 0 15px 0;"><span class="material-symbols-outlined text-[18px]" style="vertical-align: sub; color: var(--accent);">format_list_bulleted</span> Lista de Contenido</h4>
+                        <h4 style="margin: 0 0 15px 0; color: var(--text-high);"><span class="material-symbols-outlined text-[18px]" style="vertical-align: sub; color: var(--accent);">format_list_bulleted</span> Contenido Relacionado</h4>
                         <div class="playlist-content" id="playlist-content"></div>
                     </div>
                 </aside>
@@ -918,6 +927,7 @@
             return weeks;
         }
 
+        // GUÍA DE APRENDIZAJE: TIMELINE VERTICAL EXCELENTE
         window.mostrarCalendario = () => {
             resetNav();
             document.getElementById('nav-calendario').classList.add('active');
@@ -930,20 +940,20 @@
             document.getElementById('calendar-current-week-badge').innerHTML = `Semana Actual del Curso: ${globalCurrentWeek} ${infoFechas}`;
             
             const grid = document.getElementById('calendar-grid');
+            grid.className = 'timeline-container';
             grid.innerHTML = '';
             
             if(curriculoData && curriculoData.modulos) {
                 curriculoData.modulos.forEach((mod, idx) => {
-                    // Determinar qué semanas le corresponden a este módulo según la config del admin
-                    let semanasAsignadas = [idx + 1]; // Por defecto 1 módulo = 1 semana
-                    let semanaLabel = `SEMANA ${idx + 1}`;
+                    let semanasAsignadas = [idx + 1]; 
+                    let semanaLabel = `Semana ${idx + 1}`;
                     
                     if (globalModuleWeeksMap[idx]) {
                         semanasAsignadas = parseWeeks(globalModuleWeeksMap[idx]);
-                        semanaLabel = `SEMANAS: ${globalModuleWeeksMap[idx]}`;
+                        semanaLabel = `Semanas ${globalModuleWeeksMap[idx]}`;
                     }
 
-                    // Determinar el estado del módulo analizando sus semanas asignadas
+                    // Determinar el estado para la línea de tiempo
                     let isActive = false; let isPast = true; let isFuture = true; let isExcluded = false;
 
                     semanasAsignadas.forEach(s => {
@@ -953,44 +963,59 @@
                         if (s <= globalCurrentWeek) isFuture = false;
                     });
 
-                    // Si hay receso general esta semana y el módulo cae aquí
                     if(globalExcludedWeeks.includes(globalCurrentWeek.toString()) && semanasAsignadas.includes(globalCurrentWeek)) {
                         isExcluded = true; isActive = false;
                     }
 
                     const overrideLocks = window.isMasterAdmin && window.simulatedRole !== 'student';
 
-                    let statusHtml = ''; let cardStyle = ''; let opacity = '1';
+                    let dotColor = 'var(--border-strong)';
+                    let lineColor = 'var(--border-color)';
+                    let statusHtml = ''; let cardBorder = 'border: 1px solid var(--border-color);'; let opacity = '1';
 
                     if (isExcluded && !isActive && !isPast) {
                         statusHtml = '<span class="badge" style="background:rgba(239, 68, 68, 0.1); color:var(--danger);"><span class="material-symbols-outlined text-[14px]" style="vertical-align:middle;">block</span> Receso</span>';
                         opacity = '0.5';
                     } else if (isActive) {
-                        statusHtml = '<span class="badge badge-active">Habilitado</span>';
-                        cardStyle = 'border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent-glow);';
+                        dotColor = 'var(--accent)';
+                        lineColor = 'var(--accent-glow)';
+                        statusHtml = '<span class="badge badge-active">En Curso</span>';
+                        cardBorder = 'border: 2px solid var(--accent); box-shadow: 0 0 20px var(--accent-glow); transform: scale(1.02); z-index: 10;';
                     } else if (isPast) {
-                        statusHtml = '<span class="badge" style="background:var(--bg-surface-hover); color:var(--text-medium);">Completada/Pasada</span>';
-                        opacity = '0.7';
+                        dotColor = 'var(--success)';
+                        lineColor = 'var(--success)';
+                        statusHtml = '<span class="badge" style="background:var(--bg-surface-hover); color:var(--text-medium);">Completada</span>';
+                        opacity = '0.8';
                     } else {
                         statusHtml = '<span class="badge" style="background:rgba(245,158,11,0.1); color:var(--warning);"><span class="material-symbols-outlined text-[14px]" style="vertical-align:middle;">lock</span> Bloqueada</span>';
                         opacity = '0.5';
                     }
 
                     const isDisabled = (isFuture || (isExcluded && !isPast)) && !overrideLocks;
+                    const isLastNode = idx === curriculoData.modulos.length - 1;
 
-                    const card = document.createElement('div');
-                    card.className = 'bento-card col-4';
-                    card.style.cssText = `${cardStyle} opacity: ${opacity}; transition: all 0.3s;`;
-                    card.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                            <div class="bento-label" style="color:var(--accent); margin:0;">${semanaLabel}</div>
-                            ${statusHtml}
+                    // Construcción visual del nodo del Timeline
+                    const node = document.createElement('div');
+                    node.style.cssText = `display: flex; gap: 20px; opacity: ${opacity}; position: relative; transition: all 0.3s;`;
+                    node.innerHTML = `
+                        <div style="display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0;">
+                            <div style="width: 24px; height: 24px; border-radius: 50%; background: ${dotColor}; box-shadow: 0 0 10px ${dotColor}; z-index: 2; margin-top: 20px; display: flex; justify-content: center; align-items: center; color: #fff;">
+                                ${isActive ? '<div style="width:10px; height:10px; background:#fff; border-radius:50%;"></div>' : ''}
+                                ${isPast ? '<span class="material-symbols-outlined" style="font-size:16px;">check</span>' : ''}
+                            </div>
+                            ${!isLastNode ? `<div style="width: 3px; flex: 1; background: ${lineColor}; margin-top: 10px; min-height: 50px;"></div>` : ''}
                         </div>
-                        <h3 style="margin:5px 0 10px 0; font-size:1.1rem;">${mod.titulo.replace(/Módulo \d+:\s*/, '')}</h3>
-                        <p style="color:var(--text-medium); font-size:0.85rem; margin-bottom:15px; flex:1;">${mod.lecciones.length} lecciones y actividades orientadas al desarrollo de tu plan de estudio.</p>
-                        <button class="btn-primary" onclick="window.mostrarDashboardEstudiante()" ${isDisabled ? 'disabled style="background:var(--bg-surface-hover); color:var(--text-medium); border:1px solid var(--border-color); cursor:not-allowed;"' : 'style="width:100%;"'}><span class="material-symbols-outlined text-[16px]">${isDisabled ? 'hourglass_empty' : 'visibility'}</span> ${isDisabled ? 'Aún no disponible' : 'Ir a las Lecciones'}</button>
+                        <div class="bento-card" style="flex: 1; ${cardBorder} padding: 20px; margin-bottom: 20px; background: var(--bg-surface);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                <div class="bento-label" style="color:var(--accent); margin:0;">${semanaLabel.toUpperCase()}</div>
+                                ${statusHtml}
+                            </div>
+                            <h3 style="margin:5px 0 10px 0; font-size:1.2rem; color: var(--text-high);">${mod.titulo.replace(/Módulo \d+:\s*/, '')}</h3>
+                            <p style="color:var(--text-medium); font-size:0.85rem; margin-bottom:15px;">Incluye ${mod.lecciones.length} lecciones orientadas al desarrollo de tu plan de estudio y experimentación física.</p>
+                            <button class="btn-primary" onclick="window.mostrarDashboardEstudiante()" ${isDisabled ? 'disabled style="background:var(--bg-surface-hover); color:var(--text-medium); border:1px solid var(--border-color); cursor:not-allowed;"' : ''}><span class="material-symbols-outlined text-[16px]">${isDisabled ? 'lock' : 'play_arrow'}</span> ${isDisabled ? 'Aún no disponible' : 'Ir al Módulo'}</button>
+                        </div>
                     `;
-                    grid.appendChild(card);
+                    grid.appendChild(node);
                 });
             }
         };
@@ -1043,9 +1068,7 @@
             Swal.fire({ title: 'Apuntes Guardados', text: 'Tus notas se han sincronizado.', icon: 'success', timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
         };
 
-        // =====================================================================
         // ALGORITMOS DE GRÁFICOS PARA ESTUDIANTE (CON DATOS 100% REALES)
-        // =====================================================================
         function clearChartContainer(containerId, message) {
             const container = document.getElementById(containerId);
             if(container) container.innerHTML = `<canvas id="${containerId.replace('container-','student')}Chart"></canvas><div class="empty-chart-msg" style="position:absolute;">${message}</div>`;
@@ -1075,23 +1098,17 @@
                 }
             }
 
-            // Procesar métricas por módulo (Radar y Barras)
-            let moduleLabels = [];
-            let moduleRadarData = []; 
-            let moduleBarData = [];   
-            let weekLabels = [];
+            // Procesar métricas por módulo
+            let moduleLabels = []; let moduleRadarData = []; let moduleBarData = []; let weekLabels = [];
 
             if (curriculoData && curriculoData.modulos) {
                 curriculoData.modulos.forEach((mod, idx) => {
-                    let shortTitle = mod.titulo;
-                    if (mod.titulo.includes(': ')) shortTitle = mod.titulo.split(': ')[1].split(' - ')[0]; 
-                    else if (mod.titulo.length > 15) shortTitle = shortTitle.substring(0, 15) + '...';
+                    let shortTitle = mod.titulo.includes(': ') ? mod.titulo.split(': ')[1].split(' - ')[0] : (mod.titulo.length > 15 ? mod.titulo.substring(0, 15) + '...' : mod.titulo);
                     
                     moduleLabels.push(shortTitle);
                     weekLabels.push(`Mod ${idx+1}`);
 
-                    let modTotal = 0; let modCompleted = 0;
-                    let evalSum = 0; let evalCount = 0;
+                    let modTotal = 0; let modCompleted = 0; let evalSum = 0; let evalCount = 0;
 
                     mod.lecciones.forEach(lec => {
                         if (lec.tipo === 'grupo') {
@@ -1107,7 +1124,6 @@
                         }
                     });
 
-                    // Si evaluó, calcular promedio (1=25%, 2=50%, 3=75%, 4=100%). Si no evaluó, basar en progreso general de ese módulo.
                     let dominio = 0;
                     if(evalCount > 0) {
                         const avgEval = evalSum / evalCount;
@@ -1116,29 +1132,28 @@
                         dominio = modTotal > 0 ? Math.round((modCompleted / modTotal) * 100) : 0;
                     }
 
-                    moduleRadarData.push(dominio);
-                    moduleBarData.push(modCompleted);
+                    moduleRadarData.push(dominio); moduleBarData.push(modCompleted);
                 });
             }
 
-            // 2. Gráfica de Radar (Dominio Temático)
+            // 2. Gráfica de Radar
             const ctxRadar = document.getElementById('studentRadarChart');
             if(ctxRadar) {
-                if(completadas === 0) { clearChartContainer('container-radar', 'Tus autoevaluaciones y actividades completadas dibujarán aquí tu mapa de habilidades cognitivas.'); }
+                if(completadas === 0) { clearChartContainer('container-radar', 'Tus autoevaluaciones dibujarán aquí tu mapa de habilidades.'); }
                 else {
                     document.getElementById('container-radar').innerHTML = '<canvas id="studentRadarChart"></canvas>';
                     studentRadar = new Chart(document.getElementById('studentRadarChart'), {
                         type: 'radar',
-                        data: { labels: moduleLabels, datasets: [{ label: 'Dominio de Aprendizaje (%)', data: moduleRadarData, backgroundColor: 'rgba(37, 99, 235, 0.2)', borderColor: '#2563eb', pointBackgroundColor: '#2563eb' }] },
+                        data: { labels: moduleLabels, datasets: [{ label: 'Dominio Cognitivo (%)', data: moduleRadarData, backgroundColor: 'rgba(37, 99, 235, 0.2)', borderColor: '#2563eb', pointBackgroundColor: '#2563eb' }] },
                         options: { responsive: true, maintainAspectRatio: false, scales: { r: { grid:{color:gridColor}, ticks:{display:false, max:100, min:0}, pointLabels:{color:textColor, font: {size: 10}} } }, plugins:{legend:{display:false}} }
                     });
                 }
             }
 
-            // 3. Gráfica de Barras (Tiempo o Avance) - Transformado para mostrar Dedicación
+            // 3. Gráfica de Barras
             const ctxBar = document.getElementById('studentBarChart');
             if(ctxBar) {
-                if(timeData === 0) { clearChartContainer('container-bar', 'Conéctate y navega por el curso. Aquí registraremos tu tiempo de dedicación (minutos).'); }
+                if(timeData === 0) { clearChartContainer('container-bar', 'Conéctate y navega. Aquí registraremos tu tiempo.'); }
                 else {
                     document.getElementById('container-bar').innerHTML = '<canvas id="studentBarChart"></canvas>';
                     studentBar = new Chart(document.getElementById('studentBarChart'), {
@@ -1156,9 +1171,7 @@
             for(const mod of curriculoData.modulos) {
                 for(const lec of mod.lecciones) {
                     if(lec.tipo === 'grupo') { 
-                        for(const sub of lec.sublecciones) { 
-                            if(!progressData[sub.id]) { nextLesson = sub; nextLi = document.getElementById('menu-'+sub.id); break; } 
-                        } 
+                        for(const sub of lec.sublecciones) { if(!progressData[sub.id]) { nextLesson = sub; nextLi = document.getElementById('menu-'+sub.id); break; } } 
                     } else { 
                         if(!progressData[lec.id]) { nextLesson = lec; nextLi = document.getElementById('menu-'+lec.id); break; } 
                     }
@@ -1186,7 +1199,7 @@
             window.actualizarGraficosEstudiante(Object.keys(progressData).length, totalLessons);
         };
 
-        // CARGA DE CONTENIDO EN REPRODUCTOR
+        // CARGA DE CONTENIDO EN REPRODUCTOR (PLAYLIST REPARADA)
         window.loadContent = function(leccion, elementLi, modTitulo) {
             resetNav(); 
             currentLeccionId = leccion.id;
@@ -1207,11 +1220,23 @@
             
             const iframe = document.getElementById('main-frame');
             const iframeWrapper = document.querySelector('.iframe-wrapper');
-            const rightSidebar = document.querySelector('.right-sidebar');
+            const rightSidebar = document.getElementById('right-sidebar');
             const playlistSidebar = document.getElementById('playlist-sidebar');
             const playlistContent = document.getElementById('playlist-content');
             
-            // Renderizado de Listas de Reproducción (Multivideo / Multipresentación)
+            // Función auxiliar para URL de YouTube perfecta
+            function getYoutubeEmbed(rawCode) {
+                let finalUrl = "https://www.youtube.com/embed/";
+                if(rawCode.includes('&t=')) {
+                    const parts = rawCode.split('&t=');
+                    let seconds = parseInt(parts[1]) || 0;
+                    finalUrl += parts[0] + "?start=" + seconds + "&rel=0";
+                } else {
+                    finalUrl += rawCode + "?rel=0";
+                }
+                return finalUrl;
+            }
+            
             if (leccion.tipo === 'multivideo' || leccion.tipo === 'multipresentacion') {
                 rightSidebar.style.display = 'flex';
                 playlistSidebar.style.display = 'block';
@@ -1221,13 +1246,13 @@
                 
                 recursos.forEach((rec, index) => {
                     let thumbUrl = '';
-                    let recTitle = `Parte ${index + 1}`;
+                    let recTitle = `Recurso ${index + 1}`;
                     
                     if (leccion.tipo === 'multivideo') {
-                        let vidId = rec.split('&')[0]; // Limpiar parámetros extra de YouTube
+                        let vidId = rec.split('&')[0];
                         thumbUrl = `https://img.youtube.com/vi/${vidId}/mqdefault.jpg`;
                     } else {
-                        thumbUrl = `https://ui-avatars.com/api/?name=Slide+${index+1}&background=2563eb&color=fff`;
+                        thumbUrl = `https://ui-avatars.com/api/?name=Part+${index+1}&background=2563eb&color=fff&size=120`;
                     }
 
                     const thumbCard = document.createElement('div');
@@ -1236,7 +1261,7 @@
                         <img src="${thumbUrl}" class="thumb-img" alt="Thumbnail">
                         <div class="thumb-info">
                             <h4 class="thumb-title">${recTitle}</h4>
-                            <span style="font-size:0.7rem; color:var(--text-medium);">${leccion.tipo === 'multivideo' ? 'Video' : 'Presentación'}</span>
+                            <span style="font-size:0.7rem; color:var(--text-medium);">${leccion.tipo === 'multivideo' ? 'Video Magistral' : 'Diapositiva'}</span>
                         </div>
                     `;
                     
@@ -1244,19 +1269,15 @@
                         document.querySelectorAll('.thumbnail-card').forEach(c => c.classList.remove('active'));
                         thumbCard.classList.add('active');
                         document.getElementById('play-overlay').style.display = 'none';
-                        if (leccion.tipo === 'multivideo') {
-                            iframe.src = "https://www.youtube.com/embed/" + rec;
-                        } else {
-                            iframe.src = rec;
-                        }
+                        if (leccion.tipo === 'multivideo') iframe.src = getYoutubeEmbed(rec);
+                        else iframe.src = rec;
                     };
                     playlistContent.appendChild(thumbCard);
                 });
                 
-                // Cargar el primer elemento por defecto
                 document.getElementById('play-overlay').style.display = 'none';
                 if (leccion.tipo === 'multivideo') {
-                    iframe.src = "https://www.youtube.com/embed/" + recursos[0];
+                    iframe.src = getYoutubeEmbed(recursos[0]);
                     iframeWrapper.style.aspectRatio = "16/9"; iframeWrapper.style.height = "auto";
                 } else {
                     iframe.src = recursos[0];
@@ -1264,11 +1285,11 @@
                 }
 
             } else {
-                // Comportamiento Normal (Un solo recurso)
+                // Modo Normal (Ocultar Lista Derecha)
                 rightSidebar.style.display = 'none';
                 if (leccion.tipo === 'video') {
                     document.getElementById('play-overlay').style.display = 'none';
-                    iframe.src = "https://www.youtube.com/embed/" + leccion.recurso;
+                    iframe.src = getYoutubeEmbed(leccion.recurso);
                     iframeWrapper.style.aspectRatio = "16/9"; iframeWrapper.style.height = "auto";
                 } else {
                     document.getElementById('play-overlay').style.display = 'none';
@@ -1277,7 +1298,6 @@
                 }
             }
             
-            // Marcar completado si no es evaluable o interactivo directamente
             if (!progressData[leccion.id] && leccion.tipo !== 'simulador' && leccion.tipo !== 'quiz') {
                 progressData[leccion.id] = true;
                 localStorage.setItem('cursoElectromagnetismoProgreso', JSON.stringify(progressData));
@@ -1289,13 +1309,12 @@
                 if (window.guardarProgresoNube) window.guardarProgresoNube(leccion.id);
             }
 
-            // Restaurar tab de notas y eval UI si existen
             document.getElementById('area-notas').value = localStorage.getItem('notas_' + currentLeccionId) || '';
             document.querySelectorAll('.eval-btn').forEach(btn => btn.classList.remove('active'));
             if(evalData[currentLeccionId]) { document.getElementById('eval-' + evalData[currentLeccionId]).classList.add('active'); }
         };
 
-        // INICIALIZACIÓN DE LA ARQUITECTURA
+        // INICIALIZACIÓN
         function getIconForType(tipo) {
             switch(tipo) {
                 case 'multivideo': return 'ondemand_video';
@@ -1671,9 +1690,8 @@
                 const shortEmail = user.email.split('@')[0];
                 document.getElementById('user-email-text').innerText = shortEmail;
                 document.getElementById('student-name-hero').innerText = shortEmail.toUpperCase();
-                window.actualizarAvatarUI('initials', user.uid, shortEmail); // Default
+                window.actualizarAvatarUI('initials', user.uid, shortEmail); 
                 
-                // Extraer Métricas y Perfil del estudiante
                 try {
                     const profSnap = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'));
                     if(profSnap.exists() && profSnap.data().name) {
@@ -1689,7 +1707,6 @@
                     if(tSnap.exists()) timeData = tSnap.data().totalTimeMinutes || 0;
                 } catch(e){}
 
-                // Fetch Settings Globales
                 try {
                     const setSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'courseInfo'));
                     if(setSnap.exists()) {
@@ -1716,7 +1733,6 @@
                     if(actualRole !== 'student') document.getElementById('nav-admin').style.display = 'flex';
                 } else {
                     document.getElementById('nav-admin').style.display = 'none';
-                    // Alerta Semanal solo a estudiantes puros
                     const keyStorage = `alerta_semana_${globalCurrentWeek}_${user.uid}`;
                     if(!localStorage.getItem(keyStorage) && !globalExcludedWeeks.includes(globalCurrentWeek.toString())) {
                         Swal.fire({ title: `¡Semana Activa ${globalCurrentWeek}!`, text: `Tus objetivos formativos semanales están listos. ¡Revisa tu guía de aprendizaje!`, icon: 'info', showCancelButton: true, confirmButtonText: 'Ver Guía', cancelButtonText: 'Entendido', confirmButtonColor: 'var(--accent)' }).then((res) => { if(res.isConfirmed) window.mostrarCalendario(); });
@@ -1726,7 +1742,6 @@
                 }
                 
                 if(window.cargarDatosPerfil) window.cargarDatosPerfil();
-                // Actualiza visuales de lecciones ya completadas
                 document.querySelectorAll('.lesson-item').forEach(li => {
                     const id = li.id.replace('menu-','');
                     if(progressData[id]) { li.classList.add('completed'); li.querySelector('.icon-status').innerText = 'check_circle'; li.querySelector('.icon-status').classList.add('icon-filled'); }
