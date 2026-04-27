@@ -61,7 +61,7 @@ export const modulo7 = {
         {
             "id": "m7-q1",
             "tipo": "quiz",
-            "recurso": "Examen/Cuestionario_7_Crcuitos_CC.html",
+            "recurso": "Examen/Cuestionario_7_Circuitos_CC.html",
             "titulo": "6. Evaluación del Módulo 7",
             "descripcion": "Cuestionario de validación de conocimientos."
         },
