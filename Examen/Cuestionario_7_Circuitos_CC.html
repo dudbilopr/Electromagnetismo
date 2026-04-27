@@ -19,6 +19,9 @@
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
+    <!-- Chart.js para Estadísticas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         body { font-family: 'Inter', system-ui, sans-serif; background-color: #f8fafc; }
         
@@ -75,6 +78,11 @@
                 </div>
             </div>
             <div class="flex gap-3 items-center">
+                <!-- Timer -->
+                <div id="exam-timer" class="flex items-center gap-2 bg-slate-100 text-slate-700 font-mono px-3 py-1.5 rounded-full border border-slate-200 shadow-inner">
+                    <i class="ph ph-timer text-lg"></i> <span id="timer-display">00:00</span>
+                </div>
+
                 <!-- Botón Pop-out (Se mostrará solo si está en un iframe) -->
                 <button id="btn-popout" class="hidden text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full border border-emerald-200 transition-colors items-center gap-1" onclick="window.open(window.location.href, '_blank')" title="Abrir en ventana completa">
                     <i class="ph ph-arrow-square-out text-lg"></i> <span class="hidden md:inline">Pantalla completa</span>
@@ -120,14 +128,14 @@
         </aside>
 
         <!-- Main Area: Question Display -->
-        <section class="w-full md:w-3/4 lg:w-4/5 flex flex-col h-full max-h-[calc(100vh-120px)]">
+        <section class="w-full md:w-3/4 lg:w-4/5 flex flex-col h-full max-h-[calc(100vh-120px)] relative">
             
             <!-- Instructions -->
             <div id="instructions-panel" class="bg-emerald-50 border border-emerald-200 rounded-xl p-6 mb-4 shadow-sm shrink-0 fade-in">
                 <h2 class="text-lg font-bold text-emerald-900 mb-2 flex items-center gap-2">
                     <i class="ph ph-info text-xl"></i> Instrucciones de la Evaluación
                 </h2>
-                <p class="text-sm text-emerald-800 mb-2 leading-relaxed">Resuelve los 20 problemas sobre Análisis de Circuitos, Teoremas de Redes (Thévenin/Norton) y Reglas de Kirchhoff a nivel ingeniería. Utiliza las herramientas y los <strong>tips metodológicos</strong> si necesitas apoyo para el cálculo de mallas o nodos.</p>
+                <p class="text-sm text-emerald-800 mb-2 leading-relaxed">Resuelve los 20 problemas sobre Análisis de Circuitos, Teoremas de Redes (Thévenin/Norton) y Reglas de Kirchhoff a nivel ingeniería. Utiliza las herramientas y los <strong>tips metodológicos</strong> si necesitas apoyo.</p>
                 <p class="text-sm text-emerald-800 font-semibold bg-emerald-100 p-2 rounded inline-block">Tu progreso se respaldará automáticamente en la nube de Firebase si tu nota supera el 70%.</p>
             </div>
 
@@ -152,19 +160,20 @@
             </div>
 
             <!-- Results Panel -->
-            <div id="results-panel" class="hidden absolute inset-0 bg-white/95 backdrop-blur-md z-20 flex flex-col items-center justify-center p-8 rounded-xl border border-slate-200 shadow-2xl fade-in">
-                <div class="bg-emerald-100 text-emerald-600 p-4 rounded-full mb-4">
+            <div id="results-panel" class="hidden absolute inset-0 bg-white/95 backdrop-blur-md z-30 flex flex-col items-center justify-start p-8 rounded-xl border border-slate-200 shadow-2xl fade-in overflow-y-auto max-h-full">
+                
+                <div class="bg-emerald-100 text-emerald-600 p-4 rounded-full mb-4 mt-8 shrink-0">
                     <i class="ph ph-medal text-5xl"></i>
                 </div>
-                <h2 class="text-3xl font-bold text-slate-800 mb-2">Resultados Finales</h2>
-                <div class="text-6xl font-black mb-4 tracking-tighter" id="score-display">0%</div>
-                <p id="feedback-message" class="text-lg font-medium mb-8 text-center max-w-lg"></p>
+                <h2 class="text-3xl font-bold text-slate-800 mb-2 shrink-0">Resultados Finales</h2>
+                <div class="text-6xl font-black mb-4 tracking-tighter shrink-0" id="score-display">0%</div>
+                <p id="feedback-message" class="text-lg font-medium mb-6 text-center max-w-lg shrink-0"></p>
                 
-                <div class="w-full max-w-md bg-slate-200 rounded-full h-4 mb-10 shadow-inner overflow-hidden">
+                <div class="w-full max-w-md bg-slate-200 rounded-full h-4 mb-6 shadow-inner overflow-hidden shrink-0">
                   <div id="score-bar" class="bg-emerald-600 h-full rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
                 </div>
 
-                <div class="flex gap-4">
+                <div class="flex gap-4 shrink-0 mb-8">
                     <button id="btn-review" class="px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-2">
                         <i class="ph ph-magnifying-glass"></i> Revisar Respuestas
                     </button>
@@ -172,6 +181,34 @@
                         <i class="ph ph-cloud-arrow-up text-lg"></i> Guardar en la Nube
                     </button>
                 </div>
+
+                <!-- Statistics Container (Hidden by default, shown after save) -->
+                <div id="stats-container" class="hidden w-full max-w-4xl bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-inner shrink-0 mb-8">
+                    <h3 class="text-xl font-bold text-slate-700 mb-6 flex items-center justify-center gap-2">
+                        <i class="ph ph-chart-polar text-blue-600"></i> Estadísticas Globales de la Comunidad
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 text-center">
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <div class="text-xs text-slate-500 font-bold uppercase tracking-wide">Total Evaluados</div>
+                            <div class="text-3xl font-black text-blue-600 mt-1" id="stat-total">0</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <div class="text-xs text-slate-500 font-bold uppercase tracking-wide">Tasa de Aprobación</div>
+                            <div class="text-3xl font-black text-emerald-600 mt-1" id="stat-passrate">0%</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <div class="text-xs text-slate-500 font-bold uppercase tracking-wide">Tiempo Promedio</div>
+                            <div class="text-3xl font-black text-amber-500 mt-1" id="stat-avgtime">0m 0s</div>
+                        </div>
+                    </div>
+                    
+                    <div class="w-full h-72 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <canvas id="statsChart"></canvas>
+                    </div>
+                    <p class="text-xs text-center text-slate-400 mt-4"><i class="ph ph-info"></i> Gráfico de % de acierto por pregunta basado en datos agregados en tiempo real.</p>
+                </div>
+
             </div>
             
         </section>
@@ -183,20 +220,26 @@
         // =========================================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // IMPORTANTE: Importar increment para las estadísticas de base de datos pequeña
+        import { getFirestore, doc, setDoc, getDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let isInIframe = (window.parent !== window);
         let userId = null;
         let db = null;
         const appId = 'electro10'; // ID de tu base de datos central
 
+        // Variables del temporizador
+        let timerInterval;
+        let elapsedSeconds = 0;
+        let isTimerRunning = false;
+
         // --- 1. MODO IFRAME (El Padre nos dice quién está logueado) ---
         window.addEventListener('message', (event) => {
             if (event.data && event.data.action === 'initSync') {
                 userId = event.data.uid;
                 
-                // Extraemos el nombre que nos manda el padre (soporta userName, name, o email)
-                const userName = event.data.userName || event.data.name || (event.data.email ? event.data.email.split('@')[0] : 'Estudiante');
+                // Extraemos el nombre que nos manda el padre (soporta userName, name, displayName o email)
+                const userName = event.data.userName || event.data.name || event.data.displayName || (event.data.email ? event.data.email.split('@')[0] : 'Estudiante');
                 console.log("Simulador vinculado al Padre con usuario:", userId, userName);
                 
                 // Mostrar botón de Pop-out si estamos en iframe
@@ -236,7 +279,7 @@
                 const statusEl = document.getElementById('auth-status');
                 if (user) {
                     userId = user.uid;
-                    const userName = user.email ? user.email.split('@')[0] : 'Estudiante';
+                    const userName = user.displayName || (user.email ? user.email.split('@')[0] : 'Estudiante');
                     statusEl.innerHTML = `<div class="w-2 h-2 rounded-full bg-green-500 mr-1 animate-pulse"></div> <span class="truncate max-w-[100px]">${userName}</span>`;
                     statusEl.classList.remove('hidden');
                     loadProgress();
@@ -257,13 +300,15 @@
         // =========================================================================
         const MI_ID_DE_LECCION = "7_circuitos_CC"; 
 
-        window.marcarActividadCompletada = async function(score) {
+        window.marcarActividadCompletada = async function(score, timeSecs, difficultiesMap) {
             if (isInIframe) {
                 // Le avisamos al Padre para que él guarde
                 window.parent.postMessage({
                     action: 'marcarCompletado',
                     lessonId: MI_ID_DE_LECCION,
                     score: score,
+                    tiempo_segundos: timeSecs,
+                    dificultades: difficultiesMap,
                     mensaje: '¡Has dominado este simulador!'
                 }, '*');
                 return true;
@@ -272,7 +317,9 @@
                 try {
                     await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'progress', 'data'), {
                         [MI_ID_DE_LECCION]: true,
-                        [`${MI_ID_DE_LECCION}_score`]: score
+                        [`${MI_ID_DE_LECCION}_score`]: score,
+                        [`${MI_ID_DE_LECCION}_tiempo_segundos`]: timeSecs,
+                        [`${MI_ID_DE_LECCION}_dificultades`]: difficultiesMap
                     }, { merge: true });
                     return true;
                 } catch (e) {
@@ -428,13 +475,49 @@
         ];
 
         let currentQuestion = 0;
-        let userState = questions.map(() => ({ answered: false, flagged: false, value: null }));
+        let userState = questions.map(() => ({ answered: false, flagged: false, value: null, difficulty: null, isCorrect: false }));
         let examSubmitted = false;
+
+        function startTimer() {
+            if (isTimerRunning) return;
+            isTimerRunning = true;
+            timerInterval = setInterval(() => {
+                elapsedSeconds++;
+                const mins = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0');
+                const secs = (elapsedSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('timer-display').textContent = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+        }
+
+        window.setDifficulty = function(index, level) {
+            if (examSubmitted) return;
+            userState[index].difficulty = level;
+            
+            // Actualizar UI de los botones
+            const group = document.getElementById(`diff-group-${index}`);
+            const buttons = group.querySelectorAll('.diff-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-emerald-500', 'text-white', 'border-emerald-600', 'bg-amber-500', 'border-amber-600', 'bg-red-500', 'border-red-600');
+                btn.classList.add('bg-white', 'text-slate-600');
+            });
+
+            const activeBtn = group.querySelector(`[data-level="${level}"]`);
+            activeBtn.classList.remove('bg-white', 'text-slate-600');
+            if (level === 'facil') activeBtn.classList.add('bg-emerald-500', 'text-white', 'border-emerald-600');
+            if (level === 'medio') activeBtn.classList.add('bg-amber-500', 'text-white', 'border-amber-600');
+            if (level === 'dificil') activeBtn.classList.add('bg-red-500', 'text-white', 'border-red-600');
+        };
 
         function initUI() {
             renderNavGrid();
             renderAllQuestions();
             showQuestion(0);
+            startTimer(); // Iniciar reloj
             
             document.getElementById('btn-prev').addEventListener('click', () => { if(currentQuestion > 0) showQuestion(currentQuestion - 1); });
             document.getElementById('btn-next').addEventListener('click', () => { if(currentQuestion < questions.length - 1) showQuestion(currentQuestion + 1); });
@@ -580,12 +663,22 @@
                 html += `</div>`; 
 
                 html += `
-                    <div class="mt-8 pt-6 border-t border-slate-100 shrink-0">
+                    <div class="mt-8 pt-6 border-t border-slate-100 shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <button onclick="document.getElementById('tip-${index}').classList.toggle('hidden')" class="text-sm font-bold text-amber-600 hover:text-amber-700 flex items-center gap-2 transition-colors bg-amber-50 px-4 py-2 rounded-lg border border-amber-100 hover:border-amber-200">
                             <i class="ph-fill ph-lightbulb text-lg"></i> Mostrar Tip Metodológico
                         </button>
-                        <div id="tip-${index}" class="hidden mt-4 bg-amber-50 border-l-4 border-amber-400 text-amber-900 text-[0.95rem] p-4 rounded-r-xl shadow-sm fade-in leading-relaxed">
-                            <strong>Pista de resolución:</strong> ${q.tip}
+                        
+                        <div class="flex items-center gap-2 text-sm font-medium text-slate-600 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                            <i class="ph ph-chart-bar text-lg"></i> Nivel de dificultad:
+                            <div class="flex gap-1" id="diff-group-${index}">
+                                <button class="diff-btn px-3 py-1 rounded-md border border-slate-300 hover:bg-emerald-50 transition-colors bg-white text-slate-600 shadow-sm text-xs font-bold" data-level="facil" onclick="setDifficulty(${index}, 'facil')">Fácil</button>
+                                <button class="diff-btn px-3 py-1 rounded-md border border-slate-300 hover:bg-amber-50 transition-colors bg-white text-slate-600 shadow-sm text-xs font-bold" data-level="medio" onclick="setDifficulty(${index}, 'medio')">Medio</button>
+                                <button class="diff-btn px-3 py-1 rounded-md border border-slate-300 hover:bg-red-50 transition-colors bg-white text-slate-600 shadow-sm text-xs font-bold" data-level="dificil" onclick="setDifficulty(${index}, 'dificil')">Difícil</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="tip-${index}" class="hidden mt-4 bg-amber-50 border-l-4 border-amber-400 text-amber-900 text-[0.95rem] p-4 rounded-r-xl shadow-sm fade-in leading-relaxed">
+                        <strong>Pista de resolución:</strong> ${q.tip}
                         </div>
                     </div>
                 `;
@@ -891,6 +984,7 @@
 
         function evaluateExam() {
             examSubmitted = true;
+            stopTimer(); // Detener reloj al evaluar
             let score = 0; let total = questions.length;
 
             questions.forEach((q, index) => {
@@ -935,6 +1029,9 @@
                 } else if (q.type === 'canvas') {
                     if (userState[index].value === "true") isCorrect = true;
                 }
+
+                // Guardamos el estado de si la tuvo correcta para las estadísticas globales
+                userState[index].isCorrect = isCorrect;
 
                 icon.classList.remove('hidden');
                 if (isCorrect) {
@@ -993,10 +1090,19 @@
                 const btn = document.getElementById('btn-save');
                 btn.innerHTML = `<i class="ph ph-spinner animate-spin"></i> Guardando...`;
                 
+                // 1. Guardar progreso individual
+                const difficultiesMap = {};
+                userState.forEach((state, idx) => {
+                    difficultiesMap[`q${idx + 1}`] = state.difficulty || 'no_evaluado';
+                });
+                
                 // Ejecutamos la función asíncrona de marcado
-                const exito = await window.marcarActividadCompletada(window.lastScore);
+                const exito = await window.marcarActividadCompletada(window.lastScore, elapsedSeconds, difficultiesMap);
                 
                 if (exito !== false) {
+                    // 2. ACTUALIZAR ESTADÍSTICAS GLOBALES AGREGADAS (Increment)
+                    await updateAndLoadGlobalStats();
+
                     showToast("¡Progreso sincronizado con tu Plataforma!", "success");
                     btn.innerHTML = `<i class="ph ph-check-circle text-lg"></i> Guardado en la plataforma`;
                     btn.classList.replace('bg-green-600', 'bg-slate-700');
@@ -1009,6 +1115,87 @@
                 console.error("Save err:", error);
                 showToast("Error de conexión al guardar el progreso.", "error");
                 document.getElementById('btn-save').innerHTML = `<i class="ph ph-cloud-arrow-up text-lg"></i> Reintentar`;
+            }
+        }
+
+        // --- NUEVO: FUNCIÓN PARA AGREGAR Y RENDERIZAR ESTADÍSTICAS GLOBALES ---
+        async function updateAndLoadGlobalStats() {
+            if (!db) return;
+            try {
+                // Referencia a UN ÚNICO documento público de estadísticas para no saturar la base de datos
+                const statsRef = doc(db, 'artifacts', appId, 'public', 'data', 'exam_stats', MI_ID_DE_LECCION);
+                
+                // 1. Preparamos el objeto de incrementos
+                const statsUpdate = {
+                    total_attempts: increment(1),
+                    total_passed: increment(window.lastScore >= 70 ? 1 : 0),
+                    total_time_seconds: increment(elapsedSeconds)
+                };
+                
+                // Sumar si la pregunta fue correcta
+                userState.forEach((state, idx) => {
+                    statsUpdate[`q${idx}_correct`] = increment(state.isCorrect ? 1 : 0);
+                });
+
+                // 2. Guardamos haciendo Merge y usando Increment()
+                await setDoc(statsRef, statsUpdate, { merge: true });
+
+                // 3. Descargamos el documento ya actualizado para crear la gráfica
+                const snap = await getDoc(statsRef);
+                if (!snap.exists()) return;
+
+                const data = snap.data();
+                const total = data.total_attempts || 1;
+                const passed = data.total_passed || 0;
+                const avgTime = Math.round((data.total_time_seconds || 0) / total);
+
+                // Pintamos los números
+                document.getElementById('stat-total').textContent = total;
+                document.getElementById('stat-passrate').textContent = Math.round((passed / total) * 100) + '%';
+                document.getElementById('stat-avgtime').textContent = `${Math.floor(avgTime / 60)}m ${avgTime % 60}s`;
+
+                // Hacemos visible el contenedor de stats
+                document.getElementById('stats-container').classList.remove('hidden');
+
+                // Preparamos datos para Chart.js
+                const labels = [];
+                const chartData = [];
+                for (let i = 0; i < questions.length; i++) {
+                    labels.push(`P${i+1}`);
+                    const corrects = data[`q${i}_correct`] || 0;
+                    chartData.push(Math.round((corrects / total) * 100)); // Porcentaje de acierto por pregunta
+                }
+
+                // Generamos la gráfica
+                const ctx = document.getElementById('statsChart').getContext('2d');
+                if (window.myChart) window.myChart.destroy(); // Limpiar gráfica anterior si existe
+                window.myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: '% de Estudiantes que acertaron',
+                            data: chartData,
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)', // Blue
+                            borderColor: 'rgba(37, 99, 235, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, max: 100 }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error al generar estadísticas de comunidad:", error);
             }
         }
 
