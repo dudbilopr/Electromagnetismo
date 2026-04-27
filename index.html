@@ -1068,6 +1068,57 @@
             } catch(e) {}
         }, 60000);
 
+        // =========================================================================================
+        // NUEVO: COMUNICACIÓN INTER-DOCUMENTOS (API window.postMessage)
+        // =========================================================================================
+        window.addEventListener('message', async (event) => {
+            const data = event.data;
+            
+            // 1. Escuchar cuando un hijo (Simulador/Quiz) avisa que se completó
+            if (data && data.action === 'marcarCompletado') {
+                const lessonId = data.lessonId || currentLeccionId; // Usa el ID enviado o el activo actualmente
+                
+                if (lessonId && !progressData[lessonId]) {
+                    // Actualizar memoria local
+                    progressData[lessonId] = true;
+                    localStorage.setItem('cursoElectromagnetismoProgreso', JSON.stringify(progressData));
+                    
+                    // Actualizar UI del menú lateral
+                    const li = document.getElementById('menu-' + lessonId);
+                    if(li) {
+                        li.classList.add('completed');
+                        const icon = li.querySelector('.icon-status');
+                        if(icon) { icon.innerText = "check_circle"; icon.classList.add('icon-filled'); }
+                    }
+
+                    // Guardar en la base de datos (Firebase)
+                    if (window.guardarProgresoNube) await window.guardarProgresoNube(lessonId);
+
+                    // Notificación de éxito
+                    Swal.fire({
+                        title: '¡Objetivo Alcanzado!',
+                        text: data.mensaje || 'Has completado esta actividad exitosamente.',
+                        icon: 'success',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 4000
+                    });
+
+                    // Refrescar analíticas del Dashboard
+                    window.actualizarGraficosEstudiante(Object.keys(progressData).length, totalLessons);
+                }
+            }
+            
+            // 2. Escuchar cuando un hijo envía la nota o calificación
+            if (data && data.action === 'enviarNotaCognitiva') {
+                // El hijo debe enviar data.score (ej. un valor de 1 a 4)
+                if(data.score) {
+                    window.guardarEval(data.score);
+                }
+            }
+        });
+
         // FUNCIONES DE UI
         window.toggleSidebar = () => { document.getElementById('sidebar-menu').classList.toggle('hidden'); };
         window.toggleChat = () => { const p = document.getElementById('chat-panel'); p.style.display = p.style.display === 'flex' ? 'none' : 'flex'; };
@@ -1116,7 +1167,7 @@
         }
 
         // =========================================================================
-        // NUEVA GUÍA DE APRENDIZAJE: CONSTELACIÓN NEURONAL (NO LINEAL)
+        // GUÍA DE APRENDIZAJE: CONSTELACIÓN NEURONAL (NO LINEAL)
         // =========================================================================
         window.mostrarCalendario = () => {
             resetNav();
@@ -1630,7 +1681,7 @@
             const li = document.createElement('li'); li.className = 'lesson-item'; li.id = 'menu-' + leccion.id;
             if (progressData[leccion.id]) li.classList.add('completed');
             li.innerHTML = `<span class="material-symbols-outlined icon-status">${progressData[leccion.id] ? 'check_circle' : getIconForType(leccion.tipo)}</span> <span class="lesson-item-text text-wrap-safe">${leccion.titulo}</span>`;
-            li.onclick = () => window.loadContent(leccion, li, modTitulo);
+            li.onclick = () => window.loadContent(leccion, modTitulo);
             return li;
         }
 
