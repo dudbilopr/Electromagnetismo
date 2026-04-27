@@ -575,11 +575,10 @@
                     <div class="bento-card col-12 teacher-hero">
                         <!-- Video Placeholder -->
                         <div class="teacher-video-wrapper">
-                            <!-- Aquí puede ir un iframe real de YouTube, por ahora un placeholder visual de alto impacto -->
                             <iframe width="560" height="315" src="https://www.youtube.com/embed/TMYJ6-pvLqs?si=7yBnmfS_G519fc0a" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
                         </div>
 
-                        <!-- Información del Autor según el requerimiento -->
+                        <!-- Información del Autor -->
                         <div class="author-info">
                             <span class="author-subtitle">Sobre el autor</span>
                             <h3 class="author-name">
@@ -617,7 +616,6 @@
                                 Físico y docente universitario con enfoque en inteligencia artificial aplicada a la educación. Desarrollo estrategias y herramientas basadas en modelos de lenguaje (LLM) para apoyar la enseñanza de la física, las matemáticas y la ciencia de datos.
                             </p>
 
-                            <!-- BOTÓN DE CONTÁCTEME -->
                             <a href="mailto:dpabon180@unab.edu.co" class="contact-btn">
                               <i class="fas fa-envelope"></i> Correo electrónico
                             </a>
@@ -941,7 +939,7 @@
     <div class="modal" id="auth-modal">
         <div class="modal-content">
             <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 5px;">Acceso <span style="color: var(--accent);">Seguro</span></h3>
-            <p style="margin-bottom: 25px;">Debes autenticarte en Electro10.easy para sincronizar tus métricas y tiempo de estudio real.</p>
+            <p style="margin-bottom: 25px;">Debes autenticarte en Electro10 para sincronizar tus métricas y tiempo de estudio real.</p>
             
             <input type="email" id="auth-email" class="form-input" style="margin-bottom: 10px;" placeholder="Correo institucional">
             <input type="password" id="auth-pass" class="form-input" style="margin-bottom: 20px;" placeholder="Contraseña">
@@ -1014,14 +1012,13 @@
     </div>
     
     <!-- =========================================================================================
-         LÓGICA UNIFICADA Y ANALÍTICA (100% DATOS REALES)
+         LÓGICA UNIFICADA Y ANALÍTICA
     ========================================================================================== -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, getDocs, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURACIÓN FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA",
             authDomain: "laboratorio-de-coulomb.firebaseapp.com",
@@ -1034,10 +1031,9 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'laboratorio-coulomb';
+        const appId = 'electro10'; // ID ACTUALIZADO A ELECTRO10
         const ADMIN_EMAIL = "dudbilopr@gmail.com";
 
-        // ESTADO GLOBAL DEL ESTUDIANTE
         let curriculoData = null;
         let totalLessons = 0;
         let progressData = {}; 
@@ -1045,7 +1041,6 @@
         let timeData = 0;      
         let currentLeccionId = null;
         
-        // ESTADO GLOBAL DEL CURSO (ADMIN)
         let globalCurrentWeek = 1; 
         let globalStartDate = '';
         let globalEndDate = '';
@@ -1056,34 +1051,29 @@
         window.isMasterAdmin = false;
         window.simulatedRole = 'teacher'; 
 
-        // Gráficos Globales
         let studentDonut, studentRadar, studentBar, adminPie, adminScatter, modalRadarChart;
 
-        // TRACKER DE TIEMPO (Registra cada minuto real que el estudiante pasa conectado)
         setInterval(async () => {
             if (!window.currentUserUid || window.isMasterAdmin) return;
-            timeData++; // local
+            timeData++;
             try {
                 await setDoc(doc(db, 'artifacts', appId, 'users', window.currentUserUid, 'stats', 'data'), { totalTimeMinutes: increment(1) }, { merge: true });
             } catch(e) {}
         }, 60000);
 
         // =========================================================================================
-        // NUEVO: COMUNICACIÓN INTER-DOCUMENTOS (API window.postMessage)
+        // NUEVO: COMUNICACIÓN INTER-DOCUMENTOS Y PASO DE AUTENTICACIÓN
         // =========================================================================================
         window.addEventListener('message', async (event) => {
             const data = event.data;
+            if (!data || !data.action) return;
             
-            // 1. Escuchar cuando un hijo (Simulador/Quiz) avisa que se completó
-            if (data && data.action === 'marcarCompletado') {
-                const lessonId = data.lessonId || currentLeccionId; // Usa el ID enviado o el activo actualmente
-                
+            if (data.action === 'marcarCompletado') {
+                const lessonId = data.lessonId || currentLeccionId;
                 if (lessonId && !progressData[lessonId]) {
-                    // Actualizar memoria local
                     progressData[lessonId] = true;
                     localStorage.setItem('cursoElectromagnetismoProgreso', JSON.stringify(progressData));
                     
-                    // Actualizar UI del menú lateral
                     const li = document.getElementById('menu-' + lessonId);
                     if(li) {
                         li.classList.add('completed');
@@ -1091,10 +1081,8 @@
                         if(icon) { icon.innerText = "check_circle"; icon.classList.add('icon-filled'); }
                     }
 
-                    // Guardar en la base de datos (Firebase)
                     if (window.guardarProgresoNube) await window.guardarProgresoNube(lessonId);
 
-                    // Notificación de éxito
                     Swal.fire({
                         title: '¡Objetivo Alcanzado!',
                         text: data.mensaje || 'Has completado esta actividad exitosamente.',
@@ -1105,19 +1093,26 @@
                         timer: 4000
                     });
 
-                    // Refrescar analíticas del Dashboard
                     window.actualizarGraficosEstudiante(Object.keys(progressData).length, totalLessons);
                 }
             }
             
-            // 2. Escuchar cuando un hijo envía la nota o calificación
-            if (data && data.action === 'enviarNotaCognitiva') {
-                // El hijo debe enviar data.score (ej. un valor de 1 a 4)
-                if(data.score) {
-                    window.guardarEval(data.score);
-                }
+            if (data.action === 'enviarNotaCognitiva') {
+                if(data.score) window.guardarEval(data.score);
             }
         });
+
+        // NUEVO: Cuando el iframe carga, el Padre le envía el UID (Pase VIP)
+        document.getElementById('main-frame').onload = function() {
+            if(window.currentUserUid) {
+                // Le avisamos al hijo quién es el usuario logueado
+                this.contentWindow.postMessage({
+                    action: 'initSync',
+                    uid: window.currentUserUid,
+                    appId: appId // 'electro10'
+                }, '*');
+            }
+        };
 
         // FUNCIONES DE UI
         window.toggleSidebar = () => { document.getElementById('sidebar-menu').classList.toggle('hidden'); };
@@ -1166,9 +1161,6 @@
             return weeks;
         }
 
-        // =========================================================================
-        // GUÍA DE APRENDIZAJE: CONSTELACIÓN NEURONAL (NO LINEAL)
-        // =========================================================================
         window.mostrarCalendario = () => {
             resetNav();
             document.getElementById('nav-calendario').classList.add('active');
@@ -1178,12 +1170,9 @@
             grid.innerHTML = '';
             
             if(curriculoData && curriculoData.modulos) {
-                // Iconos estilo ciencia/espacio para el mapa neuronal
                 const icons = ['science', 'biotech', 'rocket_launch', 'architecture', 'radar', 'satellite_alt', 'explore', 'stream'];
                 
                 curriculoData.modulos.forEach((mod, idx) => {
-                    
-                    // Lógica para determinar el estado de avance del módulo sin bloquearlo
                     let totalItems = 0;
                     let completedItems = 0;
                     
@@ -1203,7 +1192,6 @@
                     let nodeClass = 'c-node';
                     let badgeHtml = '';
                     
-                    // Colorización en base al libre progreso
                     if (completedItems === totalItems && totalItems > 0) {
                         status = 'Completado';
                         nodeClass += ' c-completed';
@@ -1219,7 +1207,6 @@
                     let icon = icons[idx % icons.length];
                     let shortTitle = mod.titulo.replace(/Módulo \d+:\s*/, '');
 
-                    // Nodo de la constelación
                     const node = document.createElement('div');
                     node.className = nodeClass;
                     node.innerHTML = `
@@ -1231,21 +1218,12 @@
                         <p class="c-desc">Exploración: ${completedItems}/${totalItems}</p>
                     `;
                     
-                    // Al hacer click, abre el módulo en el menú lateral y redirige al dashboard o a la primera lección
                     node.onclick = () => {
                         window.mostrarDashboardEstudiante();
                         const titleEls = Array.from(document.querySelectorAll('.module-title'));
                         const titleEl = titleEls.find(el => el.innerText.includes(shortTitle) || el.innerText.includes(mod.titulo));
-                        
-                        if(titleEl && !titleEl.classList.contains('active-module')) {
-                            titleEl.click();
-                        }
-                        
-                        // Scroll suave hacia el módulo
-                        document.querySelector('.sidebar').scrollTo({
-                            top: titleEl ? titleEl.offsetTop - 50 : 0,
-                            behavior: 'smooth'
-                        });
+                        if(titleEl && !titleEl.classList.contains('active-module')) titleEl.click();
+                        document.querySelector('.sidebar').scrollTo({ top: titleEl ? titleEl.offsetTop - 50 : 0, behavior: 'smooth' });
                     };
                     
                     grid.appendChild(node);
@@ -1281,17 +1259,16 @@
             btnElement.classList.add('active');
         };
 
-        // EVALUACIONES Y NOTAS (Guardado en BD Real)
         window.guardarEval = async (nivel) => {
             document.querySelectorAll('.eval-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('eval-' + nivel).classList.add('active');
             
             if (!currentLeccionId || !window.currentUserUid) return;
             
-            evalData[currentLeccionId] = parseInt(nivel); // Guardar nivel 1,2,3,4
+            evalData[currentLeccionId] = parseInt(nivel);
             try {
                 await setDoc(doc(db, 'artifacts', appId, 'users', window.currentUserUid, 'evaluations', 'data'), { [currentLeccionId]: parseInt(nivel) }, { merge: true });
-                Swal.fire({ title: 'Feedback Científico', text: 'Tus datos de cognición han sido guardados para el análisis de tu progreso.', icon: 'success', timer: 2000, showConfirmButton: false });
+                Swal.fire({ title: 'Feedback Científico', text: 'Tus datos de cognición han sido guardados.', icon: 'success', timer: 2000, showConfirmButton: false });
             } catch(e) {}
         };
 
@@ -1301,7 +1278,6 @@
             Swal.fire({ title: 'Apuntes Guardados', text: 'Tus notas se han sincronizado.', icon: 'success', timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
         };
 
-        // ALGORITMOS DE GRÁFICOS PARA ESTUDIANTE (CON DATOS 100% REALES)
         function clearChartContainer(containerId, message) {
             const container = document.getElementById(containerId);
             if(container) container.innerHTML = `<canvas id="${containerId.replace('container-','student')}Chart"></canvas><div class="empty-chart-msg" style="position:absolute;">${message}</div>`;
@@ -1316,7 +1292,6 @@
             if(studentRadar) studentRadar.destroy();
             if(studentBar) studentBar.destroy();
 
-            // 1. Gráfica de Finalización (Dona)
             const pct = total > 0 ? Math.round((completadas / total) * 100) : 0;
             const ctxDonut = document.getElementById('studentDonutChart');
             if(ctxDonut) {
@@ -1331,13 +1306,11 @@
                 }
             }
 
-            // Procesar métricas por módulo
             let moduleLabels = []; let moduleRadarData = []; let moduleBarData = []; let weekLabels = [];
 
             if (curriculoData && curriculoData.modulos) {
                 curriculoData.modulos.forEach((mod, idx) => {
                     let shortTitle = mod.titulo.includes(': ') ? mod.titulo.split(': ')[1].split(' - ')[0] : (mod.titulo.length > 15 ? mod.titulo.substring(0, 15) + '...' : mod.titulo);
-                    
                     moduleLabels.push(shortTitle);
                     weekLabels.push(`Mod ${idx+1}`);
 
@@ -1369,7 +1342,6 @@
                 });
             }
 
-            // 2. Gráfica de Radar
             const ctxRadar = document.getElementById('studentRadarChart');
             if(ctxRadar) {
                 if(completadas === 0) { clearChartContainer('container-radar', 'Tus autoevaluaciones dibujarán aquí tu mapa de habilidades.'); }
@@ -1383,7 +1355,6 @@
                 }
             }
 
-            // 3. Gráfica de Barras
             const ctxBar = document.getElementById('studentBarChart');
             if(ctxBar) {
                 if(timeData === 0) { clearChartContainer('container-bar', 'Conéctate y navega. Aquí registraremos tu tiempo.'); }
@@ -1432,10 +1403,8 @@
             window.actualizarGraficosEstudiante(Object.keys(progressData).length, totalLessons);
         };
 
-        // ==============================================================================
-        // CARGA DE CONTENIDO EN REPRODUCTOR (SOPORTE AVANZADO PARA DIRECTORIO DE ENLACES)
-        // ==============================================================================
-        window.loadContent = function(leccion, elementLi, modTitulo) {
+        window.loadContent = function(leccion, modTitulo) {
+            const elementLi = document.getElementById('menu-' + leccion.id);
             resetNav(); 
             currentLeccionId = leccion.id;
             
@@ -1453,7 +1422,7 @@
             contentHeader.style.display = 'flex';
 
             document.getElementById('display-title').innerText = leccion.titulo;
-            document.getElementById('bread-modulo').innerText = modTitulo.split(':')[0];
+            document.getElementById('bread-modulo').innerText = modTitulo ? modTitulo.split(':')[0] : 'Módulo';
             document.getElementById('bread-leccion').innerText = leccion.titulo;
             document.getElementById('tab-desc-text').innerText = leccion.descripcion || "Explora el recurso analítico y completa la actividad.";
             
@@ -1476,15 +1445,12 @@
                 return finalUrl;
             }
 
-            // RESETEAR VISTAS
             iframe.style.display = 'block';
             enlacesContainer.style.display = 'none';
             rightSidebar.style.display = 'none';
             playOverlay.style.display = 'none';
             
-            // LÓGICA DE RENDERIZADO POR TIPO
             if (leccion.tipo === 'enlaces') {
-                // 1. MODO DIRECTORIO DE ENLACES (Grid UI)
                 iframe.style.display = 'none';
                 enlacesContainer.style.display = 'block';
                 iframeWrapper.style.aspectRatio = "auto"; 
@@ -1503,7 +1469,6 @@
                             <div class="enlaces-grid">`;
                         
                         seccion.links.forEach(link => {
-                            // Asignación de iconos inteligente basado en la URL
                             let icon = 'link';
                             let urlLower = link.url.toLowerCase();
                             if(urlLower.includes('youtube') || urlLower.includes('video')) icon = 'play_circle';
@@ -1532,7 +1497,6 @@
                 enlacesContainer.innerHTML = htmlDirectorio;
 
             } else if (leccion.tipo === 'multivideo' || leccion.tipo === 'multipresentacion') {
-                // 2. MODO PLAYLIST (MULTIMEDIA)
                 rightSidebar.style.display = 'flex';
                 playlistSidebar.style.display = 'block';
                 playlistContent.innerHTML = '';
@@ -1578,7 +1542,6 @@
                 }
 
             } else {
-                // 3. MODO NORMAL (UN SOLO RECURSO)
                 if (leccion.tipo === 'video') {
                     iframe.src = getYoutubeEmbed(leccion.recurso);
                     iframeWrapper.style.aspectRatio = "16/9"; iframeWrapper.style.height = "auto";
@@ -1588,7 +1551,7 @@
                 }
             }
             
-            // MARCAR COMO COMPLETADO
+            // MARCAR COMPLETADO
             if (!progressData[leccion.id] && leccion.tipo !== 'simulador' && leccion.tipo !== 'quiz' && leccion.tipo !== 'enlaces') {
                 progressData[leccion.id] = true;
                 localStorage.setItem('cursoElectromagnetismoProgreso', JSON.stringify(progressData));
@@ -1599,7 +1562,6 @@
                 }
                 if (window.guardarProgresoNube) window.guardarProgresoNube(leccion.id);
             } else if (leccion.tipo === 'enlaces' && !progressData[leccion.id]) {
-                 // Si solo abrió los enlaces, lo marcamos como completado también
                  progressData[leccion.id] = true;
                  localStorage.setItem('cursoElectromagnetismoProgreso', JSON.stringify(progressData));
                  if(elementLi) {
@@ -1615,7 +1577,6 @@
             if(evalData[currentLeccionId]) { document.getElementById('eval-' + evalData[currentLeccionId]).classList.add('active'); }
         };
 
-        // INICIALIZACIÓN
         function getIconForType(tipo) {
             switch(tipo) {
                 case 'multivideo': return 'ondemand_video';
@@ -1634,8 +1595,44 @@
                 const modulo = await import('./ModulosJS/curriculo.js');
                 curriculoData = modulo.curriculoData;
             } catch (error) {
-                console.warn("Usando Fallback Estructural por seguridad");
-                curriculoData = { modulos: [ { titulo: "Módulo 1: Electrostática", lecciones: [ { id:"m1-1", tipo:"video", recurso:"q1Ez2tLVy10", titulo:"Fuerzas de Coulomb", llmLink:"#" } ] } ] };
+                console.warn("Fallo la importación externa. Inyectando Módulo de respaldo seguro para garantizar que aparezca el contenido.");
+                
+                curriculoData = {
+                    "modulos": [
+                        {
+                            "titulo": "Módulo 1: Electrostática - Ley de Coulomb",
+                            "lecciones": [
+                                {
+                                    "id": "m1-l1", "tipo": "multivideo",
+                                    "recurso": "xLyRPFL0GJ8|mrCyjv9lf3I|HpHVmuQb1gM|YgP-9fVA0-Y|gigeloLe1jI|ph341nhqOII&t|tXschFCgjrY|q1Ez2tLVy10|EhCX3JR6mHQ|8FXllt2Z9Tk|a1M2OmlwGyc|_hgOrdi7Epw",
+                                    "titulo": "1. Teoría: Ley de Coulomb", "descripcion": "Selecciona la parte en el panel derecho.", "llmLink": "https://notebooklm.google.com/notebook/37622815-4b54-4808-b770-37464cb05719"
+                                },
+                                {
+                                    "id": "m1-l2", "tipo": "multipresentacion", "recurso": "./clase_1.html|./clase_1.html",
+                                    "titulo": "2. Diapositivas de Apoyo (2 Partes)", "descripcion": "Material visual utilizado en la clase magistral."
+                                },
+                                {
+                                    "id": "m1-g1", "tipo": "grupo", "titulo": "3. Laboratorio Virtual (Simuladores)",
+                                    "sublecciones": [
+                                        { "id": "m1-l3", "tipo": "simulador", "recurso": "Simuladores/Coulomb.html", "titulo": "3.1 Cargas Eléctricas", "descripcion": "Entorno virtual para interactuar con cargas puntuales." },
+                                        { "id": "m1-l4", "tipo": "simulador", "recurso": "Simuladores/Simulador_Cargas_Electricas.html", "titulo": "3.2 Análisis de Cargas", "descripcion": "Análisis de fuerzas interactivas." },
+                                        { "id": "m1-l5", "tipo": "simulador", "recurso": "Simuladores/Simulador_Ley_de_Coulomb.html", "titulo": "3.3 Ley de Coulomb Interactiva", "descripcion": "Medición de interacciones electrostáticas." }
+                                    ]
+                                },
+                                { "id": "m1-l7", "tipo": "ejercicio", "recurso": "Talleres/Taller_1_Ley_de_Coulomb.html", "titulo": "5. Taller Práctico No. 1", "descripcion": "Guía de ejercicios sobre fuerza electrostática." },
+                                { "id": "m1-q1", "tipo": "quiz", "recurso": "Examen/Cuestionario_1_Ley_de_Coulomb.html", "titulo": "6. Evaluación del Módulo 1", "descripcion": "Cuestionario de validación de conocimientos." },
+                                {
+                                    "id": "m1-e1", "tipo": "enlaces", "titulo": "7. Enlaces de Interés", "descripcion": "Directorio de recursos externos y herramientas útiles para el módulo.",
+                                    "secciones": [
+                                        { "tituloSeccion": "Lecturas y fundamentos teóricos", "links": [ { "url": "https://openstax.org/books/...", "titulo": "OpenStax: Ley de Coulomb", "descripcion": "Desarrollo formal..." }, { "url": "https://en.wikipedia.org/wiki/Coulomb%27s_law", "titulo": "Wikipedia: Coulomb's Law", "descripcion": "Descripción general..." } ] },
+                                        { "tituloSeccion": "Material complementario (PDF)", "links": [ { "url": "https://www.unet.edu.ve/...", "titulo": "Apuntes: Ley de Coulomb", "descripcion": "Documento académico..." } ] },
+                                        { "tituloSeccion": "Simuladores interactivos", "links": [ { "url": "https://phet.colorado.edu/...", "titulo": "PHET: Ley de Coulomb", "descripcion": "Recurso interactivo..." }, { "url": "https://www.educaplus.org/game/ley-de-coulomb", "titulo": "Educaplus", "descripcion": "Simulación interactiva..." } ] }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                };
             }
 
             const sidebar = document.getElementById('menu-content-area');
@@ -1685,9 +1682,6 @@
             return li;
         }
 
-        // =====================================================================
-        // BACKEND (FIREBASE AUTH Y DB) Y PANEL DE ADMIN MAESTRO
-        // =====================================================================
         window.iniciarSesion = () => {
             const email = document.getElementById('auth-email').value.trim(); const pass = document.getElementById('auth-pass').value;
             if (!email || !pass) return Swal.fire('Acceso', 'Debes ingresar tu correo y contraseña.', 'warning');
@@ -1795,7 +1789,6 @@
             });
         };
 
-        // AJUSTES CURRICULARES ADMINISTRADOR (Ingeniería del curso)
         window.guardarAjustesCalendario = async () => {
             if(!window.isMasterAdmin) return Swal.fire('Permisos', 'Acceso denegado.', 'error');
             
@@ -1819,7 +1812,6 @@
             } catch(e) { Swal.fire('Error', 'Falla de conexión a base de datos.', 'error'); }
         };
 
-        // ANALÍTICA INDIVIDUAL Y GENERAL
         window.cargarDirectorioAdminFirebase = async () => {
             const tableBody = document.querySelector('#admin-users-table tbody');
             tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px;"><span class="material-symbols-outlined animate-spin" style="font-size:30px;">sync</span></td></tr>';
@@ -1839,7 +1831,6 @@
                             if(statSnap.exists()) tiempoUser = statSnap.data().totalTimeMinutes || 0;
                         } catch(e) {} 
                         
-                        // Scatter Data REAL (Tiempo vs Progreso)
                         if(d.role === 'teacher') teachersCount++; else studentsCount++;
                         if(d.role !== 'teacher') arrayScatter.push({x: tiempoUser, y: completadas}); 
 
@@ -1871,7 +1862,7 @@
         window.verDetalleEstudiante = async (uid, nombre) => {
             document.getElementById('modal-u-name').innerText = nombre;
             document.getElementById('modal-u-inst').innerText = "Cargando métricas de base de datos...";
-            document.getElementById('modal-u-presaberes').innerHTML = ''; // Limpiar presaberes previos
+            document.getElementById('modal-u-presaberes').innerHTML = ''; 
             document.getElementById('admin-user-modal').style.display = 'flex';
             
             try {
@@ -1881,7 +1872,6 @@
                     const prof = dirS.data();
                     document.getElementById('modal-u-inst').innerText = prof.institution || "Institución no declarada";
                     
-                    // Inyectar datos de la encuesta de presaberes
                     document.getElementById('modal-u-presaberes').innerHTML = `
                         <div><strong>Carrera:</strong> ${prof.major || 'No indicada'}</div>
                         <div><strong>Edad/Género:</strong> ${prof.age || '?'} años, ${prof.gender || '?'}</div>
@@ -1904,7 +1894,6 @@
                 const completadas = Object.keys(pData).length;
                 const pct = totalLessons > 0 ? Math.round((completadas / totalLessons) * 100) : 0;
                 
-                // Calcular Promedio de Calificación general
                 let sum=0; let c=0;
                 Object.values(eData).forEach(val => { sum+=val; c++; });
                 const promGrade = c > 0 ? Math.round(((sum/c)/4)*100) : 0;
@@ -1913,7 +1902,6 @@
                 document.getElementById('modal-u-prog').innerText = pct + "%";
                 document.getElementById('modal-u-grade').innerText = promGrade + "%";
 
-                // Radar del Estudiante específico
                 let mLabels = []; let mData = [];
                 if (curriculoData) {
                     curriculoData.modulos.forEach((mod, idx) => {
