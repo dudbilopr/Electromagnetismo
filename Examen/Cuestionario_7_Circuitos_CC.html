@@ -75,6 +75,11 @@
                 </div>
             </div>
             <div class="flex gap-3 items-center">
+                <!-- Botón Pop-out (Se mostrará solo si está en un iframe) -->
+                <button id="btn-popout" class="hidden text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full border border-emerald-200 transition-colors items-center gap-1" onclick="window.open(window.location.href, '_blank')" title="Abrir en ventana completa">
+                    <i class="ph ph-arrow-square-out text-lg"></i> <span class="hidden md:inline">Pantalla completa</span>
+                </button>
+                
                 <div id="auth-status" class="text-sm font-medium text-slate-500 hidden md:flex items-center gap-1 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
                     <i class="ph ph-spinner animate-spin"></i> Conectando plataforma...
                 </div>
@@ -189,12 +194,27 @@
         window.addEventListener('message', (event) => {
             if (event.data && event.data.action === 'initSync') {
                 userId = event.data.uid;
-                console.log("Simulador vinculado al Padre con usuario:", userId);
                 
-                // Actualizar Interfaz
+                // Extraemos el nombre que nos manda el padre (soporta userName, name, o email)
+                const userName = event.data.userName || event.data.name || (event.data.email ? event.data.email.split('@')[0] : 'Estudiante');
+                console.log("Simulador vinculado al Padre con usuario:", userId, userName);
+                
+                // Mostrar botón de Pop-out si estamos en iframe
+                if (isInIframe) {
+                    const btnPopout = document.getElementById('btn-popout');
+                    btnPopout.classList.remove('hidden');
+                    btnPopout.classList.add('flex');
+                }
+
+                // Actualizar Interfaz con el nombre del usuario
                 const statusEl = document.getElementById('auth-status');
-                statusEl.innerHTML = `<div class="w-2 h-2 rounded-full bg-green-500 mr-1 animate-pulse"></div> <span class="truncate max-w-[100px]">Estudiante (Sync)</span>`;
+                statusEl.innerHTML = `<div class="w-2 h-2 rounded-full bg-green-500 mr-1 animate-pulse"></div> <span class="truncate max-w-[150px] font-bold text-slate-700">${userName}</span>`;
                 statusEl.classList.remove('hidden');
+
+                // Dar el mensaje de bienvenida
+                setTimeout(() => {
+                    showToast(`¡Bienvenido al simulador, ${userName}!`, "success");
+                }, 800);
             }
         });
 
