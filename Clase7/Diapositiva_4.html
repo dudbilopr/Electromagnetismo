@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis de Circuito por Mallas y Nodos - Nivel Experto</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                    colors: { 
+                        glass: { 100: 'rgba(255,255,255,0.1)', 200: 'rgba(255,255,255,0.2)' },
+                        blueprint: '#0f172a'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- KaTeX Configuration (Renderizado Matemático Ultra Rápido) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            margin: 0; overflow-x: hidden;
+            background: #f8fafc; color: #0f172a;
+            transition: all 0.4s ease; display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; padding: 1rem;
+        }
+        
+        /* Fondo Blueprint Experto */
+        .dark body {
+            background-color: #0b1121;
+            background-image: linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            color: #f8fafc;
+        }
+
+        .presentation-wrapper {
+            width: 100%; max-width: 1600px; height: 90vh;
+            display: flex; flex-direction: column;
+            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(0, 0, 0, 0.1); border-radius: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); overflow: hidden;
+        }
+
+        .dark .presentation-wrapper {
+            background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.9), inset 0 0 0 1px rgba(255,255,255,0.05);
+        }
+
+        :fullscreen .presentation-wrapper { max-width: none; border-radius: 0; border: none; height: 100vh; }
+
+        .top-bar {
+            padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); z-index: 50; position: relative;
+            flex-wrap: wrap; gap: 1rem;
+        }
+        .dark .top-bar { border-bottom: 1px solid rgba(56, 189, 248, 0.2); background: rgba(11, 17, 33, 0.8); }
+
+        .main-content { display: flex; flex: 1; height: 0; flex-direction: column; lg:flex-row; }
+        
+        .left-panel { overflow-y: auto; display: flex; flex-direction: column; width: 100%; }
+        .right-panel { position: relative; display: flex; flex-direction: column; width: 100%; }
+
+        @media (min-width: 1024px) {
+            .main-content { flex-direction: row; }
+            .left-panel { width: 45%; border-right: 1px solid rgba(56, 189, 248, 0.2); }
+            .right-panel { width: 55%; }
+        }
+
+        .step-content { display: none; animation: fadeIn 0.5s ease forwards; height: 100%; overflow-y: auto; padding-bottom: 100px; }
+        .step-content.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+        }
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.15);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .eq-box {
+            background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1rem;
+        }
+        .dark .eq-box { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); }
+
+        .glass-input {
+            width: 100%; max-width: 80px; background: rgba(255,255,255,0.8); border: 1px solid rgba(0,0,0,0.2);
+            border-radius: 6px; padding: 4px 8px; text-align: center; font-weight: bold; color: #0f172a;
+            transition: all 0.2s;
+        }
+        .glass-input:focus { outline: none; box-shadow: 0 0 0 2px rgba(59,130,246,0.4); }
+        .dark .glass-input {
+            background: rgba(0,0,0,0.6); border: 1px solid rgba(56, 189, 248, 0.3); color: #fbbf24;
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); }
+
+        body.laser-mode { cursor: none !important; }
+        #laser-pointer {
+            position: fixed; pointer-events: none; width: 14px; height: 14px; border-radius: 50%;
+            background: #ff0000; box-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000; z-index: 9999; display: none; transform: translate(-50%, -50%);
+        }
+        body.laser-mode #laser-pointer { display: block; }
+        body.laser-mode *:hover { cursor: none !important; }
+        
+        .math-container { font-size: clamp(0.95rem, 1.4vw, 1.2rem); overflow-x: auto; padding: 0.5rem 0; text-align: center; width: 100%; }
+
+        /* Estilos de Botones Activos */
+        .btn-flow { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-flow.active { background-color: #2563eb; color: white; transform: scale(1.05); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); }
+        .dark .btn-flow.active { background-color: #38bdf8; color: #0f172a; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4); }
+
+        @media (max-width: 1024px) {
+            .presentation-wrapper { height: auto; min-height: 95vh; }
+            .main-content { height: auto; }
+        }
+    </style>
+</head>
+<body id="main-body">
+
+    <div id="laser-pointer"></div>
+
+    <div class="presentation-wrapper" id="presentation-container">
+        
+        <!-- HEADER / CONTROLES -->
+        <header class="top-bar">
+            <div class="flex items-center gap-3">
+                <i data-lucide="cpu" class="text-blue-600 dark:text-sky-400 w-7 h-7"></i>
+                <h1 class="text-xl md:text-2xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+                    Estudio de Circuitos Avanzado
+                </h1>
+            </div>
+            
+            <div class="flex items-center gap-2 md:gap-4 flex-wrap z-50">
+                <div class="flex items-center bg-slate-200 dark:bg-slate-800 rounded-lg p-1 text-xs md:text-sm border border-slate-300 dark:border-slate-700 shadow-inner">
+                    <button onclick="window.setFlowMode('conventional')" id="btnFlowConv" class="btn-flow active px-2 md:px-3 py-1.5 rounded-md font-semibold flex items-center gap-1 text-slate-900 dark:text-slate-300">
+                        <i data-lucide="arrow-right-circle" class="w-4 h-4"></i> Corriente
+                    </button>
+                    <button onclick="window.setFlowMode('electron')" id="btnFlowElec" class="btn-flow px-2 md:px-3 py-1.5 rounded-md font-semibold flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+                        <i data-lucide="zap" class="w-4 h-4"></i> Electrones
+                    </button>
+                    <button onclick="window.setFlowMode('none')" id="btnFlowNone" class="btn-flow px-2 md:px-3 py-1.5 rounded-md font-semibold flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+                        <i data-lucide="eye-off" class="w-4 h-4"></i> Ocultar
+                    </button>
+                </div>
+
+                <div class="hidden md:block w-px h-6 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+
+                <div class="flex gap-2">
+                    <button onclick="window.toggleLaser()" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-300 shadow-sm border border-transparent dark:hover:border-slate-600" title="Modo Láser">
+                        <i data-lucide="crosshair" id="icon-laser"></i>
+                    </button>
+                    <button onclick="window.toggleTheme()" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-300 shadow-sm border border-transparent dark:hover:border-slate-600" title="Tema">
+                        <i data-lucide="sun" id="icon-theme-sun" class="block dark:hidden"></i>
+                        <i data-lucide="moon" id="icon-theme-moon" class="hidden dark:block"></i>
+                    </button>
+                    <button onclick="window.toggleFullscreen()" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-300 shadow-sm border border-transparent dark:hover:border-slate-600">
+                        <i data-lucide="maximize" id="icon-fullscreen"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            
+            <!-- PANEL IZQUIERDO: CANVAS Y TABLA -->
+            <div class="left-panel p-4 bg-slate-50/50 dark:bg-slate-900/20 relative">
+                
+                <!-- Lienzo del Circuito -->
+                <div class="glass-panel rounded-2xl p-2 relative flex flex-col items-center justify-center min-h-[350px] md:min-h-[400px] mb-4 w-full border border-slate-200 dark:border-slate-700 shadow-inner overflow-hidden">
+                    <canvas id="circuitCanvas" width="600" height="500" class="w-full h-auto object-contain z-10"></canvas>
+                    
+                    <div class="absolute inset-0 z-0 opacity-20 pointer-events-none" style="background-image: linear-gradient(#3b82f6 1px, transparent 1px), linear-gradient(90deg, #3b82f6 1px, transparent 1px); background-size: 20px 20px;"></div>
+
+                    <div class="absolute bottom-3 left-0 w-full flex justify-center gap-4 text-xs md:text-sm font-bold bg-white/90 dark:bg-slate-800/90 py-1.5 backdrop-blur-md rounded-full px-5 w-max mx-auto shadow-md text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-600 z-20">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]"></span> M1 ($I_1$)</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_#3b82f6]"></span> M2 ($I_2$)</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_#10b981]"></span> M3 ($I_3$)</span>
+                    </div>
+                </div>
+
+                <!-- Tabla Interactiva -->
+                <div class="glass-panel rounded-2xl p-5 shadow-xl relative overflow-hidden w-full">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-purple-500 to-blue-500"></div>
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-slate-100">
+                        <i data-lucide="sliders" class="w-5 h-5 text-indigo-600 dark:text-sky-400"></i> Laboratorio de Parámetros
+                    </h3>
+                    
+                    <div class="grid grid-cols-3 gap-4 text-xs md:text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        <!-- Resistencias Propias -->
+                        <div class="flex flex-col gap-1 text-red-600 dark:text-red-400"><label>R₁ Ω ($I_1$)</label><input type="number" id="in-r1" class="glass-input circuit-input border-red-300 dark:border-red-500/50" value="20"></div>
+                        <div class="flex flex-col gap-1 text-blue-600 dark:text-blue-400"><label>R₂ Ω ($I_2$)</label><input type="number" id="in-r2" class="glass-input circuit-input border-blue-300 dark:border-blue-500/50" value="20"></div>
+                        <div class="flex flex-col gap-1 text-green-600 dark:text-green-400"><label>R₃ Ω ($I_3$)</label><input type="number" id="in-r3" class="glass-input circuit-input border-green-300 dark:border-green-500/50" value="30"></div>
+                        
+                        <!-- Resistencias Compartidas -->
+                        <div class="flex flex-col gap-1 text-purple-600 dark:text-purple-400"><label>R_a Ω ($I_a$)</label><input type="number" id="in-ra" class="glass-input circuit-input border-purple-300 dark:border-purple-500/50" value="30"></div>
+                        <div class="flex flex-col gap-1 text-orange-600 dark:text-orange-400"><label>R_b Ω ($I_b$)</label><input type="number" id="in-rb" class="glass-input circuit-input border-orange-300 dark:border-orange-500/50" value="20"></div>
+                        <div class="flex flex-col gap-1 text-teal-600 dark:text-teal-400"><label>R_c Ω ($I_c$)</label><input type="number" id="in-rc" class="glass-input circuit-input border-teal-300 dark:border-teal-500/50" value="30"></div>
+                        
+                        <!-- Fuentes -->
+                        <div class="flex flex-col gap-1 text-slate-800 dark:text-white mt-2"><label>V1 (V)</label><input type="number" id="in-v1" class="glass-input circuit-input border-slate-400 dark:border-slate-500" value="80"></div>
+                        <div class="flex flex-col gap-1 text-slate-800 dark:text-white mt-2"><label>V2 (V)</label><input type="number" id="in-v2" class="glass-input circuit-input border-slate-400 dark:border-slate-500" value="80"></div>
+                    </div>
+
+                    <div class="mt-5 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-around text-xs md:text-sm font-extrabold bg-slate-100 dark:bg-slate-800/80 p-3 rounded-lg shadow-inner">
+                        <span class="text-red-600 dark:text-red-400 tracking-wide">I₁ = <span id="res-i1">2.67</span> A</span>
+                        <span class="text-blue-600 dark:text-blue-400 tracking-wide">I₂ = <span id="res-i2">2.67</span> A</span>
+                        <span class="text-green-600 dark:text-green-400 tracking-wide">I₃ = <span id="res-i3">1.78</span> A</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL DERECHO: EXPLICACIÓN Y MATEMÁTICAS -->
+            <div class="right-panel bg-white dark:bg-transparent">
+                
+                <!-- PASO 0: Topología -->
+                <div class="step-content p-6 md:p-12 active" id="step-0">
+                    <div class="flex items-center gap-2 text-indigo-600 dark:text-sky-400 font-bold tracking-wider text-sm mb-2">
+                        <i data-lucide="book-open" class="w-5 h-5"></i> INTRODUCCIÓN
+                    </div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-6">Análisis Topológico Experto</h2>
+                    <p class="text-slate-700 dark:text-slate-300 text-base md:text-lg leading-relaxed mb-6">
+                        Bienvenidos. Para hacer este análisis visualmente intuitivo, hemos asociado un <strong>color único a cada resistencia</strong> basado en la corriente real que la atraviesa. Emplearemos la rigurosa Ley de Voltajes de Kirchhoff (LVK) para las mallas.
+                    </p>
+                    <div class="eq-box border-l-4 border-indigo-500 dark:border-sky-500 shadow-md">
+                        <ul class="space-y-5 text-slate-700 dark:text-slate-300 text-sm md:text-base">
+                            <li class="flex items-start gap-3"><i data-lucide="zap" class="w-6 h-6 text-indigo-500 dark:text-sky-400 flex-shrink-0"></i><span><strong>Resistencias Propias:</strong> $\textcolor{#ef4444}{R_1}$, $\textcolor{#3b82f6}{R_2}$ y $\textcolor{#10b981}{R_3}$ están situadas en ramas exclusivas; por ellas solo pasa la corriente de su propia malla ($I_1$, $I_2$ e $I_3$ respectivamente).</span></li>
+                            <li class="flex items-start gap-3"><i data-lucide="git-merge" class="w-6 h-6 text-indigo-500 dark:text-sky-400 flex-shrink-0"></i><span><strong>Ramas Compartidas:</strong> $\textcolor{#a855f7}{R_a}$, $\textcolor{#f97316}{R_b}$ y $\textcolor{#14b8a6}{R_c}$ se encuentran en las fronteras, soportando la suma algebraica de múltiples corrientes simultáneamente.</span></li>
+                            <li class="flex items-start gap-3"><i data-lucide="rotate-cw" class="w-6 h-6 text-indigo-500 dark:text-sky-400 flex-shrink-0"></i><span><strong>Sentido Horario:</strong> Asignamos matemáticamente el sentido de las manecillas del reloj a todas las mallas para sistematizar las ecuaciones matriciales.</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- PASO 1: Nodos -->
+                <div class="step-content p-6 md:p-12" id="step-1">
+                    <div class="flex items-center gap-2 text-yellow-600 dark:text-yellow-400 font-bold tracking-wider text-sm mb-2"><i data-lucide="git-merge" class="w-5 h-5"></i> PASO 1</div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-6">Ley de Nodos (LCK)</h2>
+                    <p class="text-slate-700 dark:text-slate-300 text-base md:text-lg mb-6">
+                        La carga no se acumula. Observa los tres nodos en el simulador: te mostrarán flechas indicando exactamente qué corriente entra y cuál sale. Analicemos cómo interactúan para formar las corrientes físicas netas ($I_a, I_b, I_c$).
+                    </p>
+                    <div class="space-y-5">
+                        <div class="eq-box border-l-4 border-purple-500 shadow-md">
+                            <span class="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase">Nodo Superior Derecho ($a$)</span>
+                            <div class="text-slate-600 dark:text-slate-300 text-sm mt-1 mb-2">Genera la corriente de la diagonal púrpura.</div>
+                            <div id="math-n1" class="math-container text-slate-800 dark:text-slate-100"></div>
+                        </div>
+                        <div class="eq-box border-l-4 border-orange-500 shadow-md">
+                            <span class="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase">Nodo Central Izquierdo ($b$)</span>
+                            <div class="text-slate-600 dark:text-slate-300 text-sm mt-1 mb-2">Genera la corriente de la resistencia central naranja.</div>
+                            <div id="math-n2" class="math-container text-slate-800 dark:text-slate-100"></div>
+                        </div>
+                        <div class="eq-box border-l-4 border-teal-500 shadow-md">
+                            <span class="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase">Nodo Inferior Derecho ($c$)</span>
+                            <div class="text-slate-600 dark:text-slate-300 text-sm mt-1 mb-2">Genera la corriente de la diagonal inferior turquesa.</div>
+                            <div id="math-n3" class="math-container text-slate-800 dark:text-slate-100"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASO 2: Malla 1 -->
+                <div class="step-content p-6 md:p-12" id="step-2">
+                    <div class="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold tracking-wider text-sm mb-2"><i data-lucide="box" class="w-5 h-5"></i> PASO 2</div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-6">LVK Malla 1 (Roja)</h2>
+                    <p class="text-slate-700 dark:text-slate-300 text-base md:text-lg mb-6">
+                        Recorremos la malla roja en sentido horario. Analizamos la caída de tensión en su resistencia propia y en sus dos compartidas.
+                    </p>
+                    <div class="eq-box border-l-4 border-red-500 shadow-md mb-6">
+                        <div id="math-m1" class="math-container font-bold pt-2 text-slate-900 dark:text-white min-h-[90px]"></div>
+                    </div>
+                    <div class="mt-8 bg-red-50/80 dark:bg-red-900/30 border-l-4 border-red-400 p-5 rounded-r-xl shadow-md">
+                        <div class="flex items-center gap-2 text-red-800 dark:text-red-300 font-extrabold mb-2 text-lg"><i data-lucide="eye" class="w-6 h-6"></i> Asociación Visual</div>
+                        <p class="text-sm text-red-900 dark:text-red-200 leading-relaxed">
+                            Observa que las caídas de tensión utilizan nuestras variables de colores: el término <span class="font-mono bg-red-100/50 dark:bg-red-900/50 px-1.5 py-0.5 rounded-md">$\textcolor{#a855f7}{R_a}(\textcolor{#ef4444}{I_1}-\textcolor{#10b981}{I_3})$</span> representa exactamente la tensión perdiéndose en la resistencia púrpura. ¡Es álgebra con significado visual y físico!
+                        </p>
+                    </div>
+                </div>
+
+                <!-- PASO 3: Malla 2 -->
+                <div class="step-content p-6 md:p-12" id="step-3">
+                    <div class="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold tracking-wider text-sm mb-2"><i data-lucide="box" class="w-5 h-5"></i> PASO 3</div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-6">LVK Malla 2 (Azul)</h2>
+                    <p class="text-slate-700 dark:text-slate-300 text-base md:text-lg mb-6">
+                        Para la malla azul, la corriente dominante es $\textcolor{#3b82f6}{I_2}$. Notarás que el orden en los paréntesis de las ramas compartidas ($\textcolor{#f97316}{R_b}$ y $\textcolor{#14b8a6}{R_c}$) se invierte a su favor.
+                    </p>
+                    <div class="eq-box border-l-4 border-blue-500 shadow-md mb-6">
+                        <div id="math-m2" class="math-container font-bold pt-2 text-slate-900 dark:text-white min-h-[90px]"></div>
+                    </div>
+                    <div class="mt-8 bg-blue-50/80 dark:bg-blue-900/30 border-l-4 border-blue-400 p-5 rounded-r-xl shadow-md">
+                        <div class="flex items-center gap-2 text-blue-800 dark:text-blue-300 font-extrabold mb-2 text-lg"><i data-lucide="key" class="w-6 h-6"></i> El Secreto de las Ramas Compartidas</div>
+                        <p class="text-sm text-blue-900 dark:text-blue-200 leading-relaxed">
+                            Al plantear la LVK desde la perspectiva de la Malla 2, su propia corriente se vuelve el agente activo positivo. Por ello, la caída en la resistencia naranja se escribe como <span class="font-mono bg-blue-100/50 dark:bg-blue-900/50 px-1.5 py-0.5 rounded-md">$-\textcolor{#f97316}{R_b}(\textcolor{#3b82f6}{I_2}-\textcolor{#ef4444}{I_1})$</span>.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- PASO 4: Malla 3 -->
+                <div class="step-content p-6 md:p-12" id="step-4">
+                    <div class="flex items-center gap-2 text-green-600 dark:text-green-400 font-bold tracking-wider text-sm mb-2"><i data-lucide="box" class="w-5 h-5"></i> PASO 4</div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-6">LVK Malla 3 (Verde)</h2>
+                    <p class="text-slate-700 dark:text-slate-300 text-base md:text-lg mb-6">
+                        La malla triangular verde carece de fuentes de voltaje activas. Toda la corriente $\textcolor{#10b981}{I_3}$ existe debido a la presión energética transversal que ejercen las mallas vecinas sobre las ramas $\textcolor{#a855f7}{R_a}$ y $\textcolor{#14b8a6}{R_c}$.
+                    </p>
+                    <div class="eq-box border-l-4 border-green-500 shadow-md mb-6">
+                        <div id="math-m3" class="math-container font-bold pt-2 text-slate-900 dark:text-white min-h-[90px]"></div>
+                    </div>
+                    <p class="text-slate-700 dark:text-slate-300 text-sm md:text-base p-4 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                        Como puedes notar, la sumatoria de las caídas de tensión iguala estrictamente a $0$. Esto es lo que permite que el sistema se pueda resolver como un set de ecuaciones algebraicas cerradas.
+                    </p>
+                </div>
+
+                <!-- PASO 5: Matrices -->
+                <div class="step-content p-6 md:p-12" id="step-5">
+                    <div class="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold tracking-wider text-sm mb-2"><i data-lucide="calculator" class="w-5 h-5"></i> PASO 5</div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-6">Resolución Integral: Regla de Cramer</h2>
+                    <p class="text-slate-700 dark:text-slate-300 text-base md:text-lg mb-4">
+                        Formamos la Matriz Dinámica $A \times I = B$. Resolveremos este sistema mostrando paso a paso el cálculo de los determinantes ($\Delta$) basándonos en tus parámetros exactos en tiempo real.
+                    </p>
+                    
+                    <div class="flex flex-col gap-5 mt-6">
+                        <div class="bg-white dark:bg-slate-800 shadow-lg p-5 rounded-2xl border border-slate-200 dark:border-slate-700">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest text-center mb-3">Matriz del Sistema</h4>
+                            <div id="math-matrix" class="math-container text-slate-900 dark:text-white w-full min-h-[120px]"></div>
+                        </div>
+                        
+                        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 p-5 rounded-2xl shadow-md">
+                            <h4 class="font-extrabold text-amber-800 dark:text-amber-400 mb-3 border-b border-amber-200 dark:border-amber-800/50 pb-2 flex items-center gap-2">
+                                <i data-lucide="cpu" class="w-5 h-5"></i> Procesamiento de Determinantes
+                            </h4>
+                            <div id="math-cramer" class="math-container text-slate-800 dark:text-slate-200 text-sm md:text-base leading-loose"></div>
+                        </div>
+
+                        <div class="w-full h-px bg-slate-300 dark:bg-slate-700 relative mt-4 mb-2">
+                            <span class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#f8fafc] dark:bg-[#0b1121] px-4 text-xs font-bold rounded-full text-slate-500 dark:text-slate-400 tracking-widest border border-slate-200 dark:border-slate-700">RESULTADO MATEMÁTICO</span>
+                        </div>
+
+                        <div id="math-results" class="math-container text-slate-900 dark:text-white w-full font-extrabold text-2xl md:text-3xl bg-slate-100 dark:bg-slate-900/50 py-4 rounded-xl shadow-inner border border-slate-200 dark:border-slate-800"></div>
+                    </div>
+                </div>
+
+                <!-- PASO 6: Balance -->
+                <div class="step-content p-6 md:p-10" id="step-6">
+                    <div class="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold tracking-wider text-sm mb-2"><i data-lucide="scale" class="w-5 h-5"></i> PASO 6</div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-4">Conservación de Energía</h2>
+                    <p class="text-slate-700 dark:text-slate-300 text-base md:text-lg mb-8">El Teorema de Tellegen indica que todo circuito ideal es un sistema perfectamente equilibrado. Sumamos la potencia térmica disipada ($P = I^2 \cdot R$) de cada componente y la comparamos con la potencia activa inyectada por las fuentes de voltaje ($P = V \cdot I$).</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-panel p-8 rounded-2xl flex flex-col items-center justify-center border border-rose-200 dark:border-rose-900/50 shadow-lg relative overflow-hidden">
+                            <div class="absolute top-0 w-full h-2 bg-rose-500"></div>
+                            <h4 class="text-xs md:text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest text-center">Calor Disipado (Resistencias)</h4>
+                            <div class="text-4xl md:text-5xl font-extrabold text-rose-600 dark:text-rose-400 mt-4"><span id="pow-cons">0.00</span><span class="text-2xl text-rose-400 dark:text-rose-500/50 ml-1">W</span></div>
+                        </div>
+                        <div class="glass-panel p-8 rounded-2xl flex flex-col items-center justify-center border border-emerald-200 dark:border-emerald-900/50 shadow-lg relative overflow-hidden">
+                            <div class="absolute top-0 w-full h-2 bg-emerald-500"></div>
+                            <h4 class="text-xs md:text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest text-center">Energía Entregada (Fuentes)</h4>
+                            <div class="text-4xl md:text-5xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-4"><span id="pow-deliv">0.00</span><span class="text-2xl text-emerald-400 dark:text-emerald-500/50 ml-1">W</span></div>
+                        </div>
+                    </div>
+                    <div class="mt-8 text-center animate-pulse">
+                        <span class="inline-flex items-center gap-3 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 px-6 py-3 rounded-full text-base font-bold shadow-md border border-emerald-300 dark:border-emerald-700">
+                            <i data-lucide="check-circle" class="w-6 h-6"></i> Equilibrio Termodinámico Comprobado
+                        </span>
+                    </div>
+                </div>
+
+                <!-- PASO 7: Tabla de Resultados -->
+                <div class="step-content p-6 md:p-10" id="step-7">
+                    <div class="flex items-center gap-2 text-indigo-600 dark:text-sky-400 font-bold tracking-wider text-sm mb-2"><i data-lucide="table" class="w-5 h-5"></i> PASO 7</div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-6">Tabla de Resultados y Cálculos</h2>
+                    <p class="text-slate-700 dark:text-slate-300 text-base md:text-lg mb-8">
+                        Desglose completo de las magnitudes eléctricas en cada componente del circuito. Todos los valores se calculan dinámicamente usando la Ley de Ohm ($V = I \cdot R$) y la Ley de Joule ($P = I^2 \cdot R$).
+                    </p>
+                    
+                    <div class="overflow-x-auto rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
+                        <table class="w-full text-sm text-left text-slate-700 dark:text-slate-300">
+                            <thead class="text-xs uppercase bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                <tr>
+                                    <th scope="col" class="px-5 py-4">Componente</th>
+                                    <th scope="col" class="px-5 py-4">Corriente (I) Resultante</th>
+                                    <th scope="col" class="px-5 py-4">Voltaje (V)</th>
+                                    <th scope="col" class="px-5 py-4">Potencia (P)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailed-results-body" class="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700/50 font-mono text-xs md:text-sm">
+                                <!-- Filas generadas por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- PASO 8: Métodos Avanzados -->
+                <div class="step-content p-6 md:p-10" id="step-8">
+                    <div class="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 font-bold tracking-wider text-sm mb-2"><i data-lucide="award" class="w-5 h-5"></i> PASO 8: MAESTRÍA</div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-6">Alternativas de Resolución</h2>
+                    <p class="text-slate-700 dark:text-slate-300 text-base md:text-lg mb-8">
+                        Aunque el análisis de Mallas es universalmente robusto, los ingenieros eléctricos emplean diversas técnicas dependiendo de la topología para optimizar el cómputo y aislar variables:
+                    </p>
+                    
+                    <div class="space-y-6">
+                        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 border-l-4 border-l-yellow-500 transition-transform hover:-translate-y-1">
+                            <h3 class="font-extrabold text-slate-800 dark:text-slate-100 text-xl flex items-center gap-3"><i data-lucide="git-commit" class="w-6 h-6 text-yellow-500"></i> Análisis Nodal Complejo</h3>
+                            <ol class="list-decimal pl-6 text-sm md:text-base text-slate-600 dark:text-slate-300 mt-3 space-y-2 font-medium">
+                                <li>Asignar el nodo inferior global a Tierra ($0V$).</li>
+                                <li>Identificar nodos incógnita superiores (ej. $V_x$, $V_y$).</li>
+                                <li>Plantear sumatoria de corrientes LCK: $\frac{V_x - V_{ref}}{R} ... = 0$.</li>
+                                <li>Resolver las tensiones nodales y derivar cualquier corriente por Ley de Ohm.</li>
+                            </ol>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 border-l-4 border-l-purple-500 transition-transform hover:-translate-y-1">
+                            <h3 class="font-extrabold text-slate-800 dark:text-slate-100 text-xl flex items-center gap-3"><i data-lucide="layers" class="w-6 h-6 text-purple-500"></i> Teorema de Superposición</h3>
+                            <ol class="list-decimal pl-6 text-sm md:text-base text-slate-600 dark:text-slate-300 mt-3 space-y-2 font-medium">
+                                <li>"Apagar" la fuente V2 reemplazándola por un cortocircuito (cable directo).</li>
+                                <li>Calcular las corrientes parciales originadas únicamente por V1 ($I'$).</li>
+                                <li>Invertir el proceso: Cortocircuitar V1 y calcular el efecto aislado de V2 ($I''$).</li>
+                                <li>Sumar vectorialmente ambos aportes: $I_{real} = I' + I''$.</li>
+                            </ol>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 border-l-4 border-l-pink-500 transition-transform hover:-translate-y-1">
+                            <h3 class="font-extrabold text-slate-800 dark:text-slate-100 text-xl flex items-center gap-3"><i data-lucide="target" class="w-6 h-6 text-pink-500"></i> Equivalente de Thévenin</h3>
+                            <ol class="list-decimal pl-6 text-sm md:text-base text-slate-600 dark:text-slate-300 mt-3 space-y-2 font-medium">
+                                <li>Retirar la resistencia donde quieres analizar el efecto (Ej. $R_3$).</li>
+                                <li>Hallar el Voltaje de circuito abierto en esos bornes ($V_{th}$).</li>
+                                <li>Apagar fuentes (cortos) y hallar la Resistencia equivalente ($R_{th}$) vista desde los bornes.</li>
+                                <li>Crear un circuito simple serie ($V_{th} + R_{th} + R_3$) para hallar la solución final velozmente.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASO 9: Glosario -->
+                <div class="step-content p-6 md:p-10" id="step-9">
+                    <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold tracking-wider text-sm mb-2"><i data-lucide="book" class="w-5 h-5"></i> PASO 9</div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-8">Glosario de Fundamentos</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="p-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-extrabold text-indigo-600 dark:text-sky-400 mb-2 text-lg">Malla Eléctrica</h4>
+                            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Un camino cerrado dentro de un circuito que no contiene otros caminos cerrados en su interior. Es la unidad básica de la LVK.</p>
+                        </div>
+                        <div class="p-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-extrabold text-yellow-600 dark:text-yellow-500 mb-2 text-lg">Nodo / Intersección</h4>
+                            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Punto físico donde convergen tres o más elementos. La corriente siempre se divide o suma aquí, rigiendo la LCK.</p>
+                        </div>
+                        <div class="p-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-extrabold text-red-600 dark:text-red-500 mb-2 text-lg">Corriente Convencional</h4>
+                            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Modelo estándar matemático y de ingeniería que asume que la carga positiva fluye del polo (+) al polo (-).</p>
+                        </div>
+                        <div class="p-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-extrabold text-cyan-600 dark:text-cyan-400 mb-2 text-lg">Flujo de Electrones</h4>
+                            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">La realidad física subatómica: las partículas (electrones) tienen carga negativa, por lo que se repelen del polo (-) y viajan hacia el (+).</p>
+                        </div>
+                        <div class="p-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-extrabold text-slate-800 dark:text-slate-200 mb-2 text-lg">Rama</h4>
+                            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Tramo individual del circuito ubicado entre dos nodos principales por el que circula una magnitud de corriente única y constante.</p>
+                        </div>
+                        <div class="p-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-extrabold text-rose-600 dark:text-rose-500 mb-2 text-lg">Efecto Joule</h4>
+                            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">Fenómeno termodinámico donde las colisiones de los electrones al fluir por el material resistivo emiten energía en forma de calor (Potencia Disipada).</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTROLES INFERIORES -->
+                <div class="absolute bottom-0 left-0 w-full p-4 bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-700 flex justify-between items-center z-10 lg:rounded-br-3xl">
+                    <button onclick="window.prevStep()" id="btnPrev" class="px-5 py-2.5 text-sm md:text-base rounded-full font-bold transition-all flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 shadow-sm">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i> Anterior
+                    </button>
+                    <div class="flex gap-1.5 md:gap-2.5 flex-wrap justify-center" id="stepDots"></div>
+                    <button onclick="window.nextStep()" id="btnNext" class="px-5 py-2.5 text-sm md:text-base rounded-full font-bold transition-all flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-30 shadow-lg hover:shadow-blue-500/50">
+                        Siguiente <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT ÚNICO CENTRALIZADO -->
+    <script>
+        // 1. INICIALIZACIÓN GLOBAL SEGURA
+        window.isDark = false; 
+        window.isLaser = false;
+        window.currentFlowMode = 'conventional';
+        window.circuitInitialized = false;
+        window.currentStep = 0;
+        window.totalSteps = 10;
+        window.startTime = null; // Control temporal absoluto para la animación de flujo
+
+        // 2. PARÁMETROS MATEMÁTICOS
+        let params = { r1: 20, rb: 20, r2: 20, ra: 30, rc: 30, r3: 30, v1: 80, v2: 80 };
+        let results = { i1: 0, i2: 0, i3: 0 };
+        let cramerData = { D: 0, D1: 0, D2: 0, D3: 0 };
+
+        // 3. UI Y NAVEGACIÓN
+        lucide.createIcons();
+
+        window.toggleTheme = function() {
+            window.isDark = !window.isDark; 
+            document.documentElement.classList.toggle('dark', window.isDark);
+        };
+
+        window.toggleLaser = function() {
+            window.isLaser = !window.isLaser; 
+            document.body.classList.toggle('laser-mode', window.isLaser);
+            document.getElementById('icon-laser').classList.toggle('text-red-500', window.isLaser);
+        };
+
+        document.addEventListener('mousemove', e => {
+            if(window.isLaser) { 
+                const lp = document.getElementById('laser-pointer'); 
+                lp.style.left = e.clientX + 'px'; 
+                lp.style.top = e.clientY + 'px'; 
+            }
+        });
+
+        window.toggleFullscreen = function() {
+            if (!document.fullscreenElement) {
+                document.getElementById('main-body').requestFullscreen().catch(e => console.log(e));
+            } else {
+                document.exitFullscreen();
+            }
+        };
+
+        window.setFlowMode = function(mode) {
+            window.currentFlowMode = mode;
+            const clsOn = 'btn-flow active px-2 md:px-3 py-1.5 rounded-md font-bold flex items-center gap-1 text-slate-900 dark:text-slate-300';
+            const clsOff = 'btn-flow px-2 md:px-3 py-1.5 rounded-md font-semibold flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200';
+            
+            document.getElementById('btnFlowConv').className = (mode === 'conventional') ? clsOn : clsOff;
+            document.getElementById('btnFlowElec').className = (mode === 'electron') ? clsOn : clsOff;
+            document.getElementById('btnFlowNone').className = (mode === 'none') ? clsOn : clsOff;
+        };
+
+        const stepDotsContainer = document.getElementById('stepDots');
+        for(let i=0; i<window.totalSteps; i++) {
+            const dot = document.createElement('div'); dot.id = "dot-" + i;
+            stepDotsContainer.appendChild(dot);
+        }
+
+        window.updateSteps = function() {
+            for(let i=0; i<window.totalSteps; i++) {
+                document.getElementById("step-" + i).classList.toggle('active', i === window.currentStep);
+                const dot = document.getElementById("dot-" + i);
+                dot.className = "w-2.5 h-2.5 md:w-3 md:h-3 rounded-full transition-all duration-300 " + 
+                                (i === window.currentStep ? 'scale-125 bg-blue-600 shadow-[0_0_8px_#2563eb]' : 'bg-slate-300 dark:bg-slate-600 cursor-pointer');
+                dot.onclick = () => { window.currentStep = i; window.updateSteps(); }; 
+            }
+            document.getElementById('btnPrev').disabled = window.currentStep === 0;
+            document.getElementById('btnNext').disabled = window.currentStep === window.totalSteps - 1;
+        };
+
+        window.prevStep = function() { if(window.currentStep > 0) { window.currentStep--; window.updateSteps(); } };
+        window.nextStep = function() { if(window.currentStep < window.totalSteps - 1) { window.currentStep++; window.updateSteps(); } };
+
+        // 4. MOTOR MATEMÁTICO Y KATEX PERFECTO
+        function safeRender(id, texString, displayMode = true) {
+            try {
+                const el = document.getElementById(id);
+                if (el && window.katex) {
+                    katex.render(texString, el, { throwOnError: false, displayMode: displayMode });
+                }
+            } catch (e) {
+                console.error(`Error renderizando LaTeX en ${id}:`, e);
+            }
+        }
+
+        function renderAllStaticMath() {
+            if (window.renderMathInElement) {
+                window.renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        function solve3x3Detail(A, B) {
+            const det = (m) => m[0][0]*(m[1][1]*m[2][2] - m[1][2]*m[2][1]) - m[0][1]*(m[1][0]*m[2][2] - m[1][2]*m[2][0]) + m[0][2]*(m[1][0]*m[2][1] - m[1][1]*m[2][0]);
+            const rep = (m, col, vec) => m.map((r, i) => { let nr = [...r]; nr[col] = vec[i]; return nr; });
+            
+            cramerData.D = det(A);
+            if(Math.abs(cramerData.D) < 1e-9) return [0,0,0]; 
+            
+            cramerData.D1 = det(rep(A,0,B)); 
+            cramerData.D2 = det(rep(A,1,B)); 
+            cramerData.D3 = det(rep(A,2,B));
+            
+            return [cramerData.D1/cramerData.D, cramerData.D2/cramerData.D, cramerData.D3/cramerData.D];
+        }
+
+        window.calculateAndRender = function() {
+            try {
+                ['r1','r2','r3','ra','rb','rc','v1','v2'].forEach(k => {
+                    let val = parseFloat(document.getElementById("in-" + k).value);
+                    params[k] = isNaN(val) ? 0 : val;
+                });
+
+                const p = params;
+                const A = [
+                    [ p.r1+p.rb+p.ra, -p.rb, -p.ra ],
+                    [ -p.rb, p.rb+p.r2+p.rc, -p.rc ],
+                    [ -p.ra, -p.rc, p.ra+p.rc+p.r3 ]
+                ];
+                const B = [ p.v1, p.v2, 0 ];
+
+                const sol = solve3x3Detail(A, B);
+                results.i1 = sol[0]; results.i2 = sol[1]; results.i3 = sol[2];
+
+                document.getElementById('res-i1').innerText = results.i1.toFixed(2);
+                document.getElementById('res-i2').innerText = results.i2.toFixed(2);
+                document.getElementById('res-i3').innerText = results.i3.toFixed(2);
+
+                const pR1 = Math.pow(results.i1, 2) * p.r1;
+                const pR2 = Math.pow(results.i2, 2) * p.r2;
+                const pR3 = Math.pow(results.i3, 2) * p.r3;
+                const pRa = Math.pow(results.i1 - results.i3, 2) * p.ra;
+                const pRb = Math.pow(results.i1 - results.i2, 2) * p.rb;
+                const pRc = Math.pow(results.i2 - results.i3, 2) * p.rc;
+                const totalCons = pR1 + pR2 + pR3 + pRa + pRb + pRc;
+                const totalDeliv = (p.v1 * results.i1) + (p.v2 * results.i2);
+
+                document.getElementById('pow-cons').innerText = totalCons.toFixed(2);
+                document.getElementById('pow-deliv').innerText = totalDeliv.toFixed(2);
+
+                const c1 = "#ef4444", c2 = "#3b82f6", c3 = "#10b981", cA = "#a855f7", cB = "#f97316", cC = "#14b8a6";
+
+                // --- TABLA DE RESULTADOS DETALLADA ---
+                const iRa = results.i1 - results.i3;
+                const iRb = results.i1 - results.i2;
+                const iRc = results.i2 - results.i3;
+
+                const tBody = document.getElementById('detailed-results-body');
+                if (tBody) {
+                    const row = (name, color, iFormula, iVal, rVal, vVal, pVal, isSource) => `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td class="px-5 py-4 font-bold text-base" style="color: ${color}">$${name}$</td>
+                            <td class="px-5 py-4 text-slate-800 dark:text-slate-200">$${iFormula} = ${Math.abs(iVal).toFixed(2)}\\text{ A}$</td>
+                            <td class="px-5 py-4 text-slate-800 dark:text-slate-200">
+                                ${isSource ? `$V = ${vVal.toFixed(2)}\\text{ V}$` : `$(${Math.abs(iVal).toFixed(2)}) \\cdot ${rVal} = ${vVal.toFixed(2)}\\text{ V}$`}
+                            </td>
+                            <td class="px-5 py-4 text-slate-800 dark:text-slate-200">
+                                ${isSource ? `$(${vVal.toFixed(2)}) \\cdot (${Math.abs(iVal).toFixed(2)}) = ${pVal.toFixed(2)}\\text{ W}$` : `$(${Math.abs(iVal).toFixed(2)})^2 \\cdot ${rVal} = ${pVal.toFixed(2)}\\text{ W}$`}
+                            </td>
+                        </tr>
+                    `;
+
+                    tBody.innerHTML = 
+                        row('R_1', c1, 'I_1', results.i1, p.r1, Math.abs(results.i1)*p.r1, pR1, false) +
+                        row('R_2', c2, 'I_2', results.i2, p.r2, Math.abs(results.i2)*p.r2, pR2, false) +
+                        row('R_3', c3, 'I_3', results.i3, p.r3, Math.abs(results.i3)*p.r3, pR3, false) +
+                        row('R_a', cA, 'I_1 - I_3', iRa, p.ra, Math.abs(iRa)*p.ra, pRa, false) +
+                        row('R_b', cB, 'I_1 - I_2', iRb, p.rb, Math.abs(iRb)*p.rb, pRb, false) +
+                        row('R_c', cC, 'I_2 - I_3', iRc, p.rc, Math.abs(iRc)*p.rc, pRc, false) +
+                        row('V_1', '#e11d48', 'I_1', results.i1, 0, p.v1, p.v1 * results.i1, true) +
+                        row('V_2', '#0284c7', 'I_2', results.i2, 0, p.v2, p.v2 * results.i2, true);
+
+                    if (window.renderMathInElement) {
+                        window.renderMathInElement(tBody, { delimiters: [{left: '$', right: '$', display: false}], throwOnError: false });
+                    }
+                }
+                // --- FIN TABLA ---
+
+                // Refinamientos en LaTeX incorporando unidades (\Omega, \text{V}) para un nivel académico superior
+                const mathM1 = `${p.v1}\\text{V} - \\textcolor{${c1}}{${p.r1}\\Omega}\\cdot\\textcolor{${c1}}{I_1} - \\textcolor{${cA}}{${p.ra}\\Omega}(\\textcolor{${c1}}{I_1}-\\textcolor{${c3}}{I_3}) - \\textcolor{${cB}}{${p.rb}\\Omega}(\\textcolor{${c1}}{I_1}-\\textcolor{${c2}}{I_2}) = 0 \\\\ ` +
+                               `${A[0][0]}\\textcolor{${c1}}{I_1} ${A[0][1]<0?'-':'+'} ${Math.abs(A[0][1])}\\textcolor{${c2}}{I_2} ${A[0][2]<0?'-':'+'} ${Math.abs(A[0][2])}\\textcolor{${c3}}{I_3} = ${B[0]}`;
+                
+                const mathM2 = `${p.v2}\\text{V} - \\textcolor{${cB}}{${p.rb}\\Omega}(\\textcolor{${c2}}{I_2}-\\textcolor{${c1}}{I_1}) - \\textcolor{${cC}}{${p.rc}\\Omega}(\\textcolor{${c2}}{I_2}-\\textcolor{${c3}}{I_3}) - \\textcolor{${c2}}{${p.r2}\\Omega}\\cdot\\textcolor{${c2}}{I_2} = 0 \\\\ ` +
+                               `${A[1][0]<0?'-':''} ${Math.abs(A[1][0])}\\textcolor{${c1}}{I_1} + ${A[1][1]}\\textcolor{${c2}}{I_2} ${A[1][2]<0?'-':'+'} ${Math.abs(A[1][2])}\\textcolor{${c3}}{I_3} = ${B[1]}`;
+                
+                const mathM3 = `-\\textcolor{${c3}}{${p.r3}\\Omega}\\cdot\\textcolor{${c3}}{I_3} - \\textcolor{${cC}}{${p.rc}\\Omega}(\\textcolor{${c3}}{I_3}-\\textcolor{${c2}}{I_2}) - \\textcolor{${cA}}{${p.ra}\\Omega}(\\textcolor{${c3}}{I_3}-\\textcolor{${c1}}{I_1}) = 0 \\\\ ` +
+                               `${A[2][0]<0?'-':''} ${Math.abs(A[2][0])}\\textcolor{${c1}}{I_1} ${A[2][1]<0?'-':'+'} ${Math.abs(A[2][1])}\\textcolor{${c2}}{I_2} - ${Math.abs(A[2][2])}\\textcolor{${c3}}{I_3} = 0`;
+                
+                const mathMat = `\\begin{bmatrix} ${A[0][0]} & ${A[0][1]} & ${A[0][2]} \\\\ ${A[1][0]} & ${A[1][1]} & ${A[1][2]} \\\\ ${A[2][0]} & ${A[2][1]} & ${A[2][2]} \\end{bmatrix} \\begin{bmatrix} \\textcolor{${c1}}{I_1} \\\\ \\textcolor{${c2}}{I_2} \\\\ \\textcolor{${c3}}{I_3} \\end{bmatrix} = \\begin{bmatrix} ${B[0]} \\\\ ${B[1]} \\\\ 0 \\end{bmatrix}`;
+                
+                const fmt = (n) => n.toLocaleString('en-US', {maximumFractionDigits: 1});
+
+                const mathCramer = `\\Delta = ${fmt(cramerData.D)} \\\\ ` +
+                                   `\\Delta_1 = ${fmt(cramerData.D1)} \\quad ` +
+                                   `\\Delta_2 = ${fmt(cramerData.D2)} \\quad ` +
+                                   `\\Delta_3 = ${fmt(cramerData.D3)} \\\\ ` +
+                                   `\\textcolor{${c1}}{I_1} = \\frac{\\Delta_1}{\\Delta} \\quad \\textcolor{${c2}}{I_2} = \\frac{\\Delta_2}{\\Delta} \\quad \\textcolor{${c3}}{I_3} = \\frac{\\Delta_3}{\\Delta}`;
+
+                const mathRes = `\\textcolor{${c1}}{I_1}=${results.i1.toFixed(2)}\\text{ A} \\quad \\textcolor{${c2}}{I_2}=${results.i2.toFixed(2)}\\text{ A} \\quad \\textcolor{${c3}}{I_3}=${results.i3.toFixed(2)}\\text{ A}`;
+
+                safeRender('math-m1', mathM1); 
+                safeRender('math-m2', mathM2); 
+                safeRender('math-m3', mathM3);
+                safeRender('math-matrix', mathMat); 
+                safeRender('math-cramer', mathCramer, true); 
+                safeRender('math-results', mathRes);
+
+                safeRender('math-n1', `I_a + \\textcolor{${c3}}{I_3} = \\textcolor{${c1}}{I_1} \\implies \\textcolor{${cA}}{I_a} = \\textcolor{${c1}}{I_1} - \\textcolor{${c3}}{I_3}`);
+                safeRender('math-n2', `I_b + \\textcolor{${c2}}{I_2} = \\textcolor{${c1}}{I_1} \\implies \\textcolor{${cB}}{I_b} = \\textcolor{${c1}}{I_1} - \\textcolor{${c2}}{I_2}`);
+                safeRender('math-n3', `I_c + \\textcolor{${c3}}{I_3} = \\textcolor{${c2}}{I_2} \\implies \\textcolor{${cC}}{I_c} = \\textcolor{${c2}}{I_2} - \\textcolor{${c3}}{I_3}`);
+
+            } catch (error) { 
+                console.error("Calculation Error:", error); 
+            }
+        };
+
+        document.querySelectorAll('.circuit-input').forEach(input => { 
+            input.addEventListener('input', window.calculateAndRender); 
+        });
+
+        // 5. MOTOR GRÁFICO (Canvas)
+        const canvas = document.getElementById('circuitCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const getColors = () => ({
+            wireOuter: window.isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
+            wireInner: window.isDark ? "rgba(255, 255, 255, 0.8)" : "#475569",
+            nodeNorm: window.isDark ? "#ffffff" : "#1e293b",
+            nodeGlow: "#fde047",
+            mesh1: "#ef4444", mesh2: "#3b82f6", mesh3: "#10b981",
+            colorR1: "#ef4444", colorR2: "#3b82f6", colorR3: "#10b981", 
+            colorRa: "#a855f7", colorRb: "#f97316", colorRc: "#14b8a6",
+            convColor: window.isDark ? "#f43f5e" : "#e11d48", 
+            elecColor: window.isDark ? "#38bdf8" : "#0284c7", 
+            dimAlpha: 0.15, fullAlpha: 1.0
+        });
+
+        const N = { TL: {x:140, y:120}, ML: {x:140, y:280}, BL: {x:140, y:440}, TR: {x:460, y:120}, C: {x:300, y:280}, BR: {x:460, y:440} };
+
+        function getStyle(ctype, id = null) {
+            let a = getColors().fullAlpha, g = false;
+            if (window.currentStep === 1) { if(ctype==='node' && ['a','b','c'].includes(id)) g=true; else if(ctype!=='particle') a=0.3; }
+            else if (window.currentStep === 2) { if(!['srcTop','r1','rb','ra','mesh1'].includes(id)) a=getColors().dimAlpha; }
+            else if (window.currentStep === 3) { if(!['srcBot','rb','r2','rc','mesh2'].includes(id)) a=getColors().dimAlpha; }
+            else if (window.currentStep === 4) { if(!['ra','rc','r3','mesh3'].includes(id)) a=getColors().dimAlpha; }
+            return { alpha: a, glow: g };
+        }
+
+        function drawWire(p1, p2, s) { 
+            const c = getColors(); ctx.globalAlpha = s.alpha;
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = c.wireOuter; ctx.lineWidth = 10; ctx.lineCap = "round"; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = s.glow ? '#fff' : c.wireInner; ctx.lineWidth = 3; ctx.stroke();
+            ctx.globalAlpha=1; 
+        }
+
+        function drawNode(p, lbl, id, s) {
+            const c = getColors(); ctx.globalAlpha = s.alpha;
+            ctx.beginPath(); ctx.arc(p.x, p.y, s.glow?8:6, 0, Math.PI*2); 
+            ctx.fillStyle = s.glow ? c.nodeGlow : c.nodeNorm; 
+            if(window.isDark && !s.glow) { ctx.shadowBlur = 8; ctx.shadowColor = "#ffffff"; }
+            if(s.glow) { ctx.shadowBlur = 15; ctx.shadowColor = c.nodeGlow; }
+            ctx.fill(); ctx.shadowBlur = 0;
+            if(lbl) {
+                ctx.fillStyle = s.glow ? c.nodeGlow : c.wireInner; ctx.font = s.glow ? 'bold 24px Inter' : 'bold 18px Inter';
+                ctx.fillText(lbl, p.x + (p.x>300?18:-30), p.y + (p.y>300?25:-12));
+            }
+            ctx.globalAlpha=1; 
+        }
+
+        function drawResistor(p1, p2, val, lbl, id, resColorHex) {
+            const s = getStyle('resistor', id); const c = getColors(); ctx.globalAlpha = s.alpha;
+            const dx = p2.x - p1.x, dy = p2.y - p1.y, dist = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
+            ctx.save(); ctx.translate(p1.x, p1.y); ctx.rotate(ang);
+            const startZ = dist*0.3, zW = dist*0.4, step = zW/6, amp = 16; 
+
+            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(startZ,0); 
+            let cx = startZ; for(let i=0; i<6; i++) { cx+=step; ctx.lineTo(cx, i===5?0 : (i%2===0?-amp:amp)); }
+            ctx.lineTo(dist,0); 
+            ctx.strokeStyle = c.wireOuter; ctx.lineWidth = 10; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke();
+
+            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(startZ,0); 
+            cx = startZ; for(let i=0; i<6; i++) { cx+=step; ctx.lineTo(cx, i===5?0 : (i%2===0?-amp:amp)); }
+            ctx.lineTo(dist,0); 
+            if (s.alpha === 1.0) { ctx.strokeStyle = resColorHex; ctx.lineWidth = 3.5; ctx.shadowBlur = 10; ctx.shadowColor = resColorHex; } 
+            else { ctx.strokeStyle = c.wireInner; ctx.lineWidth = 3; ctx.shadowBlur = 0; }
+            ctx.stroke(); ctx.shadowBlur = 0;
+            
+            ctx.translate(dist/2, -amp-20); ctx.rotate(-ang);
+            ctx.fillStyle = resColorHex; ctx.font='bold 16px Inter'; ctx.textAlign='center'; ctx.fillText(lbl,0,-22);
+            ctx.fillStyle = window.isDark ? '#f8fafc' : '#0f172a'; ctx.font='bold 16px Inter'; ctx.fillText(val+'Ω',0,0);
+            ctx.restore(); ctx.globalAlpha=1;
+        }
+
+        function drawSource(p1, p2, val, id) {
+            const s = getStyle('source', id); const c = getColors(); ctx.globalAlpha = s.alpha;
+            const midX = (p1.x+p2.x)/2, midY = (p1.y+p2.y)/2;
+            const ang = Math.atan2(p2.y-p1.y, p2.x-p1.x); const r = 26;
+            
+            drawWire(p1, {x: midX - Math.cos(ang)*r, y: midY - Math.sin(ang)*r}, s);
+            drawWire({x: midX + Math.cos(ang)*r, y: midY + Math.sin(ang)*r}, p2, s);
+
+            ctx.save(); ctx.translate(midX, midY);
+            ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fillStyle = window.isDark ? '#0f172a' : '#ffffff'; ctx.fill();
+            ctx.strokeStyle = c.wireInner; ctx.lineWidth = 3; 
+            if(window.isDark && s.alpha === 1) { ctx.shadowBlur = 10; ctx.shadowColor = "#ffffff"; }
+            ctx.stroke(); ctx.shadowBlur = 0;
+            
+            let pColor = window.isDark ? '#f43f5e' : '#e11d48'; let mColor = window.isDark ? '#38bdf8' : '#0284c7';
+            ctx.font='bold 22px Inter'; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillStyle = pColor; ctx.fillText('+',0,-12); ctx.fillStyle = mColor; ctx.fillText('-',0,12);
+            ctx.fillStyle = window.isDark ? '#fbbf24' : '#d97706'; ctx.font='bold 18px Inter'; ctx.fillText(val,-44,0);
+            ctx.restore(); ctx.globalAlpha=1;
+        }
+
+        // --- SOLUCIÓN: LÓGICA CON MApeo POLAR PARA QUE LA FLECHA SE DOBLE CON LA CURVATURA ---
+        function drawMeshArrow(cx, cy, color, lbl, id, currentVal) {
+            const s = getStyle('meshArrow', id); ctx.globalAlpha = s.alpha;
+            const time = Date.now() / 800, radius = 40;
+            
+            // Círculo base tenue para guía visual
+            ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI*2);
+            ctx.strokeStyle=color; ctx.lineWidth=3; ctx.globalAlpha=s.alpha*0.15; ctx.stroke();
+            
+            const isNegative = currentVal < 0;
+            const direction = isNegative ? -1 : 1;
+
+            ctx.globalAlpha = s.alpha; 
+            const st = direction * time; 
+            const ed = st + direction * Math.PI*1.3;
+
+            // Arco principal de la corriente
+            ctx.beginPath(); ctx.arc(cx, cy, radius, st, ed, isNegative);
+            ctx.strokeStyle=color; ctx.lineWidth=5; ctx.stroke();
+            
+            // Lógica de Vértices Polares (la flecha abraza el círculo)
+            const arrowLenRad = 16 / radius; // Longitud del cuerpo a lo largo de la curva
+            const notchRad = 10 / radius;    // Hendidura trasera a lo largo de la curva
+            const arrowWidth = 9;            // Ancho radial de las aletas
+
+            const wingAngle = ed - direction * arrowLenRad;
+            const notchAngle = ed - direction * notchRad;
+
+            const tipX = cx + Math.cos(ed) * radius;
+            const tipY = cy + Math.sin(ed) * radius;
+            
+            const outerWingX = cx + Math.cos(wingAngle) * (radius + arrowWidth);
+            const outerWingY = cy + Math.sin(wingAngle) * (radius + arrowWidth);
+
+            const notchX = cx + Math.cos(notchAngle) * radius;
+            const notchY = cy + Math.sin(notchAngle) * radius;
+
+            const innerWingX = cx + Math.cos(wingAngle) * (radius - arrowWidth);
+            const innerWingY = cy + Math.sin(wingAngle) * (radius - arrowWidth);
+
+            // Dibujamos la figura curvada y envolvente
+            ctx.beginPath();
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(outerWingX, outerWingY);
+            ctx.lineTo(notchX, notchY);
+            ctx.lineTo(innerWingX, innerWingY);
+            ctx.closePath();
+            
+            ctx.fillStyle = color; 
+            ctx.fill(); 
+            
+            ctx.fillStyle=color; ctx.font='bold 26px Inter'; ctx.textAlign='center'; ctx.fillText(lbl, cx, cy+10);
+            ctx.globalAlpha=1;
+        }
+
+        function drawPerfectVector(ctx, x, y, angle, color) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+            ctx.beginPath(); 
+            ctx.moveTo(15, 0); ctx.lineTo(-10, 8); ctx.lineTo(-5, 0); ctx.lineTo(-10, -8); ctx.closePath();
+            ctx.fillStyle = color; 
+            if(window.isDark) { ctx.shadowBlur = 10; ctx.shadowColor = color; }
+            ctx.fill(); ctx.restore();
+        }
+
+        function drawFlowArrow(x1, y1, x2, y2, color, label) {
+            const dx = x2 - x1; const dy = y2 - y1;
+            const angle = Math.atan2(dy, dx); const dist = Math.hypot(dx, dy);
+            ctx.save(); ctx.translate(x1, y1); ctx.rotate(angle);
+            
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(dist - 5, 0);
+            ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+            
+            ctx.beginPath(); ctx.moveTo(dist, 0); ctx.lineTo(dist-12, -7); ctx.lineTo(dist-12, 7);
+            ctx.fillStyle = color; ctx.fill();
+            
+            ctx.translate(dist/2, -12); ctx.rotate(-angle); 
+            ctx.fillStyle = color; ctx.font = "bold 16px Inter"; ctx.textAlign = "center";
+            ctx.fillText(label, 0, 0);
+            ctx.restore();
+        }
+
+        const Branches = [
+            { id: 'b1', p1: N.ML, p2: N.TL, getI: () => results.i1 },
+            { id: 'b2', p1: N.TL, p2: N.TR, getI: () => results.i1 },
+            { id: 'b3', p1: N.BL, p2: N.ML, getI: () => results.i2 },
+            { id: 'b4', p1: N.BR, p2: N.BL, getI: () => results.i2 },
+            { id: 'b5', p1: N.TR, p2: N.BR, getI: () => results.i3 },
+            { id: 'ba', p1: N.TR, p2: N.C,  getI: () => results.i1 - results.i3 },
+            { id: 'bb', p1: N.C,  p2: N.ML, getI: () => results.i1 - results.i2 },
+            { id: 'bc', p1: N.C,  p2: N.BR, getI: () => results.i2 - results.i3 }
+        ];
+
+        function renderCanvasLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // CONTROL ABSOLUTO DEL TIEMPO PARA LA ANIMACIÓN FÍSICA FLUIDA
+            if (!window.startTime) window.startTime = Date.now();
+            window.animationTime = (Date.now() - window.startTime) / 1000;
+
+            drawSource(N.ML, N.TL, params.v1+'V', 'srcTop');
+            drawSource(N.BL, N.ML, params.v2+'V', 'srcBot');
+            
+            const c = getColors();
+            drawResistor(N.TL, N.TR, params.r1, 'R1', 'r1', c.colorR1); 
+            drawResistor(N.BL, N.BR, params.r2, 'R2', 'r2', c.colorR2); 
+            drawResistor(N.TR, N.BR, params.r3, 'R3', 'r3', c.colorR3); 
+            
+            drawResistor(N.TR, N.C,  params.ra, 'Ra', 'ra', c.colorRa); 
+            drawResistor(N.ML, N.C,  params.rb, 'Rb', 'rb', c.colorRb); 
+            drawResistor(N.C,  N.BR, params.rc, 'Rc', 'rc', c.colorRc); 
+
+            drawNode(N.TL, null, null, getStyle('node')); drawNode(N.BL, null, null, getStyle('node')); drawNode(N.C, null, null, getStyle('node'));
+            drawNode(N.TR, 'a', 'a', getStyle('node', 'a')); drawNode(N.ML, 'b', 'b', getStyle('node', 'b')); drawNode(N.BR, 'c', 'c', getStyle('node', 'c'));
+
+            if (window.currentStep === 1) {
+                drawFlowArrow(400, 120, 440, 120, c.colorR1, "I₁"); 
+                drawFlowArrow(460, 140, 460, 190, c.colorR3, "I₃"); 
+                drawFlowArrow(445, 135, 410, 170, c.colorRa, "Iₐ"); 
+                drawFlowArrow(140, 340, 140, 300, c.colorR2, "I₂"); 
+                drawFlowArrow(200, 280, 160, 280, c.colorRb, "I_b"); 
+                drawFlowArrow(140, 260, 140, 210, c.colorR1, "I₁"); 
+                drawFlowArrow(410, 390, 445, 425, c.colorRc, "I_c"); 
+                drawFlowArrow(460, 380, 460, 420, c.colorR3, "I₃"); 
+                drawFlowArrow(440, 440, 390, 440, c.colorR2, "I₂"); 
+            }
+
+            drawMeshArrow(220, 200, c.mesh1, 'I₁', 'mesh1', results.i1);
+            drawMeshArrow(220, 360, c.mesh2, 'I₂', 'mesh2', results.i2);
+            drawMeshArrow(400, 280, c.mesh3, 'I₃', 'mesh3', results.i3); 
+
+            // -- NUEVA ANIMACIÓN DE FLUJO INTEGRADA SEGÚN LA LÓGICA SOLICITADA --
+            if (window.currentFlowMode !== 'none') {
+                Branches.forEach(branch => {
+                    let currentVal = branch.getI();
+                    if (Math.abs(currentVal) < 0.01) return; // Ocultar si no hay corriente
+
+                    let isNegative = currentVal < 0;
+                    let speed = 45 * (0.5 + Math.min(Math.abs(currentVal) * 0.1, 1.5)); // Velocidad proporcional
+                    
+                    let points = [branch.p1, branch.p2];
+                    let dx = points[1].x - points[0].x, dy = points[1].y - points[0].y;
+                    let pathLengths = [Math.hypot(dx, dy)];
+                    let totalLen = pathLengths[0];
+                    
+                    let numDots = 5; 
+                    let spacing = totalLen / numDots;
+
+                    // Asignación de transparencia por enfoque pedagógico
+                    let alpha = 1;
+                    const id = branch.id;
+                    if(window.currentStep===2 && !['b1','b2','bb','ba'].includes(id)) alpha=0.05;
+                    if(window.currentStep===3 && !['b3','b4','bb','bc'].includes(id)) alpha=0.05;
+                    if(window.currentStep===4 && !['b5','ba','bc'].includes(id)) alpha=0.05;
+                    ctx.globalAlpha = alpha;
+
+                    // Lógica del Ciclo Matemático del Desplazamiento
+                    for(let i=0; i<numDots; i++) {
+                        let validTotalLen = Math.max(0.1, totalLen);
+                        let distance = ((window.animationTime * speed + i * spacing) % validTotalLen + validTotalLen) % validTotalLen;
+                        
+                        if (window.currentFlowMode === 'electron') distance = validTotalLen - distance;
+
+                        let accumulated = 0, dotPos = null, angle = 0;
+                        for(let j=0; j<pathLengths.length; j++) {
+                            if (distance <= accumulated + pathLengths[j] + 0.001) {
+                                let ratio = (distance - accumulated) / pathLengths[j];
+                                dotPos = { 
+                                    x: points[j].x + (points[j+1].x - points[j].x) * ratio, 
+                                    y: points[j].y + (points[j+1].y - points[j].y) * ratio 
+                                };
+                                angle = Math.atan2(points[j+1].y - points[j].y, points[j+1].x - points[j].x);
+                                break;
+                            }
+                            accumulated += pathLengths[j];
+                        }
+
+                        if (dotPos) {
+                            if (isNegative !== (window.currentFlowMode === 'electron')) angle += Math.PI; 
+                            
+                            if (window.currentFlowMode === 'electron') {
+                                ctx.beginPath(); ctx.arc(dotPos.x, dotPos.y, 3.5, 0, Math.PI*2); 
+                                ctx.fillStyle = window.isDark ? '#38bdf8' : '#0284c7'; 
+                                if(window.isDark) { ctx.shadowBlur = 12; ctx.shadowColor = '#0ea5e9'; }
+                                ctx.fill(); ctx.shadowBlur = 0;
+                            } else {
+                                drawPerfectVector(ctx, dotPos.x, dotPos.y, angle, window.isDark ? '#f43f5e' : '#e11d48'); 
+                            }
+                        }
+                    }
+                    ctx.globalAlpha = 1;
+                });
+            }
+
+            requestAnimationFrame(renderCanvasLoop);
+        }
+
+        window.initCircuit = function() {
+            if (window.circuitInitialized) return;
+            window.circuitInitialized = true;
+
+            renderAllStaticMath();
+
+            window.updateSteps(); 
+            window.setFlowMode('conventional');
+            window.calculateAndRender(); 
+            renderCanvasLoop();
+        };
+
+        window.addEventListener('DOMContentLoaded', () => { setTimeout(window.initCircuit, 100); });
+
+    </script>
+</body>
+</html>
