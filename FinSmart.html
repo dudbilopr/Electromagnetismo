@@ -359,7 +359,17 @@
             e.preventDefault();
             try { if(isLogin) await signInWithEmailAndPassword(auth, D('auth-email').value, D('auth-pass').value); else { const res = await createUserWithEmailAndPassword(auth, D('auth-email').value, D('auth-pass').value); await updateProfile(res.user, { displayName: D('auth-name').value || 'Usuario' }); } } catch (error) { alert("Credenciales inválidas."); }
         });
-        D('btn-google-auth').addEventListener('click', () => signInWithPopup(auth, googleProvider));
+        
+        D('btn-google-auth').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await signInWithPopup(auth, googleProvider);
+            } catch (error) {
+                alert("Error al conectar con Google. Si usas un bloqueador de ventanas emergentes, por favor desactívalo: " + error.message);
+                console.error("Auth error: ", error);
+            }
+        });
+        
         const doLogout = () => signOut(auth); D('btn-logout').addEventListener('click', doLogout); D('btn-logout-mobile').addEventListener('click', doLogout);
 
         // ROUTING
@@ -391,16 +401,20 @@
             
             // Perfil
             state.unsubs.push(onSnapshot(doc(db, 'artifacts', appId, 'users', uid, 'profile', 'data'), snap => {
+                let pName = state.user.displayName || 'Usuario';
+                
                 if(snap.exists()) {
                     state.profile = snap.data();
-                    D('prof-name').value = state.profile.name || state.user.displayName || 'Usuario';
+                    pName = state.profile.name || pName;
+                    D('prof-name').value = pName;
                     D('prof-type').value = state.profile.type || 'Moderado';
                     D('prof-goal').value = state.profile.goal || '';
                 } else {
-                    state.profile = { type: 'Moderado', goal: '', name: state.user.displayName || 'Usuario' };
-                    D('prof-name').value = state.profile.name;
+                    state.profile = { type: 'Moderado', goal: '', name: pName };
+                    D('prof-name').value = pName;
                 }
-                const n = state.profile.name.split(' ')[0]; // Primer nombre
+                
+                const n = String(pName).split(' ')[0]; // Seguro contra valores nulos para evitar congelamiento
                 D('sidebar-user-name').innerText = n; D('user-avatar-initial').innerText = n[0].toUpperCase(); D('mobile-avatar').innerText = n[0].toUpperCase();
                 D('sidebar-user-type').innerText = state.profile.type;
                 if(loaded === cols.length) { updateDashboard(); generateAIInsights(); }
