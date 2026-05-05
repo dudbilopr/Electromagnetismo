@@ -542,11 +542,19 @@
 
         const D = id => document.getElementById(id);
         const formatMoney = amt => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(amt || 0);
+        
+        // NUEVO: Función segura para leer fechas en hora local sin desfase de zona horaria (UTC-5)
+        const parseLocalDate = str => {
+            if(!str) return new Date();
+            const parts = str.split('-');
+            if(parts.length === 3) return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+            return new Date(str);
+        };
+
         const formatDate = str => { 
             if(!str) return 'Sin fecha';
-            const d = new Date(str); 
+            const d = parseLocalDate(str); 
             if(isNaN(d.getTime())) return str;
-            d.setMinutes(d.getMinutes() + d.getTimezoneOffset()); 
             return d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric', year: 'numeric' }); 
         };
 
@@ -717,7 +725,7 @@
             cols.forEach(col => {
                 state.unsubs.push(onSnapshot(query(collection(db, 'artifacts', appId, 'users', uid, col)), snap => {
                     state[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    if(['expenses','incomes','receivables','investments'].includes(col)) { state[col].sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)); }
+                    if(['expenses','incomes','receivables','investments'].includes(col)) { state[col].sort((a,b) => parseLocalDate(b.date) - parseLocalDate(a.date)); }
                     try { renderUI(col); } catch (e) { console.error("Error seguro en renderUI para la coleccion:", col, e); }
                     if(++loaded === cols.length) { D('global-loading').classList.add('hidden'); updateDashboard(); generateAIInsights(); }
                 }, error => {
@@ -902,10 +910,10 @@
         const updateDashboard = () => {
             const root = document.documentElement;
             const cm = new Date().getMonth(), cy = new Date().getFullYear();
-            const isCm = (d) => new Date(d).getMonth()===cm && new Date(d).getFullYear()===cy;
+            const isCm = (d) => parseLocalDate(d).getMonth()===cm && parseLocalDate(d).getFullYear()===cy;
             const incM = state.incomes.filter(i=>isCm(i.date)).reduce((s,i)=>s+i.amount,0);
             const expM = state.expenses.filter(e=>isCm(e.date)).reduce((s,e)=>s+getMyAmt(e),0);
-            const avgExp = expM / (state.expenses.length ? Math.max(1, new Set(state.expenses.map(e=>new Date(e.date).getMonth())).size) : 1);
+            const avgExp = expM / (state.expenses.length ? Math.max(1, new Set(state.expenses.map(e=>parseLocalDate(e.date).getMonth())).size) : 1);
             
             const cesantiasTotal = state.incomes.filter(i => i.type === 'Cesantías').reduce((s,i) => s+i.amount, 0);
             const invTotal = state.investments.reduce((s,i)=>s+i.amount,0) + cesantiasTotal;
@@ -927,7 +935,7 @@
                 grid.innerHTML = '';
                 const daysInMonth = new Date(cy, cm+1, 0).getDate(); const firstDay = new Date(cy, cm, 1).getDay();
                 for(let i=0; i<firstDay; i++) grid.innerHTML += `<div class="aspect-square rounded-xl bg-transparent"></div>`;
-                const dailyExp = {}; state.expenses.filter(e=>isCm(e.date)).forEach(e => { const d = new Date(e.date).getDate(); dailyExp[d] = (dailyExp[d] || 0) + getMyAmt(e); });
+                const dailyExp = {}; state.expenses.filter(e=>isCm(e.date)).forEach(e => { const d = parseLocalDate(e.date).getDate(); dailyExp[d] = (dailyExp[d] || 0) + getMyAmt(e); });
                 const maxExp = Math.max(...Object.values(dailyExp), 1);
                 for(let d=1; d<=daysInMonth; d++) {
                     const val = dailyExp[d] || 0; let bgClass = 'bg-slate-100 dark:bg-slate-800 text-slate-400';
@@ -941,8 +949,8 @@
             const mLbl=[], iD=[], eD=[];
             for(let i=5; i>=0; i--) {
                 const d = new Date(cy, cm-i, 1); mLbl.push(d.toLocaleString('es-ES',{month:'short'}).toUpperCase());
-                iD.push(state.incomes.filter(x=>{const xd=new Date(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear()}).reduce((s,x)=>s+x.amount,0));
-                eD.push(state.expenses.filter(x=>{const xd=new Date(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear()}).reduce((s,x)=>s+getMyAmt(x),0));
+                iD.push(state.incomes.filter(x=>{const xd=parseLocalDate(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear()}).reduce((s,x)=>s+x.amount,0));
+                eD.push(state.expenses.filter(x=>{const xd=parseLocalDate(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear()}).reduce((s,x)=>s+getMyAmt(x),0));
             }
             
             const canvasEvol = D('chart-evolution');
@@ -1004,16 +1012,16 @@
             }
         };
 
-        // INTELIGENCIA FINANCIERA CONTEXTUAL MÁS POTENTE Y EXPERTA (SIN SALTOS DE LÍNEA)
+        // INTELIGENCIA FINANCIERA CONTEXTUAL DEMOGRÁFICA MÁS POTENTE Y EXPERTA (SIN SALTOS DE LÍNEA)
         const generateAIInsights = () => {
             const c = D('ai-insights'); 
             if(!c) return;
             c.innerHTML = '';
             
             const cm = new Date().getMonth();
-            const incM = state.incomes.filter(i => new Date(i.date).getMonth() === cm).reduce((s, i) => s + i.amount, 0);
+            const incM = state.incomes.filter(i => parseLocalDate(i.date).getMonth() === cm).reduce((s, i) => s + i.amount, 0);
             const expM = state.expenses.reduce((s, e) => s + getMyAmt(e), 0);
-            const avgExp = expM / (state.expenses.length ? Math.max(1, new Set(state.expenses.map(e=>new Date(e.date).getMonth())).size) : 1);
+            const avgExp = expM / (state.expenses.length ? Math.max(1, new Set(state.expenses.map(e=>parseLocalDate(e.date).getMonth())).size) : 1);
             const debtPayM = state.debts.reduce((s, d) => s + calcCuota(d), 0);
             
             const cesantiasTotal = state.incomes.filter(i => i.type === 'Cesantías').reduce((s,i) => s+i.amount, 0);
@@ -1030,7 +1038,7 @@
             
             let ageStr = "desconocida"; let ageNum = 30;
             if(state.profile?.dob) {
-                const diff = Date.now() - new Date(state.profile.dob).getTime();
+                const diff = Date.now() - parseLocalDate(state.profile.dob).getTime();
                 ageNum = Math.abs(new Date(diff).getUTCFullYear() - 1970);
                 ageStr = ageNum + " años";
             }
@@ -1077,7 +1085,7 @@
                 }
 
                 let deseos = 0, necesidades = 0, ayudaFam = 0;
-                state.expenses.filter(e => new Date(e.date).getMonth() === cm).forEach(e => {
+                state.expenses.filter(e => parseLocalDate(e.date).getMonth() === cm).forEach(e => {
                     const amt = getMyAmt(e);
                     if(CATEGORIES['Deseos (30%)'].includes(e.category)) deseos += amt;
                     if(CATEGORIES['Necesidades (50%)'].includes(e.category)) {
