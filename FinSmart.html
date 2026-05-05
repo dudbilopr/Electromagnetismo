@@ -806,7 +806,7 @@
             }
         };
 
-        // INTELIGENCIA FINANCIERA CONTEXTUAL DEMOGRÁFICA MÁS POTENTE
+        // INTELIGENCIA FINANCIERA CONTEXTUAL DEMOGRÁFICA MÁS POTENTE Y EXPERTA
         const generateAIInsights = () => {
             const c = D('ai-insights'); 
             if(!c) return;
@@ -821,48 +821,57 @@
             const cesantiasTotal = state.incomes.filter(i => i.type === 'Cesantías').reduce((s,i) => s+i.amount, 0);
             const invTotal = state.investments.reduce((s,i) => s + i.amount, 0) + cesantiasTotal;
 
+            // Extraemos datos demográficos profundos
             const pType = state.profile?.type || 'Moderado';
             const stability = state.profile?.stability || 'Fijo';
             const dependents = state.profile?.dependents || 0;
             const targetSav = state.profile?.targetSavings || 20;
+            const stratum = state.profile?.stratum || '3';
+            const education = state.profile?.education || 'Profesional';
+            const assets = state.profile?.assets || [];
+            
+            // Calcular edad real
+            let ageStr = "desconocida"; let ageNum = 30;
+            if(state.profile?.dob) {
+                const diff = Date.now() - new Date(state.profile.dob).getTime();
+                ageNum = Math.abs(new Date(diff).getUTCFullYear() - 1970);
+                ageStr = ageNum + " años";
+            }
 
             let targetMonths = 3, maxDebt = 30;
             if(pType === 'Conservador') { targetMonths = 6; maxDebt = 20; }
             if(pType === 'Agresivo') { targetMonths = 2; maxDebt = 40; }
-            
-            // Ajustes demográficos algorítmicos
             if (stability === 'Variable' || stability === 'Emprendedor') targetMonths += 2;
             if (dependents > 0) targetMonths += 1;
 
             const ins = [];
-            
             const goalIcon = state.profile?.goalIcon || '🏖️';
-            ins.push({c:'purple', i:'ph-identification-badge', t:`**Calibración Demográfica:** La IA ha notado que tienes **${dependents} personas a cargo** y tus ingresos son de tipo **${stability}**. Hemos ajustado tu liquidez objetivo a **${targetMonths} meses** y tu deuda máxima al **${maxDebt}%** para protegerte y llevarte a tu meta: ${goalIcon} *${state.profile?.goal || 'Libertad Financiera'}*.`});
+            
+            ins.push({c:'purple', i:'ph-identification-badge', t:`**Diagnóstico de Perfil (Edad: ${ageStr}):** Detecto **${dependents} personas a cargo** e ingresos tipo **${stability}**. He ajustado tu liquidez objetivo a **${targetMonths} meses** y deuda máxima al **${maxDebt}%**. Alineado a tu meta: ${goalIcon} *${state.profile?.goal || 'Libertad Financiera'}*.`});
 
-            if(incM===0 && avgExp===0) { ins.push({c:'blue', i:'ph-info', t:'Necesito más registros financieros para simular tus proyecciones exactas.'}); }
+            if(incM===0 && avgExp===0) { ins.push({c:'blue', i:'ph-info', t:'Necesito más registros financieros para simular tus proyecciones exactas y flujo de caja.'}); }
             else {
-                // 1. Fondo de Emergencia y Liquidez
+                // Liquidez
                 const fondoNecesario = avgExp * targetMonths;
                 if(invTotal < fondoNecesario) { 
-                    ins.push({c:'orange', i:'ph-warning-circle', t:`**Riesgo de Liquidez:** Tu capital actual (${formatMoney(invTotal)}) no cubre tu objetivo de ${targetMonths} meses (${formatMoney(fondoNecesario)}). Prioriza la construcción de liquidez.`}); 
+                    ins.push({c:'orange', i:'ph-warning-circle', t:`**Riesgo de Liquidez:** Tu capital líquido (${formatMoney(invTotal)}) no cubre tu objetivo basal de ${targetMonths} meses (${formatMoney(fondoNecesario)}). Prioriza la inyección de capital en instrumentos a la vista.`}); 
                 } else { 
-                    ins.push({c:'emerald', i:'ph-shield-check', t:`**Estabilidad Óptima:** ¡Felicidades! Tienes un colchón sólido que blinda tu estilo de vida ante cualquier imprevisto de ingresos.`}); 
+                    ins.push({c:'emerald', i:'ph-shield-check', t:`**Estabilidad Óptima:** ¡Excelente solvencia! Tienes un blindaje robusto ante cisnes negros (caídas de ingresos).`}); 
                 }
 
-                // 2. Endeudamiento Contextual
+                // Deuda y Apalancamiento
                 const dRatio = incM>0 ? (debtPayM/incM)*100 : 0;
-                if(dRatio > maxDebt) { ins.push({c:'red', i:'ph-trend-down', t:`**Alerta de Solvencia:** Tu deuda consume el <b class="text-slate-900 dark:text-white">${dRatio.toFixed(1)}%</b> de tu salario (Límite dinámico: ${maxDebt}%). Aplica el método Avalanche (pagar la tasa EA más alta primero).`}); }
-                else if(debtPayM > 0) { ins.push({c:'emerald', i:'ph-thumbs-up', t:`**Deuda Controlada:** Tu nivel de endeudamiento es del ${dRatio.toFixed(1)}%, dentro de tus rangos seguros pre-configurados.`}); }
+                if(dRatio > maxDebt) { ins.push({c:'red', i:'ph-trend-down', t:`**Riesgo de Insolvencia:** El servicio de tu deuda drena el **${dRatio.toFixed(1)}%** de tu flujo de caja mensual (Límite dinámico: ${maxDebt}%). Aplica reestructuración o el método Avalanche urgente.`}); }
+                else if(debtPayM > 0) { ins.push({c:'emerald', i:'ph-thumbs-up', t:`**Apalancamiento Controlado:** Tu índice de apalancamiento (${dRatio.toFixed(1)}%) está dentro del umbral de seguridad de tu perfil de riesgo.`}); }
                 
-                // 3. Análisis de Metas de Ahorro
+                // Ahorro y Regla 50/30/20
                 const savingRate = incM > 0 ? ((incM - expM) / incM) * 100 : 0;
                 if (savingRate < targetSav) {
-                    ins.push({c:'blue', i:'ph-piggy-bank', t:`**Rendimiento de Ahorro:** Tu capacidad de ahorro actual es de **${savingRate.toFixed(1)}%**, lo cual está por debajo de tu meta ideal del **${targetSav}%**. Revisa tus "Deseos" para acelerar el crecimiento de tu patrimonio.`});
+                    ins.push({c:'blue', i:'ph-piggy-bank', t:`**Déficit de Rentabilidad:** Tu margen neto de ahorro (**${savingRate.toFixed(1)}%**) no alcanza tu meta técnica del **${targetSav}%**. El algoritmo sugiere auditar tus cuentas de gastos no fijos ("Deseos").`});
                 } else {
-                    ins.push({c:'emerald', i:'ph-rocket', t:`**Rendimiento Extraordinario:** Estás ahorrando el **${savingRate.toFixed(1)}%** de tus ingresos, cumpliendo exitosamente tu meta del ${targetSav}%. ¡Estás en la vía rápida para el éxito financiero!`});
+                    ins.push({c:'emerald', i:'ph-rocket', t:`**Rendimiento Extraordinario:** Generas un margen de retención del **${savingRate.toFixed(1)}%**, superando tu meta del ${targetSav}%. Tienes un vehículo financiero altamente escalable.`});
                 }
 
-                // 4. Regla 50/30/20 Optimizado
                 let deseos = 0, necesidades = 0, ayudaFam = 0;
                 state.expenses.filter(e => new Date(e.date).getMonth() === cm).forEach(e => {
                     const amt = getMyAmt(e);
@@ -873,25 +882,31 @@
                     }
                 });
                 
+                // Análisis Estructural (Estrato y Educación)
+                if (['1', '2', '3'].includes(stratum)) {
+                    ins.push({c:'blue', i:'ph-house', t:`**Eficiencia Operativa Estrato ${stratum}:** Tu zona de residencia favorece la optimización de costos de vida. El excedente debe canalizarse agresivamente a vehículos de apreciación patrimonial.`});
+                } else {
+                    ins.push({c:'orange', i:'ph-house', t:`**Fricción de Costos Estrato ${stratum}:** Estás expuesto a costos operativos (impuestos/servicios) elevados. La IA te exige mayor control en la inflación de estilo de vida.`});
+                }
+                
+                if (['Especialización', 'Maestría', 'Doctorado'].includes(education)) {
+                    ins.push({c:'purple', i:'ph-graduation-cap', t:`**Retorno de Inversión (ROI) Educativo:** Como profesional con posgrado (${education}), el algoritmo asume un alto valor de tu Capital Humano. Apunta a la escalabilidad de ingresos (Exportación de servicios) para justificar la inversión formativa.`});
+                }
+
+                // Depreciación de Activos
+                const activosDepreciables = assets.filter(a => ['Televisor', 'Computador', 'Electrodomésticos', 'Vehículo'].includes(a));
+                if (activosDepreciables.length > 2 && !assets.includes('Casa') && !assets.includes('Inversiones')) {
+                    ins.push({c:'pink', i:'ph-desktop', t:`**Alerta de Erosión de Valor:** Detecto alta concentración en pasivos de rápida depreciación (Electrónica/Vehículos) y ausencia de activos reales (Bienes raíces/Valores). Frena la adquisición de comodidades hasta construir columnas de capital.`});
+                }
+
                 const deseosRatio = incM>0 ? (deseos/incM)*100 : 0;
-
-                if(ayudaFam > 0) {
-                     ins.push({c:'blue', i:'ph-users', t:`**Análisis de Responsabilidad Familiar:** Detecté que envías ${formatMoney(ayudaFam)} a tu familia. Esto representa el **${((ayudaFam/Math.max(1, necesidades))*100).toFixed(1)}%** de tus necesidades. Está categorizado como un gasto vital, pero cuida que no afecte tu capacidad de inversión futura.`});
-                }
-
-                if(deseosRatio > 30) ins.push({c:'pink', i:'ph-shopping-cart', t:`**Fuga de Capital:** Estás gastando el <b class="text-slate-900 dark:text-white">${deseosRatio.toFixed(1)}%</b> de tus ingresos en la categoría de Deseos (Estándar recomendado: 30%).`});
-
-                if(state.investments.length > 0) {
-                    const proyectado = state.investments.reduce((s,i)=>s+calcRetornoInv(i),0) - (invTotal - cesantiasTotal); 
-                    if(proyectado > 0) {
-                        ins.push({c:'blue', i:'ph-chart-line-up', t:`**Interés Compuesto:** Tus inversiones a plazo actuales generarán <b class="text-slate-900 dark:text-white">${formatMoney(proyectado)}</b> en rendimientos pasivos si se mantienen hasta la fecha de vencimiento.`});
-                    }
-                }
+                if(deseosRatio > 30) ins.push({c:'pink', i:'ph-shopping-cart', t:`**Fuga de Capital:** Estás quemando el **${deseosRatio.toFixed(1)}%** de tu tracción económica en "Deseos". Aplica disciplina fiscal para evitar el estancamiento de tu patrimonio.`});
             }
 
+            // CORRECCIÓN PARA EVITAR SALTOS DE LÍNEA: Se quitó el 'block mb-1' de la etiqueta <strong>
             ins.forEach(i => {
                 const colorMap = { 'blue': 'text-blue-500 bg-blue-100 dark:bg-blue-900/40 border-blue-200 dark:border-blue-800', 'orange': 'text-orange-500 bg-orange-100 dark:bg-orange-900/40 border-orange-200 dark:border-orange-800', 'emerald': 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/40 border-emerald-200 dark:border-emerald-800', 'red': 'text-red-500 bg-red-100 dark:bg-red-900/40 border-red-200 dark:border-red-800', 'pink': 'text-pink-500 bg-pink-100 dark:bg-pink-900/40 border-pink-200 dark:border-pink-800', 'purple': 'text-purple-500 bg-purple-100 dark:bg-purple-900/40 border-purple-200 dark:border-purple-800' };
-                c.innerHTML += `<div class="flex items-start gap-4 p-5 rounded-3xl bg-white dark:bg-slate-800/50 border ${colorMap[i.c].split(' ').pop()} shadow-sm"><div class="mt-0.5 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${colorMap[i.c].split(' ').slice(0,2).join(' ')}"><i class="ph-fill ${i.i} text-2xl"></i></div><p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">${i.t.replace(/\*\*(.*?)\*\*/g, '<b class="text-slate-900 dark:text-white text-base block mb-1">$1</b>')}</p></div>`;
+                c.innerHTML += `<div class="flex items-start gap-4 p-5 rounded-3xl bg-white dark:bg-slate-800/50 border ${colorMap[i.c].split(' ').pop()} shadow-sm"><div class="mt-0.5 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${colorMap[i.c].split(' ').slice(0,2).join(' ')}"><i class="ph-fill ${i.i} text-2xl"></i></div><p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">${i.t.replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-slate-900 dark:text-white mr-1">$1</strong>')}</p></div>`;
             });
         };
     </script>
