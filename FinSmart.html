@@ -548,8 +548,14 @@
                             <!-- Campos Estándar (Libre Destino) -->
                             <div id="dbt-standard-fields" class="space-y-5">
                                 <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase mb-2">Concepto</label><input type="text" id="dbt-concept" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-4 text-sm dark:text-white outline-none" placeholder="Ej. Crédito Vehículo"></div>
-                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase mb-2">Deuda Actual Total ($)</label><input type="number" id="dbt-amount" min="1" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-2xl font-black text-orange-500 outline-none"></div>
-                                <div><label class="block text-[9px] font-extrabold text-slate-500 uppercase mb-2">Cuotas Restantes</label><input type="number" id="dbt-installments" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-2 py-3 text-xs font-bold dark:text-white text-center"></div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase mb-2">Deuda Actual ($)</label><input type="number" id="dbt-amount" min="1" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-xl font-black text-orange-500 outline-none"></div>
+                                    <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase mb-2">Fecha Adquisición</label><input type="date" id="dbt-date" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-4 text-xs font-bold dark:text-white outline-none"></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div><label class="block text-[9px] font-extrabold text-slate-500 uppercase mb-2">Cuotas Pagadas</label><input type="number" id="dbt-installments-paid" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-2 py-3 text-xs font-bold dark:text-white text-center" value="0"></div>
+                                    <div><label class="block text-[9px] font-extrabold text-slate-500 uppercase mb-2">Cuotas Totales</label><input type="number" id="dbt-installments-total" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-2 py-3 text-xs font-bold dark:text-white text-center" value="1"></div>
+                                </div>
                                 <div class="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl space-y-3"><div class="flex items-center justify-between"><label class="text-[11px] font-extrabold text-blue-500 uppercase flex items-center gap-2"><i class="ph ph-users text-lg"></i> Deuda Compartida</label><div class="relative inline-block w-10 align-middle"><input type="checkbox" id="dbt-is-shared" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10"/><label for="dbt-is-shared" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 dark:bg-slate-600 cursor-pointer"></label></div></div><div id="dbt-shared-fields" class="hidden grid-cols-2 gap-3 pt-3 border-t border-slate-200 dark:border-slate-700 mt-3"><input type="text" id="dbt-partner" class="w-full bg-white dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs dark:text-white outline-none" placeholder="¿Con quién?"><div class="relative"><input type="number" id="dbt-my-share" value="50" class="w-full bg-white dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold text-center dark:text-white outline-none"><span class="absolute right-4 top-3 text-xs text-slate-400">% Mío</span></div></div></div>
                             </div>
 
@@ -742,18 +748,27 @@
         };
 
         const calcCuota = (d) => { 
-            const rateMV = (Math.pow(1 + (d.rateEA/100), 1/12) - 1); 
             let totalCuota = 0;
             
             if (d.type === 'Tarjeta de Crédito' && d.purchases) {
                 d.purchases.forEach(p => {
+                    const remaining = (p.installmentsTotal || 1) - (p.installmentsPaid || 0);
+                    if(remaining <= 0) return; // Ya se pagó la totalidad de esta compra
+                    const pRateRaw = p.rateEA;
+                    // Si la compra individual no tiene tasa asignada, hereda la tasa global de la tarjeta
+                    const rateEA = (pRateRaw === '' || pRateRaw == null || isNaN(parseFloat(pRateRaw))) ? (parseFloat(d.rateEA) || 0) : parseFloat(pRateRaw);
+                    const rateMV = (Math.pow(1 + (rateEA/100), 1/12) - 1);
                     const pAmt = p.amount; 
-                    if(p.installments <= 1) totalCuota += pAmt;
-                    else totalCuota += rateMV === 0 ? pAmt/p.installments : pAmt * (rateMV * Math.pow(1+rateMV, p.installments)) / (Math.pow(1+rateMV, p.installments) - 1);
+                    if(remaining <= 1) totalCuota += pAmt;
+                    else totalCuota += rateMV === 0 ? pAmt/remaining : pAmt * (rateMV * Math.pow(1+rateMV, remaining)) / (Math.pow(1+rateMV, remaining) - 1);
                 });
             } else {
+                const remaining = (d.installmentsTotal || 1) - (d.installmentsPaid || 0);
+                if(remaining <= 0) return 0;
+                const rateMV = (Math.pow(1 + (d.rateEA/100), 1/12) - 1);
                 const myAmt = d.isShared ? (d.amount * ((d.myShare||100) / 100)) : d.amount;
-                totalCuota = rateMV === 0 ? myAmt/d.installments : myAmt * (rateMV * Math.pow(1+rateMV, d.installments)) / (Math.pow(1+rateMV, d.installments) - 1);
+                if(remaining <= 1) totalCuota += myAmt;
+                else totalCuota += rateMV === 0 ? myAmt/remaining : myAmt * (rateMV * Math.pow(1+rateMV, remaining)) / (Math.pow(1+rateMV, remaining) - 1);
             }
             return totalCuota + (d.adminFee || 0); 
         };
@@ -873,17 +888,24 @@
             }
         });
 
-        window.addCCPurchaseUI = (concept='', amount='', installments='', partner='', partnerShare='') => {
+        window.addCCPurchaseUI = (concept='', amount='', installmentsPaid=0, installmentsTotal=1, partner='', partnerShare='', rateEA='', date='') => {
+            const today = new Date().toISOString().split('T')[0];
+            const safeDate = date || today;
             const div = document.createElement('div');
             div.className = 'cc-purchase-item bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3 relative';
             div.innerHTML = `
                 <div class="flex justify-between gap-2 items-center">
-                    <input type="text" value="${concept}" class="cc-p-concept w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2 text-xs font-bold dark:text-white" placeholder="Concepto (Ej. Ropa)">
-                    <button type="button" onclick="this.parentElement.parentElement.remove()" class="text-red-500 bg-red-100 dark:bg-red-900/30 w-8 h-8 rounded-full flex items-center justify-center hover:scale-110 transition-transform"><i class="ph ph-trash"></i></button>
+                    <input type="text" value="${concept}" class="cc-p-concept w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-3 py-2 text-xs font-bold dark:text-white" placeholder="Concepto (Ej. Ropa)">
+                    <input type="date" value="${safeDate}" class="cc-p-date w-2/3 bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-2 py-2 text-[10px] font-bold dark:text-white">
+                    <button type="button" onclick="this.parentElement.parentElement.remove()" class="text-red-500 bg-red-100 dark:bg-red-900/30 w-8 h-8 rounded-full flex items-center justify-center shrink-0 hover:scale-110 transition-transform"><i class="ph ph-trash"></i></button>
                 </div>
-                <div class="flex gap-2">
-                    <div class="w-1/2 relative"><span class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span><input type="number" value="${amount}" class="cc-p-amount w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl pl-6 pr-3 py-2 text-xs font-black text-emerald-500" placeholder="Valor Total"></div>
-                    <input type="number" value="${installments}" class="cc-p-installments w-1/2 bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-3 py-2 text-xs font-bold dark:text-white text-center" placeholder="Cuotas Pendientes">
+                <div class="grid grid-cols-2 gap-2 border-t border-slate-100 dark:border-slate-700 pt-2 mt-2">
+                    <div class="relative"><span class="absolute left-3 top-2.5 text-[10px] text-slate-400 font-bold">$</span><input type="number" value="${amount}" class="cc-p-amount w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl pl-6 pr-2 py-2 text-xs font-black text-emerald-500" placeholder="Saldo Actual"></div>
+                    <div class="relative"><input type="number" value="${rateEA}" step="0.1" class="cc-p-rate w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-2 py-2 text-xs font-bold dark:text-white text-center" placeholder="Tasa EA % (Vacío = Global)"><span class="absolute right-3 top-2.5 text-[10px] text-slate-400 font-bold">%</span></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex items-center gap-1 bg-slate-50 dark:bg-slate-900 rounded-xl px-2"><span class="text-[9px] text-slate-400 font-bold">Pagadas:</span><input type="number" value="${installmentsPaid}" class="cc-p-paid w-full bg-transparent border-none py-2 text-xs font-bold dark:text-white text-center" placeholder="0"></div>
+                    <div class="flex items-center gap-1 bg-slate-50 dark:bg-slate-900 rounded-xl px-2"><span class="text-[9px] text-slate-400 font-bold">Totales:</span><input type="number" value="${installmentsTotal}" class="cc-p-total w-full bg-transparent border-none py-2 text-xs font-bold dark:text-white text-center" placeholder="1"></div>
                 </div>
                 <div class="flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 pt-2">
                     <i class="ph-fill ph-users text-blue-400"></i>
@@ -909,11 +931,13 @@
 
             if (d.type === 'Tarjeta de Crédito') {
                 D('cc-purchase-list').innerHTML = '';
-                if(d.purchases) d.purchases.forEach(p => window.addCCPurchaseUI(p.concept, p.amount, p.installments, p.partner, p.partnerShare));
+                if(d.purchases) d.purchases.forEach(p => window.addCCPurchaseUI(p.concept, p.amount, p.installmentsPaid, p.installmentsTotal, p.partner, p.partnerShare, p.rateEA, p.date));
             } else {
                 D('dbt-amount').value = d.amount;
+                D('dbt-date').value = d.date || new Date().toISOString().split('T')[0];
                 D('dbt-concept').value = d.concept || ''; 
-                D('dbt-installments').value = d.installments; 
+                D('dbt-installments-paid').value = d.installmentsPaid || 0; 
+                D('dbt-installments-total').value = d.installmentsTotal || d.installments || 1; 
                 D('dbt-is-shared').checked = d.isShared || false; 
                 D('dbt-shared-fields').classList.toggle('hidden', !d.isShared); 
                 D('dbt-partner').value = d.partner || ''; 
@@ -1164,10 +1188,17 @@
                 document.querySelectorAll('.cc-purchase-item').forEach(el => {
                     const amt = parseFloat(el.querySelector('.cc-p-amount').value) || 0;
                     totalAmount += amt;
+                    
+                    let pRate = el.querySelector('.cc-p-rate').value;
+                    pRate = pRate !== '' ? parseFloat(pRate) : ''; // String vacío permite caída a tasa global
+                    
                     items.push({
                         concept: el.querySelector('.cc-p-concept').value || 'Compra',
+                        date: el.querySelector('.cc-p-date').value,
                         amount: amt,
-                        installments: parseInt(el.querySelector('.cc-p-installments').value) || 1,
+                        rateEA: pRate,
+                        installmentsPaid: parseInt(el.querySelector('.cc-p-paid').value) || 0,
+                        installmentsTotal: parseInt(el.querySelector('.cc-p-total').value) || 1,
                         partner: el.querySelector('.cc-p-partner').value,
                         partnerShare: parseFloat(el.querySelector('.cc-p-share').value) || 0
                     });
@@ -1178,8 +1209,10 @@
                 let share = D('dbt-is-shared').checked ? (parseFloat(D('dbt-my-share').value) || 50) : 100;
                 share = Math.min(100, Math.max(1, share));
                 baseData.concept = D('dbt-concept').value;
+                baseData.date = D('dbt-date').value;
                 baseData.amount = parseFloat(D('dbt-amount').value);
-                baseData.installments = parseInt(D('dbt-installments').value);
+                baseData.installmentsPaid = parseInt(D('dbt-installments-paid').value) || 0;
+                baseData.installmentsTotal = parseInt(D('dbt-installments-total').value) || 1;
                 baseData.isShared = D('dbt-is-shared').checked;
                 baseData.partner = D('dbt-partner').value;
                 baseData.myShare = share;
@@ -1257,12 +1290,34 @@
                     
                     let extraInfo = '';
                     if (d.type === 'Tarjeta de Crédito') {
-                        extraInfo = `<div class="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 mb-3 border border-slate-200 dark:border-slate-700 max-h-32 overflow-y-auto space-y-1">
-                            <p class="text-[10px] font-extrabold text-blue-500 uppercase tracking-widest mb-1">Desglose de Compras</p>
-                            ${(d.purchases||[]).map(p => `<div class="flex justify-between text-xs dark:text-slate-300"><span class="truncate">${p.concept} <span class="text-[9px] text-slate-400">(${p.installments} cuotas)</span></span><span class="font-bold">${formatMoney(p.amount)}</span></div>`).join('') || '<span class="text-[10px] text-slate-500">Sin compras registradas</span>'}
+                        extraInfo = `<div class="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 mb-3 border border-slate-200 dark:border-slate-700 max-h-48 overflow-y-auto space-y-2">
+                            <p class="text-[10px] font-extrabold text-blue-500 uppercase tracking-widest mb-1 sticky top-0 bg-slate-50 dark:bg-slate-900 z-10">Desglose de Compras</p>
+                            ${(d.purchases||[]).map(p => {
+                                const remaining = (p.installmentsTotal||1) - (p.installmentsPaid||0);
+                                const pRateRaw = p.rateEA;
+                                const rateEA = (pRateRaw === '' || pRateRaw == null || isNaN(parseFloat(pRateRaw))) ? (parseFloat(d.rateEA) || 0) : parseFloat(pRateRaw);
+                                const rateBadge = rateEA === 0 ? `<span class="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-1 py-0.5 rounded text-[8px] font-bold">0% INT</span>` : `<span class="text-[8px] text-slate-400 border border-slate-200 dark:border-slate-700 px-1 rounded">${rateEA}% EA</span>`;
+                                return `<div class="flex flex-col gap-1 text-xs dark:text-slate-300 pb-2 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0">
+                                    <div class="flex justify-between items-start">
+                                        <span class="font-bold truncate max-w-[60%]">${p.concept}</span>
+                                        <span class="font-black text-emerald-500">${formatMoney(p.amount)}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-[9px] text-slate-500 mt-1">
+                                        <div class="flex items-center gap-1">${formatDate(p.date)} ${rateBadge}</div>
+                                        <div class="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded font-bold ${remaining<=0?'text-emerald-500':''}"><i class="ph-bold ph-chart-pie-slice"></i> Cuota ${p.installmentsPaid||0} de ${p.installmentsTotal||1} ${remaining<=0?'(Saldada)':''}</div>
+                                    </div>
+                                </div>`;
+                            }).join('') || '<span class="text-[10px] text-slate-500">Sin compras registradas</span>'}
                         </div>`;
                     } else {
-                        extraInfo = `<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">${d.concept || 'Crédito Personal'}</p>`;
+                        const remaining = (d.installmentsTotal||1) - (d.installmentsPaid||0);
+                        extraInfo = `<div class="mb-3">
+                            <p class="text-sm font-bold text-slate-800 dark:text-slate-200">${d.concept || 'Crédito Personal'}</p>
+                            <div class="flex gap-2 items-center text-[10px] text-slate-500 mt-2">
+                                <span class="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700"><i class="ph-bold ph-calendar-blank"></i> ${formatDate(d.date)}</span>
+                                <span class="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 font-bold ${remaining<=0?'text-emerald-500':''}"><i class="ph-bold ph-chart-pie-slice"></i> Cuota ${d.installmentsPaid||0} de ${d.installmentsTotal||1} ${remaining<=0?'(Saldada)':''}</span>
+                            </div>
+                        </div>`;
                     }
 
                     return `
