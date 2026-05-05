@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FinSmart 10.easy | V13 Master Wealth</title>
+    <title>FinSmart 10.easy | V15 Masterpiece</title>
     
-    <!-- Tailwind CSS (Modo Oscuro Dinámico) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -28,14 +27,15 @@
                 root.classList.toggle('dark'); 
                 localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light'); 
                 if(window.chartEvol) window.chartEvol.update(); 
+                if(window.chartBars) window.chartBars.update(); 
                 if(window.chartRadar) window.chartRadar.update(); 
                 if(window.chartProj) window.chartProj.update(); 
+                if(window.chartDist) window.chartDist.update(); 
             };
         };
         initTheme();
     </script>
 
-    <!-- Iconos Phosphor y Chart.js -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -68,11 +68,28 @@
         
         .asset-checkbox:checked + div { border-color: #8b5cf6; background-color: rgba(139, 92, 246, 0.1); }
         .dark .asset-checkbox:checked + div { border-color: #a855f7; background-color: rgba(168, 85, 247, 0.2); }
+
+        /* Modal Transitions */
+        .modal-active { opacity: 1 !important; pointer-events: auto !important; }
+        .modal-content-active { transform: scale(1) !important; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-[#0b1120] dark:text-slate-100 transition-colors duration-300 min-h-screen overflow-x-hidden selection:bg-blue-500/30">
 
     <div id="toast-container" class="fixed top-4 right-4 md:bottom-4 md:top-auto z-[200] flex flex-col gap-3 pointer-events-none w-[90%] md:w-auto left-[5%] md:left-auto"></div>
+
+    <!-- ================= SISTEMA MODALES PROFESIONALES ================= -->
+    <div id="custom-modal" class="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity opacity-0 pointer-events-none duration-300">
+        <div class="bg-white dark:bg-slate-800 rounded-[2rem] p-8 max-w-sm w-full shadow-2xl transform scale-95 transition-transform duration-300 border border-slate-200 dark:border-slate-700" id="custom-modal-content">
+            <div id="modal-icon" class="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl"></div>
+            <h3 id="modal-title" class="text-xl font-extrabold text-center text-slate-900 dark:text-white mb-2"></h3>
+            <p id="modal-message" class="text-slate-500 dark:text-slate-400 text-sm text-center mb-6"></p>
+            <div id="modal-input-container" class="hidden mb-6">
+                <input type="text" id="modal-input" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold">
+            </div>
+            <div id="modal-buttons" class="flex gap-3 justify-center"></div>
+        </div>
+    </div>
 
     <!-- ================= AUTH VIEW ================= -->
     <div id="auth-view" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-50 dark:bg-[#0b1120] transition-colors duration-300">
@@ -162,11 +179,11 @@
             <div id="global-loading" class="fixed inset-0 z-[60] flex items-center justify-center bg-white/90 dark:bg-[#0b1120]/90 backdrop-blur-md hidden">
                 <div class="text-center">
                     <div class="loader mx-auto mb-4 border-slate-300 dark:border-slate-700"></div>
-                    <p class="text-blue-600 dark:text-blue-400 font-bold tracking-wide text-sm">Procesando Modelos Predictivos...</p>
+                    <p class="text-blue-600 dark:text-blue-400 font-bold tracking-wide text-sm">Analizando Modelos Predictivos...</p>
                 </div>
             </div>
 
-            <!-- VIEW: PERFIL AVANZADO Y BACKUP -->
+            <!-- VIEW: PERFIL AVANZADO Y GEMELO DIGITAL VISUAL -->
             <section id="view-profile" class="content-section space-y-6 hidden fade-in">
                 <div class="flex items-center gap-4">
                     <div class="w-16 h-16 rounded-[2rem] bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center shadow-glow"><i class="ph-fill ph-identification-badge text-4xl text-white"></i></div>
@@ -176,59 +193,78 @@
                     </div>
                 </div>
                 
-                <div class="bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 mt-8 relative overflow-hidden">
-                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl"></div>
-                    <form id="form-profile" class="space-y-6 relative z-10">
-                        <h3 class="text-lg font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">1. Datos Demográficos y Contexto Vital</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
-                            <div class="md:col-span-2"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Nombre</label><input type="text" id="prof-name" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500"></div>
-                            <div class="md:col-span-2"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex items-center">Fecha de Nacimiento <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">Calculamos tu edad exacta.</span></span></label><input type="date" id="prof-dob" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500"></div>
-                            <div class="md:col-span-2"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex items-center">Estado Civil</label><select id="prof-civil" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Soltero">Soltero/a</option><option value="Unión Libre">Unión Libre / Conviviendo</option><option value="Casado">Casado/a</option><option value="Divorciado">Divorciado/a</option><option value="Viudo">Viudo/a</option></select></div>
-                            <div class="md:col-span-2"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex items-center">Situación de Vivienda <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">Ajusta tu capacidad de ahorro exigida.</span></span></label><select id="prof-living" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Familiar">Vivo con Familiares (No pago arriendo)</option><option value="Arriendo">Pago Arriendo / Renta</option><option value="Propia Hipoteca">Vivienda Propia (Pagando Hipoteca)</option><option value="Propia Pagada">Vivienda Propia (100% Pagada)</option></select></div>
-                            <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Género</label><select id="prof-gender" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Prefiero no decir">Prefiero no decir</option><option value="Masculino">Masculino</option><option value="Femenino">Femenino</option><option value="Otro">Otro</option></select></div>
-                            <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex items-center">Estrato <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">Ajusta estimaciones de costos fijos.</span></span></label><select id="prof-stratum" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="1">1 (Bajo-Bajo)</option><option value="2">2 (Bajo)</option><option value="3">3 (Medio-Bajo)</option><option value="4">4 (Medio)</option><option value="5">5 (Medio-Alto)</option><option value="6">6 (Alto)</option></select></div>
-                            <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex items-center">Educación <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">Estimación de tu Capital Humano.</span></span></label><select id="prof-education" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Bachiller">Bachillerato</option><option value="Técnico/Tecnólogo">Técnico / Tecnólogo</option><option value="Profesional">Pregrado</option><option value="Especialización">Especialización</option><option value="Maestría">Maestría</option><option value="Doctorado">Doctorado</option></select></div>
-                            <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex items-center">A Cargo <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">Hijos, padres. Sube la necesidad de liquidez.</span></span></label><input type="number" id="prof-dependents" required min="0" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-8">
+                    <!-- Gemelo Digital Visual -->
+                    <div class="lg:col-span-1 bg-white dark:bg-slate-800 p-6 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 flex flex-col items-center text-center justify-center relative overflow-hidden">
+                        <div id="twin-glow" class="absolute inset-0 bg-gradient-to-b from-blue-500/10 to-transparent pointer-events-none transition-colors duration-1000"></div>
+                        <h3 class="font-extrabold text-slate-900 dark:text-white mb-6 z-10">Tu Salud Actual</h3>
+                        <div class="w-32 h-32 mb-4 relative z-10" id="twin-silhouette">
+                            <svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full text-blue-500 drop-shadow-xl transition-colors duration-1000"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
                         </div>
+                        <div id="twin-status-badge" class="bg-blue-100 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest z-10 transition-colors">Evaluando...</div>
+                    </div>
 
-                        <h3 class="text-lg font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 mt-8 mb-4">2. Estructura y Riesgo</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Estabilidad Laboral</label><select id="prof-stability" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Fijo">Salario Fijo</option><option value="Variable">Ingresos Variables</option><option value="Emprendedor">Emprendedor</option></select></div>
-                            <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Perfil de Riesgo</label><select id="prof-type" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold text-purple-500"><option value="Conservador">Conservador</option><option value="Moderado">Moderado</option><option value="Agresivo">Agresivo</option></select></div>
-                            <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Meta Ahorro Ideal (%)</label><div class="relative"><input type="number" id="prof-target-savings" required min="5" max="90" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm font-black text-emerald-500 outline-none focus:ring-2 focus:ring-purple-500 text-center" value="20"><span class="absolute right-5 top-4 text-slate-400 font-bold">%</span></div></div>
-                        </div>
+                    <div class="lg:col-span-3 bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 relative overflow-hidden">
+                        <div class="absolute -right-10 -top-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl"></div>
+                        <form id="form-profile" class="space-y-6 relative z-10">
+                            <!-- Datos Demográficos -->
+                            <h3 class="text-lg font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">1. Demografía y Contexto</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+                                <div class="md:col-span-2"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Nombre</label><input type="text" id="prof-name" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500"></div>
+                                <div class="md:col-span-2"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex items-center">Nacimiento <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">Calculamos tu edad exacta.</span></span></label><input type="date" id="prof-dob" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500"></div>
+                                <div class="md:col-span-2"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Estado Civil</label><select id="prof-civil" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Soltero">Soltero/a</option><option value="Unión Libre">Unión Libre / Conviviendo</option><option value="Casado">Casado/a</option><option value="Divorciado">Divorciado/a</option><option value="Viudo">Viudo/a</option></select></div>
+                                <div class="md:col-span-2"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Situación de Vivienda</label><select id="prof-living" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Familiar">Vivo con Familiares (No pago arriendo)</option><option value="Arriendo">Pago Arriendo / Renta</option><option value="Propia Hipoteca">Vivienda Propia (Hipoteca)</option><option value="Propia Pagada">Vivienda Propia (100% Pagada)</option></select></div>
+                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Género</label><select id="prof-gender" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Prefiero no decir">Prefiero no decir</option><option value="Masculino">Masculino</option><option value="Femenino">Femenino</option><option value="Otro">Otro</option></select></div>
+                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Estrato</label><select id="prof-stratum" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></div>
+                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Educación</label><select id="prof-education" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Bachiller">Bachillerato</option><option value="Técnico/Tecnólogo">Técnico / Tecnólogo</option><option value="Profesional">Pregrado</option><option value="Especialización">Especialización</option><option value="Maestría">Maestría</option><option value="Doctorado">Doctorado</option></select></div>
+                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">A Cargo</label><input type="number" id="prof-dependents" required min="0" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500"></div>
+                            </div>
 
-                        <h3 class="text-lg font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 mt-8 mb-4">3. Calidad del Patrimonio (Inventario)</h3>
-                        <div class="mb-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3" id="prof-assets-container">
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Casa" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-house text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Casa / Apto</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Lote" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-tree text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Lote / Finca</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Inversiones" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-chart-line-up text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Bolsa / Cripto</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="CDT" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-certificate text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">CDTs / Bonos</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Vehículo" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-car text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Automóvil</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Moto" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-motorcycle text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Motocicleta</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Bicicleta" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-bicycle text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Bici / Patineta</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Computador" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-laptop text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Laptop / PC</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Smartphone" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-device-mobile text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Smartphone Caro</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="TV" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-television text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Smart TV / Consola</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Nevera" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-thermometer-cold text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Nevera / Nevecón</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Lavadora" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-drop text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Lavadora / Secadora</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Cama" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-bed text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Cama Premium</span></div></label>
-                            <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Muebles" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-armchair text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Sala / Comedor</span></div></label>
-                        </div>
+                            <h3 class="text-lg font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 mt-8 mb-4">2. Estilo de Vida (Micro-análisis)</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Transporte Principal</label><select id="prof-transport" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Público">Transporte Público</option><option value="Moto">Moto Propia</option><option value="Carro">Carro Propio</option><option value="Apps">Apps (Uber/Didi)</option><option value="Bici">Bicicleta / Caminar</option></select></div>
+                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Seguro Médico</label><select id="prof-health" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold text-purple-500"><option value="EPS">Solo EPS / Régimen Básico</option><option value="Prepagada">Medicina Prepagada / Póliza</option><option value="Ninguno">Ninguno / Independiente</option></select></div>
+                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex items-center">Frecuencia de Ocio <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">La IA ajustará su tolerancia a tus fugas de capital basado en esto.</span></span></label><select id="prof-ocio" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Bajo">Bajo (1-2 veces/mes)</option><option value="Medio">Medio (Fines de semana)</option><option value="Alto">Alto (Casi diario)</option></select></div>
+                            </div>
 
-                        <h3 class="text-lg font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 mt-8 mb-4">4. Propósito a Largo Plazo</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                            <div class="md:col-span-1"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Logo / Icono</label><select id="prof-goal-icon" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-2xl outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer text-center"><option value="🏖️">🏖️ Retiro</option><option value="🏠">🏠 Casa Propia</option><option value="🌎">🌎 Viajar</option><option value="👨‍👩‍👧‍👦">👨‍👩‍👧‍👦 Familia</option><option value="🚀">🚀 Empresa</option><option value="🎓">🎓 Estudios</option></select></div>
-                            <div class="md:col-span-3"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex items-center">Tu "Por Qué" Financiero</label><input type="text" id="prof-goal" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500" placeholder="Ej. Lograr la libertad financiera a los 45 años"></div>
-                        </div>
+                            <h3 class="text-lg font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 mt-8 mb-4">3. Estructura y Riesgo</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Estabilidad Laboral</label><select id="prof-stability" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold"><option value="Fijo">Salario Fijo</option><option value="Variable">Ingresos Variables</option><option value="Emprendedor">Emprendedor</option></select></div>
+                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Perfil de Inversión</label><select id="prof-type" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500 font-bold text-purple-500"><option value="Conservador">Conservador</option><option value="Moderado">Moderado</option><option value="Agresivo">Agresivo</option></select></div>
+                                <div><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Meta Ahorro Ideal (%)</label><div class="relative"><input type="number" id="prof-target-savings" required min="5" max="90" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm font-black text-emerald-500 outline-none focus:ring-2 focus:ring-purple-500 text-center" value="20"><span class="absolute right-5 top-4 text-slate-400 font-bold">%</span></div></div>
+                            </div>
 
-                        <div class="pt-6">
-                            <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-purple-500 text-white font-extrabold py-5 rounded-2xl shadow-glow text-base hover:scale-[1.02] transition-transform">Guardar y Calibrar Red Neuronal</button>
-                        </div>
-                    </form>
+                            <h3 class="text-lg font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 mt-8 mb-4">4. Calidad del Patrimonio (Inventario)</h3>
+                            <div class="mb-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3" id="prof-assets-container">
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Casa" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-house text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Casa / Apto</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Lote" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-tree text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Lote / Finca</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Inversiones" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-chart-line-up text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Bolsa / Cripto</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="CDT" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-certificate text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">CDTs / Bonos</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Vehículo" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-car text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Automóvil</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Moto" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-motorcycle text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Motocicleta</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Bicicleta" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-bicycle text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Bici / Patineta</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Computador" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-laptop text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Laptop / PC</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Smartphone" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-device-mobile text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Smartphone Caro</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="TV" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-television text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Smart TV / Consola</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Nevera" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-thermometer-cold text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Nevera / Nevecón</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Lavadora" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-drop text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Lavadora / Secadora</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Cama" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-bed text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Cama Premium</span></div></label>
+                                <label class="relative cursor-pointer group"><input type="checkbox" name="prof-assets" value="Muebles" class="peer sr-only asset-checkbox"><div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-transparent transition-all flex flex-col items-center gap-1 text-center"><i class="ph-fill ph-armchair text-2xl text-slate-400 group-hover:text-purple-500 transition-colors"></i><span class="text-[10px] font-bold dark:text-white">Sala / Comedor</span></div></label>
+                            </div>
+
+                            <h3 class="text-lg font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 mt-8 mb-4">5. Propósito a Largo Plazo</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                <div class="md:col-span-1"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Logo / Icono</label><select id="prof-goal-icon" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-2xl outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer text-center"><option value="🏖️">🏖️ Retiro</option><option value="🏠">🏠 Casa Propia</option><option value="🌎">🌎 Viajar</option><option value="👨‍👩‍👧‍👦">👨‍👩‍👧‍👦 Familia</option><option value="🚀">🚀 Empresa</option><option value="🎓">🎓 Estudios</option></select></div>
+                                <div class="md:col-span-3"><label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-2 flex items-center">Tu "Por Qué" Financiero</label><input type="text" id="prof-goal" class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm dark:text-white outline-none focus:ring-2 focus:ring-purple-500" placeholder="Ej. Lograr la libertad financiera a los 45 años"></div>
+                            </div>
+
+                            <div class="pt-6">
+                                <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-purple-500 text-white font-extrabold py-5 rounded-2xl shadow-glow text-base hover:scale-[1.02] transition-transform">Guardar y Calibrar Red Neuronal</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
                 
-                <!-- NUEVO: MÓDULO BACKUP JSON LOCAL -->
                 <div class="bg-slate-200 dark:bg-slate-800/30 p-6 rounded-[2.5rem] mt-8 flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-300 dark:border-slate-700/50">
                     <div>
                         <h3 class="font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><i class="ph-fill ph-hard-drives text-blue-500"></i> Respaldo de Datos (JSON)</h3>
@@ -303,17 +339,33 @@
                             <h3 class="text-xl font-extrabold text-slate-900 dark:text-white">Poder de Pareja</h3>
                         </div>
                         <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 pl-13">Apalancamiento financiero histórico generado por gastos/deudas compartidas.</p>
-                        <div class="flex justify-between items-center mb-6"><div><p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Carga Absorbida</p><p class="text-3xl font-black text-pink-500" id="kpi-partner-help">$0</p></div></div>
+                        <div class="flex justify-between items-center mb-6"><div><p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Carga Absorbida</p><p class="text-3xl font-black text-pink-500" id="kpi-partner-help">$0</p></div><div class="text-right"><p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">% del Peso Total</p><p class="text-lg font-bold text-slate-900 dark:text-white" id="kpi-partner-pct">0%</p></div></div>
                         <div class="text-xs font-medium p-4 rounded-2xl bg-pink-50 dark:bg-pink-900/10 border border-pink-100 dark:border-pink-800/30 text-slate-600 dark:text-slate-300 leading-relaxed"><span class="text-pink-500 font-bold"><i class="ph-fill ph-trend-up"></i> Acelerador Patrimonial:</span> Dinero salvado gracias al trabajo en equipo. Crecimiento puro para tu Patrimonio.</div>
                     </div>
                 </div>
 
-                <!-- Gráficas Predictivas -->
+                <!-- Gráficas (Líneas y Barras) y Dona -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 flex flex-col justify-center relative overflow-hidden">
+                        <h3 class="text-xl font-extrabold text-slate-900 dark:text-white mb-2 text-center flex items-center justify-center gap-2">Gastos (Mes Actual) <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">Distribución visual de tu dinero este mes.</span></span></h3>
+                        <div class="relative flex-1 w-full flex justify-center items-center min-h-[250px]"><canvas id="chart-distribution"></canvas></div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 flex flex-col lg:col-span-2">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">Ingresos vs Gastos <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">Análisis de barras mensual (Flujo de Caja Real).</span></span></h3>
+                        </div>
+                        <div class="relative h-[250px] w-full flex-1"><canvas id="chart-bars"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Gráficas Predictivas y Radar -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 flex flex-col">
                         <div class="flex justify-between items-center mb-6"><h3 class="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">Proyección a 10 Años <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">Simula crecimiento usando interés compuesto, ahorro actual y tasa promedio de inversiones.</span></span></h3></div>
                         <div class="relative h-[250px] w-full flex-1"><canvas id="chart-projection"></canvas></div>
                     </div>
+                    
                     <div class="bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 flex flex-col justify-center relative overflow-hidden">
                         <div class="absolute inset-0 bg-gradient-to-b from-transparent to-purple-500/5 dark:to-purple-500/10 pointer-events-none"></div>
                         <div class="flex justify-between items-center mb-2 z-10 relative"><h3 class="text-xl font-extrabold text-slate-900 dark:text-white text-center flex items-center justify-center gap-2 w-full">Score Patrimonial por Edad <span class="tooltip-container"><i class="ph-fill ph-info"></i><span class="tooltip-text">Evaluación de 0 a 100 basada en tu edad, liquidez, deuda e inversiones.</span></span></h3></div>
@@ -321,11 +373,37 @@
                     </div>
                 </div>
 
+                <!-- Alertas de Ocio y Fugas (Gastos Hormiga) -->
+                <div class="grid grid-cols-1 gap-6">
+                    <div class="bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-2 h-full bg-pink-500"></div>
+                        <div class="flex items-center gap-3 mb-4 pl-4">
+                            <div class="w-10 h-10 rounded-xl bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center text-pink-500"><i class="ph-fill ph-coffee text-xl"></i></div>
+                            <div>
+                                <h3 class="text-xl font-extrabold text-slate-900 dark:text-white">Radar de Fugas (Ocio & Gastos Hormiga)</h3>
+                                <p class="text-sm text-slate-500 dark:text-slate-400">Restaurantes, Snacks, Viajes, Cafés (Mes Actual).</p>
+                            </div>
+                        </div>
+                        <div class="pl-4 flex flex-col md:flex-row gap-6 items-center">
+                            <div class="w-full md:w-1/3">
+                                <p class="text-4xl font-black text-pink-500" id="kpi-fugas">$0</p>
+                                <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">Gastado en Ocio</p>
+                            </div>
+                            <div class="w-full md:w-2/3" id="fugas-advice"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Heatmap y Recibos -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
                     <div class="bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 lg:col-span-2">
-                        <div class="flex justify-between items-center mb-6"><h3 class="text-xl font-extrabold text-slate-900 dark:text-white">Mapa de Calor (Gastos)</h3><span class="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-xl">Mes Actual</span></div>
-                        <div class="grid grid-cols-7 gap-2 md:gap-3 text-center mb-2"><div class="text-[10px] font-bold text-slate-400">DOM</div><div class="text-[10px] font-bold text-slate-400">LUN</div><div class="text-[10px] font-bold text-slate-400">MAR</div><div class="text-[10px] font-bold text-slate-400">MIE</div><div class="text-[10px] font-bold text-slate-400">JUE</div><div class="text-[10px] font-bold text-slate-400">VIE</div><div class="text-[10px] font-bold text-slate-400">SAB</div></div>
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xl font-extrabold text-slate-900 dark:text-white">Mapa de Calor (Gastos)</h3>
+                            <span class="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-xl">Mes Actual</span>
+                        </div>
+                        <div class="grid grid-cols-7 gap-2 md:gap-3 text-center mb-2">
+                            <div class="text-[10px] font-bold text-slate-400">DOM</div><div class="text-[10px] font-bold text-slate-400">LUN</div><div class="text-[10px] font-bold text-slate-400">MAR</div><div class="text-[10px] font-bold text-slate-400">MIE</div><div class="text-[10px] font-bold text-slate-400">JUE</div><div class="text-[10px] font-bold text-slate-400">VIE</div><div class="text-[10px] font-bold text-slate-400">SAB</div>
+                        </div>
                         <div id="heatmap-grid" class="grid grid-cols-7 gap-2 md:gap-3"></div>
                         <div class="flex items-center justify-end gap-2 mt-6 text-xs text-slate-500 font-medium">Menos <div class="w-3 h-3 rounded-sm bg-slate-100 dark:bg-slate-700"></div><div class="w-3 h-3 rounded-sm bg-red-300 dark:bg-red-900/50"></div><div class="w-3 h-3 rounded-sm bg-red-500"></div> Más</div>
                     </div>
@@ -440,7 +518,7 @@
                                 <input type="number" id="gol-target" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-5 py-4 text-xl font-black text-purple-500 outline-none">
                             </div>
                             <div>
-                                <label class="block text-[11px] font-extrabold text-slate-500 uppercase mb-2">Ahorro Inicial ($)</label>
+                                <label class="block text-[11px] font-extrabold text-slate-500 uppercase mb-2">Ahorro Actual ($)</label>
                                 <input type="number" id="gol-current" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-5 py-4 text-lg font-bold dark:text-white outline-none" value="0">
                             </div>
                             <button type="submit" id="btn-submit-goal" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-4 rounded-2xl shadow-glow transition-all hover:scale-[1.02]">Crear Sueño</button>
@@ -498,20 +576,62 @@
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
         import { getFirestore, collection, doc, addDoc, setDoc, onSnapshot, query, deleteDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-        // FIREBASE SETUP
+        // Custom Modal UI
+        window.CustomUI = {
+            open: (title, message, iconHTML, buttonsHTML, inputHTML = '') => {
+                const modal = D('custom-modal'); const content = D('custom-modal-content');
+                D('modal-title').innerHTML = title; D('modal-message').innerHTML = message;
+                D('modal-icon').innerHTML = iconHTML; D('modal-buttons').innerHTML = buttonsHTML;
+                const inputCont = D('modal-input-container');
+                if(inputHTML) { inputCont.classList.remove('hidden'); D('modal-input').value = ''; D('modal-input').placeholder = inputHTML; } 
+                else { inputCont.classList.add('hidden'); }
+                modal.classList.add('modal-active'); content.classList.add('modal-content-active');
+            },
+            close: () => {
+                D('custom-modal').classList.remove('modal-active'); D('custom-modal-content').classList.remove('modal-content-active');
+            },
+            alert: (title, message, type = 'info') => {
+                return new Promise(resolve => {
+                    const icon = type === 'error' ? '<i class="ph-fill ph-warning-octagon text-red-500"></i>' : (type === 'success' ? '<i class="ph-fill ph-check-circle text-emerald-500"></i>' : '<i class="ph-fill ph-info text-blue-500"></i>');
+                    const btn = `<button id="modal-btn-ok" class="w-full bg-blue-500 text-white font-bold py-3 rounded-xl hover:scale-[1.02] transition-transform">Entendido</button>`;
+                    CustomUI.open(title, message, icon, btn);
+                    D('modal-btn-ok').onclick = () => { CustomUI.close(); resolve(); };
+                });
+            },
+            confirm: (title, message, type='warning') => {
+                return new Promise(resolve => {
+                    const icon = type === 'warning' ? '<i class="ph-fill ph-warning text-orange-500"></i>' : '<i class="ph-fill ph-question text-blue-500"></i>';
+                    const btns = `<button id="modal-btn-cancel" class="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold py-3 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button><button id="modal-btn-yes" class="flex-1 bg-${type==='warning'?'red':'blue'}-500 text-white font-bold py-3 rounded-xl hover:scale-[1.02] transition-transform">Confirmar</button>`;
+                    CustomUI.open(title, message, icon, btns);
+                    D('modal-btn-cancel').onclick = () => { CustomUI.close(); resolve(false); };
+                    D('modal-btn-yes').onclick = () => { CustomUI.close(); resolve(true); };
+                });
+            },
+            prompt: (title, message, placeholder) => {
+                return new Promise(resolve => {
+                    const icon = '<i class="ph-fill ph-pencil-simple text-blue-500"></i>';
+                    const btns = `<button id="modal-btn-cancel" class="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold py-3 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button><button id="modal-btn-save" class="flex-1 bg-emerald-500 text-white font-bold py-3 rounded-xl hover:scale-[1.02] transition-transform">Guardar</button>`;
+                    CustomUI.open(title, message, icon, btns, placeholder);
+                    setTimeout(() => D('modal-input').focus(), 100);
+                    D('modal-btn-cancel').onclick = () => { CustomUI.close(); resolve(null); };
+                    D('modal-btn-save').onclick = () => { CustomUI.close(); resolve(D('modal-input').value); };
+                });
+            }
+        };
+
         const firebaseConfig = { apiKey: "AIzaSyCI0c7KgnEAn-sV_CrHs0Er1LXL13CvQSA", authDomain: "laboratorio-de-coulomb.firebaseapp.com", databaseURL: "https://laboratorio-de-coulomb-default-rtdb.firebaseio.com", projectId: "laboratorio-de-coulomb", storageBucket: "laboratorio-de-coulomb.firebasestorage.app", messagingSenderId: "525944850850", appId: "1:525944850850:web:eca9c0b79809358e8d8afb" };
         const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app); const googleProvider = new GoogleAuthProvider();
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'finsmart-pro';
 
         const state = { 
             user: null, 
-            profile: { type: 'Moderado', goal: '', name: '', goalIcon: '🏖️', dob: '', gender: 'Prefiero no decir', stratum: '3', education: 'Profesional', assets: [], dependents: 0, stability: 'Fijo', targetSavings: 20, civil: 'Soltero', living: 'Arriendo' }, 
+            profile: { type: 'Moderado', goal: '', name: '', goalIcon: '🏖️', dob: '', gender: 'Prefiero no decir', stratum: '3', education: 'Profesional', assets: [], dependents: 0, stability: 'Fijo', targetSavings: 20, civil: 'Soltero', living: 'Arriendo', transport: 'Público', health: 'EPS', pets: 0 }, 
             incomes: [], expenses: [], debts: [], pensions: [], investments: [], receivables: [], goals: [], taxes: [], unsubs: [] 
         };
 
         const CATEGORIES = {
             'Necesidades (50%)': ['Arriendo / Hipoteca', 'Mercado', 'Internet y TV', 'Telefonía Móvil', 'Agua / Luz / Gas', 'Administración', 'Salud / Médico', 'Transporte Trabajo', 'Impuestos', 'Educación', 'Ayuda Familiar / Envíos', 'Gastos Inesperados / Emergencia'],
-            'Deseos (30%)': ['Restaurantes', 'Snacks (Oxxo)', 'Netflix / Spotify', 'Gimnasio', 'Software', 'Ropa', 'Viajes / Vacaciones', 'Ocio y Entretenimiento'],
+            'Deseos (30%)': ['Restaurantes', 'Snacks (Oxxo)', 'Netflix / Spotify', 'Gimnasio', 'Software', 'Ropa', 'Viajes / Vacaciones', 'Ocio y Entretenimiento', 'Cafés y Panaderías'],
             'Ahorro/Deuda (20%)': ['Pago Deuda Extra', 'Inversión', 'Fondo Emergencia', 'Otros']
         };
 
@@ -537,7 +657,32 @@
         const calcCuota = (d) => { const myAmt = getMyAmt(d); const rateMV = (Math.pow(1 + (d.rateEA/100), 1/12) - 1); return rateMV===0 ? myAmt/d.installments : myAmt * (rateMV * Math.pow(1+rateMV, d.installments)) / (Math.pow(1+rateMV, d.installments) - 1); };
         const calcRetornoInv = (inv) => inv.amount * Math.pow(1 + (inv.rateEA/100), inv.termMonths/12);
 
-        // CREADOR DE ICONOS 3D SEGURO
+        // GEMELO DIGITAL SILUETA
+        const renderTwinSilhouette = (score, gender) => {
+            const container = D('twin-silhouette');
+            const badge = D('twin-status-badge');
+            const glow = D('twin-glow');
+            if(!container) return;
+
+            let colorClass = 'text-blue-500';
+            let glowClass = 'from-blue-500/20';
+            let badgeText = 'Estable'; let badgeColor = 'bg-blue-100 text-blue-600';
+            let pulse = '';
+            
+            if (score >= 80) { colorClass = 'text-emerald-500'; glowClass = 'from-emerald-500/20'; badgeText = 'Óptimo'; badgeColor = 'bg-emerald-100 text-emerald-600'; pulse = 'animate-pulse'; }
+            else if (score < 50) { colorClass = 'text-red-500'; glowClass = 'from-red-500/20'; badgeText = 'Riesgo Alto'; badgeColor = 'bg-red-100 text-red-600'; }
+            else if (score < 70) { colorClass = 'text-orange-500'; glowClass = 'from-orange-500/20'; badgeText = 'Precaución'; badgeColor = 'bg-orange-100 text-orange-600'; }
+
+            let path = '';
+            if(gender === 'Femenino') path = 'M12 2C9.79 2 8 3.79 8 6s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 9c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4zm0-9';
+            else path = 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'; 
+
+            container.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full ${colorClass} drop-shadow-[0_15px_25px_currentColor] transition-colors duration-1000 ${pulse}"><path d="${path}"/></svg>`;
+            badge.className = `px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest z-10 transition-colors ${badgeColor}`;
+            badge.innerText = badgeText;
+            glow.className = `absolute inset-0 bg-gradient-to-b ${glowClass} to-transparent pointer-events-none transition-colors duration-1000`;
+        };
+
         const getGoalSVG = (type, pct) => {
             const safeType = type || '🎯 Otro';
             const safePct = isNaN(pct) ? 0 : Math.max(0, Math.min(100, pct));
@@ -568,64 +713,52 @@
         if(D('exp-is-shared')) D('exp-is-shared').addEventListener('change', e => D('exp-shared-fields').classList.toggle('hidden', !e.target.checked));
         if(D('dbt-is-shared')) D('dbt-is-shared').addEventListener('change', e => D('dbt-shared-fields').classList.toggle('hidden', !e.target.checked));
 
-        // EDIT & UPDATE HELPERS
+        // EDIT HELPERS (Actualizados con UI)
         window.editExpense = (id) => {
-            const e = state.expenses.find(x => x.id === id);
-            if(!e) return;
-            D('exp-amount').value = e.amount;
-            D('exp-category').value = e.category; D('exp-category').dispatchEvent(new Event('change'));
-            D('exp-subcategory').value = e.subcategory;
-            D('exp-date').value = e.date;
-            D('exp-notes').value = e.notes || '';
+            const e = state.expenses.find(x => x.id === id); if(!e) return;
+            D('exp-amount').value = e.amount; D('exp-category').value = e.category; D('exp-category').dispatchEvent(new Event('change'));
+            D('exp-subcategory').value = e.subcategory; D('exp-date').value = e.date; D('exp-notes').value = e.notes || '';
             D('exp-is-shared').checked = e.isShared || false; D('exp-shared-fields').classList.toggle('hidden', !e.isShared);
             D('exp-partner').value = e.partner || ''; D('exp-my-share').value = e.myShare || 50;
             D('exp-is-recurring').checked = e.isRecurring || false; D('exp-status').value = e.status || 'Pagado';
-            
             D('form-expense').dataset.editId = id; D('btn-submit-expense').innerText = 'Actualizar Gasto';
             switchView('expenses');
         };
 
         window.editGoal = (id) => {
-            const g = state.goals.find(x => x.id === id);
-            if(!g) return;
+            const g = state.goals.find(x => x.id === id); if(!g) return;
             D('gol-type').value = g.type || '🎯 Otro'; D('gol-name').value = g.name;
             D('gol-target').value = g.targetAmount; D('gol-current').value = g.currentAmount;
-            
             D('form-goal').dataset.editId = id; D('btn-submit-goal').innerText = 'Actualizar Sueño';
             switchView('goals');
         };
 
         window.editDebt = (id) => {
-            const d = state.debts.find(x => x.id === id);
-            if(!d) return;
+            const d = state.debts.find(x => x.id === id); if(!d) return;
             D('dbt-amount').value = d.amount; D('dbt-name').value = d.name; D('dbt-concept').value = d.concept || '';
             D('dbt-rate').value = d.rateEA; D('dbt-installments').value = d.installments; D('dbt-day').value = d.paymentDay;
             D('dbt-is-shared').checked = d.isShared || false; D('dbt-shared-fields').classList.toggle('hidden', !d.isShared);
             D('dbt-partner').value = d.partner || ''; D('dbt-my-share').value = d.myShare || 50;
-            
             D('form-debt').dataset.editId = id; D('btn-submit-debt').innerText = 'Actualizar Deuda';
             switchView('debts');
         };
         
         window.editIncome = (id) => {
-            const i = state.incomes.find(x => x.id === id);
-            if(!i) return;
+            const i = state.incomes.find(x => x.id === id); if(!i) return;
             D('inc-amount').value = i.amount; D('inc-source').value = i.source; 
             D('inc-type').value = i.type; D('inc-date').value = i.date;
-            
             D('form-income').dataset.editId = id; D('btn-submit-income').innerText = 'Actualizar Ingreso';
             switchView('incomes');
         };
 
         window.addFundsGoal = async (id) => {
-            const g = state.goals.find(x => x.id === id);
-            if(!g) return;
-            const amtStr = prompt(`¿Cuánto vas a aportar a "${g.name}" hoy?`, "0");
+            const g = state.goals.find(x => x.id === id); if(!g) return;
+            const amtStr = await CustomUI.prompt('Inyectar Fondos', `¿Cuánto vas a aportar a "${g.name}" hoy?`, "Ej. 100000");
             if(amtStr !== null) {
                 const amt = parseFloat(amtStr);
                 if(!isNaN(amt) && amt > 0) {
-                    try { await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'goals', id), { currentAmount: g.currentAmount + amt }); alert(`¡Genial! Añadiste ${formatMoney(amt)} a tu sueño.`); } 
-                    catch(e) { alert("Error guardando el aporte."); }
+                    try { await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'goals', id), { currentAmount: g.currentAmount + amt }); await CustomUI.alert('¡Éxito!', `Añadiste ${formatMoney(amt)} a tu sueño.`, 'success'); } 
+                    catch(e) { CustomUI.alert('Error', "Error guardando el aporte.", 'error'); }
                 }
             }
         };
@@ -634,36 +767,32 @@
         window.exportBackup = () => {
             const backup = { profile: state.profile, incomes: state.incomes, expenses: state.expenses, debts: state.debts, pensions: state.pensions, investments: state.investments, receivables: state.receivables, goals: state.goals, taxes: state.taxes };
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "FinSmart_Backup_" + new Date().toISOString().slice(0,10) + ".json");
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click(); downloadAnchorNode.remove();
+            const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr); downloadAnchorNode.setAttribute("download", "FinSmart_Backup_" + new Date().toISOString().slice(0,10) + ".json");
+            document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
         };
 
         window.importBackup = (event) => {
-            const file = event.target.files[0];
-            if(!file) return;
+            const file = event.target.files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if(!confirm("Esto combinará y actualizará los datos del archivo con tu bóveda actual. ¿Continuar?")) return;
-                    D('global-loading').classList.remove('hidden'); D('global-loading').querySelector('p').innerText = "Restaurando Bóveda...";
+                    const isConfirmed = await CustomUI.confirm('Cuidado', "Esto combinará y actualizará tu bóveda actual con los datos del archivo. ¿Continuar?");
+                    if(!isConfirmed) return;
                     
+                    D('global-loading').classList.remove('hidden'); D('global-loading').querySelector('p').innerText = "Restaurando...";
                     if(data.profile) await setDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'profile', 'data'), data.profile);
                     const cols = ['incomes', 'expenses', 'debts', 'pensions', 'investments', 'receivables', 'goals', 'taxes'];
                     for(const col of cols) {
                         if(data[col] && Array.isArray(data[col])) {
-                            for(const item of data[col]) {
-                                const id = item.id; delete item.id;
+                            for(const item of data[col]) { const id = item.id; delete item.id;
                                 if(id) await setDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, col, id), item);
                                 else await addDoc(collection(db, 'artifacts', appId, 'users', state.user.uid, col), item);
                             }
                         }
                     }
-                    D('global-loading').classList.add('hidden'); alert("¡Restauración Exitosa!");
-                } catch(err) { D('global-loading').classList.add('hidden'); alert("Error al restaurar JSON: " + err.message); }
+                    D('global-loading').classList.add('hidden'); CustomUI.alert('Restauración', '¡Restauración Exitosa!', 'success');
+                } catch(err) { D('global-loading').classList.add('hidden'); CustomUI.alert('Error', "JSON corrupto o inválido: " + err.message, 'error'); }
             };
             reader.readAsText(file);
         };
@@ -685,29 +814,17 @@
                 const btn = D('auth-submit-btn'); const og = btn.innerHTML; btn.innerHTML = '<div class="loader !w-5 !h-5 !border-2"></div>';
                 try { 
                     if(isLogin) await signInWithEmailAndPassword(auth, D('auth-email').value, D('auth-pass').value); 
-                    else { 
-                        const res = await createUserWithEmailAndPassword(auth, D('auth-email').value, D('auth-pass').value); 
-                        await updateProfile(res.user, { displayName: D('auth-name').value || 'Usuario' }); 
-                    } 
-                } catch (error) { alert("Credenciales inválidas: " + error.message); btn.innerHTML = og; }
+                    else { const res = await createUserWithEmailAndPassword(auth, D('auth-email').value, D('auth-pass').value); await updateProfile(res.user, { displayName: D('auth-name').value || 'Usuario' }); } 
+                } catch (error) { CustomUI.alert('Error', "Credenciales inválidas.", 'error'); btn.innerHTML = og; }
             });
         }
         
         if(D('btn-google-auth')) {
             D('btn-google-auth').addEventListener('click', async (e) => {
                 e.preventDefault();
-                const btn = D('btn-google-auth'); const og = btn.innerHTML; 
-                btn.innerHTML = '<div class="loader !w-5 !h-5 !border-2 border-blue-500 border-l-transparent"></div> <span class="text-blue-500">Conectando...</span>';
-                try {
-                    const provider = new GoogleAuthProvider();
-                    provider.setCustomParameters({ prompt: 'select_account' }); 
-                    await signInWithPopup(auth, provider);
-                } catch (error) {
-                    btn.innerHTML = og; 
-                    let msg = error.code === 'auth/popup-blocked' ? "Tu navegador bloqueó la ventana emergente. Por favor, permite los pop-ups en la barra de direcciones." : 
-                             (error.code === 'auth/unauthorized-domain' ? "Dominio NO autorizado. Añade esta URL en la Consola de Firebase -> Authentication -> Settings -> Authorized domains." : error.message);
-                    alert("⛔ No pudimos iniciar sesión:\n\n" + msg);
-                }
+                const btn = D('btn-google-auth'); const og = btn.innerHTML; btn.innerHTML = '<div class="loader !w-5 !h-5 !border-2 border-blue-500 border-l-transparent"></div> <span class="text-blue-500">Conectando...</span>';
+                try { const provider = new GoogleAuthProvider(); provider.setCustomParameters({ prompt: 'select_account' }); await signInWithPopup(auth, provider); } 
+                catch (error) { btn.innerHTML = og; CustomUI.alert("Error de Inicio", error.code === 'auth/popup-blocked' ? "Tu navegador bloqueó la ventana emergente." : "Intenta nuevamente.", 'error'); }
             });
         }
         
@@ -747,9 +864,7 @@
                 if (!state.user) return; 
                 let pName = state.user.displayName || 'Usuario';
                 if(snap.exists()) {
-                    const data = snap.data();
-                    state.profile = { ...state.profile, ...data };
-                    pName = state.profile.name || pName;
+                    const data = snap.data(); state.profile = { ...state.profile, ...data }; pName = state.profile.name || pName;
                     
                     if(D('prof-type')) D('prof-type').value = state.profile.type || 'Moderado';
                     if(D('prof-goal')) D('prof-goal').value = state.profile.goal || '';
@@ -763,11 +878,14 @@
                     if(D('prof-target-savings')) D('prof-target-savings').value = state.profile.targetSavings || 20;
                     if(D('prof-civil')) D('prof-civil').value = state.profile.civil || 'Soltero';
                     if(D('prof-living')) D('prof-living').value = state.profile.living || 'Arriendo';
+                    if(D('prof-transport')) D('prof-transport').value = state.profile.transport || 'Público';
+                    if(D('prof-health')) D('prof-health').value = state.profile.health || 'EPS';
+                    if(D('prof-pets')) D('prof-pets').value = state.profile.pets || 0;
 
                     if(state.profile.assets && Array.isArray(state.profile.assets)) {
                         document.querySelectorAll('input[name="prof-assets"]').forEach(cb => { cb.checked = state.profile.assets.includes(cb.value); });
                     }
-                } else { state.profile = { type: 'Moderado', goal: '', name: pName, dob: '', gender: 'Prefiero no decir', stratum: '3', education: 'Profesional', assets: [], dependents: 0, stability: 'Fijo', targetSavings: 20, goalIcon: '🏖️', civil: 'Soltero', living: 'Arriendo' }; }
+                } else { state.profile = { type: 'Moderado', goal: '', name: pName, dob: '', gender: 'Prefiero no decir', stratum: '3', education: 'Profesional', assets: [], dependents: 0, stability: 'Fijo', targetSavings: 20, goalIcon: '🏖️', civil: 'Soltero', living: 'Arriendo', transport: 'Público', health: 'EPS', pets: 0 }; }
                 
                 if(D('prof-name')) D('prof-name').value = pName;
                 const safeName = (pName && typeof pName === 'string' && pName.trim() !== '') ? pName.trim() : 'Usuario';
@@ -789,125 +907,85 @@
                     if(++loaded === cols.length) { D('global-loading').classList.add('hidden'); updateDashboard(); generateAIInsights(); renderTimeline(); }
                 }, error => {
                     D('global-loading').classList.add('hidden');
-                    if (error.code === 'permission-denied') alert(`Error Permisos en [${col}]. Verifica las reglas Firestore.`);
+                    if (error.code === 'permission-denied') CustomUI.alert('Denegado', `Permisos insuficientes para ${col}.`, 'error');
                 }));
             });
         };
 
         const addRec = async (col, data) => { if(state.user) await addDoc(collection(db, 'artifacts', appId, 'users', state.user.uid, col), data); };
-        window.delRec = async (col, id) => { if(confirm('¿Seguro de eliminar este registro contable?')) await deleteDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, col, id)); };
+        window.delRec = async (col, id) => { if(await CustomUI.confirm('Eliminar Registro', '¿Seguro de eliminar este registro permanentemente?')) await deleteDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, col, id)); };
         window.markPaid = async (id) => { await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'receivables', id), { isPaid: true }); };
         window.markExpensePaid = async (id) => { await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'expenses', id), { status: 'Pagado' }); };
         window.markTaxPaid = async (id) => { await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'taxes', id), { isPaid: true }); };
-        window.markDebtPaid = async (id) => { if(confirm('¿Marcar deuda bancaria como liquidada y finalizada?')) await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'debts', id), { isPaid: true }); };
+        window.markDebtPaid = async (id) => { if(await CustomUI.confirm('Liquidación', '¿Marcar deuda bancaria como liquidada y finalizada? Esto impactará tu historial positivo.')) await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'debts', id), { isPaid: true }); };
 
         const renderSharedBalances = () => {
-            const container = D('list-shared-balances');
-            if(!container) return;
+            const container = D('list-shared-balances'); if(!container) return;
             const balances = {}; 
-            
-            state.expenses.forEach(e => {
-                if(e.isShared && e.partner && e.partner.trim() !== '' && e.myShare < 100) {
-                    const partnerOwes = e.amount * ((100 - e.myShare) / 100);
-                    balances[e.partner.trim()] = (balances[e.partner.trim()] || 0) + partnerOwes;
-                }
-            });
-            state.debts.forEach(d => {
-                if(!d.isPaid && d.isShared && d.partner && d.partner.trim() !== '' && d.myShare < 100) {
-                    const partnerOwes = d.amount * ((100 - d.myShare) / 100);
-                    balances[d.partner.trim()] = (balances[d.partner.trim()] || 0) + partnerOwes;
-                }
-            });
+            state.expenses.forEach(e => { if(e.isShared && e.partner && e.partner.trim() !== '' && e.myShare < 100) balances[e.partner.trim()] = (balances[e.partner.trim()] || 0) + (e.amount * ((100 - e.myShare) / 100)); });
+            state.debts.forEach(d => { if(!d.isPaid && d.isShared && d.partner && d.partner.trim() !== '' && d.myShare < 100) balances[d.partner.trim()] = (balances[d.partner.trim()] || 0) + (d.amount * ((100 - d.myShare) / 100)); });
             
             const entries = Object.keys(balances);
-            if(entries.length === 0) {
-                container.innerHTML = `<div class="col-span-full bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-700"><p class="text-slate-500 font-bold text-sm">No tienes saldos compartidos pendientes.</p></div>`;
-                return;
-            }
+            if(entries.length === 0) { container.innerHTML = `<div class="col-span-full bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-700"><p class="text-slate-500 font-bold text-sm">No tienes saldos compartidos pendientes.</p></div>`; return; }
             
             container.innerHTML = entries.map(partner => `
                 <div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm flex justify-between items-center hover:shadow-md transition-shadow">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-500 font-bold">${partner.charAt(0).toUpperCase()}</div>
-                        <div>
-                            <h4 class="font-bold text-slate-900 dark:text-white">${partner}</h4>
-                            <p class="text-[10px] text-slate-500 uppercase tracking-widest">Gastos / Deudas</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-xl font-black text-blue-500">${formatMoney(balances[partner])}</p>
-                        <p class="text-[10px] text-slate-400 font-bold uppercase">Debe a tu favor</p>
-                    </div>
+                    <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-500 font-bold">${partner.charAt(0).toUpperCase()}</div><div><h4 class="font-bold text-slate-900 dark:text-white">${partner}</h4><p class="text-[10px] text-slate-500 uppercase tracking-widest">Gastos / Deudas</p></div></div>
+                    <div class="text-right"><p class="text-xl font-black text-blue-500">${formatMoney(balances[partner])}</p><p class="text-[10px] text-slate-400 font-bold uppercase">Debe a tu favor</p></div>
                 </div>
             `).join('');
         };
 
-        // SUBMITS (CON CAPACIDAD DE EDICIÓN `dataset.editId`)
-        if(D('form-expense')) D('form-expense').addEventListener('submit', async e => { 
+        // SUBMITS SEGUROS
+        if(D('form-profile')) D('form-profile').addEventListener('submit', async e => {
+            e.preventDefault(); 
+            const selectedAssets = Array.from(document.querySelectorAll('input[name="prof-assets"]:checked')).map(cb => cb.value);
+            const pd = { 
+                name: D('prof-name').value, type: D('prof-type').value, goal: D('prof-goal').value, goalIcon: D('prof-goal-icon').value,
+                dob: D('prof-dob').value, gender: D('prof-gender').value, stratum: D('prof-stratum').value, education: D('prof-education').value,
+                dependents: parseInt(D('prof-dependents').value) || 0, stability: D('prof-stability').value, targetSavings: parseInt(D('prof-target-savings').value) || 20,
+                civil: D('prof-civil').value, living: D('prof-living').value, assets: selectedAssets, transport: D('prof-transport').value, health: D('prof-health').value, pets: parseInt(D('prof-pets').value) || 0
+            };
+            await setDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'profile', 'data'), pd); 
+            await updateProfile(state.user, { displayName: pd.name }); 
+            CustomUI.alert("Éxito", "Perfil CFO actualizado. Modelos predictivos recalibrados.", "success");
+        });
+        
+        if(D('form-expense')) D('form-expense').addEventListener('submit', e => { 
             e.preventDefault(); 
             let share = D('exp-is-shared').checked ? (parseFloat(D('exp-my-share').value) || 50) : 100;
             share = Math.min(100, Math.max(1, share)); 
             const dataObj = { amount: parseFloat(D('exp-amount').value), category: D('exp-category').value, subcategory: D('exp-subcategory').value, date: D('exp-date').value, notes: D('exp-notes').value, isShared: D('exp-is-shared').checked, partner: D('exp-partner').value, myShare: share, isRecurring: D('exp-is-recurring').checked, status: D('exp-status').value };
-            
-            if(D('form-expense').dataset.editId) {
-                await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'expenses', D('form-expense').dataset.editId), dataObj);
-                delete D('form-expense').dataset.editId;
-                D('btn-submit-expense').innerText = 'Registrar Gasto';
-            } else { await addRec('expenses', dataObj); }
+            if(D('form-expense').dataset.editId) { updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'expenses', D('form-expense').dataset.editId), dataObj); delete D('form-expense').dataset.editId; D('btn-submit-expense').innerText = 'Registrar Gasto'; } 
+            else { addRec('expenses', dataObj); }
             e.target.reset(); setupForms(); D('exp-shared-fields').classList.add('hidden'); 
         });
-        if(D('form-income')) D('form-income').addEventListener('submit', async e => { 
-            e.preventDefault(); 
-            const dataObj = { source: D('inc-source').value, amount: parseFloat(D('inc-amount').value), type: D('inc-type').value, date: D('inc-date').value };
-            if(D('form-income').dataset.editId) {
-                await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'incomes', D('form-income').dataset.editId), dataObj);
-                delete D('form-income').dataset.editId; D('btn-submit-income').innerText = 'Añadir Ingreso';
-            } else { await addRec('incomes', dataObj); }
-            e.target.reset(); setupForms(); 
-        });
-        if(D('form-debt')) D('form-debt').addEventListener('submit', async e => { 
-            e.preventDefault(); 
-            let share = D('dbt-is-shared').checked ? (parseFloat(D('dbt-my-share').value) || 50) : 100;
-            share = Math.min(100, Math.max(1, share));
-            const dataObj = { name: D('dbt-name').value, concept: D('dbt-concept').value, amount: parseFloat(D('dbt-amount').value), rateEA: parseFloat(D('dbt-rate').value), installments: parseInt(D('dbt-installments').value), paymentDay: parseInt(D('dbt-day').value), isShared: D('dbt-is-shared').checked, partner: D('dbt-partner').value, myShare: share, isPaid: false };
-            if(D('form-debt').dataset.editId) {
-                await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'debts', D('form-debt').dataset.editId), dataObj);
-                delete D('form-debt').dataset.editId; D('btn-submit-debt').innerText = 'Guardar Deuda';
-            } else { await addRec('debts', dataObj); }
-            e.target.reset(); D('dbt-shared-fields').classList.add('hidden'); 
-        });
-        if(D('form-goal')) D('form-goal').addEventListener('submit', async e => { 
-            e.preventDefault(); 
-            const dataObj = { type: D('gol-type').value, name: D('gol-name').value, targetAmount: parseFloat(D('gol-target').value), currentAmount: parseFloat(D('gol-current').value) };
-            if(D('form-goal').dataset.editId) {
-                await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'goals', D('form-goal').dataset.editId), dataObj);
-                delete D('form-goal').dataset.editId; D('btn-submit-goal').innerText = 'Iniciar Sueño';
-            } else { await addRec('goals', dataObj); }
-            e.target.reset(); 
-        });
-
-        // Omitiendo otros submits por brevedad (Pensión, Tax, Inv) se mantienen igual en creación pura
+        
+        if(D('form-income')) D('form-income').addEventListener('submit', e => { e.preventDefault(); const dataObj = { source: D('inc-source').value, amount: parseFloat(D('inc-amount').value), type: D('inc-type').value, date: D('inc-date').value }; if(D('form-income').dataset.editId) { updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'incomes', D('form-income').dataset.editId), dataObj); delete D('form-income').dataset.editId; D('btn-submit-income').innerText = 'Añadir Ingreso'; } else { addRec('incomes', dataObj); } e.target.reset(); setupForms(); });
         if(D('form-pension')) D('form-pension').addEventListener('submit', e => { e.preventDefault(); addRec('pensions', { provider: D('pen-provider').value, weeks: parseInt(D('pen-weeks').value), amount: parseFloat(D('pen-amount').value) || 0, date: D('pen-date').value }); e.target.reset(); setupForms(); });
         if(D('form-investment')) D('form-investment').addEventListener('submit', e => { e.preventDefault(); addRec('investments', { entity: D('inv-entity').value, amount: parseFloat(D('inv-amount').value), rateEA: parseFloat(D('inv-rate').value), termMonths: parseInt(D('inv-term').value), date: D('inv-date').value }); e.target.reset(); setupForms(); });
         if(D('form-tax')) D('form-tax').addEventListener('submit', e => { e.preventDefault(); addRec('taxes', { type: D('tax-type').value, year: D('tax-year').value, amount: parseFloat(D('tax-amount').value), provision: parseFloat(D('tax-provision').value) || 0, date: D('tax-date').value, isPaid: false }); e.target.reset(); setupForms(); });
+        if(D('form-debt')) D('form-debt').addEventListener('submit', e => { 
+            e.preventDefault(); 
+            let share = D('dbt-is-shared').checked ? (parseFloat(D('dbt-my-share').value) || 50) : 100;
+            const dataObj = { name: D('dbt-name').value, concept: D('dbt-concept').value, amount: parseFloat(D('dbt-amount').value), rateEA: parseFloat(D('dbt-rate').value), installments: parseInt(D('dbt-installments').value), paymentDay: parseInt(D('dbt-day').value), isShared: D('dbt-is-shared').checked, partner: D('dbt-partner').value, myShare: Math.min(100, Math.max(1, share)), isPaid: false }; 
+            if(D('form-debt').dataset.editId) { updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'debts', D('form-debt').dataset.editId), dataObj); delete D('form-debt').dataset.editId; D('btn-submit-debt').innerText = 'Guardar Deuda'; } else { addRec('debts', dataObj); } e.target.reset(); D('dbt-shared-fields').classList.add('hidden'); 
+        });
         if(D('form-receivable')) D('form-receivable').addEventListener('submit', e => { e.preventDefault(); addRec('receivables', { debtor: D('rcv-debtor').value, concept: D('rcv-concept').value, amount: parseFloat(D('rcv-amount').value), date: D('rcv-date').value, isPaid: false }); e.target.reset(); setupForms(); });
+        if(D('form-goal')) D('form-goal').addEventListener('submit', e => { e.preventDefault(); const dataObj = { type: D('gol-type').value, name: D('gol-name').value, targetAmount: parseFloat(D('gol-target').value), currentAmount: parseFloat(D('gol-current').value) }; if(D('form-goal').dataset.editId) { updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'goals', D('form-goal').dataset.editId), dataObj); delete D('form-goal').dataset.editId; D('btn-submit-goal').innerText = 'Iniciar Sueño'; } else { addRec('goals', dataObj); } e.target.reset(); });
 
-        // RENDER UI (Actualizado con botones de editar)
+        // RENDER UI
         const renderUI = (col) => {
             if(col === 'expenses') {
                 if(D('list-expenses')) D('list-expenses').innerHTML = state.expenses.map(e => {
-                    const isPend = e.status === 'Pendiente';
-                    const badge = isPend ? `<span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[9px] uppercase font-bold ml-2">Pendiente</span>` : `<span class="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded text-[9px] uppercase font-bold ml-2">Pagado</span>`;
+                    const isPend = e.status === 'Pendiente'; const badge = isPend ? `<span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[9px] uppercase font-bold ml-2">Pendiente</span>` : `<span class="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded text-[9px] uppercase font-bold ml-2">Pagado</span>`;
                     return `<tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"><td class="py-4 px-2 text-slate-500 text-xs">${formatDate(e.date)} ${e.isRecurring ? '<i class="ph-fill ph-arrows-clockwise text-blue-500 ml-1"></i>':''}</td><td class="py-4 px-2"><p class="font-bold text-slate-900 dark:text-white text-sm">${e.subcategory} ${badge}</p><p class="text-[10px] text-slate-400">${e.isShared ? `Compartido (Mi ${e.myShare}%)`:''}</p></td><td class="py-4 px-2 text-right font-black text-red-500">${formatMoney(getMyAmt(e))}</td><td class="py-4 px-2 text-center flex justify-center gap-2"><button onclick="editExpense('${e.id}')" class="text-slate-400 hover:text-blue-500 bg-white dark:bg-slate-700 rounded-full p-2 shadow-sm"><i class="ph ph-pencil-simple"></i></button><button onclick="delRec('expenses','${e.id}')" class="text-slate-400 hover:text-red-500 bg-white dark:bg-slate-700 rounded-full p-2 shadow-sm"><i class="ph ph-trash"></i></button></td></tr>`;
                 }).join('');
                 if(D('list-recurring')) D('list-recurring').innerHTML = state.expenses.filter(e => e.status === 'Pendiente').map(e => `
-                    <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
-                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-500"><i class="ph ph-warning-circle text-xl"></i></div><div><p class="text-sm font-bold text-slate-900 dark:text-white">${e.subcategory}</p><p class="text-[10px] text-slate-500">${formatDate(e.date)}</p></div></div>
-                        <div class="text-right"><span class="font-black text-slate-900 dark:text-white block">${formatMoney(getMyAmt(e))}</span><button onclick="markExpensePaid('${e.id}')" class="text-[10px] bg-blue-500 text-white px-2 py-1 rounded font-bold mt-1 hover:bg-blue-600 transition-colors">Marcar Pagado</button></div>
-                    </div>`).join('') || '<p class="text-slate-500 text-sm">No tienes gastos pendientes registrados.</p>';
+                    <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-500"><i class="ph ph-warning-circle text-xl"></i></div><div><p class="text-sm font-bold text-slate-900 dark:text-white">${e.subcategory}</p><p class="text-[10px] text-slate-500">${formatDate(e.date)}</p></div></div><div class="text-right"><span class="font-black text-slate-900 dark:text-white block">${formatMoney(getMyAmt(e))}</span><button onclick="markExpensePaid('${e.id}')" class="text-[10px] bg-blue-500 text-white px-2 py-1 rounded font-bold mt-1 hover:bg-blue-600 transition-colors">Marcar Pagado</button></div></div>`).join('') || '<p class="text-slate-500 text-sm">No tienes gastos pendientes.</p>';
             }
             if(col === 'incomes' && D('list-incomes')) D('list-incomes').innerHTML = state.incomes.map(i => `<tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"><td class="py-4 text-slate-500 text-xs">${formatDate(i.date)}</td><td class="py-4 font-bold text-slate-900 dark:text-white text-sm">${i.source} <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-[10px] px-2 py-0.5 rounded-lg ml-2">${i.type}</span></td><td class="py-4 text-right font-black text-emerald-500">${formatMoney(i.amount)}</td><td class="text-center flex justify-center gap-2"><button onclick="editIncome('${i.id}')" class="text-slate-400 hover:text-blue-500"><i class="ph ph-pencil-simple"></i></button><button onclick="delRec('incomes','${i.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></td></tr>`).join('');
-            if(col === 'taxes' && D('list-taxes')) { D('list-taxes').innerHTML = state.taxes.map(t => { const isComplete = t.isPaid || t.provision >= t.amount; const pct = Math.min(100, Math.round((t.provision / t.amount) * 100)) || 0; return `<div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm ${t.isPaid?'opacity-50':''}"><div class="flex justify-between mb-2"><h4 class="font-bold text-slate-900 dark:text-white">${t.type} <span class="text-xs text-slate-400">(${t.year})</span></h4><button onclick="delRec('taxes','${t.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></div><p class="text-2xl font-black ${isComplete?'text-emerald-500':'text-yellow-500'} mb-2">${formatMoney(t.amount)}</p><div class="w-full bg-slate-100 dark:bg-slate-900 rounded-full h-2 mb-2"><div class="bg-yellow-500 h-full rounded-full" style="width: ${pct}%"></div></div><div class="flex justify-between items-center text-xs text-slate-500 mt-3"><span>Vence: ${formatDate(t.date)}</span>${t.isPaid?`<span class="text-emerald-500 font-bold">Liquidado</span>`:`<button onclick="markTaxPaid('${t.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded font-bold hover:scale-105 transition-all">Marcar Pagado</button>`}</div></div>`; }).join(''); }
+            if(col === 'taxes' && D('list-taxes')) { D('list-taxes').innerHTML = state.taxes.map(t => { const isComplete = t.isPaid || t.provision >= t.amount; const pct = Math.min(100, Math.round((t.provision / t.amount) * 100)) || 0; return `<div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm ${t.isPaid?'opacity-50':''}"><div class="flex justify-between mb-2"><h4 class="font-bold text-slate-900 dark:text-white">${t.type} <span class="text-xs text-slate-400">(${t.year})</span></h4><button onclick="delRec('taxes','${t.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></div><p class="text-2xl font-black ${isComplete?'text-emerald-500':'text-yellow-500'} mb-2">${formatMoney(t.amount)}</p><div class="w-full bg-slate-100 dark:bg-slate-900 rounded-full h-2 mb-2"><div class="bg-yellow-500 h-full rounded-full" style="width: ${pct}%"></div></div><div class="flex justify-between items-center text-xs text-slate-500 mt-3"><span>Vence: ${formatDate(t.date)}</span>${t.isPaid?`<span class="text-emerald-500 font-bold">Liquidado</span>`:`<button onclick="markTaxPaid('${t.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded font-bold hover:scale-105 transition-all">Pagar</button>`}</div></div>`; }).join(''); }
             if(col === 'pensions' && state.pensions.length > 0 && D('pension-card')) { const p = state.pensions.sort((a,b)=>parseLocalDate(b.date)-parseLocalDate(a.date))[0]; const pub = p.provider === 'Colpensiones'; const cy = new Date().getFullYear(); const weeksLeft = Math.max(0, 1300 - p.weeks); const projectedYear = cy + Math.ceil(weeksLeft / 50); D('pension-card').innerHTML = `<div class="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div><div class="relative z-10 flex justify-between items-start mb-6"><div><h4 class="text-sm font-bold text-indigo-200 uppercase mb-1">Fondo Activo</h4><p class="text-3xl font-black">${p.provider}</p><span class="text-[10px] bg-indigo-800 px-2 py-1 rounded-lg mt-2 inline-block">${pub?'Prima Media':'Ahorro Individual'}</span></div><i class="ph-fill ph-bank text-5xl text-indigo-400 opacity-50"></i></div><div class="relative z-10 grid grid-cols-2 gap-4 mt-auto"><div class="bg-indigo-700/50 p-4 rounded-3xl"><p class="text-[10px] text-indigo-300 uppercase font-bold mb-1">Semanas Cotizadas</p><p class="text-2xl font-black">${p.weeks}</p><p class="text-[10px] text-indigo-300 mt-1">Faltan ${weeksLeft}. Proy: Año ${projectedYear}</p></div><div class="bg-indigo-700/50 p-4 rounded-3xl"><p class="text-[10px] text-indigo-300 uppercase font-bold mb-1">Capital Acumulado</p><p class="text-2xl font-black text-emerald-300">${pub ? 'N/A' : formatMoney(p.amount)}</p><p class="text-[10px] text-indigo-300 mt-1">Rentabilidad Protegida</p></div></div>`; }
             if(col === 'investments' && D('list-investments')) { D('list-investments').innerHTML = state.investments.map(i => { const vf = calcRetornoInv(i); return `<div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm hover:shadow-lg transition-all"><div class="flex justify-between mb-2"><h4 class="font-bold text-slate-900 dark:text-white">${i.entity}</h4><button onclick="delRec('investments','${i.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></div><p class="text-2xl font-black text-emerald-500 mb-4">${formatMoney(i.amount)}</p><div class="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl text-xs space-y-2 text-slate-600 dark:text-slate-400"><div class="flex justify-between"><span>Plazo:</span> <span class="font-bold text-slate-900 dark:text-white">${i.termMonths} Meses</span></div><div class="flex justify-between"><span>Tasa E.A.:</span> <span class="font-bold text-slate-900 dark:text-white">${i.rateEA}%</span></div><div class="flex justify-between text-emerald-600 dark:text-emerald-400 border-t border-slate-200 dark:border-slate-700 pt-2 mt-2"><span>Proyección Final:</span> <span class="font-black">${formatMoney(vf)}</span></div></div></div>`; }).join(''); }
             if(col === 'debts' && D('list-debts')) { D('list-debts').innerHTML = state.debts.map(d => { const cuota = calcCuota(d); const myAmt = getMyAmt(d); return `<div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm transition-all ${d.isPaid ? 'opacity-50' : 'hover:shadow-lg'}"><div class="flex justify-between mb-2"><h4 class="font-bold text-slate-900 dark:text-white">${d.name} ${d.isShared?`<span class="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-lg ml-2">Mi ${d.myShare}%</span>`:''}</h4><div class="flex gap-2"><button onclick="editDebt('${d.id}')" class="text-slate-400 hover:text-blue-500"><i class="ph ph-pencil-simple"></i></button><button onclick="delRec('debts','${d.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></div></div><p class="text-xs text-slate-500 dark:text-slate-400 mb-3">${d.concept || 'Crédito'}</p><p class="text-3xl font-black ${d.isPaid ? 'text-emerald-500' : 'text-orange-500'} mb-4">${formatMoney(myAmt)}</p><div class="grid grid-cols-2 gap-3 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl mb-4"><div><span class="block text-[10px] uppercase mb-1">EA %</span><span class="font-bold text-slate-900 dark:text-white">${d.rateEA}%</span></div><div><span class="block text-[10px] uppercase mb-1">Pago</span><span class="font-bold text-slate-900 dark:text-white bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">Día ${d.paymentDay}</span></div><div class="col-span-2 border-t border-slate-200 dark:border-slate-700 pt-3"><span class="block text-[10px] uppercase mb-1">Cuota Est. (Int. Compuesto)</span><span class="font-black text-orange-600 dark:text-orange-400 text-sm">${formatMoney(cuota)} / mes</span></div></div>${d.isPaid?`<div class="text-center font-bold text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 p-2 rounded-xl">LIQUIDADO</div>`:`<button onclick="markDebtPaid('${d.id}')" class="w-full bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 text-orange-600 font-bold py-3 rounded-xl transition-all">Marcar Pagado / Finalizado</button>`}</div>`; }).join(''); }
@@ -1014,7 +1092,12 @@
             const partnerHelpExp = state.expenses.filter(e => e.isShared && e.partner && e.partner.trim() !== '' && e.myShare < 100).reduce((sum, e) => sum + (e.amount * ((100 - e.myShare) / 100)), 0);
             const partnerHelpDebts = state.debts.filter(d => !d.isPaid && d.isShared && d.partner && d.partner.trim() !== '' && d.myShare < 100).reduce((sum, d) => sum + (d.amount * ((100 - d.myShare) / 100)), 0);
             const totalPartnerHelp = partnerHelpExp + partnerHelpDebts;
+            
+            const totalLoad = expM + state.debts.reduce((s,d)=>s+d.amount,0);
+            const partnerPct = totalLoad > 0 ? (totalPartnerHelp / (totalLoad + totalPartnerHelp)) * 100 : 0;
+            
             if(D('kpi-partner-help')) D('kpi-partner-help').innerText = formatMoney(totalPartnerHelp);
+            if(D('kpi-partner-pct')) D('kpi-partner-pct').innerText = partnerPct.toFixed(1) + '%';
 
             const cesantiasTotal = state.incomes.filter(i => i.type === 'Cesantías').reduce((s,i) => s+i.amount, 0);
             const invTotal = state.investments.reduce((s,i)=>s+i.amount,0);
@@ -1046,30 +1129,61 @@
             Chart.defaults.color = root.classList.contains('dark') ? '#94a3b8' : '#64748b'; 
             Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
 
-            const grid = D('heatmap-grid'); 
-            if(grid) {
-                grid.innerHTML = '';
-                const daysInMonth = new Date(cy, cm+1, 0).getDate(); const firstDay = new Date(cy, cm, 1).getDay();
-                for(let i=0; i<firstDay; i++) grid.innerHTML += `<div class="aspect-square rounded-xl bg-transparent"></div>`;
-                const dailyExp = {}; state.expenses.filter(e=>isCm(e.date)).forEach(e => { const d = parseLocalDate(e.date).getDate(); dailyExp[d] = (dailyExp[d] || 0) + getMyAmt(e); });
-                const maxExp = Math.max(...Object.values(dailyExp), 1);
-                for(let d=1; d<=daysInMonth; d++) {
-                    const val = dailyExp[d] || 0; let bgClass = 'bg-slate-100 dark:bg-slate-800 text-slate-400';
-                    if(val > 0) { const ratio = val / maxExp; if(ratio < 0.3) bgClass = 'bg-red-200 dark:bg-red-900/40 text-red-800 dark:text-red-200'; else if(ratio < 0.7) bgClass = 'bg-red-400 dark:bg-red-700 text-white'; else bgClass = 'bg-red-600 dark:bg-red-500 text-white shadow-lg shadow-red-500/40'; }
-                    const isToday = d === new Date().getDate() && cm === new Date().getMonth() ? 'border-2 border-blue-500' : '';
-                    grid.innerHTML += `<div class="aspect-square flex items-center justify-center rounded-xl md:rounded-2xl text-[10px] md:text-sm font-bold ${bgClass} ${isToday}" title="Gastos: ${formatMoney(val)}">${d}</div>`;
+            // NUEVO: Fugas de Capital (Gastos Hormiga) con Detalles
+            let fugasTotal = 0;
+            const breakdownFugas = {};
+            const fugasCategories = ['Restaurantes', 'Snacks (Oxxo)', 'Ocio y Entretenimiento', 'Cafés y Panaderías', 'Viajes / Vacaciones'];
+            state.expenses.filter(e=>isCm(e.date)).forEach(e => {
+                if(fugasCategories.includes(e.subcategory)) {
+                    const a = getMyAmt(e);
+                    fugasTotal += a;
+                    breakdownFugas[e.subcategory] = (breakdownFugas[e.subcategory] || 0) + a;
+                }
+            });
+            if(D('kpi-fugas')) D('kpi-fugas').innerText = formatMoney(fugasTotal);
+            
+            const advFuga = D('fugas-advice');
+            if(advFuga) {
+                const fugaPct = incM > 0 ? (fugasTotal / incM) * 100 : 0;
+                let topFuga = Object.keys(breakdownFugas).sort((a,b)=>breakdownFugas[b]-breakdownFugas[a])[0];
+                let customAdvice = '';
+                
+                if(topFuga === 'Restaurantes') customAdvice = 'Intenta cocinar en casa (Meal Prep) 3 días a la semana para reducir este rubro drásticamente.';
+                else if(topFuga === 'Snacks (Oxxo)' || topFuga === 'Cafés y Panaderías') customAdvice = 'La compra diaria en tiendas de conveniencia destruye tu liquidez. Compra al por mayor en supermercados.';
+                else if(topFuga === 'Ocio y Entretenimiento') customAdvice = 'Busca alternativas de ocio gratuitas o reduce la frecuencia de salidas este mes.';
+                else if(topFuga === 'Viajes / Vacaciones') customAdvice = 'Asegúrate de que este gasto fue provisionado y no te endeudes para viajar.';
+                else customAdvice = 'Modera tus gastos variables para el próximo ciclo.';
+
+                if(fugaPct > 15) {
+                    advFuga.innerHTML = `<div class="p-4 rounded-xl bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-xs font-bold leading-relaxed border border-pink-200 dark:border-pink-800"><i class="ph-fill ph-warning-octagon text-lg inline-block align-middle mr-1"></i> ¡Alerta de Hemorragia! Estás quemando el ${fugaPct.toFixed(1)}% de tus ingresos en ocio/antojos (Especialmente en: ${topFuga || 'Varios'}). <br><br><b>Plan de Acción:</b> ${customAdvice}</div>`;
+                } else if(fugasTotal > 0) {
+                    advFuga.innerHTML = `<div class="p-4 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold leading-relaxed border border-emerald-200 dark:border-emerald-800"><i class="ph-fill ph-check-circle text-lg inline-block align-middle mr-1"></i> Presupuesto de Ocio Controlado (${fugaPct.toFixed(1)}%). Mantienes un excelente balance entre disfrute y ahorro. Mayor fuga: ${topFuga || 'Varios'}.</div>`;
+                } else {
+                    advFuga.innerHTML = `<div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold leading-relaxed border border-slate-200 dark:border-slate-700">Aún no registras gastos de ocio este mes.</div>`;
                 }
             }
 
-            const mLbl=[], iD=[], eD=[];
-            for(let i=5; i>=0; i--) {
-                const d = new Date(cy, cm-i, 1); mLbl.push(d.toLocaleString('es-ES',{month:'short'}).toUpperCase());
-                iD.push(state.incomes.filter(x=>{const xd=parseLocalDate(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear()}).reduce((s,x)=>s+x.amount,0));
-                eD.push(state.expenses.filter(x=>{const xd=parseLocalDate(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear() && x.status !== 'Pendiente'}).reduce((s,x)=>s+getMyAmt(x),0));
+            // GRAFICO DE DONA RESTAURADO
+            const catDist = {};
+            state.expenses.filter(e=>isCm(e.date)).forEach(e => { catDist[e.category] = (catDist[e.category] || 0) + getMyAmt(e); });
+            const canvasDist = D('chart-distribution');
+            if(canvasDist) {
+                if(window.chartDist) window.chartDist.destroy();
+                window.chartDist = new Chart(canvasDist.getContext('2d'), {
+                    type: 'doughnut',
+                    data: { labels: Object.keys(catDist), datasets: [{ data: Object.values(catDist), backgroundColor: ['#3b82f6', '#d946ef', '#10b981', '#f59e0b'], borderWidth: 0, hoverOffset: 5 }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } }
+                });
             }
-            
+
             const canvasEvol = D('chart-evolution');
             if(canvasEvol) {
+                const mLbl=[], iD=[], eD=[];
+                for(let i=5; i>=0; i--) {
+                    const d = new Date(cy, cm-i, 1); mLbl.push(d.toLocaleString('es-ES',{month:'short'}).toUpperCase());
+                    iD.push(state.incomes.filter(x=>{const xd=parseLocalDate(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear()}).reduce((s,x)=>s+x.amount,0));
+                    eD.push(state.expenses.filter(x=>{const xd=parseLocalDate(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear() && x.status !== 'Pendiente'}).reduce((s,x)=>s+getMyAmt(x),0));
+                }
                 if(window.chartEvol) window.chartEvol.destroy();
                 const ctxE = canvasEvol.getContext('2d');
                 const grI = ctxE.createLinearGradient(0,0,0,400); grI.addColorStop(0,'rgba(59,130,246,0.3)'); grI.addColorStop(1,'rgba(59,130,246,0)');
@@ -1077,6 +1191,34 @@
                 window.chartEvol = new Chart(ctxE, {
                     type: 'line', data: { labels: mLbl, datasets: [ { label: 'Ingresos', data: iD, borderColor: '#3b82f6', backgroundColor: grI, fill: true, tension: 0.4, borderWidth: 3 }, { label: 'Gastos Pagados', data: eD, borderColor: '#ef4444', backgroundColor: grE, fill: true, tension: 0.4, borderWidth: 3 } ] },
                     options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { grid: { color: root.classList.contains('dark') ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, ticks: { callback: v => '$'+(v/1000)+'k' } } } }
+                });
+            }
+
+            // NUEVO: Gráfico de Barras Mensuales Comparativo (Bar Chart)
+            const canvasBars = D('chart-bars');
+            if(canvasBars) {
+                const mLbl=[], iD=[], eD=[];
+                for(let i=5; i>=0; i--) {
+                    const d = new Date(cy, cm-i, 1); mLbl.push(d.toLocaleString('es-ES',{month:'short'}).toUpperCase());
+                    iD.push(state.incomes.filter(x=>{const xd=parseLocalDate(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear()}).reduce((s,x)=>s+x.amount,0));
+                    eD.push(state.expenses.filter(x=>{const xd=parseLocalDate(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear() && x.status !== 'Pendiente'}).reduce((s,x)=>s+getMyAmt(x),0));
+                }
+                if(window.chartBars) window.chartBars.destroy();
+                const ctxB = canvasBars.getContext('2d');
+                window.chartBars = new Chart(ctxB, {
+                    type: 'bar',
+                    data: {
+                        labels: mLbl,
+                        datasets: [
+                            { label: 'Ingresos', data: iD, backgroundColor: '#10b981', borderRadius: 4 },
+                            { label: 'Gastos', data: eD, backgroundColor: '#ef4444', borderRadius: 4 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { x: { grid: { display: false } }, y: { grid: { color: root.classList.contains('dark') ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, ticks: { callback: v => '$'+(v/1000)+'k' } } },
+                        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } }
+                    }
                 });
             }
 
@@ -1091,7 +1233,7 @@
                 for(let i=0; i<=10; i+=2) { pLbl.push(cy + i); if(i===0) pData.push(projNW); else { projNW = (projNW * Math.pow(1+avgRate, 2)) + (annualSav * 2); pData.push(projNW); } }
                 const grP = ctxP.createLinearGradient(0,0,0,400); grP.addColorStop(0,'rgba(16,185,129,0.3)'); grP.addColorStop(1,'rgba(16,185,129,0)');
                 window.chartProj = new Chart(ctxP, {
-                    type: 'line', data: { labels: pLbl, datasets: [ { label: 'Proyección Patrimonio Neto', data: pData, borderColor: '#10b981', backgroundColor: grP, fill: true, tension: 0.4, borderWidth: 3, borderDash: [5, 5] } ] },
+                    type: 'line', data: { labels: pLbl, datasets: [ { label: 'Proyección Patrimonio', data: pData, borderColor: '#10b981', backgroundColor: grP, fill: true, tension: 0.4, borderWidth: 3, borderDash: [5, 5] } ] },
                     options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { grid: { color: root.classList.contains('dark') ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, ticks: { callback: v => '$'+(v/1000000)+'M' } } }, plugins: { legend: { display: false } } }
                 });
             }
@@ -1112,6 +1254,9 @@
             if(state.profile?.dob) { const diff = Date.now() - parseLocalDate(state.profile.dob).getTime(); ageNum = Math.abs(new Date(diff).getUTCFullYear() - 1970); }
             const expectedNetWorth = Math.max(0, (ageNum - 25)) * (incM * 12) * 0.2; 
             const scoreInversion = Math.min(100, (netWorth / Math.max(1, expectedNetWorth)) * 100) || 0;
+            
+            const overallScore = (scoreLiquidez + scoreDeuda + scoreAhorro + scoreInversion) / 4;
+            renderTwinSilhouette(overallScore, state.profile?.gender || 'Masculino');
 
             const canvasRadar = D('chart-radar');
             if(canvasRadar) {
@@ -1119,8 +1264,8 @@
                 const ctxR = canvasRadar.getContext('2d');
                 window.chartRadar = new Chart(ctxR, {
                     type: 'radar',
-                    data: { labels: ['Liquidez Operativa', 'Solvencia (Deuda)', 'Cap. Ahorro', 'Patrimonio vs Edad'], datasets: [{ label: `Score CFO (${pType})`, data: [scoreLiquidez, scoreDeuda, scoreAhorro, scoreInversion], backgroundColor: 'rgba(168, 85, 247, 0.2)', borderColor: '#a855f7', pointBackgroundColor: '#a855f7', borderWidth: 2 }] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: root.classList.contains('dark') ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }, angleLines: { color: root.classList.contains('dark') ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }, pointLabels: { font: { size: 11, weight: 'bold', family: "'Plus Jakarta Sans'" } } } }, plugins: { legend: { display: false } } }
+                    data: { labels: ['Liquidez', 'Solvencia', 'Cap. Ahorro', 'Patrimonio'], datasets: [{ label: `Score CFO (${pType})`, data: [scoreLiquidez, scoreDeuda, scoreAhorro, scoreInversion], backgroundColor: 'rgba(168, 85, 247, 0.2)', borderColor: '#a855f7', pointBackgroundColor: '#a855f7', borderWidth: 2 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: root.classList.contains('dark') ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }, angleLines: { color: root.classList.contains('dark') ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }, pointLabels: { font: { size: 10, weight: 'bold', family: "'Plus Jakarta Sans'" } } } }, plugins: { legend: { display: false } } }
                 });
             }
         };
