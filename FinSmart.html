@@ -386,6 +386,9 @@
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
+        // 1. Añadimos la variable appId para coincidir con la estructura de tus reglas
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'finsmart-pro';
+
         const state = { user: null, incomes: [], expenses: [], debts: [], pensions: [], unsubs: [] };
 
         // Categorías Expansivas
@@ -477,24 +480,25 @@
         const loadData = (uid) => {
             const cols = ['incomes', 'expenses', 'debts', 'pensions']; let loaded = 0;
             cols.forEach(col => {
-                state.unsubs.push(onSnapshot(query(collection(db, 'users', uid, col)), snap => {
+                // 2. Modificamos la ruta de lectura: collection(db, 'artifacts', appId, 'users', uid, col)
+                state.unsubs.push(onSnapshot(query(collection(db, 'artifacts', appId, 'users', uid, col)), snap => {
                     state[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     if(col === 'expenses' || col === 'incomes') state[col].sort((a,b) => new Date(b.date) - new Date(a.date));
                     renderUI(col); updateDashboard();
                     if(++loaded === cols.length) D('global-loading').classList.add('hidden');
                 }, error => {
-                    // Manejo del error para que no se quede cargando infinitamente
                     console.error(`Error en la colección ${col}:`, error);
                     D('global-loading').classList.add('hidden');
                     if (error.code === 'permission-denied') {
-                        alert('Error de Permisos en Firebase: Por favor actualiza las reglas de Firestore.');
+                        alert('Error de Permisos en la Nube. La ruta o las reglas no coinciden.');
                     }
                 }));
             });
         };
 
-        const addRec = async (col, data) => { if(state.user) await addDoc(collection(db, 'users', state.user.uid, col), data); };
-        window.delRec = async (col, id) => { if(confirm('¿Eliminar?')) await deleteDoc(doc(db, 'users', state.user.uid, col, id)); };
+        // 3. Modificamos las rutas de guardado (addRec) y eliminación (delRec)
+        const addRec = async (col, data) => { if(state.user) await addDoc(collection(db, 'artifacts', appId, 'users', state.user.uid, col), data); };
+        window.delRec = async (col, id) => { if(confirm('¿Eliminar?')) await deleteDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, col, id)); };
 
         // Submits
         D('form-expense').addEventListener('submit', e => { e.preventDefault();
