@@ -19,7 +19,7 @@
             }
         };
 
-        // Theme Initialization & Toggle (Ejecución inmediata para evitar errores de referencia y FOUC)
+        // Theme Initialization & Toggle (Ejecución inmediata)
         const initTheme = () => {
             const html = document.documentElement;
             const currentTheme = localStorage.getItem('theme') || 'light';
@@ -228,6 +228,25 @@
                         <div class="relative flex-1 w-full flex justify-center items-center min-h-[250px]"><canvas id="chart-radar"></canvas></div>
                     </div>
                 </div>
+
+                <!-- Heatmap y Recibos RESTAURADOS PARA EVITAR ERRORES -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                    <div class="bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 lg:col-span-2">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xl font-extrabold text-slate-900 dark:text-white">Mapa de Calor (Gastos)</h3>
+                            <span class="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-xl">Mes Actual</span>
+                        </div>
+                        <div class="grid grid-cols-7 gap-2 md:gap-3 text-center mb-2">
+                            <div class="text-[10px] font-bold text-slate-400">DOM</div><div class="text-[10px] font-bold text-slate-400">LUN</div><div class="text-[10px] font-bold text-slate-400">MAR</div><div class="text-[10px] font-bold text-slate-400">MIE</div><div class="text-[10px] font-bold text-slate-400">JUE</div><div class="text-[10px] font-bold text-slate-400">VIE</div><div class="text-[10px] font-bold text-slate-400">SAB</div>
+                        </div>
+                        <div id="heatmap-grid" class="grid grid-cols-7 gap-2 md:gap-3"></div>
+                        <div class="flex items-center justify-end gap-2 mt-6 text-xs text-slate-500 font-medium">Menos <div class="w-3 h-3 rounded-sm bg-slate-100 dark:bg-slate-700"></div><div class="w-3 h-3 rounded-sm bg-red-300 dark:bg-red-900/50"></div><div class="w-3 h-3 rounded-sm bg-red-500"></div> Más</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 flex flex-col">
+                        <h3 class="text-xl font-extrabold text-slate-900 dark:text-white mb-6">Próximos Recibos Mensuales</h3>
+                        <div id="list-recurring" class="flex-1 overflow-y-auto space-y-3"></div>
+                    </div>
+                </div>
             </section>
 
             <!-- VIEW: IA FINANCIERA -->
@@ -287,7 +306,7 @@
             <!-- VIEW: POR COBRAR -->
             <section id="view-receivables" class="content-section space-y-6 hidden fade-in"><div class="flex items-center gap-4"><div class="w-14 h-14 rounded-[2rem] bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center"><i class="ph ph-handshake text-3xl text-blue-500"></i></div><div><h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">Por Cobrar</h2></div></div><div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="bg-white dark:bg-slate-800 p-6 lg:p-8 rounded-[2.5rem] shadow-soft border border-slate-100 dark:border-slate-700 lg:col-span-1 h-fit"><form id="form-receivable" class="space-y-4"><div><label class="block text-[11px] font-extrabold text-slate-500 uppercase mb-2">¿A quién le prestaste?</label><input type="text" id="rcv-debtor" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-5 py-4 text-sm dark:text-white"></div><div><label class="block text-[11px] font-extrabold text-slate-500 uppercase mb-2">Concepto / Motivo</label><input type="text" id="rcv-concept" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-5 py-4 text-sm dark:text-white"></div><div><label class="block text-[11px] font-extrabold text-slate-500 uppercase mb-2">Monto ($)</label><input type="number" id="rcv-amount" required class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-5 py-4 text-xl font-bold text-blue-500"></div><button type="submit" class="w-full bg-blue-500 text-white font-bold py-4 rounded-2xl">Registrar Deuda a mi favor</button></form></div><div class="lg:col-span-2"><div id="list-receivables" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></div></div></section>
 
-            <!-- VIEW: METAS -->
+            <!-- VIEW: METAS (SUEÑOS) -->
             <section id="view-goals" class="content-section space-y-6 hidden fade-in">
                 <div class="flex items-center gap-4"><div class="w-14 h-14 rounded-[2rem] bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center"><i class="ph ph-target text-3xl text-purple-500"></i></div><div><h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">Metas y Sueños</h2><p class="text-slate-500 text-sm mt-1">Carga de energía tus objetivos para materializarlos.</p></div></div>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -376,7 +395,7 @@
         const formatDate = str => { 
             if(!str) return 'Sin fecha';
             const d = new Date(str); 
-            if(isNaN(d.getTime())) return str; // Paracaídas si la fecha es inválida
+            if(isNaN(d.getTime())) return str;
             d.setMinutes(d.getMinutes() + d.getTimezoneOffset()); 
             return d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric', year: 'numeric' }); 
         };
@@ -389,58 +408,68 @@
             const today = new Date().toISOString().split('T')[0];
             ['inc-date','exp-date','pen-date','inv-date','rcv-date'].forEach(id => { if(D(id)) D(id).value = today; });
             const cat = D('exp-category'), sub = D('exp-subcategory');
-            cat.innerHTML = '<option value="" disabled selected>Clasificación 50/30/20...</option>';
-            Object.keys(CATEGORIES).forEach(c => cat.innerHTML += `<option value="${c}">${c}</option>`);
-            cat.addEventListener('change', e => { sub.innerHTML = CATEGORIES[e.target.value].map(s => `<option value="${s}">${s}</option>`).join(''); });
+            if(cat && sub) {
+                cat.innerHTML = '<option value="" disabled selected>Clasificación 50/30/20...</option>';
+                Object.keys(CATEGORIES).forEach(c => cat.innerHTML += `<option value="${c}">${c}</option>`);
+                cat.addEventListener('change', e => { sub.innerHTML = CATEGORIES[e.target.value].map(s => `<option value="${s}">${s}</option>`).join(''); });
+            }
         };
         setupForms();
 
-        D('exp-is-shared').addEventListener('change', e => D('exp-shared-fields').classList.toggle('hidden', !e.target.checked));
-        D('dbt-is-shared').addEventListener('change', e => D('dbt-shared-fields').classList.toggle('hidden', !e.target.checked));
+        if(D('exp-is-shared')) D('exp-is-shared').addEventListener('change', e => D('exp-shared-fields').classList.toggle('hidden', !e.target.checked));
+        if(D('dbt-is-shared')) D('dbt-is-shared').addEventListener('change', e => D('dbt-shared-fields').classList.toggle('hidden', !e.target.checked));
 
         // AUTH
         let isLogin = true;
-        D('btn-toggle-auth').addEventListener('click', () => {
-            isLogin = !isLogin; D('register-fields').classList.toggle('hidden');
-            D('auth-toggle-text').innerText = isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?';
-            D('btn-toggle-auth').innerText = isLogin ? 'Regístrate' : 'Inicia sesión';
-            D('auth-submit-btn').innerHTML = isLogin ? 'Acceder a mi Bóveda <i class="ph ph-arrow-right"></i>' : 'Crear Bóveda <i class="ph ph-shield-check"></i>';
-        });
+        if(D('btn-toggle-auth')) {
+            D('btn-toggle-auth').addEventListener('click', () => {
+                isLogin = !isLogin; D('register-fields').classList.toggle('hidden');
+                D('auth-toggle-text').innerText = isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?';
+                D('btn-toggle-auth').innerText = isLogin ? 'Regístrate' : 'Inicia sesión';
+                D('auth-submit-btn').innerHTML = isLogin ? 'Acceder a mi Bóveda <i class="ph ph-arrow-right"></i>' : 'Crear Bóveda <i class="ph ph-shield-check"></i>';
+            });
+        }
         
-        D('auth-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = D('auth-submit-btn'); const og = btn.innerHTML; btn.innerHTML = '<div class="loader !w-5 !h-5 !border-2"></div>';
-            try { 
-                if(isLogin) await signInWithEmailAndPassword(auth, D('auth-email').value, D('auth-pass').value); 
-                else { 
-                    const res = await createUserWithEmailAndPassword(auth, D('auth-email').value, D('auth-pass').value); 
-                    await updateProfile(res.user, { displayName: D('auth-name').value || 'Usuario' }); 
-                } 
-            } catch (error) { 
-                alert("Credenciales inválidas: " + error.message); 
-                btn.innerHTML = og;
-            }
-        });
+        if(D('auth-form')) {
+            D('auth-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = D('auth-submit-btn'); const og = btn.innerHTML; btn.innerHTML = '<div class="loader !w-5 !h-5 !border-2"></div>';
+                try { 
+                    if(isLogin) await signInWithEmailAndPassword(auth, D('auth-email').value, D('auth-pass').value); 
+                    else { 
+                        const res = await createUserWithEmailAndPassword(auth, D('auth-email').value, D('auth-pass').value); 
+                        await updateProfile(res.user, { displayName: D('auth-name').value || 'Usuario' }); 
+                    } 
+                } catch (error) { 
+                    alert("Credenciales inválidas: " + error.message); 
+                    btn.innerHTML = og;
+                }
+            });
+        }
         
-        D('btn-google-auth').addEventListener('click', async (e) => {
-            e.preventDefault();
-            const btn = D('btn-google-auth'); 
-            const og = btn.innerHTML; 
-            btn.innerHTML = '<div class="loader !w-5 !h-5 !border-2 border-blue-500 border-l-transparent"></div> <span class="text-blue-500">Conectando...</span>';
-            try {
-                const provider = new GoogleAuthProvider();
-                provider.setCustomParameters({ prompt: 'select_account' }); 
-                await signInWithPopup(auth, provider);
-            } catch (error) {
-                console.error("Error Auth Google:", error);
-                btn.innerHTML = og; 
-                let msg = error.code === 'auth/popup-blocked' ? "Tu navegador bloqueó la ventana emergente. Por favor, permite los pop-ups en la barra de direcciones." : 
-                         (error.code === 'auth/unauthorized-domain' ? "Dominio NO autorizado. Añade esta URL en la Consola de Firebase -> Authentication -> Settings -> Authorized domains." : error.message);
-                alert("⛔ No pudimos iniciar sesión:\n\n" + msg);
-            }
-        });
+        if(D('btn-google-auth')) {
+            D('btn-google-auth').addEventListener('click', async (e) => {
+                e.preventDefault();
+                const btn = D('btn-google-auth'); 
+                const og = btn.innerHTML; 
+                btn.innerHTML = '<div class="loader !w-5 !h-5 !border-2 border-blue-500 border-l-transparent"></div> <span class="text-blue-500">Conectando...</span>';
+                try {
+                    const provider = new GoogleAuthProvider();
+                    provider.setCustomParameters({ prompt: 'select_account' }); 
+                    await signInWithPopup(auth, provider);
+                } catch (error) {
+                    console.error("Error Auth Google:", error);
+                    btn.innerHTML = og; 
+                    let msg = error.code === 'auth/popup-blocked' ? "Tu navegador bloqueó la ventana emergente. Por favor, permite los pop-ups en la barra de direcciones." : 
+                             (error.code === 'auth/unauthorized-domain' ? "Dominio NO autorizado. Añade esta URL en la Consola de Firebase -> Authentication -> Settings -> Authorized domains." : error.message);
+                    alert("⛔ No pudimos iniciar sesión:\n\n" + msg);
+                }
+            });
+        }
         
-        const doLogout = () => signOut(auth); D('btn-logout').addEventListener('click', doLogout); D('btn-logout-mobile').addEventListener('click', doLogout);
+        const doLogout = () => signOut(auth); 
+        if(D('btn-logout')) D('btn-logout').addEventListener('click', doLogout); 
+        if(D('btn-logout-mobile')) D('btn-logout-mobile').addEventListener('click', doLogout);
 
         // ROUTING
         const switchView = (target) => {
@@ -456,7 +485,7 @@
             if(target === 'ai') generateAIInsights();
         };
         document.querySelectorAll('.nav-item, .nav-link').forEach(i => i.addEventListener('click', e => { e.preventDefault(); switchView(e.currentTarget.dataset.target); }));
-        D('btn-close-more').addEventListener('click', () => { D('mobile-more-overlay').classList.add('hidden'); D('mobile-more-overlay').classList.remove('flex'); });
+        if(D('btn-close-more')) D('btn-close-more').addEventListener('click', () => { D('mobile-more-overlay').classList.add('hidden'); D('mobile-more-overlay').classList.remove('flex'); });
 
         // APP INIT
         onAuthStateChanged(auth, user => {
@@ -497,7 +526,11 @@
                 state.unsubs.push(onSnapshot(query(collection(db, 'artifacts', appId, 'users', uid, col)), snap => {
                     state[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     if(['expenses','incomes','receivables','investments'].includes(col)) { state[col].sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)); }
-                    renderUI(col); 
+                    try {
+                        renderUI(col); 
+                    } catch (e) {
+                        console.error("Error seguro en renderUI para la coleccion:", col, e);
+                    }
                     if(++loaded === cols.length) { D('global-loading').classList.add('hidden'); updateDashboard(); generateAIInsights(); }
                 }, error => {
                     D('global-loading').classList.add('hidden');
@@ -511,75 +544,88 @@
         window.markPaid = async (id) => { await updateDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'receivables', id), { isPaid: true }); };
 
         // SUBMITS
-        D('form-profile').addEventListener('submit', async e => {
+        if(D('form-profile')) D('form-profile').addEventListener('submit', async e => {
             e.preventDefault(); const pd = { name: D('prof-name').value, type: D('prof-type').value, goal: D('prof-goal').value };
             await setDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'profile', 'data'), pd); await updateProfile(state.user, { displayName: pd.name }); alert("Perfil actualizado.");
         });
-        D('form-expense').addEventListener('submit', e => { e.preventDefault(); addRec('expenses', { amount: parseFloat(D('exp-amount').value), category: D('exp-category').value, subcategory: D('exp-subcategory').value, date: D('exp-date').value, notes: D('exp-notes').value, isShared: D('exp-is-shared').checked, myShare: parseFloat(D('exp-my-share').value), isRecurring: D('exp-is-recurring').checked }); e.target.reset(); setupForms(); D('exp-shared-fields').classList.add('hidden'); });
-        D('form-income').addEventListener('submit', e => { e.preventDefault(); addRec('incomes', { source: D('inc-source').value, amount: parseFloat(D('inc-amount').value), type: D('inc-type').value, date: D('inc-date').value }); e.target.reset(); setupForms(); });
-        D('form-pension').addEventListener('submit', e => { e.preventDefault(); addRec('pensions', { provider: D('pen-provider').value, weeks: parseInt(D('pen-weeks').value), amount: parseFloat(D('pen-amount').value) || 0, date: D('pen-date').value }); e.target.reset(); setupForms(); });
-        D('form-investment').addEventListener('submit', e => { e.preventDefault(); addRec('investments', { entity: D('inv-entity').value, amount: parseFloat(D('inv-amount').value), rateEA: parseFloat(D('inv-rate').value), termMonths: parseInt(D('inv-term').value), date: D('inv-date').value }); e.target.reset(); setupForms(); });
-        D('form-debt').addEventListener('submit', e => { e.preventDefault(); addRec('debts', { name: D('dbt-name').value, amount: parseFloat(D('dbt-amount').value), rateEA: parseFloat(D('dbt-rate').value), installments: parseInt(D('dbt-installments').value), paymentDay: parseInt(D('dbt-day').value), isShared: D('dbt-is-shared').checked, myShare: parseFloat(D('dbt-my-share').value) }); e.target.reset(); D('dbt-shared-fields').classList.add('hidden'); });
-        D('form-receivable').addEventListener('submit', e => { e.preventDefault(); addRec('receivables', { debtor: D('rcv-debtor').value, concept: D('rcv-concept').value, amount: parseFloat(D('rcv-amount').value), date: D('rcv-date').value, isPaid: false }); e.target.reset(); setupForms(); });
-        D('form-goal').addEventListener('submit', e => { e.preventDefault(); addRec('goals', { type: D('gol-type').value, name: D('gol-name').value, targetAmount: parseFloat(D('gol-target').value), currentAmount: parseFloat(D('gol-current').value) }); e.target.reset(); });
+        if(D('form-expense')) D('form-expense').addEventListener('submit', e => { e.preventDefault(); addRec('expenses', { amount: parseFloat(D('exp-amount').value), category: D('exp-category').value, subcategory: D('exp-subcategory').value, date: D('exp-date').value, notes: D('exp-notes').value, isShared: D('exp-is-shared').checked, myShare: parseFloat(D('exp-my-share').value), isRecurring: D('exp-is-recurring').checked }); e.target.reset(); setupForms(); D('exp-shared-fields').classList.add('hidden'); });
+        if(D('form-income')) D('form-income').addEventListener('submit', e => { e.preventDefault(); addRec('incomes', { source: D('inc-source').value, amount: parseFloat(D('inc-amount').value), type: D('inc-type').value, date: D('inc-date').value }); e.target.reset(); setupForms(); });
+        if(D('form-pension')) D('form-pension').addEventListener('submit', e => { e.preventDefault(); addRec('pensions', { provider: D('pen-provider').value, weeks: parseInt(D('pen-weeks').value), amount: parseFloat(D('pen-amount').value) || 0, date: D('pen-date').value }); e.target.reset(); setupForms(); });
+        if(D('form-investment')) D('form-investment').addEventListener('submit', e => { e.preventDefault(); addRec('investments', { entity: D('inv-entity').value, amount: parseFloat(D('inv-amount').value), rateEA: parseFloat(D('inv-rate').value), termMonths: parseInt(D('inv-term').value), date: D('inv-date').value }); e.target.reset(); setupForms(); });
+        if(D('form-debt')) D('form-debt').addEventListener('submit', e => { e.preventDefault(); addRec('debts', { name: D('dbt-name').value, amount: parseFloat(D('dbt-amount').value), rateEA: parseFloat(D('dbt-rate').value), installments: parseInt(D('dbt-installments').value), paymentDay: parseInt(D('dbt-day').value), isShared: D('dbt-is-shared').checked, myShare: parseFloat(D('dbt-my-share').value) }); e.target.reset(); D('dbt-shared-fields').classList.add('hidden'); });
+        if(D('form-receivable')) D('form-receivable').addEventListener('submit', e => { e.preventDefault(); addRec('receivables', { debtor: D('rcv-debtor').value, concept: D('rcv-concept').value, amount: parseFloat(D('rcv-amount').value), date: D('rcv-date').value, isPaid: false }); e.target.reset(); setupForms(); });
+        if(D('form-goal')) D('form-goal').addEventListener('submit', e => { e.preventDefault(); addRec('goals', { type: D('gol-type').value, name: D('gol-name').value, targetAmount: parseFloat(D('gol-target').value), currentAmount: parseFloat(D('gol-current').value) }); e.target.reset(); });
 
-        // RENDER UI
+        // RENDER UI (Con paracaídas D() para evitar nulos)
         const renderUI = (col) => {
             if(col === 'expenses') {
-                D('list-expenses').innerHTML = state.expenses.map(e => `<tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"><td class="py-4 px-2 text-slate-500 text-xs">${formatDate(e.date)} ${e.isRecurring ? '<i class="ph-fill ph-arrows-clockwise text-blue-500 ml-1"></i>':''}</td><td class="py-4 px-2"><p class="font-bold text-slate-900 dark:text-white text-sm">${e.subcategory}</p><p class="text-[10px] text-slate-400">${e.isShared ? `Compartido (Mi ${e.myShare}%)`:''}</p></td><td class="py-4 px-2 text-right font-black text-red-500">${formatMoney(getMyAmt(e))}</td><td class="py-4 px-2 text-center"><button onclick="delRec('expenses','${e.id}')" class="text-slate-400 hover:text-red-500 bg-white dark:bg-slate-700 rounded-full p-2 shadow-sm"><i class="ph ph-trash"></i></button></td></tr>`).join('');
-                D('list-recurring').innerHTML = state.expenses.filter(e=>e.isRecurring).slice(0,5).map(e => `<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-500"><i class="ph ph-receipt text-xl"></i></div><div><p class="text-sm font-bold text-slate-900 dark:text-white">${e.subcategory}</p></div></div><span class="font-black text-slate-900 dark:text-white">${formatMoney(getMyAmt(e))}</span></div>`).join('') || '<p class="text-slate-500 text-sm">No tienes recibos marcados.</p>';
+                if(D('list-expenses')) D('list-expenses').innerHTML = state.expenses.map(e => `<tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"><td class="py-4 px-2 text-slate-500 text-xs">${formatDate(e.date)} ${e.isRecurring ? '<i class="ph-fill ph-arrows-clockwise text-blue-500 ml-1"></i>':''}</td><td class="py-4 px-2"><p class="font-bold text-slate-900 dark:text-white text-sm">${e.subcategory}</p><p class="text-[10px] text-slate-400">${e.isShared ? `Compartido (Mi ${e.myShare}%)`:''}</p></td><td class="py-4 px-2 text-right font-black text-red-500">${formatMoney(getMyAmt(e))}</td><td class="py-4 px-2 text-center"><button onclick="delRec('expenses','${e.id}')" class="text-slate-400 hover:text-red-500 bg-white dark:bg-slate-700 rounded-full p-2 shadow-sm"><i class="ph ph-trash"></i></button></td></tr>`).join('');
+                if(D('list-recurring')) D('list-recurring').innerHTML = state.expenses.filter(e=>e.isRecurring).slice(0,5).map(e => `<div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-500"><i class="ph ph-receipt text-xl"></i></div><div><p class="text-sm font-bold text-slate-900 dark:text-white">${e.subcategory}</p></div></div><span class="font-black text-slate-900 dark:text-white">${formatMoney(getMyAmt(e))}</span></div>`).join('') || '<p class="text-slate-500 text-sm">No tienes recibos marcados.</p>';
             }
-            if(col === 'incomes') D('list-incomes').innerHTML = state.incomes.map(i => `<tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"><td class="py-4 text-slate-500 text-xs">${formatDate(i.date)}</td><td class="py-4 font-bold text-slate-900 dark:text-white text-sm">${i.source} <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-[10px] px-2 py-0.5 rounded-lg ml-2">${i.type}</span></td><td class="py-4 text-right font-black text-emerald-500">${formatMoney(i.amount)}</td><td class="text-center"><button onclick="delRec('incomes','${i.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></td></tr>`).join('');
-            if(col === 'pensions' && state.pensions.length > 0) {
+            if(col === 'incomes' && D('list-incomes')) D('list-incomes').innerHTML = state.incomes.map(i => `<tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"><td class="py-4 text-slate-500 text-xs">${formatDate(i.date)}</td><td class="py-4 font-bold text-slate-900 dark:text-white text-sm">${i.source} <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-[10px] px-2 py-0.5 rounded-lg ml-2">${i.type}</span></td><td class="py-4 text-right font-black text-emerald-500">${formatMoney(i.amount)}</td><td class="text-center"><button onclick="delRec('incomes','${i.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></td></tr>`).join('');
+            
+            if(col === 'pensions' && state.pensions.length > 0 && D('pension-card')) {
                 const p = state.pensions.sort((a,b)=>new Date(b.date)-new Date(a.date))[0]; const pub = p.provider === 'Colpensiones';
                 D('pension-card').innerHTML = `<div class="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div><div class="relative z-10 flex justify-between items-start mb-6"><div><h4 class="text-sm font-bold text-indigo-200 uppercase mb-1">Fondo</h4><p class="text-3xl font-black">${p.provider}</p><span class="text-[10px] bg-indigo-800 px-2 py-1 rounded-lg mt-2 inline-block">${pub?'Prima Media':'Ahorro Individual'}</span></div><i class="ph-fill ph-bank text-5xl text-indigo-400 opacity-50"></i></div><div class="relative z-10 grid grid-cols-2 gap-4 mt-auto"><div class="bg-indigo-700/50 p-4 rounded-3xl"><p class="text-[10px] text-indigo-300 uppercase font-bold mb-1">Semanas Cotizadas</p><p class="text-2xl font-black">${p.weeks}</p></div><div class="bg-indigo-700/50 p-4 rounded-3xl"><p class="text-[10px] text-indigo-300 uppercase font-bold mb-1">Capital Acumulado</p><p class="text-2xl font-black text-emerald-300">${pub ? 'N/A' : formatMoney(p.amount)}</p></div></div>`;
             }
-            if(col === 'investments') D('list-investments').innerHTML = state.investments.map(i => {
-                const vf = calcRetornoInv(i);
-                return `<div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm"><div class="flex justify-between mb-2"><h4 class="font-bold text-slate-900 dark:text-white">${i.entity}</h4><button onclick="delRec('investments','${i.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></div><p class="text-2xl font-black text-emerald-500 mb-4">${formatMoney(i.amount)}</p><div class="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl text-xs space-y-2 text-slate-600 dark:text-slate-400"><div class="flex justify-between"><span>Plazo:</span> <span class="font-bold text-slate-900 dark:text-white">${i.termMonths} Meses</span></div><div class="flex justify-between"><span>Tasa E.A.:</span> <span class="font-bold text-slate-900 dark:text-white">${i.rateEA}%</span></div><div class="flex justify-between text-emerald-600 dark:text-emerald-400 border-t border-slate-200 dark:border-slate-700 pt-2 mt-2"><span>Proyección Final:</span> <span class="font-black">${formatMoney(vf)}</span></div></div></div>`;
-            }).join('');
-            if(col === 'debts') D('list-debts').innerHTML = state.debts.map(d => {
-                const cuota = calcCuota(d); const myAmt = getMyAmt(d);
-                return `<div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm"><div class="flex justify-between mb-2"><h4 class="font-bold text-slate-900 dark:text-white">${d.name} ${d.isShared?`<span class="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-lg ml-2">Mi ${d.myShare}%</span>`:''}</h4><button onclick="delRec('debts','${d.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></div><p class="text-3xl font-black text-orange-500 mb-4">${formatMoney(myAmt)}</p><div class="grid grid-cols-2 gap-3 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl"><div><span class="block text-[10px] uppercase mb-1">EA %</span><span class="font-bold text-slate-900 dark:text-white">${d.rateEA}%</span></div><div><span class="block text-[10px] uppercase mb-1">Pago</span><span class="font-bold text-slate-900 dark:text-white bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">Día ${d.paymentDay}</span></div><div class="col-span-2 border-t border-slate-200 dark:border-slate-700 pt-3"><span class="block text-[10px] uppercase mb-1">Cuota Est. (Int. Compuesto)</span><span class="font-black text-orange-600 dark:text-orange-400 text-sm">${formatMoney(cuota)} / mes</span></div></div></div>`;
-            }).join('');
-            if(col === 'receivables') D('list-receivables').innerHTML = state.receivables.map(r => `<div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm ${r.isPaid?'opacity-50':''}"><div class="flex justify-between mb-2"><h4 class="font-bold text-slate-900 dark:text-white">${r.debtor}</h4><button onclick="delRec('receivables','${r.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></div><p class="text-xs text-slate-500 dark:text-slate-400 mb-3">${r.concept}</p><p class="text-2xl font-black ${r.isPaid?'text-emerald-500':'text-blue-500'} mb-4">${formatMoney(r.amount)}</p><div class="flex justify-between items-center text-xs text-slate-500">${formatDate(r.date)}${r.isPaid?`<span class="text-emerald-500 font-bold bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-lg">Pagado</span>`:`<button onclick="markPaid('${r.id}')" class="bg-blue-500 text-white px-4 py-2 rounded-xl font-bold">Marcar Cobrado</button>`}</div></div>`).join('');
-            if(col === 'goals') D('list-goals').innerHTML = state.goals.map(g => {
-                const pct = Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) || 0;
-                const emoji = g.type ? g.type.split(' ')[0] : '🎯';
-                const isComplete = pct === 100;
-                const batteryColor = isComplete ? 'from-emerald-400 to-emerald-600 shadow-[0_0_20px_rgba(52,211,153,0.6)]' : 'from-pink-500 to-purple-600 shadow-[0_0_20px_rgba(168,85,247,0.4)]';
-                
-                return `
-                <div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 lg:p-7 rounded-[2.5rem] shadow-soft relative overflow-hidden group hover:shadow-xl transition-all">
-                    <div class="absolute -right-10 -top-10 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all"></div>
-                    <div class="flex items-start gap-4 mb-6 relative z-10">
-                        <div class="w-20 h-20 shrink-0 rounded-[1.5rem] bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center shadow-[inset_0_-4px_6px_rgba(0,0,0,0.1),0_10px_20px_-5px_rgba(0,0,0,0.2)] border border-white/50 dark:border-slate-600">
-                            <span class="text-5xl drop-shadow-[0_15px_15px_rgba(0,0,0,0.3)] transform group-hover:scale-110 transition-transform duration-500">${emoji}</span>
-                        </div>
-                        <div class="flex-1 overflow-hidden">
-                            <div class="flex justify-between items-start mb-1">
-                                <h4 class="font-extrabold text-lg text-slate-900 dark:text-white leading-tight truncate">${g.name}</h4>
-                                <button onclick="delRec('goals','${g.id}')" class="text-slate-400 hover:text-red-500 bg-slate-50 dark:bg-slate-900 p-2 rounded-full shadow-sm"><i class="ph ph-trash"></i></button>
+            
+            if(col === 'investments' && D('list-investments')) {
+                D('list-investments').innerHTML = state.investments.map(i => {
+                    const vf = calcRetornoInv(i);
+                    return `<div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm"><div class="flex justify-between mb-2"><h4 class="font-bold text-slate-900 dark:text-white">${i.entity}</h4><button onclick="delRec('investments','${i.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></div><p class="text-2xl font-black text-emerald-500 mb-4">${formatMoney(i.amount)}</p><div class="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl text-xs space-y-2 text-slate-600 dark:text-slate-400"><div class="flex justify-between"><span>Plazo:</span> <span class="font-bold text-slate-900 dark:text-white">${i.termMonths} Meses</span></div><div class="flex justify-between"><span>Tasa E.A.:</span> <span class="font-bold text-slate-900 dark:text-white">${i.rateEA}%</span></div><div class="flex justify-between text-emerald-600 dark:text-emerald-400 border-t border-slate-200 dark:border-slate-700 pt-2 mt-2"><span>Proyección Final:</span> <span class="font-black">${formatMoney(vf)}</span></div></div></div>`;
+                }).join('');
+            }
+            
+            if(col === 'debts' && D('list-debts')) {
+                D('list-debts').innerHTML = state.debts.map(d => {
+                    const cuota = calcCuota(d); const myAmt = getMyAmt(d);
+                    return `<div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm"><div class="flex justify-between mb-2"><h4 class="font-bold text-slate-900 dark:text-white">${d.name} ${d.isShared?`<span class="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-lg ml-2">Mi ${d.myShare}%</span>`:''}</h4><button onclick="delRec('debts','${d.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></div><p class="text-3xl font-black text-orange-500 mb-4">${formatMoney(myAmt)}</p><div class="grid grid-cols-2 gap-3 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl"><div><span class="block text-[10px] uppercase mb-1">EA %</span><span class="font-bold text-slate-900 dark:text-white">${d.rateEA}%</span></div><div><span class="block text-[10px] uppercase mb-1">Pago</span><span class="font-bold text-slate-900 dark:text-white bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">Día ${d.paymentDay}</span></div><div class="col-span-2 border-t border-slate-200 dark:border-slate-700 pt-3"><span class="block text-[10px] uppercase mb-1">Cuota Est. (Int. Compuesto)</span><span class="font-black text-orange-600 dark:text-orange-400 text-sm">${formatMoney(cuota)} / mes</span></div></div></div>`;
+                }).join('');
+            }
+            
+            if(col === 'receivables' && D('list-receivables')) {
+                D('list-receivables').innerHTML = state.receivables.map(r => `<div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 rounded-[2rem] shadow-sm ${r.isPaid?'opacity-50':''}"><div class="flex justify-between mb-2"><h4 class="font-bold text-slate-900 dark:text-white">${r.debtor}</h4><button onclick="delRec('receivables','${r.id}')" class="text-slate-400 hover:text-red-500"><i class="ph ph-trash"></i></button></div><p class="text-xs text-slate-500 dark:text-slate-400 mb-3">${r.concept}</p><p class="text-2xl font-black ${r.isPaid?'text-emerald-500':'text-blue-500'} mb-4">${formatMoney(r.amount)}</p><div class="flex justify-between items-center text-xs text-slate-500">${formatDate(r.date)}${r.isPaid?`<span class="text-emerald-500 font-bold bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-lg">Pagado</span>`:`<button onclick="markPaid('${r.id}')" class="bg-blue-500 text-white px-4 py-2 rounded-xl font-bold">Marcar Cobrado</button>`}</div></div>`).join('');
+            }
+            
+            if(col === 'goals' && D('list-goals')) {
+                D('list-goals').innerHTML = state.goals.map(g => {
+                    const pct = Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) || 0;
+                    const emoji = g.type ? g.type.split(' ')[0] : '🎯';
+                    const isComplete = pct === 100;
+                    const batteryColor = isComplete ? 'from-emerald-400 to-emerald-600 shadow-[0_0_20px_rgba(52,211,153,0.6)]' : 'from-pink-500 to-purple-600 shadow-[0_0_20px_rgba(168,85,247,0.4)]';
+                    
+                    return `
+                    <div class="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-6 lg:p-7 rounded-[2.5rem] shadow-soft relative overflow-hidden group hover:shadow-xl transition-all">
+                        <div class="absolute -right-10 -top-10 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all"></div>
+                        <div class="flex items-start gap-4 mb-6 relative z-10">
+                            <div class="w-20 h-20 shrink-0 rounded-[1.5rem] bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center shadow-[inset_0_-4px_6px_rgba(0,0,0,0.1),0_10px_20px_-5px_rgba(0,0,0,0.2)] border border-white/50 dark:border-slate-600">
+                                <span class="text-5xl drop-shadow-[0_15px_15px_rgba(0,0,0,0.3)] transform group-hover:scale-110 transition-transform duration-500">${emoji}</span>
                             </div>
-                            <p class="text-2xl font-black text-purple-500 mt-1">${formatMoney(g.currentAmount)}</p>
-                            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Meta: ${formatMoney(g.targetAmount)}</p>
-                        </div>
-                    </div>
-                    <div class="relative z-10 mt-2">
-                        <div class="flex justify-between items-end mb-2">
-                            <span class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest flex items-center gap-1"><i class="ph-fill ph-lightning text-yellow-500 text-sm"></i> Batería de Sueño</span>
-                            <span class="text-sm font-black ${isComplete ? 'text-emerald-500' : 'text-purple-500'}">${pct}%</span>
-                        </div>
-                        <div class="relative w-full h-8 bg-slate-100 dark:bg-slate-900 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-1 flex items-center shadow-inner">
-                            <div class="absolute -right-2 top-1/2 transform -translate-y-1/2 w-2 h-4 bg-slate-200 dark:bg-slate-700 rounded-r-md border-r-2 border-y-2 border-slate-300 dark:border-slate-600"></div>
-                            <div class="h-full bg-gradient-to-r ${batteryColor} rounded-xl relative overflow-hidden transition-all duration-1000 ease-out" style="width: ${pct}%">
-                                <div class="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/40 to-transparent"></div>
-                                <div class="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_8px,rgba(0,0,0,0.1)_8px,rgba(0,0,0,0.1)_16px)] opacity-40"></div>
+                            <div class="flex-1 overflow-hidden">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="font-extrabold text-lg text-slate-900 dark:text-white leading-tight truncate">${g.name}</h4>
+                                    <button onclick="delRec('goals','${g.id}')" class="text-slate-400 hover:text-red-500 bg-slate-50 dark:bg-slate-900 p-2 rounded-full shadow-sm"><i class="ph ph-trash"></i></button>
+                                </div>
+                                <p class="text-2xl font-black text-purple-500 mt-1">${formatMoney(g.currentAmount)}</p>
+                                <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Meta: ${formatMoney(g.targetAmount)}</p>
                             </div>
                         </div>
-                    </div>
-                </div>`;
-            }).join('') || `<div class="col-span-full bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] p-10 text-center border-2 border-dashed border-slate-200 dark:border-slate-700"><i class="ph-fill ph-cloud-moon text-6xl text-slate-300 dark:text-slate-600 mb-4 inline-block"></i><p class="text-slate-500 font-bold">Aún no has registrado ningún sueño.</p></div>`;
+                        <div class="relative z-10 mt-2">
+                            <div class="flex justify-between items-end mb-2">
+                                <span class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest flex items-center gap-1"><i class="ph-fill ph-lightning text-yellow-500 text-sm"></i> Batería de Sueño</span>
+                                <span class="text-sm font-black ${isComplete ? 'text-emerald-500' : 'text-purple-500'}">${pct}%</span>
+                            </div>
+                            <div class="relative w-full h-8 bg-slate-100 dark:bg-slate-900 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-1 flex items-center shadow-inner">
+                                <div class="absolute -right-2 top-1/2 transform -translate-y-1/2 w-2 h-4 bg-slate-200 dark:bg-slate-700 rounded-r-md border-r-2 border-y-2 border-slate-300 dark:border-slate-600"></div>
+                                <div class="h-full bg-gradient-to-r ${batteryColor} rounded-xl relative overflow-hidden transition-all duration-1000 ease-out" style="width: ${pct}%">
+                                    <div class="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/40 to-transparent"></div>
+                                    <div class="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_8px,rgba(0,0,0,0.1)_8px,rgba(0,0,0,0.1)_16px)] opacity-40"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('') || `<div class="col-span-full bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] p-10 text-center border-2 border-dashed border-slate-200 dark:border-slate-700"><i class="ph-fill ph-cloud-moon text-6xl text-slate-300 dark:text-slate-600 mb-4 inline-block"></i><p class="text-slate-500 font-bold">Aún no has registrado ningún sueño.</p></div>`;
+            }
         };
 
         const updateDashboard = () => {
@@ -623,9 +669,10 @@
                 iD.push(state.incomes.filter(x=>{const xd=new Date(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear()}).reduce((s,x)=>s+x.amount,0));
                 eD.push(state.expenses.filter(x=>{const xd=new Date(x.date); return xd.getMonth()===d.getMonth() && xd.getFullYear()===d.getFullYear()}).reduce((s,x)=>s+getMyAmt(x),0));
             }
-            if(window.chartEvol) window.chartEvol.destroy();
+            
             const canvasEvol = D('chart-evolution');
             if(canvasEvol) {
+                if(window.chartEvol) window.chartEvol.destroy();
                 const ctxE = canvasEvol.getContext('2d');
                 const grI = ctxE.createLinearGradient(0,0,0,400); grI.addColorStop(0,'rgba(59,130,246,0.3)'); grI.addColorStop(1,'rgba(59,130,246,0)');
                 const grE = ctxE.createLinearGradient(0,0,0,400); grE.addColorStop(0,'rgba(239,68,68,0.2)'); grE.addColorStop(1,'rgba(239,68,68,0)');
@@ -644,9 +691,9 @@
             const scoreAhorro = Math.min(100, Math.max(0, ((incM - expM) / Math.max(1, incM)) * 300)); 
             const scoreInversion = Math.min(100, (invTotal / Math.max(1, incM*2)) * 100);
 
-            if(window.chartRadar) window.chartRadar.destroy();
             const canvasRadar = D('chart-radar');
             if(canvasRadar) {
+                if(window.chartRadar) window.chartRadar.destroy();
                 const ctxR = canvasRadar.getContext('2d');
                 window.chartRadar = new Chart(ctxR, {
                     type: 'radar',
