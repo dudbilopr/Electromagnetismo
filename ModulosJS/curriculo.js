@@ -7,6 +7,7 @@ import { modulo4 } from './modulo4.js';
 import { modulo5 } from './modulo5.js';
 import { modulo6 } from './modulo6.js';
 import { modulo7 } from './modulo7.js';
+import { modulo8 } from './modulo8.js';
 
 export const curriculoData = {
     "modulos": [
