@@ -12,7 +12,7 @@ export const modulo8 = {
         {
             "id": "m8-l2",
             "tipo": "multipresentacion",
-            "recurso": "./Clase_11_Campo_Magnetico.html|https://docs.google.com/presentation/d/e/ID-DEL-DOCUMENTO-MAGNETISMO/pub?start=true&loop=true&delayms=3000",
+            "recurso": "./clase_8.html|https://docs.google.com/presentation/d/e/ID-DEL-DOCUMENTO-MAGNETISMO/pub?start=true&loop=true&delayms=3000",
             "titulo": "2. Diapositivas de Apoyo (Clase 11)",
             "descripcion": "Material visual de la clase: Líneas de campo, fuerza sobre partículas y conductores, torque en espiras y flujo magnético."
         },
