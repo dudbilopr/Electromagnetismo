@@ -16,6 +16,7 @@ export const curriculoData = {
         modulo4,
         modulo5,
         modulo6,
-        modulo7
+        modulo7,
+        modulo8
     ]
 };
